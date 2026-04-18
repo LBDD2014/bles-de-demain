@@ -1,22 +1,549 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test BDD</title>
-<style>body{background:#3D2B1F;color:#E8D5A3;font-family:-apple-system,sans-serif;text-align:center;padding:40px;min-height:100vh;margin:0}
-h1{font-family:Georgia,serif;color:#C8A96E;font-size:28px}
-#s{font-size:22px;margin-top:30px;padding:20px;border-radius:16px;background:rgba(255,255,255,0.05);border:2px solid rgba(200,169,110,0.3)}
-.ok{color:#4ADE80}.err{color:#F87171}</style></head>
-<body>
-<h1>🌾 Les Blés de Demain</h1>
-<p style="opacity:0.6">Test de connexion Supabase</p>
-<div id="s">⏳ Connexion en cours...</div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-const supa=supabase.createClient('https://utavpdhphdztvrmzyeeo.supabase.co','sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB');
-supa.from('products').select('id',{count:'exact',head:true}).then(r=>{
-const el=document.getElementById('s');
-if(r.error){el.className='err';el.innerHTML='❌ Erreur:<br>'+r.error.message;}
-else{el.className='ok';el.innerHTML='✅ CONNECTÉ !<br><span style="font-size:14px;opacity:0.7">'+r.count+' produits en base</span>';}
-});
-</script>
-</body></html>
 
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Les Blés de Demain — Cloud Test</title>
+<style>
+:root {
+  --wheat: #C8A96E;
+  --wheat-light: #E8D5A3;
+  --wheat-dark: #8B6914;
+  --cream: #FAF6EE;
+  --brown: #3D2B1F;
+  --brown-mid: #6B4226;
+  --green: #4A7C59;
+  --red: #B83232;
+  --blue: #2C5F8A;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--cream); color: var(--brown); min-height: 100vh; }
+
+#splash {
+position: fixed; inset: 0; background: var(–brown);
+display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px;
+}
+.splash-logo {
+width: 72px; height: 72px; background: var(–wheat); border-radius: 18px;
+display: flex; align-items: center; justify-content: center; font-size: 36px;
+margin-bottom: 18px; box-shadow: 0 8px 32px rgba(200,169,110,0.4);
+}
+.splash-title { font-family: Georgia, serif; color: var(–wheat-light); font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.splash-sub { color: var(–wheat); font-size: 13px; opacity: 0.7; margin-bottom: 8px; }
+.splash-cloud {
+background: rgba(74,124,89,0.2); color: #7DD6A0;
+padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+margin-bottom: 32px; border: 1px solid rgba(125,214,160,0.3);
+}
+.splash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 380px; }
+.splash-btn {
+background: rgba(255,255,255,0.07); border: 2px solid rgba(232,213,163,0.2);
+border-radius: 18px; padding: 22px 14px; cursor: pointer; text-align: center;
+color: inherit; font-family: inherit; transition: transform 0.15s;
+}
+.splash-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.14); }
+.splash-btn[disabled] { opacity: 0.4; }
+.splash-icon { font-size: 30px; margin-bottom: 8px; }
+.splash-name { color: var(–wheat-light); font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.splash-role { color: var(–wheat); font-size: 11px; opacity: 0.65; line-height: 1.4; }
+
+#app { display: none; flex-direction: column; min-height: 100vh; }
+.header {
+background: #3D3F52; padding: 8px 14px; display: flex; align-items: center;
+justify-content: space-between; position: sticky; top: 0; z-index: 100;
+box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-icon {
+width: 32px; height: 32px; background: var(–wheat); border-radius: 8px;
+display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.header-title { font-family: Georgia, serif; color: var(–wheat-light); font-size: 14px; font-weight: 700; }
+.header-boutique { color: var(–wheat); font-size: 11px; opacity: 0.8; }
+.change-btn {
+background: rgba(200,169,110,0.2); border: none; border-radius: 8px;
+padding: 8px 14px; color: var(–wheat-light); font-size: 12px; font-weight: 600;
+cursor: pointer; font-family: inherit;
+}
+
+.sync-bar {
+display: flex; align-items: center; justify-content: space-between;
+padding: 8px 16px; background: #2E3044; color: var(–wheat-light); font-size: 11px;
+}
+.sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.sync-dot.ok { background: #4ADE80; box-shadow: 0 0 8px rgba(74,222,128,0.6); }
+.sync-dot.syncing { background: #FBBF24; animation: pulse 1s infinite; }
+.sync-dot.error { background: #F87171; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+.device-id { opacity: 0.5; font-family: ui-monospace, monospace; font-size: 10px; }
+
+.main { flex: 1; padding: 10px 12px 80px; max-width: 700px; margin: 0 auto; width: 100%; }
+
+.info-banner {
+background: white; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
+border-left: 4px solid var(–blue); font-size: 12px; color: var(–brown-mid); line-height: 1.5;
+box-shadow: 0 2px 8px rgba(61,43,31,0.05);
+}
+.info-banner strong { color: var(–brown); }
+
+.section {
+background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(61,43,31,0.08);
+margin-bottom: 10px; overflow: hidden;
+}
+.section-header {
+padding: 11px 14px; border-bottom: 1px solid #F0EAE0;
+font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(–brown);
+}
+.col-header {
+display: grid; grid-template-columns: 1fr 80px 90px; padding: 6px 14px;
+background: #F5F0E5; gap: 6px;
+}
+.col-lbl { font-size: 10px; font-weight: 700; color: var(–brown-mid); text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+.col-lbl:first-child { text-align: left; }
+.col-lbl.cmd { color: var(–wheat-dark); }
+.produit-row {
+display: grid; grid-template-columns: 1fr 80px 90px; align-items: center;
+padding: 8px 14px; border-bottom: 1px solid #F5F0E8; gap: 6px;
+}
+.produit-row:last-child { border-bottom: none; }
+.produit-name { font-size: 13px; font-weight: 500; color: var(–brown); line-height: 1.3; }
+.produit-unit { font-size: 10px; color: var(–wheat-dark); }
+.qty-input {
+width: 100%; padding: 10px 6px; border: 2px solid #E0D8C8; border-radius: 8px;
+font-size: 16px; font-weight: 700; text-align: center; color: var(–brown);
+background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-input.cmd { border-color: rgba(200,169,110,0.3); background: #FEFBF4; }
+.qty-input:focus { outline: none; border-color: var(–wheat); background: white; }
+.qty-input.has-value { background: #FFFCF2; border-color: var(–wheat); color: var(–wheat-dark); }
+.qty-input.has-value.cmd { background: #FBF0D5; }
+.qty-input.just-updated { animation: flash 1s; }
+@keyframes flash {
+0%, 100% { background: #FFFCF2; }
+30% { background: #D6E8F5; border-color: var(–blue); }
+}
+
+.loading { text-align: center; padding: 40px 20px; color: var(–brown-mid); font-size: 13px; }
+.loading::before { content: ‘⏳’; display: block; font-size: 32px; margin-bottom: 8px; }
+
+.error-box {
+background: #FEF2F2; border: 2px solid var(–red); border-radius: 12px;
+padding: 16px; margin: 20px 12px; color: var(–red); font-size: 13px;
+}
+.error-box h3 { margin-bottom: 8px; font-family: Georgia, serif; }
+.error-box ul { margin-top: 8px; padding-left: 20px; }
+.error-box pre {
+margin-top: 10px; padding: 10px; background: white; border-radius: 6px;
+font-size: 11px; overflow-x: auto; color: var(–brown); white-space: pre-wrap; word-break: break-word;
+}
+
+.toast {
+position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+background: var(–brown); color: var(–wheat-light); padding: 12px 20px;
+border-radius: 12px; font-size: 13px; font-weight: 600; z-index: 300;
+opacity: 0; transition: all 0.3s; box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+max-width: 90vw; text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.sync { background: var(–blue); }
+.toast.error { background: var(–red); }
+
+.empty-state {
+text-align: center; padding: 40px 20px; color: var(–brown-mid);
+background: white; border-radius: 12px; margin-top: 10px;
+}
+</style>
+
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-logo">🌾</div>
+  <div class="splash-title">Les Blés de Demain</div>
+  <div class="splash-sub">Cloud Test — Phase 1</div>
+  <div class="splash-cloud">☁️ Synchronisation Supabase</div>
+  <div class="splash-grid">
+    <button class="splash-btn" onclick="enterBoutique('veigne')">
+      <div class="splash-icon">🏪</div>
+      <div class="splash-name">Veigné</div>
+      <div class="splash-role">Viennoiserie · Brioches · Bases · Ingrédients</div>
+    </button>
+    <button class="splash-btn" onclick="enterBoutique('tours')">
+      <div class="splash-icon">🏪</div>
+      <div class="splash-name">Tours</div>
+      <div class="splash-role">Tout sauf pains</div>
+    </button>
+    <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
+      <div class="splash-icon">🏪</div>
+      <div class="splash-name">St-Avertin</div>
+      <div class="splash-role">Pâtisserie petits · Brioches</div>
+    </button>
+    <button class="splash-btn" disabled>
+      <div class="splash-icon">🏭</div>
+      <div class="splash-name">Le Local</div>
+      <div class="splash-role">Pas de réassort</div>
+    </button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">🌾</div>
+      <div>
+        <div class="header-title">Les Blés de Demain</div>
+        <div class="header-boutique" id="header-boutique"></div>
+      </div>
+    </div>
+    <button class="change-btn" onclick="goSplash()">⇄ Changer</button>
+  </div>
+  <div class="sync-bar">
+    <span><span class="sync-dot ok" id="sync-dot"></span><span id="sync-text">Connecté</span></span>
+    <span class="device-id" id="device-id-label"></span>
+  </div>
+  <div class="main" id="main-content">
+    <div class="loading">Chargement des produits...</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ⚠️ Si erreur de connexion : vérifie que SUPABASE_URL
+//    correspond à ton Project URL dans Supabase > Settings > API
+// ============================================================
+const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
+const TENANT_ID    = '00000000-0000-0000-0000-000000000001';
+
+// ID unique de cet appareil/onglet pour éviter les boucles de sync
+const DEVICE_ID = 'dev_' + Math.random().toString(36).substring(2, 8);
+
+// Catégories de réassort par boutique (copie 1:1 de ton index.html actuel)
+const REAPPRO_CATS = {
+  'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
+  'tours':         ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'ingredients'],
+  'saint-avertin': ['patisserie_petits', 'brioches_special']
+};
+
+const CAT_LABELS = {
+  'viennoiserie':      '🥐 Viennoiserie',
+  'brioches_special':  '🍞 Brioches',
+  'patisserie_petits': '🍰 Petits Gâteaux',
+  'patisserie_gros':   '🎂 Gros Gâteaux',
+  'sec_traiteur':      '🍪 Sec & Traiteur',
+  'bases_patisserie':  '🧁 Bases Pâtisserie',
+  'ingredients':       '🌾 Ingrédients'
+};
+
+const BOUTIQUE_NAMES = {
+  'veigne': 'Veigné',
+  'tours': 'Tours',
+  'saint-avertin': 'St-Avertin',
+  'local': 'Le Local'
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let supa;
+let currentBoutique = null;
+let products = [];
+let reapprosData = {};
+let realtimeChannel = null;
+let updateTimers = {};
+
+// ============================================================
+// INIT
+// ============================================================
+try {
+  supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  document.getElementById('device-id-label').textContent = DEVICE_ID;
+  console.log('Supabase OK, device =', DEVICE_ID);
+  loadProducts();
+} catch (err) {
+  showInitError(err);
+}
+
+async function loadProducts() {
+  try {
+    const { data, error } = await supa
+      .from('products')
+      .select('*')
+      .eq('tenant_id', TENANT_ID)
+      .eq('actif', true)
+      .order('category', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    products = data || [];
+    console.log(products.length + ' produits chargés.');
+    if (products.length === 0) {
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      document.getElementById('main-content').innerHTML =
+        '<div class="error-box"><h3>⚠️ Aucun produit</h3>La table products est vide. As-tu bien exécuté les deux parties SQL ?</div>';
+    }
+  } catch (err) {
+    showInitError(err);
+  }
+}
+
+function showInitError(err) {
+  document.getElementById('splash').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const msg = err && err.message ? err.message : String(err);
+  document.getElementById('main-content').innerHTML =
+    '<div class="error-box">' +
+      '<h3>⚠️ Erreur de connexion Supabase</h3>' +
+      '<div>Impossible de se connecter. Vérifie :</div>' +
+      '<ul>' +
+        '<li>L\'URL Supabase en haut du fichier (SUPABASE_URL)</li>' +
+        '<li>La clé publishable (SUPABASE_KEY)</li>' +
+        '<li>Que les tables et données ont bien été créées</li>' +
+      '</ul>' +
+      '<pre>' + escapeHtml(msg) + '</pre>' +
+
+```
+'</div>';
+```
+
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+async function enterBoutique(b) {
+currentBoutique = b;
+document.getElementById(‘splash’).style.display = ‘none’;
+document.getElementById(‘app’).style.display = ‘flex’;
+document.getElementById(‘header-boutique’).textContent = BOUTIQUE_NAMES[b] || b;
+document.getElementById(‘main-content’).innerHTML = ‘<div class="loading">Chargement des données…</div>’;
+
+await loadReappros(b);
+subscribeRealtime(b);
+renderReappro();
+}
+
+function goSplash() {
+if (realtimeChannel) {
+supa.removeChannel(realtimeChannel);
+realtimeChannel = null;
+}
+currentBoutique = null;
+reapprosData = {};
+document.getElementById(‘splash’).style.display = ‘flex’;
+document.getElementById(‘app’).style.display = ‘none’;
+}
+
+// ============================================================
+// DATA
+// ============================================================
+async function loadReappros(b) {
+const { data, error } = await supa
+.from(‘reappros’)
+.select(’*’)
+.eq(‘tenant_id’, TENANT_ID)
+.eq(‘boutique_id’, b);
+
+if (error) {
+showToast(’❌ Erreur chargement: ’ + error.message, ‘error’);
+return;
+}
+reapprosData = {};
+(data || []).forEach(function(r) {
+reapprosData[r.product_id] = {
+avoir: r.avoir || ‘’,
+commander: r.commander || ‘’
+};
+});
+console.log(Object.keys(reapprosData).length + ’ réassros chargés pour ’ + b);
+}
+
+async function upsertReappro(pid) {
+setSyncStatus(‘syncing’);
+const d = reapprosData[pid] || {};
+const { error } = await supa.from(‘reappros’).upsert({
+tenant_id: TENANT_ID,
+boutique_id: currentBoutique,
+product_id: pid,
+avoir: d.avoir || null,
+commander: d.commander || null,
+updated_by: DEVICE_ID,
+updated_at: new Date().toISOString()
+}, { onConflict: ‘tenant_id,boutique_id,product_id’ });
+
+if (error) {
+console.error(error);
+setSyncStatus(‘error’);
+showToast(’❌ ’ + error.message, ‘error’);
+} else {
+setSyncStatus(‘ok’);
+}
+}
+
+// ============================================================
+// REALTIME — c’est la magie de la Phase 1
+// ============================================================
+function subscribeRealtime(b) {
+if (realtimeChannel) supa.removeChannel(realtimeChannel);
+
+realtimeChannel = supa
+.channel(‘reappros_’ + b)
+.on(‘postgres_changes’, {
+event: ‘*’,
+schema: ‘public’,
+table: ‘reappros’,
+filter: ‘boutique_id=eq.’ + b
+}, function(payload) {
+const r = payload.new;
+if (!r) return;
+
+```
+  // Ignore si c'est moi qui ai fait l'update
+  if (r.updated_by === DEVICE_ID) return;
+
+  console.log('📡 Update reçu d\'un autre appareil:', r.product_id);
+  reapprosData[r.product_id] = {
+    avoir: r.avoir || '',
+    commander: r.commander || ''
+  };
+  updateInputValue(r.product_id, 'avoir', r.avoir);
+  updateInputValue(r.product_id, 'commander', r.commander);
+  showToast('📡 MAJ d\'un autre appareil', 'sync');
+})
+.subscribe(function(status) {
+  console.log('Realtime status:', status);
+});
+```
+
+}
+
+function updateInputValue(pid, field, val) {
+const input = document.querySelector(’[data-pid=”’ + pid + ‘”][data-field=”’ + field + ‘”]’);
+if (!input) return;
+if (document.activeElement === input) return;
+input.value = val || ‘’;
+input.classList.toggle(‘has-value’, !!val);
+// Animation flash pour signaler la MAJ
+input.classList.remove(‘just-updated’);
+void input.offsetWidth;
+input.classList.add(‘just-updated’);
+}
+
+// ============================================================
+// UI
+// ============================================================
+function renderReappro() {
+const cats = REAPPRO_CATS[currentBoutique] || [];
+const mc = document.getElementById(‘main-content’);
+
+if (!cats.length) {
+mc.innerHTML = ‘<div class="empty-state">Aucune catégorie de réassort pour cette boutique.</div>’;
+return;
+}
+
+let html =
+‘<div class="info-banner">’ +
+‘<strong>📡 Mode cloud actif</strong><br>’ +
+’Modifie une valeur ici. Ouvre ce même lien dans un autre onglet Safari ’ +
+‘(ou sur un autre appareil) sur la même boutique — les valeurs se synchronisent live.’ +
+‘</div>’;
+
+cats.forEach(function(cat) {
+const prods = products.filter(function(p) { return p.category === cat; });
+if (!prods.length) return;
+
+```
+html +=
+  '<div class="section">' +
+    '<div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>' +
+    '<div class="col-header">' +
+      '<span class="col-lbl">Produit</span>' +
+      '<span class="col-lbl">J\'ai</span>' +
+      '<span class="col-lbl cmd">Je commande</span>' +
+    '</div>';
+
+prods.forEach(function(p) {
+  const val = reapprosData[p.id] || { avoir: '', commander: '' };
+  const a = val.avoir || '';
+  const c = val.commander || '';
+  html +=
+    '<div class="produit-row">' +
+      '<div>' +
+        '<div class="produit-name">' + escapeHtml(p.name) + '</div>' +
+        '<div class="produit-unit">' + escapeHtml(p.unit || '') + '</div>' +
+      '</div>' +
+      '<input type="text" inputmode="decimal" ' +
+        'class="qty-input ' + (a ? 'has-value' : '') + '" ' +
+        'data-pid="' + p.id + '" data-field="avoir" ' +
+        'value="' + escapeHtml(a) + '" placeholder="—" ' +
+        'oninput="handleInput(this)" onfocus="this.select()">' +
+      '<input type="text" inputmode="decimal" ' +
+        'class="qty-input cmd ' + (c ? 'has-value' : '') + '" ' +
+        'data-pid="' + p.id + '" data-field="commander" ' +
+        'value="' + escapeHtml(c) + '" placeholder="—" ' +
+        'oninput="handleInput(this)" onfocus="this.select()">' +
+    '</div>';
+});
+html += '</div>';
+```
+
+});
+
+mc.innerHTML = html;
+}
+
+function handleInput(el) {
+const pid = el.dataset.pid;
+const field = el.dataset.field;
+const val = el.value;
+
+if (!reapprosData[pid]) reapprosData[pid] = { avoir: ‘’, commander: ‘’ };
+reapprosData[pid][field] = val;
+el.classList.toggle(‘has-value’, !!val);
+
+// Debounce 400ms pour pas spammer Supabase pendant la frappe
+clearTimeout(updateTimers[pid]);
+updateTimers[pid] = setTimeout(function() { upsertReappro(pid); }, 400);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setSyncStatus(s) {
+const dot = document.getElementById(‘sync-dot’);
+const text = document.getElementById(‘sync-text’);
+dot.className = ’sync-dot ’ + s;
+if (s === ‘syncing’) text.textContent = ‘Synchronisation…’;
+else if (s === ‘ok’) text.textContent = ‘Synchronisé ✓’;
+else if (s === ‘error’) text.textContent = ‘Erreur’;
+}
+
+let toastTimer;
+function showToast(msg, type) {
+const t = document.getElementById(‘toast’);
+t.textContent = msg;
+t.className = ‘toast’ + (type ? ’ ’ + type : ‘’);
+setTimeout(function() { t.classList.add(‘show’); }, 10);
+clearTimeout(toastTimer);
+toastTimer = setTimeout(function() { t.classList.remove(‘show’); }, 2500);
+}
+
+function escapeHtml(s) {
+if (s == null) return ‘’;
+return String(s).replace(/[&<>”’]/g, function(c) {
+return ({’&’:’&’,’<’:’<’,’>’:’>’,’”’:’"’,”’”:’'’})[c];
+});
+}
+</script>
+
+</body>
+</html>
