@@ -1,1 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test BDD</title>
+<style>body{background:#3D2B1F;color:#E8D5A3;font-family:-apple-system,sans-serif;text-align:center;padding:40px;min-height:100vh;margin:0}
+h1{font-family:Georgia,serif;color:#C8A96E;font-size:28px}
+#s{font-size:22px;margin-top:30px;padding:20px;border-radius:16px;background:rgba(255,255,255,0.05);border:2px solid rgba(200,169,110,0.3)}
+.ok{color:#4ADE80}.err{color:#F87171}</style></head>
+<body>
+<h1>🌾 Les Blés de Demain</h1>
+<p style="opacity:0.6">Test de connexion Supabase</p>
+<div id="s">⏳ Connexion en cours...</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const supa=supabase.createClient('https://utavpdhphdztvrmzyeeo.supabase.co','sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB');
+supa.from('products').select('id',{count:'exact',head:true}).then(r=>{
+const el=document.getElementById('s');
+if(r.error){el.className='err';el.innerHTML='❌ Erreur:<br>'+r.error.message;}
+else{el.className='ok';el.innerHTML='✅ CONNECTÉ !<br><span style="font-size:14px;opacity:0.7">'+r.count+' produits en base</span>';}
+});
+</script>
+</body></html>
 
