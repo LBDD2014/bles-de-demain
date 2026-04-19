@@ -272,11 +272,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
     </button>
     <button class="splash-btn" onclick="enterBoutique('tours')">
       <div class="splash-name">Tours</div>
-      <div class="splash-role">Reappro</div>
+      <div class="splash-role">Reappro - Ventes</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
       <div class="splash-name">St-Avertin</div>
-      <div class="splash-role">Reappro</div>
+      <div class="splash-role">Reappro - Ventes</div>
     </button>
     <button class="splash-btn" disabled>
       <div class="splash-name">Le Local</div>
@@ -336,7 +336,7 @@ const REAPPRO_CATS = {
   'saint-avertin': ['patisserie_petits', 'brioches_special']
 };
 
-const VENTES_BOUTIQUES = ['veigne'];
+const VENTES_BOUTIQUES = ['veigne', 'tours', 'saint-avertin'];
 const HEURES_RUPTURE = ['9h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h'];
 
 const CAT_LABELS = {
@@ -361,8 +361,14 @@ const NAV_ITEMS = {
     { id: 'reappro', lbl: 'Reappro' },
     { id: 'ventes',  lbl: 'Ventes' }
   ],
-  'tours':         [{ id: 'reappro', lbl: 'Reappro' }],
-  'saint-avertin': [{ id: 'reappro', lbl: 'Reappro' }]
+  'tours': [
+    { id: 'reappro', lbl: 'Reappro' },
+    { id: 'ventes',  lbl: 'Ventes' }
+  ],
+  'saint-avertin': [
+    { id: 'reappro', lbl: 'Reappro' },
+    { id: 'ventes',  lbl: 'Ventes' }
+  ]
 };
 
 let supa, currentBoutique = null, currentVue = 'reappro';
