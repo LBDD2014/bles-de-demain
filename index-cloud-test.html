@@ -1936,11 +1936,16 @@ function handleProductionInput(el) {
   const ecartEl = document.getElementById('ecart_' + pid);
   if (ecartEl) {
     const cmd = parseQty(ecartEl.dataset.cmd);
-    const prod = parseQty(val);
-    if (field === 'produit') {
-      const e = prod - cmd;
-      ecartEl.textContent = e === 0 ? '0' : (e > 0 ? '+' + formatQty(e) : formatQty(e));
-      ecartEl.className = 'ecart-badge ' + (cmd === 0 && prod === 0 ? 'zero' : (e >= 0 ? 'ok' : 'bad'));
+    const p = parseQty(productionLocalData[pid].produit);
+    const s = parseQty(productionLocalData[pid].stock);
+    const dispo = p + s;
+    if (p === 0 && s === 0 && cmd === 0) {
+      ecartEl.innerHTML = '<span class="ecart-badge zero">-</span>';
+    } else {
+      const e = dispo - cmd;
+      const eTxt = e === 0 ? '0' : (e > 0 ? '+' + formatQty(e) : formatQty(e));
+      const eCls = e >= 0 ? 'ok' : 'bad';
+      ecartEl.innerHTML = '<span class="ecart-badge ' + eCls + '">' + eTxt + '</span>';
     }
   }
   clearTimeout(updateTimers['pl_' + pid]);
@@ -1998,7 +2003,8 @@ function renderProduction() {
   const volumeTotal = rows.reduce(function(s, r) { return s + r.total; }, 0);
   const volumeProduit = rows.reduce(function(s, r) { return s + (r.produitVal || 0); }, 0);
   const nbManque = rows.filter(function(r) {
-    return r.total > 0 && (r.produitVal == null || r.produitVal < r.total);
+    const dispo = (r.produitVal || 0) + (r.stockVal || 0);
+    return r.total > 0 && dispo < r.total;
   }).length;
 
   let html = '<div class="date-bar">'
@@ -2069,15 +2075,17 @@ function renderProduction() {
     const catLabel = (CAT_LABELS[cat] || cat) + (isReportable ? ' <span style="font-size:10px;color:var(--gold);font-weight:700">(reportable)</span>' : '');
     html += '<div class="prod-cat-title">' + catLabel + '</div>';
     byCat[cat].forEach(function(r) {
-      // Calcul ecart : produit - commande
+      // Ecart = (Produit + Stock) - Cmd
+      const p = r.produitVal || 0;
+      const s = r.stockVal || 0;
+      const dispo = p + s;
       let ecartHtml;
-      if (r.produitVal == null && r.total === 0) {
+      if (p === 0 && s === 0 && r.total === 0) {
         ecartHtml = '<span class="ecart-badge zero">-</span>';
       } else {
-        const p = r.produitVal || 0;
-        const e = p - r.total;
+        const e = dispo - r.total;
         const eTxt = e === 0 ? '0' : (e > 0 ? '+' + formatQty(e) : formatQty(e));
-        const eCls = (r.total === 0 && p === 0) ? 'zero' : (e >= 0 ? 'ok' : 'bad');
+        const eCls = e >= 0 ? 'ok' : 'bad';
         ecartHtml = '<span class="ecart-badge ' + eCls + '">' + eTxt + '</span>';
       }
       const prodCls = r.produitRaw ? 'has-prod' : '';
