@@ -99,7 +99,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .info-banner strong { color: var(--brown); }
 
-/* === DATE BAR (Reappro + Production) === */
 .date-bar {
   display: flex; align-items: center; gap: 10px;
   background: white; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
@@ -137,7 +136,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .btn-gold:active { transform: scale(0.98); }
 
-/* === PRODUCTION (Le Local) === */
 .prod-filter-bar {
   display: flex; align-items: center; gap: 10px;
   background: white; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
@@ -205,7 +203,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(--brown);
 }
 
-/* === REAPPRO === */
 .col-header {
   display: grid; grid-template-columns: 1fr 80px 90px; padding: 6px 14px;
   background: #F5F0E5; gap: 6px;
@@ -237,7 +234,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   30% { background: #D6E8F5; border-color: var(--blue); }
 }
 
-/* === VENTES === */
 .ventes-col-header {
   display: grid; grid-template-columns: 1fr 48px 48px 48px 48px 56px 44px;
   padding: 6px 10px; background: #F5F0E5; gap: 3px;
@@ -295,7 +291,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   cursor: pointer; font-family: inherit;
 }
 
-/* === MODAL RUPTURE === */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500;
   display: none; align-items: center; justify-content: center; padding: 20px;
@@ -353,7 +348,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   background: white; border-radius: 12px; margin-top: 10px;
 }
 
-/* === RECAP === */
 .recap-week-bar {
   background: var(--gold); color: white; border-radius: 12px;
   padding: 10px 14px; margin-bottom: 10px;
@@ -449,10 +443,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .top-rank.r3 { background: #8B7D5A; }
 .top-name { font-size: 12px; color: var(--brown); font-weight: 500; }
 .top-val { text-align: right; font-weight: 800; color: var(--blue); font-family: Georgia, serif; }
-/* === LIVRAISON === */
-.tour-switch {
-  display: flex; gap: 6px; margin-bottom: 10px;
-}
+
+.tour-switch { display: flex; gap: 6px; margin-bottom: 10px; }
 .tour-btn {
   flex: 1; padding: 10px 6px; border: 2px solid #E0D8C8; border-radius: 10px;
   background: white; font-size: 12px; font-weight: 700; color: var(--brown-mid);
@@ -461,9 +453,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .tour-btn.active { background: var(--gold); color: white; border-color: var(--gold); }
 .tour-btn:active { transform: scale(0.96); }
 
-.tour-toolbar {
-  display: flex; gap: 8px; margin-bottom: 10px;
-}
+.tour-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
 .tour-action {
   flex: 1; padding: 10px; border: none; border-radius: 10px;
   background: white; color: var(--brown); font-size: 12px; font-weight: 700;
@@ -495,9 +485,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   color: var(--brown); line-height: 1.2;
 }
 .stop-card.delivered .stop-name { text-decoration: line-through; color: var(--brown-mid); }
-.stop-meta {
-  font-size: 11px; color: var(--brown-mid); margin-top: 3px;
-}
+.stop-meta { font-size: 11px; color: var(--brown-mid); margin-top: 3px; }
 .stop-meta .tag {
   display: inline-block; padding: 2px 7px; border-radius: 4px;
   background: #F5F0E5; margin-right: 4px;
@@ -511,9 +499,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   cursor: pointer; padding: 0; font-size: 22px; line-height: 1;
   color: transparent; transition: all 0.2s; font-family: inherit;
 }
-.stop-check.checked {
-  background: var(--green); border-color: var(--green); color: white;
-}
+.stop-check.checked { background: var(--green); border-color: var(--green); color: white; }
 .stop-check:active { transform: scale(0.92); }
 
 .stop-actions {
@@ -531,7 +517,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .stop-card.livreur-mode { grid-template-columns: 40px 1fr 50px; }
 .stop-card.livreur-mode .stop-actions { display: none; }
 
-/* Modal ajout arret */
 .add-stop-form { display: flex; flex-direction: column; gap: 10px; }
 .add-stop-form label { font-size: 11px; color: var(--brown-mid); font-weight: 700; }
 .add-stop-form input, .add-stop-form select, .add-stop-form textarea {
@@ -543,7 +528,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   outline: none; border-color: var(--gold); background: white;
 }
 .add-stop-form textarea { resize: none; min-height: 60px; }
-
 </style>
 </head>
 <body>
@@ -601,7 +585,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
-<!-- Modal heure de rupture -->
 <div class="modal-overlay" id="rupture-modal">
   <div class="modal">
     <div class="modal-title">Heure de rupture</div>
@@ -614,7 +597,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   </div>
 </div>
 
-<!-- Modal ajout arret livraison -->
 <div class="modal-overlay" id="add-stop-modal">
   <div class="modal">
     <div class="modal-title" id="add-stop-title">Ajouter un arret</div>
@@ -643,6 +625,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
@@ -707,21 +690,19 @@ let updateTimers = {}, currentDate = todayISO();
 let rupturePid = null;
 let currentReapproDate = serviceDateISO();
 
-// Recap state
-let recapWeekData = {}; // { 'YYYY-MM-DD': [ {product_id, matin, aprem, reste}, ... ] }
+let recapWeekData = {};
 let currentWeekStart = mondayOfWeek(todayISO());
-let recapMode = 'global'; // 'global' ou 'category'
+let recapMode = 'global';
 let recapCategory = 'all';
 
-// Livraison state
-let deliveriesData = []; // tous les arrets de la date courante toutes tournees
-let currentTour = 'matin'; // 'matin', 'aprem', 'autre'
+let deliveriesData = [];
+let currentTour = 'matin';
 let realtimeChannelDeliveries = null;
-let isLivreurMode = false; // true quand on est sur la boutique 'livreur'
-let isLocalMode = false; // true quand on est sur la boutique 'local'
-let productionData = {}; // { boutique_id: { product_id: {avoir, commander} } }
+let isLivreurMode = false;
+let isLocalMode = false;
+let productionData = {};
 let realtimeChannelProduction = null;
-let productionFilterEmpty = true; // cacher les produits sans commandes par defaut
+let productionFilterEmpty = true;
 let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
 
 const DEFAULT_STOPS = [
@@ -734,12 +715,9 @@ function todayISO() {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-// Date de service : avant 2h du matin, on est encore "hier"
 function serviceDateISO() {
   const d = new Date();
-  if (d.getHours() < 2) {
-    d.setDate(d.getDate() - 1);
-  }
+  if (d.getHours() < 2) { d.setDate(d.getDate() - 1); }
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
@@ -750,7 +728,7 @@ function formatDateFr(iso) {
 
 function mondayOfWeek(iso) {
   const d = new Date(iso + 'T12:00');
-  const day = d.getDay(); // 0=dimanche, 1=lundi, ..., 6=samedi
+  const day = d.getDay();
   const diff = (day === 0 ? -6 : 1 - day);
   d.setDate(d.getDate() + diff);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -799,8 +777,6 @@ async function loadProducts() {
       .order('category', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     products = data || [];
-    // Pour le module Ventes : filtre sur usage='ventes' ou 'both'
-    // Pour le module Reappro : filtre sur usage='reappro' ou 'both'
   } catch (err) { showInitError(err); }
 }
 
@@ -964,7 +940,6 @@ function subscribeRealtimeReappro(b) {
       function(payload) {
         const r = payload.new;
         if (!r || r.updated_by === DEVICE_ID) return;
-        // Ne prendre en compte que les changements sur la date en cours
         if (r.service_date !== currentReapproDate) return;
         reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
         updateReapproInput(r.product_id, 'avoir', r.avoir);
@@ -993,12 +968,12 @@ function renderReappro() {
   }).length;
   const isToday = (currentReapproDate === serviceDateISO());
   let html = '<div class="date-bar">'
-    + '<button class="date-nav" onclick="changeReapproDate(-1)">&larr;</button>'
+    + '<button class="date-nav" onclick="changeReapproDate(-1)">&#8592;</button>'
     + '<div class="date-title">Commande du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
     + '<div class="date-sub">' + nbLignes + ' produit' + (nbLignes > 1 ? 's' : '') + ' saisi' + (nbLignes > 1 ? 's' : '') + '</div>'
     + '</div>'
-    + '<button class="date-nav" onclick="changeReapproDate(1)">&rarr;</button>'
+    + '<button class="date-nav" onclick="changeReapproDate(1)">&#8594;</button>'
     + '</div>';
   if (nbLignes === 0) {
     html += '<div class="copy-prev-box">'
@@ -1157,7 +1132,6 @@ function renderVentes() {
     mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active.</div>'; return;
   }
   const ventesProducts = getProductsForVentes();
-  // Categories presentes dans les produits ventes, dans l'ordre logique
   const ORDER = ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'traiteur', 'gateaux_secs'];
   const presentCats = ORDER.filter(function(c) {
     return ventesProducts.some(function(p) { return p.category === c; });
@@ -1178,7 +1152,6 @@ function renderVentes() {
 
   presentCats.forEach(function(cat) {
     const ps = ventesProducts.filter(function(p) {
-      // Respecter restriction boutique si presente
       if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
       return p.category === cat;
     });
@@ -1259,7 +1232,6 @@ function calcDayStats(dayISO) {
   let totalVendu = 0, totalProduit = 0, totalReste = 0;
   let productsMap = {};
   rows.forEach(function(r) {
-    // Filtre par categorie si mode category
     if (recapMode === 'category' && recapCategory !== 'all') {
       const p = products.find(function(x) { return x.id === r.product_id; });
       if (!p || p.category !== recapCategory) return;
@@ -1284,7 +1256,6 @@ function calcWeekStats() {
   let dayWithRupture = new Set();
   let productsSold = {};
   let productsLost = {};
-
   days.forEach(function(d) {
     const rows = recapWeekData[d] || [];
     rows.forEach(function(r) {
@@ -1317,21 +1288,9 @@ function calcWeekStats() {
   };
 }
 
-function changeWeek(delta) {
-  currentWeekStart = addDays(currentWeekStart, delta * 7);
-  setVue('recap');
-}
-
-function setRecapMode(mode) {
-  recapMode = mode;
-  if (mode === 'global') recapCategory = 'all';
-  renderRecap();
-}
-
-function setRecapCategory(cat) {
-  recapCategory = cat;
-  renderRecap();
-}
+function changeWeek(delta) { currentWeekStart = addDays(currentWeekStart, delta * 7); setVue('recap'); }
+function setRecapMode(mode) { recapMode = mode; if (mode === 'global') recapCategory = 'all'; renderRecap(); }
+function setRecapCategory(cat) { recapCategory = cat; renderRecap(); }
 
 function pctClass(p) {
   if (p === null || p === undefined) return 'zero';
@@ -1346,9 +1305,7 @@ function renderBarChart(days, values, maxVal) {
   const barGap = (chartW - BARW * 7) / 6;
   const max = Math.max(maxVal, 1);
   let svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
-  // Axes
   svg += '<line x1="' + PAD + '" y1="' + (H-22) + '" x2="' + (W-PAD) + '" y2="' + (H-22) + '" stroke="#E0D8C8" stroke-width="1"/>';
-  // Barres
   days.forEach(function(d, i) {
     const v = values[i] || 0;
     const h = v === 0 ? 2 : ((H - 40) * v / max);
@@ -1370,18 +1327,15 @@ function renderLineChart(days, values) {
   const W = 320, H = 160, PAD = 28;
   const chartW = W - PAD * 2;
   const stepX = chartW / 6;
-  const max = 30; // echelle fixe jusqu'a 30% pour lisibilite
+  const max = 30;
   let svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
-  // Zones de couleur (0-10% vert, 10-20% orange, 20-30% rouge)
   const y0 = H - 22, h10 = (H-40) * 10/max, h20 = (H-40) * 20/max;
   svg += '<rect x="' + PAD + '" y="' + (y0-h10) + '" width="' + chartW + '" height="' + h10 + '" fill="#EEF7F2" opacity="0.5"/>';
   svg += '<rect x="' + PAD + '" y="' + (y0-h20) + '" width="' + chartW + '" height="' + (h20-h10) + '" fill="#FEF3EC" opacity="0.5"/>';
   svg += '<rect x="' + PAD + '" y="18" width="' + chartW + '" height="' + (y0-h20-18) + '" fill="#FEF2F2" opacity="0.5"/>';
-  // Axes Y labels
   svg += '<text x="' + (PAD-4) + '" y="' + (y0+3) + '" text-anchor="end" fill="#6B4226" font-size="9">0%</text>';
   svg += '<text x="' + (PAD-4) + '" y="' + (y0-h10+3) + '" text-anchor="end" fill="#6B4226" font-size="9">10%</text>';
   svg += '<text x="' + (PAD-4) + '" y="' + (y0-h20+3) + '" text-anchor="end" fill="#6B4226" font-size="9">20%</text>';
-  // Ligne
   let pts = [];
   let validPts = [];
   days.forEach(function(d, i) {
@@ -1397,13 +1351,11 @@ function renderLineChart(days, values) {
   if (pts.length > 1) {
     svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#474950" stroke-width="2"/>';
   }
-  // Points
   validPts.forEach(function(p) {
     const color = p.v > 20 ? '#B83232' : p.v > 10 ? '#D4701A' : '#4A7C59';
     svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="5" fill="' + color + '" stroke="white" stroke-width="2"/>';
     svg += '<text x="' + p.x + '" y="' + (p.y - 10) + '" text-anchor="middle" fill="' + color + '" font-size="10" font-weight="700">' + p.v + '%</text>';
   });
-  // Labels jours
   days.forEach(function(d, i) {
     const x = PAD + i * stepX;
     svg += '<text x="' + x + '" y="' + (H - 6) + '" text-anchor="middle" fill="#6B4226" font-size="10">' + formatDayShort(d).split(' ')[0] + '</text>';
@@ -1424,13 +1376,11 @@ function renderRecap() {
     + '<button class="recap-week-btn" onclick="changeWeek(1)">&gt;</button>'
     + '</div>';
 
-  // Toggle Global / Par categorie
   html += '<div class="recap-toggle">'
     + '<button class="recap-toggle-btn ' + (recapMode === 'global' ? 'active' : '') + '" onclick="setRecapMode(\'global\')">Vue globale</button>'
     + '<button class="recap-toggle-btn ' + (recapMode === 'category' ? 'active' : '') + '" onclick="setRecapMode(\'category\')">Par categorie</button>'
     + '</div>';
 
-  // Selecteur de categorie si mode category
   if (recapMode === 'category') {
     const ventesCats = [];
     const ORDER = ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'traiteur', 'gateaux_secs'];
@@ -1447,7 +1397,6 @@ function renderRecap() {
     html += '</div>';
   }
 
-  // KPIs
   const perteCls = pctClass(weekStats.pertePct);
   html += '<div class="kpi-grid">'
     + '<div class="kpi blue"><div class="kpi-val">' + weekStats.vendu + '</div><div class="kpi-lbl">Vendu</div></div>'
@@ -1455,7 +1404,6 @@ function renderRecap() {
     + '<div class="kpi ' + (weekStats.daysWithRupture > 0 ? 'warn' : '') + '"><div class="kpi-val">' + weekStats.daysWithRupture + '</div><div class="kpi-lbl">Jours rupture</div></div>'
     + '</div>';
 
-  // Tableau des 7 jours
   const venduParJour = [];
   const pertePctParJour = [];
   html += '<div class="section"><div class="section-header">Detail par jour</div>';
@@ -1482,21 +1430,17 @@ function renderRecap() {
     + '</tr>';
   html += '</tbody></table></div>';
 
-  // Graphique en barres - vendu par jour
   if (weekStats.vendu > 0) {
     html += '<div class="chart-container">'
       + '<div class="chart-title">Ventes par jour</div>'
       + renderBarChart(days, venduParJour, Math.max.apply(null, venduParJour))
       + '</div>';
-
-    // Graphique en ligne - perte par jour
     html += '<div class="chart-container">'
       + '<div class="chart-title">% Perte par jour</div>'
       + renderLineChart(days, pertePctParJour)
       + '</div>';
   }
 
-  // Top 5 ventes
   const soldArr = Object.keys(weekStats.productsSold)
     .map(function(pid) { return { pid: pid, v: weekStats.productsSold[pid] }; })
     .filter(function(x) { return x.v > 0; })
@@ -1514,7 +1458,6 @@ function renderRecap() {
     html += '</div>';
   }
 
-  // Top 5 pertes
   const lostArr = Object.keys(weekStats.productsLost)
     .map(function(pid) {
       const l = weekStats.productsLost[pid];
@@ -1558,11 +1501,8 @@ function subscribeRealtimeDeliveries() {
       async function(payload) {
         if (payload.new && payload.new.updated_by === DEVICE_ID) return;
         if (payload.old && payload.old.updated_by === DEVICE_ID) return;
-        // Recharge la liste (plus simple que de gerer insert/update/delete individuellement)
         await loadDeliveries(currentDate);
-        if (currentVue === 'livraison' || currentVue === 'tournee') {
-          renderLivraison();
-        }
+        if (currentVue === 'livraison' || currentVue === 'tournee') { renderLivraison(); }
         showToast('MAJ tournee d un autre appareil', 'sync');
       }).subscribe();
 }
@@ -1575,10 +1515,7 @@ async function changeLivraisonDate(delta) {
   renderLivraison();
 }
 
-function setTour(t) {
-  currentTour = t;
-  renderLivraison();
-}
+function setTour(t) { currentTour = t; renderLivraison(); }
 
 async function generateDefaultTour() {
   const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; });
@@ -1588,16 +1525,10 @@ async function generateDefaultTour() {
   const maxPos = stopsForTour.reduce(function(m, d) { return Math.max(m, d.position); }, 0);
   const toInsert = DEFAULT_STOPS.map(function(s, i) {
     return {
-      tenant_id: TENANT_ID,
-      date: currentDate,
-      tour: currentTour,
+      tenant_id: TENANT_ID, date: currentDate, tour: currentTour,
       position: maxPos + i + 1,
-      stop_type: s.stop_type,
-      stop_ref: s.stop_ref,
-      stop_label: s.stop_label,
-      delivered: false,
-      updated_by: DEVICE_ID,
-      updated_at: new Date().toISOString()
+      stop_type: s.stop_type, stop_ref: s.stop_ref, stop_label: s.stop_label,
+      delivered: false, updated_by: DEVICE_ID, updated_at: new Date().toISOString()
     };
   });
   setSyncStatus('syncing');
@@ -1619,13 +1550,8 @@ function openAddStopModal() {
   setTimeout(function() { document.getElementById('add-stop-label').focus(); }, 100);
 }
 
-function closeAddStopModal() {
-  document.getElementById('add-stop-modal').classList.remove('show');
-}
-
-function onStopTypeChange() {
-  // hook pour plus tard si besoin (pre-remplissage auto selon type)
-}
+function closeAddStopModal() { document.getElementById('add-stop-modal').classList.remove('show'); }
+function onStopTypeChange() {}
 
 async function saveAddStop() {
   const type = document.getElementById('add-stop-type').value;
@@ -1633,22 +1559,14 @@ async function saveAddStop() {
   const address = document.getElementById('add-stop-address').value.trim();
   const notes = document.getElementById('add-stop-notes').value.trim();
   if (!label) { showToast('Le libelle est obligatoire', 'error'); return; }
-
   const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; });
   const maxPos = stopsForTour.reduce(function(m, d) { return Math.max(m, d.position); }, 0);
   const newStop = {
-    tenant_id: TENANT_ID,
-    date: currentDate,
-    tour: currentTour,
+    tenant_id: TENANT_ID, date: currentDate, tour: currentTour,
     position: maxPos + 1,
-    stop_type: type,
-    stop_ref: type + '_' + Date.now(),
-    stop_label: label,
-    address: address || null,
-    notes: notes || null,
-    delivered: false,
-    updated_by: DEVICE_ID,
-    updated_at: new Date().toISOString()
+    stop_type: type, stop_ref: type + '_' + Date.now(),
+    stop_label: label, address: address || null, notes: notes || null,
+    delivered: false, updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   };
   setSyncStatus('syncing');
   const { error } = await supa.from('deliveries').insert(newStop);
@@ -1666,13 +1584,11 @@ async function toggleDelivered(id, currentVal) {
     delivered: newVal,
     delivered_at: newVal ? new Date().toISOString() : null,
     delivered_by: newVal ? DEVICE_ID : null,
-    updated_by: DEVICE_ID,
-    updated_at: new Date().toISOString()
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   };
   const { error } = await supa.from('deliveries').update(patch).eq('id', id);
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
   setSyncStatus('ok');
-  // MAJ locale
   const stop = deliveriesData.find(function(d) { return d.id === id; });
   if (stop) {
     stop.delivered = newVal;
@@ -1689,7 +1605,6 @@ async function moveStop(id, delta) {
   if (idx < 0) return;
   const newIdx = idx + delta;
   if (newIdx < 0 || newIdx >= stopsForTour.length) return;
-  // Swap positions
   const a = stopsForTour[idx], b = stopsForTour[newIdx];
   const tmp = a.position;
   a.position = b.position;
@@ -1733,20 +1648,17 @@ function renderLivraison() {
     + '<button class="ventes-day-btn" onclick="changeLivraisonDate(1)">&gt;</button>'
     + '</div>';
 
-  // Selecteur tournee
   html += '<div class="tour-switch">'
     + '<button class="tour-btn ' + (currentTour === 'matin' ? 'active' : '') + '" onclick="setTour(\'matin\')">Matin</button>'
     + '<button class="tour-btn ' + (currentTour === 'aprem' ? 'active' : '') + '" onclick="setTour(\'aprem\')">Apres-midi</button>'
     + '<button class="tour-btn ' + (currentTour === 'autre' ? 'active' : '') + '" onclick="setTour(\'autre\')">Autre</button>'
     + '</div>';
 
-  // Barre de progression
   if (totalStops > 0) {
     const pct = Math.round(deliveredStops / totalStops * 100);
     html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Progression : ' + deliveredStops + ' / ' + totalStops + ' arrets livres (' + pct + '%)</strong></div>';
   }
 
-  // Boutons d'action (seulement en mode preparation, pas en mode livreur)
   if (!isLivreurMode) {
     html += '<div class="tour-toolbar">'
       + '<button class="tour-action primary" onclick="generateDefaultTour()">+ Generer tournee</button>'
@@ -1754,13 +1666,12 @@ function renderLivraison() {
       + '</div>';
   }
 
-  // Liste des arrets
   if (stopsForTour.length === 0) {
     html += '<div class="empty-state">'
       + 'Aucun arret sur cette tournee.<br><br>'
       + (isLivreurMode
-         ? 'Le responsable doit d abord preparer la tournee.'
-         : 'Tape sur "Generer tournee" pour creer les arrets par defaut (St-Avertin puis Tours), ou "+ Arret Pro" pour ajouter un client.')
+          ? 'Le responsable doit d abord preparer la tournee.'
+          : 'Tape sur "Generer tournee" pour creer les arrets par defaut (St-Avertin puis Tours), ou "+ Arret Pro" pour ajouter un client.')
       + '</div>';
   } else {
     stopsForTour.forEach(function(stop, idx) {
@@ -1768,7 +1679,6 @@ function renderLivraison() {
       const cardCls = 'stop-card' + (isDelivered ? ' delivered' : '') + (isLivreurMode ? ' livreur-mode' : '');
       const typeTag = stop.stop_type === 'boutique' ? 'Boutique' : (stop.stop_type === 'pro' ? 'Pro' : 'Autre');
       const typeTagCls = stop.stop_type === 'pro' ? 'pro' : '';
-
       let metaHtml = '<span class="tag ' + typeTagCls + '">' + typeTag + '</span>';
       if (stop.address) metaHtml += ' ' + escapeHtml(stop.address);
       if (stop.delivered && stop.delivered_at) {
@@ -1784,7 +1694,6 @@ function renderLivraison() {
         + '</div>'
         + '<button class="stop-check ' + (isDelivered ? 'checked' : '') + '" onclick="toggleDelivered(\'' + stop.id + '\', ' + isDelivered + ')">&#10003;</button>';
 
-      // Actions de reorganisation (mode preparation seulement)
       if (!isLivreurMode) {
         html += '<div class="stop-actions">'
           + (idx > 0 ? '<button class="stop-mini-btn" onclick="moveStop(\'' + stop.id + '\', -1)">&uarr; Monter</button>' : '')
@@ -1900,10 +1809,8 @@ function renderProduction() {
   const mc = document.getElementById('main-content');
   const isToday = (currentReapproDate === serviceDateISO());
 
-  // Collecte tous les produits reappro
   const reappProducts = products.filter(function(p) { return p.usage === 'reappro' || p.usage === 'both'; });
 
-  // Agregation par produit
   const rows = reappProducts.map(function(p) {
     const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
     const vT = productionData['tours'] ? productionData['tours'][p.id] : null;
@@ -1915,24 +1822,21 @@ function renderProduction() {
     return { p: p, veigne: cV, tours: cT, savertin: cS, total: total };
   });
 
-  // Filtre : cacher produits vides
   const filtered = productionFilterEmpty ? rows.filter(function(r) { return r.total > 0; }) : rows;
 
-  // Calcul KPIs
   const nbProdCommandes = rows.filter(function(r) { return r.total > 0; }).length;
   const nbBoutiquesActives = ['veigne', 'tours', 'saint-avertin'].filter(function(b) {
     return rows.some(function(r) { return r[b === 'saint-avertin' ? 'savertin' : b] > 0; });
   }).length;
   const volumeTotal = rows.reduce(function(s, r) { return s + r.total; }, 0);
 
-  // Rendu
   let html = '<div class="date-bar">'
-    + '<button class="date-nav" onclick="changeProductionDate(-1)">&larr;</button>'
+    + '<button class="date-nav" onclick="changeProductionDate(-1)">&#8592;</button>'
     + '<div class="date-title">Production du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
     + '<div class="date-sub">Commandes recues des boutiques</div>'
     + '</div>'
-    + '<button class="date-nav" onclick="changeProductionDate(1)">&rarr;</button>'
+    + '<button class="date-nav" onclick="changeProductionDate(1)">&#8594;</button>'
     + '</div>';
 
   html += '<div class="prod-kpi-bar">'
@@ -1955,7 +1859,6 @@ function renderProduction() {
     return;
   }
 
-  // Grouper par categorie
   const byCat = {};
   filtered.forEach(function(r) {
     const c = r.p.category || 'autre';
@@ -1963,7 +1866,6 @@ function renderProduction() {
     byCat[c].push(r);
   });
 
-  // Liste de categories ordonnees (on garde l'ordre natif de CAT_LABELS si possible)
   const catOrder = Object.keys(CAT_LABELS);
   const cats = Object.keys(byCat).sort(function(a, b) {
     const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
