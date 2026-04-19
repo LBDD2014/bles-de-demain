@@ -340,13 +340,16 @@ const VENTES_BOUTIQUES = ['veigne'];
 const HEURES_RUPTURE = ['9h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h'];
 
 const CAT_LABELS = {
+  'pains':             'Pains',
   'viennoiserie':      'Viennoiserie',
   'brioches_special':  'Brioches',
   'patisserie_petits': 'Petits Gateaux',
   'patisserie_gros':   'Gros Gateaux',
   'sec_traiteur':      'Sec & Traiteur',
   'bases_patisserie':  'Bases Patisserie',
-  'ingredients':       'Ingredients'
+  'ingredients':       'Ingredients',
+  'traiteur':          'Traiteur',
+  'gateaux_secs':      'Gateaux Secs'
 };
 
 const BOUTIQUE_NAMES = {
@@ -392,7 +395,23 @@ async function loadProducts() {
       .order('category', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     products = data || [];
+    // Pour le module Ventes : filtre sur usage='ventes' ou 'both'
+    // Pour le module Reappro : filtre sur usage='reappro' ou 'both'
   } catch (err) { showInitError(err); }
+}
+
+function getProductsForReappro() {
+  return products.filter(function(p) {
+    const u = p.usage || 'reappro';
+    return u === 'reappro' || u === 'both';
+  });
+}
+
+function getProductsForVentes() {
+  return products.filter(function(p) {
+    const u = p.usage || 'reappro';
+    return u === 'ventes' || u === 'both';
+  });
 }
 
 function showInitError(err) {
@@ -493,8 +512,9 @@ function renderReappro() {
   const mc = document.getElementById('main-content');
   if (!cats.length) { mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>'; return; }
   let html = '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - synchro temps reel entre tous les appareils.</div>';
+  const reappProducts = getProductsForReappro();
   cats.forEach(function(cat) {
-    const prods = products.filter(function(p) { return p.category === cat; });
+    const prods = reappProducts.filter(function(p) { return p.category === cat; });
     if (!prods.length) return;
     html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
       + '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J ai</span><span class="col-lbl cmd">Je commande</span></div>';
@@ -640,7 +660,13 @@ function renderVentes() {
   if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
     mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active.</div>'; return;
   }
-  const cats = ['viennoiserie'];
+  const ventesProducts = getProductsForVentes();
+  // Categories presentes dans les produits ventes, dans l'ordre logique
+  const ORDER = ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'traiteur', 'gateaux_secs'];
+  const presentCats = ORDER.filter(function(c) {
+    return ventesProducts.some(function(p) { return p.category === c; });
+  });
+
   let html = '<div class="ventes-day-bar">'
     + '<button class="ventes-day-btn" onclick="changeDate(-1)">&lt;</button>'
     + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
@@ -648,8 +674,18 @@ function renderVentes() {
     + '</div>';
   html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Aprem / Reste -> Vendu et % Perte automatiques. Tape l icone horloge pour saisir une rupture.</div>';
 
-  cats.forEach(function(cat) {
-    const ps = products.filter(function(p) { return p.category === cat; });
+  if (!presentCats.length) {
+    html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.<br><br>Charge tes produits Ventes via SQL Editor.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  presentCats.forEach(function(cat) {
+    const ps = ventesProducts.filter(function(p) {
+      // Respecter restriction boutique si presente
+      if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
+      return p.category === cat;
+    });
     if (!ps.length) return;
     html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
       + '<div class="ventes-col-header">'
