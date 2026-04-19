@@ -352,7 +352,101 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .top-rank.r3 { background: #8B7D5A; }
 .top-name { font-size: 12px; color: var(--brown); font-weight: 500; }
 .top-val { text-align: right; font-weight: 800; color: var(--blue); font-family: Georgia, serif; }
-.top-val.perte { color: var(--red); }
+/* === LIVRAISON === */
+.tour-switch {
+  display: flex; gap: 6px; margin-bottom: 10px;
+}
+.tour-btn {
+  flex: 1; padding: 10px 6px; border: 2px solid #E0D8C8; border-radius: 10px;
+  background: white; font-size: 12px; font-weight: 700; color: var(--brown-mid);
+  cursor: pointer; font-family: inherit;
+}
+.tour-btn.active { background: var(--gold); color: white; border-color: var(--gold); }
+.tour-btn:active { transform: scale(0.96); }
+
+.tour-toolbar {
+  display: flex; gap: 8px; margin-bottom: 10px;
+}
+.tour-action {
+  flex: 1; padding: 10px; border: none; border-radius: 10px;
+  background: white; color: var(--brown); font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(61,43,31,0.05);
+}
+.tour-action.primary { background: var(--gold); color: white; }
+.tour-action:active { transform: scale(0.96); }
+
+.stop-card {
+  background: white; border-radius: 14px; padding: 14px;
+  margin-bottom: 8px; box-shadow: 0 2px 10px rgba(61,43,31,0.06);
+  display: grid; grid-template-columns: 40px 1fr auto;
+  align-items: center; gap: 12px;
+  border-left: 4px solid #E0D8C8;
+  transition: all 0.2s;
+}
+.stop-card.delivered {
+  background: #F5F8F2; border-left-color: var(--green); opacity: 0.75;
+}
+.stop-pos {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--grey);
+  color: white; text-align: center; line-height: 36px;
+  font-family: Georgia, serif; font-size: 16px; font-weight: 800;
+}
+.stop-card.delivered .stop-pos { background: var(--green); }
+.stop-info { min-width: 0; }
+.stop-name {
+  font-family: Georgia, serif; font-size: 16px; font-weight: 700;
+  color: var(--brown); line-height: 1.2;
+}
+.stop-card.delivered .stop-name { text-decoration: line-through; color: var(--brown-mid); }
+.stop-meta {
+  font-size: 11px; color: var(--brown-mid); margin-top: 3px;
+}
+.stop-meta .tag {
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  background: #F5F0E5; margin-right: 4px;
+  font-size: 10px; font-weight: 700; color: var(--brown-mid);
+}
+.stop-meta .tag.pro { background: #FEF3EC; color: var(--orange); }
+.stop-meta .time { color: var(--green); font-weight: 700; }
+.stop-check {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2.5px solid #C0B090; background: white;
+  cursor: pointer; padding: 0; font-size: 22px; line-height: 1;
+  color: transparent; transition: all 0.2s; font-family: inherit;
+}
+.stop-check.checked {
+  background: var(--green); border-color: var(--green); color: white;
+}
+.stop-check:active { transform: scale(0.92); }
+
+.stop-actions {
+  display: flex; gap: 4px; margin-top: 8px; grid-column: 2 / 4;
+  border-top: 1px dashed #F0EAE0; padding-top: 8px;
+}
+.stop-mini-btn {
+  background: #F5F0E5; border: none; border-radius: 6px;
+  padding: 4px 10px; font-size: 11px; font-weight: 600;
+  color: var(--brown-mid); cursor: pointer; font-family: inherit;
+}
+.stop-mini-btn:active { transform: scale(0.94); background: #E8D5A3; }
+.stop-mini-btn.danger { color: var(--red); }
+
+.stop-card.livreur-mode { grid-template-columns: 40px 1fr 50px; }
+.stop-card.livreur-mode .stop-actions { display: none; }
+
+/* Modal ajout arret */
+.add-stop-form { display: flex; flex-direction: column; gap: 10px; }
+.add-stop-form label { font-size: 11px; color: var(--brown-mid); font-weight: 700; }
+.add-stop-form input, .add-stop-form select, .add-stop-form textarea {
+  width: 100%; padding: 10px 12px; border: 2px solid #E0D8C8; border-radius: 8px;
+  font-size: 14px; color: var(--brown); background: #FAF8F4;
+  font-family: inherit;
+}
+.add-stop-form input:focus, .add-stop-form select:focus, .add-stop-form textarea:focus {
+  outline: none; border-color: var(--gold); background: white;
+}
+.add-stop-form textarea { resize: none; min-height: 60px; }
+
 </style>
 </head>
 <body>
@@ -366,7 +460,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
       <div class="splash-name">Veigne</div>
-      <div class="splash-role">Reappro - Ventes</div>
+      <div class="splash-role">Reappro - Ventes - Livraison</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('tours')">
       <div class="splash-name">Tours</div>
@@ -376,9 +470,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
       <div class="splash-name">St-Avertin</div>
       <div class="splash-role">Reappro - Ventes</div>
     </button>
-    <button class="splash-btn" disabled>
-      <div class="splash-name">Le Local</div>
-      <div class="splash-role">A venir</div>
+    <button class="splash-btn" onclick="enterBoutique('livreur')">
+      <div class="splash-name">Livreur</div>
+      <div class="splash-role">Feuille de route</div>
     </button>
   </div>
 </div>
@@ -419,6 +513,32 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   </div>
 </div>
 
+<!-- Modal ajout arret livraison -->
+<div class="modal-overlay" id="add-stop-modal">
+  <div class="modal">
+    <div class="modal-title" id="add-stop-title">Ajouter un arret</div>
+    <div class="modal-sub">Cet arret sera ajoute a la tournee selectionnee.</div>
+    <div class="add-stop-form">
+      <label>Type</label>
+      <select id="add-stop-type" onchange="onStopTypeChange()">
+        <option value="pro">Client Pro</option>
+        <option value="boutique">Boutique</option>
+        <option value="autre">Autre</option>
+      </select>
+      <label>Nom / Libelle</label>
+      <input type="text" id="add-stop-label" placeholder="Ex: Hotel Central, Cafe de la Gare...">
+      <label>Adresse (optionnel)</label>
+      <input type="text" id="add-stop-address" placeholder="Ex: 12 rue de la Paix">
+      <label>Notes (optionnel)</label>
+      <textarea id="add-stop-notes" placeholder="Ex: Livraison avant 9h, sonner a la porte"></textarea>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="modal-action cancel" onclick="closeAddStopModal()">Annuler</button>
+      <button class="modal-action" style="background:var(--gold);color:white" onclick="saveAddStop()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -451,14 +571,15 @@ const CAT_LABELS = {
 };
 
 const BOUTIQUE_NAMES = {
-  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin', 'local': 'Le Local'
+  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin', 'local': 'Le Local', 'livreur': 'Livreur'
 };
 
 const NAV_ITEMS = {
   'veigne': [
-    { id: 'reappro', lbl: 'Reappro' },
-    { id: 'ventes',  lbl: 'Ventes' },
-    { id: 'recap',   lbl: 'Recap' }
+    { id: 'reappro',   lbl: 'Reappro' },
+    { id: 'ventes',    lbl: 'Ventes' },
+    { id: 'recap',     lbl: 'Recap' },
+    { id: 'livraison', lbl: 'Livraison' }
   ],
   'tours': [
     { id: 'reappro', lbl: 'Reappro' },
@@ -469,6 +590,9 @@ const NAV_ITEMS = {
     { id: 'reappro', lbl: 'Reappro' },
     { id: 'ventes',  lbl: 'Ventes' },
     { id: 'recap',   lbl: 'Recap' }
+  ],
+  'livreur': [
+    { id: 'tournee', lbl: 'Tournee' }
   ]
 };
 
@@ -483,6 +607,18 @@ let recapWeekData = {}; // { 'YYYY-MM-DD': [ {product_id, matin, aprem, reste}, 
 let currentWeekStart = mondayOfWeek(todayISO());
 let recapMode = 'global'; // 'global' ou 'category'
 let recapCategory = 'all';
+
+// Livraison state
+let deliveriesData = []; // tous les arrets de la date courante toutes tournees
+let currentTour = 'matin'; // 'matin', 'aprem', 'autre'
+let realtimeChannelDeliveries = null;
+let isLivreurMode = false; // true quand on est sur la boutique 'livreur'
+let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
+
+const DEFAULT_STOPS = [
+  { stop_type: 'boutique', stop_ref: 'saint-avertin', stop_label: 'Saint-Avertin' },
+  { stop_type: 'boutique', stop_ref: 'tours',         stop_label: 'Tours' }
+];
 
 function todayISO() {
   const d = new Date();
@@ -573,6 +709,7 @@ function showInitError(err) {
 
 async function enterBoutique(b) {
   currentBoutique = b;
+  isLivreurMode = (b === 'livreur');
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -581,9 +718,11 @@ async function enterBoutique(b) {
 }
 
 function goSplash() {
-  if (realtimeChannelReappro) { supa.removeChannel(realtimeChannelReappro); realtimeChannelReappro = null; }
-  if (realtimeChannelSales)   { supa.removeChannel(realtimeChannelSales);   realtimeChannelSales = null; }
-  currentBoutique = null; reapprosData = {}; salesData = {};
+  if (realtimeChannelReappro)    { supa.removeChannel(realtimeChannelReappro);    realtimeChannelReappro = null; }
+  if (realtimeChannelSales)      { supa.removeChannel(realtimeChannelSales);      realtimeChannelSales = null; }
+  if (realtimeChannelDeliveries) { supa.removeChannel(realtimeChannelDeliveries); realtimeChannelDeliveries = null; }
+  currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = [];
+  isLivreurMode = false;
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
@@ -610,6 +749,10 @@ async function setVue(v) {
   } else if (v === 'recap') {
     await loadRecapWeek(currentBoutique, currentWeekStart);
     renderRecap();
+  } else if (v === 'livraison' || v === 'tournee') {
+    await loadDeliveries(currentDate);
+    subscribeRealtimeDeliveries();
+    renderLivraison();
   }
 }
 
@@ -1194,6 +1337,263 @@ function renderRecap() {
 
   if (weekStats.produit === 0) {
     html += '<div class="empty-state">Aucune donnee de vente pour cette semaine.<br><br>Saisis des ventes dans l onglet "Ventes" pour voir ton recap ici.</div>';
+  }
+
+  mc.innerHTML = html;
+}
+
+// === LIVRAISON ===
+async function loadDeliveries(date) {
+  const { data, error } = await supa.from('deliveries').select('*')
+    .eq('tenant_id', TENANT_ID).eq('date', date)
+    .order('tour', { ascending: true }).order('position', { ascending: true });
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  deliveriesData = data || [];
+}
+
+function subscribeRealtimeDeliveries() {
+  if (realtimeChannelDeliveries) supa.removeChannel(realtimeChannelDeliveries);
+  realtimeChannelDeliveries = supa.channel('deliveries_' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' },
+      async function(payload) {
+        if (payload.new && payload.new.updated_by === DEVICE_ID) return;
+        if (payload.old && payload.old.updated_by === DEVICE_ID) return;
+        // Recharge la liste (plus simple que de gerer insert/update/delete individuellement)
+        await loadDeliveries(currentDate);
+        if (currentVue === 'livraison' || currentVue === 'tournee') {
+          renderLivraison();
+        }
+        showToast('MAJ tournee d un autre appareil', 'sync');
+      }).subscribe();
+}
+
+async function changeLivraisonDate(delta) {
+  const d = new Date(currentDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadDeliveries(currentDate);
+  renderLivraison();
+}
+
+function setTour(t) {
+  currentTour = t;
+  renderLivraison();
+}
+
+async function generateDefaultTour() {
+  const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; });
+  if (stopsForTour.length > 0) {
+    if (!confirm('Il y a deja ' + stopsForTour.length + ' arret(s) sur cette tournee. Ajouter les arrets par defaut (St-Avertin, Tours) ?')) return;
+  }
+  const maxPos = stopsForTour.reduce(function(m, d) { return Math.max(m, d.position); }, 0);
+  const toInsert = DEFAULT_STOPS.map(function(s, i) {
+    return {
+      tenant_id: TENANT_ID,
+      date: currentDate,
+      tour: currentTour,
+      position: maxPos + i + 1,
+      stop_type: s.stop_type,
+      stop_ref: s.stop_ref,
+      stop_label: s.stop_label,
+      delivered: false,
+      updated_by: DEVICE_ID,
+      updated_at: new Date().toISOString()
+    };
+  });
+  setSyncStatus('syncing');
+  const { error } = await supa.from('deliveries').insert(toInsert);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  showToast('Tournee generee', 'sync');
+  await loadDeliveries(currentDate);
+  renderLivraison();
+}
+
+function openAddStopModal() {
+  addStopForm = { type: 'pro', label: '', address: '', notes: '' };
+  document.getElementById('add-stop-type').value = 'pro';
+  document.getElementById('add-stop-label').value = '';
+  document.getElementById('add-stop-address').value = '';
+  document.getElementById('add-stop-notes').value = '';
+  document.getElementById('add-stop-modal').classList.add('show');
+  setTimeout(function() { document.getElementById('add-stop-label').focus(); }, 100);
+}
+
+function closeAddStopModal() {
+  document.getElementById('add-stop-modal').classList.remove('show');
+}
+
+function onStopTypeChange() {
+  // hook pour plus tard si besoin (pre-remplissage auto selon type)
+}
+
+async function saveAddStop() {
+  const type = document.getElementById('add-stop-type').value;
+  const label = document.getElementById('add-stop-label').value.trim();
+  const address = document.getElementById('add-stop-address').value.trim();
+  const notes = document.getElementById('add-stop-notes').value.trim();
+  if (!label) { showToast('Le libelle est obligatoire', 'error'); return; }
+
+  const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; });
+  const maxPos = stopsForTour.reduce(function(m, d) { return Math.max(m, d.position); }, 0);
+  const newStop = {
+    tenant_id: TENANT_ID,
+    date: currentDate,
+    tour: currentTour,
+    position: maxPos + 1,
+    stop_type: type,
+    stop_ref: type + '_' + Date.now(),
+    stop_label: label,
+    address: address || null,
+    notes: notes || null,
+    delivered: false,
+    updated_by: DEVICE_ID,
+    updated_at: new Date().toISOString()
+  };
+  setSyncStatus('syncing');
+  const { error } = await supa.from('deliveries').insert(newStop);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  closeAddStopModal();
+  await loadDeliveries(currentDate);
+  renderLivraison();
+}
+
+async function toggleDelivered(id, currentVal) {
+  setSyncStatus('syncing');
+  const newVal = !currentVal;
+  const patch = {
+    delivered: newVal,
+    delivered_at: newVal ? new Date().toISOString() : null,
+    delivered_by: newVal ? DEVICE_ID : null,
+    updated_by: DEVICE_ID,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supa.from('deliveries').update(patch).eq('id', id);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  // MAJ locale
+  const stop = deliveriesData.find(function(d) { return d.id === id; });
+  if (stop) {
+    stop.delivered = newVal;
+    stop.delivered_at = patch.delivered_at;
+    stop.delivered_by = patch.delivered_by;
+  }
+  renderLivraison();
+}
+
+async function moveStop(id, delta) {
+  const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; })
+    .sort(function(a, b) { return a.position - b.position; });
+  const idx = stopsForTour.findIndex(function(d) { return d.id === id; });
+  if (idx < 0) return;
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= stopsForTour.length) return;
+  // Swap positions
+  const a = stopsForTour[idx], b = stopsForTour[newIdx];
+  const tmp = a.position;
+  a.position = b.position;
+  b.position = tmp;
+  setSyncStatus('syncing');
+  const { error: e1 } = await supa.from('deliveries').update({ position: a.position, updated_by: DEVICE_ID, updated_at: new Date().toISOString() }).eq('id', a.id);
+  const { error: e2 } = await supa.from('deliveries').update({ position: b.position, updated_by: DEVICE_ID, updated_at: new Date().toISOString() }).eq('id', b.id);
+  if (e1 || e2) { setSyncStatus('error'); showToast((e1 || e2).message, 'error'); return; }
+  setSyncStatus('ok');
+  renderLivraison();
+}
+
+async function deleteStop(id) {
+  if (!confirm('Supprimer cet arret ?')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('deliveries').delete().eq('id', id);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadDeliveries(currentDate);
+  renderLivraison();
+}
+
+function formatDeliveredTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function renderLivraison() {
+  const mc = document.getElementById('main-content');
+  const stopsForTour = deliveriesData
+    .filter(function(d) { return d.tour === currentTour; })
+    .sort(function(a, b) { return a.position - b.position; });
+
+  const totalStops = stopsForTour.length;
+  const deliveredStops = stopsForTour.filter(function(d) { return d.delivered; }).length;
+
+  let html = '<div class="ventes-day-bar">'
+    + '<button class="ventes-day-btn" onclick="changeLivraisonDate(-1)">&lt;</button>'
+    + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
+    + '<button class="ventes-day-btn" onclick="changeLivraisonDate(1)">&gt;</button>'
+    + '</div>';
+
+  // Selecteur tournee
+  html += '<div class="tour-switch">'
+    + '<button class="tour-btn ' + (currentTour === 'matin' ? 'active' : '') + '" onclick="setTour(\'matin\')">Matin</button>'
+    + '<button class="tour-btn ' + (currentTour === 'aprem' ? 'active' : '') + '" onclick="setTour(\'aprem\')">Apres-midi</button>'
+    + '<button class="tour-btn ' + (currentTour === 'autre' ? 'active' : '') + '" onclick="setTour(\'autre\')">Autre</button>'
+    + '</div>';
+
+  // Barre de progression
+  if (totalStops > 0) {
+    const pct = Math.round(deliveredStops / totalStops * 100);
+    html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Progression : ' + deliveredStops + ' / ' + totalStops + ' arrets livres (' + pct + '%)</strong></div>';
+  }
+
+  // Boutons d'action (seulement en mode preparation, pas en mode livreur)
+  if (!isLivreurMode) {
+    html += '<div class="tour-toolbar">'
+      + '<button class="tour-action primary" onclick="generateDefaultTour()">+ Generer tournee</button>'
+      + '<button class="tour-action" onclick="openAddStopModal()">+ Arret Pro</button>'
+      + '</div>';
+  }
+
+  // Liste des arrets
+  if (stopsForTour.length === 0) {
+    html += '<div class="empty-state">'
+      + 'Aucun arret sur cette tournee.<br><br>'
+      + (isLivreurMode
+         ? 'Le responsable doit d abord preparer la tournee.'
+         : 'Tape sur "Generer tournee" pour creer les arrets par defaut (St-Avertin puis Tours), ou "+ Arret Pro" pour ajouter un client.')
+      + '</div>';
+  } else {
+    stopsForTour.forEach(function(stop, idx) {
+      const isDelivered = stop.delivered;
+      const cardCls = 'stop-card' + (isDelivered ? ' delivered' : '') + (isLivreurMode ? ' livreur-mode' : '');
+      const typeTag = stop.stop_type === 'boutique' ? 'Boutique' : (stop.stop_type === 'pro' ? 'Pro' : 'Autre');
+      const typeTagCls = stop.stop_type === 'pro' ? 'pro' : '';
+
+      let metaHtml = '<span class="tag ' + typeTagCls + '">' + typeTag + '</span>';
+      if (stop.address) metaHtml += ' ' + escapeHtml(stop.address);
+      if (stop.delivered && stop.delivered_at) {
+        metaHtml += ' <span class="time">Livre a ' + formatDeliveredTime(stop.delivered_at) + '</span>';
+      }
+      if (stop.notes) metaHtml += '<div style="margin-top:4px;font-style:italic">' + escapeHtml(stop.notes) + '</div>';
+
+      html += '<div class="' + cardCls + '">'
+        + '<div class="stop-pos">' + (idx + 1) + '</div>'
+        + '<div class="stop-info">'
+          + '<div class="stop-name">' + escapeHtml(stop.stop_label) + '</div>'
+          + '<div class="stop-meta">' + metaHtml + '</div>'
+        + '</div>'
+        + '<button class="stop-check ' + (isDelivered ? 'checked' : '') + '" onclick="toggleDelivered(\'' + stop.id + '\', ' + isDelivered + ')">&#10003;</button>';
+
+      // Actions de reorganisation (mode preparation seulement)
+      if (!isLivreurMode) {
+        html += '<div class="stop-actions">'
+          + (idx > 0 ? '<button class="stop-mini-btn" onclick="moveStop(\'' + stop.id + '\', -1)">&uarr; Monter</button>' : '')
+          + (idx < stopsForTour.length - 1 ? '<button class="stop-mini-btn" onclick="moveStop(\'' + stop.id + '\', 1)">&darr; Descendre</button>' : '')
+          + '<button class="stop-mini-btn danger" onclick="deleteStop(\'' + stop.id + '\')">Supprimer</button>'
+          + '</div>';
+      }
+      html += '</div>';
+    });
   }
 
   mc.innerHTML = html;
