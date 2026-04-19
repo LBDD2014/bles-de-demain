@@ -388,6 +388,173 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .adr-input:focus, .adr-select:focus { outline: none; border-color: var(--gold); }
 .adr-select { cursor: pointer; }
+
+/* v18 : Nouveau produit + Edition + Actions */
+.new-prod-form, .admin-row-edit {
+  background: white; border-radius: 12px; padding: 14px; margin: 10px 14px;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.1); border: 2px solid var(--gold);
+}
+.admin-row-edit { border-color: var(--brown); background: #FFF8E7; }
+.npf-title, .are-title {
+  font-family: Georgia, serif; font-size: 16px; font-weight: 700;
+  color: var(--brown); margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid #EDE4D1;
+}
+.are-title { color: var(--gold-dark); }
+.npf-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.npf-lbl { font-size: 11px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: 0.3px; }
+.npf-input {
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+  border: 1.5px solid #E5DCC8; border-radius: 8px; background: white; color: var(--brown);
+  outline: none;
+}
+.npf-input:focus { border-color: var(--gold); }
+.npf-actions { display: flex; gap: 10px; margin-top: 6px; }
+.npf-actions button { flex: 1; padding: 11px; font-size: 14px; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; }
+.btn-grey { background: #E5DCC8; color: var(--brown); }
+.btn-gold { background: var(--gold); color: white; }
+.npf-actions .btn-gold { background: var(--gold); color: white; }
+.npf-hint { font-size: 11px; color: var(--brown-mid); margin-top: 8px; font-style: italic; }
+.admin-row-actions {
+  display: flex; gap: 6px; padding: 6px 14px 10px; background: #FAF6EE;
+  border-bottom: 1px solid #F0EAE0;
+}
+.admin-row.inactive ~ .admin-row-actions { opacity: 0.55; }
+.act-btn {
+  flex: 1; padding: 8px 6px; font-size: 11px; font-weight: 600; font-family: inherit;
+  border: 1px solid #E5DCC8; border-radius: 6px; background: white; color: var(--brown);
+  cursor: pointer; letter-spacing: 0.2px;
+}
+.act-btn:active { transform: scale(0.96); }
+.act-edit { color: var(--brown); }
+.act-dup { color: var(--gold-dark); }
+.act-del { color: var(--red); border-color: #F5D5CE; }
+.act-del:active { background: #FDEEE9; }
+
+/* v19 : Commandes speciales */
+.sp-week-bar { display: flex; align-items: stretch; gap: 6px; padding: 10px 12px; background: #FAF6EE; }
+.sp-week-nav { background: white; border: 1px solid #E5DCC8; color: var(--brown); padding: 0 10px; border-radius: 8px; font-size: 18px; cursor: pointer; font-family: inherit; }
+.sp-week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; flex: 1; }
+.sp-day {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 2px; background: white; border: 1px solid transparent; border-radius: 8px;
+  cursor: pointer; font-family: inherit;
+}
+.sp-day.today { border-color: var(--gold); }
+.sp-day.active { background: var(--brown); color: white; border-color: var(--brown); }
+.sp-day.active .sp-day-dow, .sp-day.active .sp-day-num { color: white; }
+.sp-day-dow { font-size: 10px; color: var(--brown-mid); text-transform: uppercase; font-weight: 600; }
+.sp-day-num { font-size: 18px; font-weight: 700; color: var(--brown); font-family: Georgia, serif; }
+.sp-day-cnt { font-size: 10px; color: var(--gold-dark); font-weight: 700; min-height: 12px; }
+.sp-day.active .sp-day-cnt { color: #F5E7AB; }
+
+.sp-section-title { padding: 10px 14px 4px; font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: var(--brown); }
+
+.sp-section { margin-bottom: 12px; border-left: 4px solid transparent; }
+.sp-section.shop-veigne { border-left-color: #C9A24B; }
+.sp-section.shop-tours { border-left-color: #7A9FB8; }
+.sp-section.shop-stav { border-left-color: #5FAE6D; }
+.sp-section.shop-local { border-left-color: #8B6B4F; }
+.sp-section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: #F5F0E5;
+  font-family: Georgia, serif; font-size: 13px; font-weight: 700; color: var(--brown);
+}
+.sp-count-badge {
+  background: var(--gold); color: white; border-radius: 10px;
+  padding: 2px 8px; font-size: 11px; font-weight: 700;
+}
+.sp-empty { padding: 18px 14px; text-align: center; color: var(--brown-mid); font-style: italic; font-size: 12px; }
+
+.sp-card {
+  margin: 8px 10px; padding: 10px 12px; background: white;
+  border: 1px solid #EDE4D1; border-radius: 8px; cursor: pointer;
+  box-shadow: 0 1px 3px rgba(61,43,31,0.04);
+}
+.sp-card:active { transform: scale(0.99); }
+.sp-card.status-livree { opacity: 0.6; }
+.sp-card.status-annulee { opacity: 0.4; text-decoration: line-through; }
+.sp-card-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.sp-card-hdr strong { font-size: 14px; color: var(--brown); }
+.sp-card-time { font-size: 12px; color: var(--gold-dark); font-weight: 600; }
+.sp-card-body { font-size: 12px; color: var(--brown-mid); line-height: 1.4; margin-bottom: 8px; }
+.sp-card-footer { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sp-status-badge {
+  padding: 3px 9px; border-radius: 10px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.sp-st-brouillon { background: #EDE4D1; color: var(--brown-mid); }
+.sp-st-confirmee { background: #FFE8B4; color: var(--gold-dark); }
+.sp-st-prete     { background: #D6F1DE; color: #2B7C3F; }
+.sp-st-livree    { background: var(--green); color: white; }
+.sp-st-annulee   { background: #F5D5CE; color: var(--red); }
+.sp-prod-tag {
+  font-size: 10px; color: var(--brown); background: #FAF6EE;
+  padding: 3px 8px; border-radius: 10px; font-weight: 600;
+}
+.sp-status-next {
+  margin-left: auto; background: var(--green); color: white;
+  border: none; padding: 5px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+
+.sp-consol { padding: 6px 0; }
+.sp-consol-row {
+  display: flex; justify-content: space-between; padding: 7px 14px;
+  border-bottom: 1px solid #F5F0E8; font-size: 13px;
+}
+.sp-consol-row:last-child { border-bottom: none; }
+.sp-consol-row strong { color: var(--gold-dark); }
+
+/* Formulaire commande */
+.sp-form-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; background: var(--brown); color: white;
+  position: sticky; top: 0; z-index: 10;
+}
+.sp-back { background: none; border: none; color: white; font-size: 22px; font-weight: 700; cursor: pointer; padding: 4px 10px; font-family: inherit; }
+.sp-form-title { flex: 1; text-align: center; font-family: Georgia, serif; font-size: 16px; font-weight: 700; }
+.sp-del-btn { background: none; border: none; color: #F5D5CE; font-size: 20px; cursor: pointer; padding: 4px 10px; font-family: inherit; }
+.sp-form { padding: 14px; }
+.sp-form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.sp-form-row-double { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.sp-form-row-double > div { display: flex; flex-direction: column; gap: 4px; }
+.sp-lbl { font-size: 11px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: 0.3px; }
+.sp-lbl-sm { font-size: 10px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: 0.3px; }
+.sp-input {
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+  border: 1.5px solid #E5DCC8; border-radius: 8px; background: white; color: var(--brown);
+  outline: none; width: 100%; box-sizing: border-box;
+}
+.sp-input:focus { border-color: var(--gold); }
+.sp-textarea { resize: vertical; min-height: 60px; }
+.sp-items-section {
+  background: #FAF6EE; border-radius: 10px; padding: 12px; margin-bottom: 14px;
+  border: 1px dashed #E5DCC8;
+}
+.sp-items-title { font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(--brown); margin-bottom: 10px; }
+.sp-item-row {
+  background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px;
+  border: 1px solid #EDE4D1;
+}
+.sp-item-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.sp-item-hdr strong { font-size: 12px; color: var(--gold-dark); text-transform: uppercase; letter-spacing: 0.3px; }
+.sp-item-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 2px 6px; font-family: inherit; }
+.sp-item-grid { display: grid; grid-template-columns: 80px 1fr; gap: 8px; }
+.sp-item-grid > div { display: flex; flex-direction: column; gap: 2px; }
+.sp-qty { font-weight: 700; text-align: center; }
+.sp-add-item-btn {
+  width: 100%; padding: 10px; background: white; border: 2px dashed var(--gold);
+  color: var(--gold-dark); border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.sp-form-actions { display: flex; gap: 10px; margin-top: 14px; }
+.sp-form-actions button { flex: 1; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; }
+.sp-prod-hint {
+  margin-top: 12px; padding: 10px 14px; background: #FFF8E7;
+  border-left: 3px solid var(--gold); border-radius: 6px;
+  font-size: 12px; color: var(--brown);
+}
 .admin-row:last-child { border-bottom: none; }
 .admin-row.inactive { opacity: 0.55; background: #FAF8F4; }
 .admin-row .prod-name { color: var(--brown); font-weight: 500; }
@@ -1002,7 +1169,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 10</div>
+  <div class="splash-sub">Cloud - Phase 11</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -1179,19 +1346,22 @@ const NAV_ITEMS = {
   'veigne': [
     { id: 'reappro',   lbl: 'Reappro' },
     { id: 'ventes',    lbl: 'Ventes' },
+    { id: 'specials',  lbl: 'Speciales' },
     { id: 'recap',     lbl: 'Recap' },
     { id: 'livraison', lbl: 'Livraison' },
-    { id: 'messages',  lbl: 'Messages' }
+    { id: 'messages',  lbl: 'Msg' }
   ],
   'tours': [
-    { id: 'reappro', lbl: 'Reappro' },
-    { id: 'ventes',  lbl: 'Ventes' },
-    { id: 'recap',   lbl: 'Recap' }
+    { id: 'reappro',  lbl: 'Reappro' },
+    { id: 'ventes',   lbl: 'Ventes' },
+    { id: 'specials', lbl: 'Speciales' },
+    { id: 'recap',    lbl: 'Recap' }
   ],
   'saint-avertin': [
-    { id: 'reappro', lbl: 'Reappro' },
-    { id: 'ventes',  lbl: 'Ventes' },
-    { id: 'recap',   lbl: 'Recap' }
+    { id: 'reappro',  lbl: 'Reappro' },
+    { id: 'ventes',   lbl: 'Ventes' },
+    { id: 'specials', lbl: 'Speciales' },
+    { id: 'recap',    lbl: 'Recap' }
   ],
   'livreur': [
     { id: 'tournee',  lbl: 'Tournee' },
@@ -1205,6 +1375,7 @@ const NAV_ITEMS = {
   ],
   'local': [
     { id: 'production', lbl: 'Production' },
+    { id: 'specials',   lbl: 'Speciales' },
     { id: 'messages',   lbl: 'Messages' }
   ],
   'backoffice': [
@@ -1251,6 +1422,9 @@ let marketUpcomingData = {}; // { market_id: { product_id: emmene, _date: 'YYYY-
 let adminProducts = []; // All products incl. inactive
 let adminHideInactive = false;
 let adminCatFilter = 'all';
+let adminNewProductOpen = false;
+let adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+let adminEditingPid = null;
 
 // Messagerie livreur
 let messagesData = [];
@@ -1259,6 +1433,14 @@ let realtimeChannelMessages = null;
 
 // Reappro v18 : auto-copy last week hint
 let autoCopyLastWeekDate = null;
+
+// v19 : Commandes speciales
+let currentSpecialWeekStart = null;  // ISO lundi
+let selectedSpecialDay = null;       // ISO jour selectionne dans la bandeau
+let specialOrdersData = [];          // array de commandes avec items inclus
+let specialFormMode = null;          // null | 'new' | 'edit'
+let specialFormDraft = null;         // objet commande en cours
+let realtimeChannelSpecials = null;
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -1467,9 +1649,11 @@ function goSplash() {
   if (realtimeChannelProductionLocal) { supa.removeChannel(realtimeChannelProductionLocal); realtimeChannelProductionLocal = null; }
   if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtimeChannelMarket = null; }
   if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); realtimeChannelMessages = null; }
+  if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
   currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
   marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
   messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
+  specialOrdersData = []; specialFormMode = null; specialFormDraft = null; selectedSpecialDay = null; currentSpecialWeekStart = null;
   isLivreurMode = false; isLocalMode = false;
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -1486,7 +1670,7 @@ async function setVue(v) {
   currentVue = v;
   renderNav();
   const pbtn = document.getElementById('print-btn');
-  if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison') ? 'flex' : 'none';
+  if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison' || v === 'specials') ? 'flex' : 'none';
   document.getElementById('main-content').innerHTML = '<div class="loading">Chargement...</div>';
   if (v === 'reappro') {
     await loadReappros(currentBoutique);
@@ -1526,6 +1710,13 @@ async function setVue(v) {
     subscribeRealtimeMessages();
     renderMessages();
     if (currentBoutique === 'livreur') markAllMessagesRead();
+  } else if (v === 'specials') {
+    if (!currentSpecialWeekStart) currentSpecialWeekStart = getMondayOf(currentDate);
+    if (!selectedSpecialDay) selectedSpecialDay = currentDate;
+    specialFormMode = null; specialFormDraft = null;
+    await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+    subscribeRealtimeSpecialOrders();
+    renderSpecials();
   }
 }
 
@@ -3460,6 +3651,136 @@ function setAdminCatFilter(cat) {
   renderAdminProducts();
 }
 
+function toggleNewProductForm() {
+  adminNewProductOpen = !adminNewProductOpen;
+  if (adminNewProductOpen) {
+    adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+  }
+  renderAdminProducts();
+  if (adminNewProductOpen) {
+    setTimeout(function() {
+      const el = document.getElementById('new-prod-name');
+      if (el) el.focus();
+    }, 50);
+  }
+}
+
+function handleNewProductField(field, val) {
+  adminNewProductDraft[field] = val;
+}
+
+async function saveNewProduct() {
+  const d = adminNewProductDraft;
+  if (!d.name || !d.name.trim()) { showToast('Nom obligatoire', 'error'); return; }
+  if (!d.category || !d.category.trim()) { showToast('Categorie obligatoire', 'error'); return; }
+  setSyncStatus('syncing');
+  const row = {
+    tenant_id: TENANT_ID,
+    name: d.name.trim(),
+    category: d.category.trim(),
+    unit: d.unit ? d.unit.trim() : null,
+    usage: d.usage || 'both',
+    actif: true,
+    supply_by_boutique: {}
+  };
+  const { error } = await supa.from('products').insert(row);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  adminNewProductOpen = false;
+  adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+  await loadAdminProducts();
+  await loadProducts();
+  renderAdminProducts();
+  showToast('Produit cree', 'sync');
+}
+
+async function deleteProduct(pid) {
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  if (!confirm('Supprimer DEFINITIVEMENT "' + p.name + '" ?\n\nATTENTION : si ce produit a un historique (commandes, ventes, production), la suppression sera impossible et je te proposerai de le desactiver a la place.')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').delete().eq('id', pid);
+  if (error) {
+    setSyncStatus('error');
+    const msg = (error.message || '').toLowerCase();
+    if (msg.indexOf('foreign') !== -1 || msg.indexOf('violates') !== -1 || msg.indexOf('referenced') !== -1) {
+      if (confirm('Ce produit a de l historique en base.\nLe DESACTIVER a la place (il disparaitra des ecrans mais l historique reste) ?')) {
+        const { error: e2 } = await supa.from('products').update({ actif: false }).eq('id', pid);
+        if (e2) { showToast(e2.message, 'error'); return; }
+        await loadAdminProducts();
+        await loadProducts();
+        renderAdminProducts();
+        showToast('Produit desactive', 'sync');
+      }
+    } else {
+      showToast(error.message, 'error');
+    }
+    return;
+  }
+  setSyncStatus('ok');
+  await loadAdminProducts();
+  await loadProducts();
+  renderAdminProducts();
+  showToast('Produit supprime', 'sync');
+}
+
+async function duplicateProduct(pid) {
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  setSyncStatus('syncing');
+  const row = {
+    tenant_id: TENANT_ID,
+    name: p.name + ' (copie)',
+    category: p.category,
+    unit: p.unit,
+    usage: p.usage || 'both',
+    actif: true,
+    prix_cession: p.prix_cession,
+    pces_per_caisse: p.pces_per_caisse,
+    supply_by_boutique: p.supply_by_boutique || {}
+  };
+  const { error } = await supa.from('products').insert(row);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadAdminProducts();
+  await loadProducts();
+  renderAdminProducts();
+  showToast('Produit duplique', 'sync');
+}
+
+function startEditProduct(pid) {
+  adminEditingPid = pid;
+  renderAdminProducts();
+}
+
+function cancelEditProduct() {
+  adminEditingPid = null;
+  renderAdminProducts();
+}
+
+async function saveEditProduct(pid) {
+  const nameEl = document.getElementById('edit-name-' + pid);
+  const catEl = document.getElementById('edit-cat-' + pid);
+  const unitEl = document.getElementById('edit-unit-' + pid);
+  const usageEl = document.getElementById('edit-usage-' + pid);
+  if (!nameEl || !catEl || !usageEl) return;
+  const name = nameEl.value.trim();
+  const category = catEl.value.trim();
+  const unit = unitEl ? (unitEl.value.trim() || null) : null;
+  const usage = usageEl.value;
+  if (!name) { showToast('Nom obligatoire', 'error'); return; }
+  if (!category) { showToast('Categorie obligatoire', 'error'); return; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ name: name, category: category, unit: unit, usage: usage }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  adminEditingPid = null;
+  await loadAdminProducts();
+  await loadProducts();
+  renderAdminProducts();
+  showToast('Produit mis a jour', 'sync');
+}
+
 function renderAdminProducts() {
   const mc = document.getElementById('main-content');
 
@@ -3471,13 +3792,43 @@ function renderAdminProducts() {
   const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length;
   const nbSansPrix = adminProducts.filter(function(p) { return p.actif && (p.prix_cession == null); }).length;
 
-  let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Active/desactive un produit (effet immediat partout). Saisis un prix de cession HT pour la valorisation des flux Local vers boutiques.</div>';
+  let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Ajoute, edite, duplique ou supprime. Le toggle Actif/Inactif masque sans supprimer. Le X supprime definitivement (impossible si historique).</div>';
 
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbInactifs + '</div><div class="prod-kpi-lbl">Inactifs</div></div>'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbSansPrix > 0 ? 'var(--red)' : 'var(--gold-dark)') + '">' + nbSansPrix + '</div><div class="prod-kpi-lbl">Sans prix</div></div>'
     + '</div>';
+
+  // Bouton + Nouveau produit + form
+  if (!adminNewProductOpen) {
+    html += '<div style="padding:10px 14px 6px"><button class="btn-gold" onclick="toggleNewProductForm()" style="width:100%;padding:12px;font-size:14px">&#43; Ajouter un produit</button></div>';
+  } else {
+    const catOptions = Object.keys(CAT_LABELS).map(function(c) {
+      return '<option value="' + c + '"' + (adminNewProductDraft.category === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c]) + '</option>';
+    }).join('');
+    html += '<div class="new-prod-form">'
+      + '<div class="npf-title">Nouveau produit</div>'
+      + '<div class="npf-row"><label class="npf-lbl">Nom *</label>'
+      + '<input id="new-prod-name" type="text" class="npf-input" value="' + escapeHtml(adminNewProductDraft.name) + '" oninput="handleNewProductField(\'name\', this.value)" placeholder="ex : Pain de campagne"></div>'
+      + '<div class="npf-row"><label class="npf-lbl">Categorie *</label>'
+      + '<select class="npf-input" onchange="handleNewProductField(\'category\', this.value)">'
+      + '<option value="">- Choisir -</option>' + catOptions + '</select></div>'
+      + '<div class="npf-row"><label class="npf-lbl">Unite</label>'
+      + '<input type="text" class="npf-input" value="' + escapeHtml(adminNewProductDraft.unit) + '" oninput="handleNewProductField(\'unit\', this.value)" placeholder="ex : 400g, piece, kg..."></div>'
+      + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
+      + '<select class="npf-input" onchange="handleNewProductField(\'usage\', this.value)">'
+      + '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Reappro + Ventes</option>'
+      + '<option value="reappro"' + (adminNewProductDraft.usage === 'reappro' ? ' selected' : '') + '>Reappro uniquement</option>'
+      + '<option value="ventes"' + (adminNewProductDraft.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
+      + '</select></div>'
+      + '<div class="npf-actions">'
+      + '<button class="btn-grey" onclick="toggleNewProductForm()">Annuler</button>'
+      + '<button class="btn-gold" onclick="saveNewProduct()">Creer</button>'
+      + '</div>'
+      + '<div class="npf-hint">Prix, Pces/caisse et Origines se definissent ensuite sur la ligne du produit.</div>'
+      + '</div>';
+  }
 
   const catsPresent = Array.from(new Set(adminProducts.map(function(p) { return p.category || 'autre'; })));
   const catOrder = Object.keys(CAT_LABELS);
@@ -3518,6 +3869,7 @@ function renderAdminProducts() {
   cats.forEach(function(cat) {
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:10px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
       byCat[cat].forEach(function(p) {
+        const isEditing = (adminEditingPid === p.id);
         const rowCls = 'admin-row' + (p.actif ? '' : ' inactive');
         const prixVal = p._prix_draft != null ? p._prix_draft : (p.prix_cession == null ? '' : String(p.prix_cession).replace('.', ','));
         const prixCls = prixVal ? 'has-prix' : '';
@@ -3537,6 +3889,31 @@ function renderAdminProducts() {
             return '<option value="' + o.v + '"' + (currentVal === o.v ? ' selected' : '') + '>' + o.l + '</option>';
           }).join('');
         }
+
+        if (isEditing) {
+          const catOptions = Object.keys(CAT_LABELS).map(function(c) {
+            return '<option value="' + c + '"' + ((p.category || '') === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c]) + '</option>';
+          }).join('');
+          html += '<div class="admin-row-edit">'
+            + '<div class="are-title">Edition : ' + escapeHtml(p.name) + '</div>'
+            + '<div class="npf-row"><label class="npf-lbl">Nom *</label><input id="edit-name-' + p.id + '" type="text" class="npf-input" value="' + escapeHtml(p.name) + '"></div>'
+            + '<div class="npf-row"><label class="npf-lbl">Categorie *</label>'
+            + '<select id="edit-cat-' + p.id + '" class="npf-input"><option value="">- Choisir -</option>' + catOptions + '</select></div>'
+            + '<div class="npf-row"><label class="npf-lbl">Unite</label><input id="edit-unit-' + p.id + '" type="text" class="npf-input" value="' + escapeHtml(p.unit || '') + '"></div>'
+            + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
+            + '<select id="edit-usage-' + p.id + '" class="npf-input">'
+            + '<option value="both"' + ((p.usage || 'both') === 'both' ? ' selected' : '') + '>Reappro + Ventes</option>'
+            + '<option value="reappro"' + (p.usage === 'reappro' ? ' selected' : '') + '>Reappro uniquement</option>'
+            + '<option value="ventes"' + (p.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
+            + '</select></div>'
+            + '<div class="npf-actions">'
+            + '<button class="btn-grey" onclick="cancelEditProduct()">Annuler</button>'
+            + '<button class="btn-gold" onclick="saveEditProduct(\'' + p.id + '\')">Enregistrer</button>'
+            + '</div>'
+            + '</div>';
+          return;
+        }
+
         html += '<div class="' + rowCls + '">'
           + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
           + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
@@ -3557,6 +3934,11 @@ function renderAdminProducts() {
           + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'tours\', this.value)">' + supplyOpts(supTours) + '</select></div>'
           + '<div class="adr-cell"><span class="adr-lbl">St-Avertin</span>'
           + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'saint-avertin\', this.value)">' + supplyOpts(supSA) + '</select></div>'
+          + '</div>'
+          + '<div class="admin-row-actions">'
+          + '<button class="act-btn act-edit" onclick="startEditProduct(\'' + p.id + '\')" title="Editer">&#9998; Editer</button>'
+          + '<button class="act-btn act-dup" onclick="duplicateProduct(\'' + p.id + '\')" title="Dupliquer">&#128203; Dupliquer</button>'
+          + '<button class="act-btn act-del" onclick="deleteProduct(\'' + p.id + '\')" title="Supprimer">&#10006; Supprimer</button>'
           + '</div>';
       });
   });
@@ -3715,6 +4097,578 @@ function renderValorisation() {
   });
 
   mc.innerHTML = html;
+}
+
+// === COMMANDES SPECIALES v19 ===
+
+function getProductionShopForProduct(productId, originShop) {
+  // Determine qui produit la commande pour ce produit
+  const p = products.find(function(x) { return x.id === productId; });
+  if (!p) return originShop; // fallback
+  const supply = getProductSupply(p, originShop);
+  if (!supply || supply === 'on_site') return originShop;
+  if (supply === 'local') return 'local';
+  if (supply === 'veigne') return 'veigne';
+  return originShop;
+}
+
+function computeOrderProductionShop(draft) {
+  // Selon les items de la commande, deduit un production_shop majoritaire.
+  // Si plusieurs productions dans une meme commande (cas rare), on prend la plus frequente.
+  const counts = {};
+  (draft.items || []).forEach(function(it) {
+    if (!it.product_id) return;
+    const ps = getProductionShopForProduct(it.product_id, draft.origin_shop);
+    counts[ps] = (counts[ps] || 0) + 1;
+  });
+  const keys = Object.keys(counts);
+  if (!keys.length) return draft.origin_shop;
+  keys.sort(function(a, b) { return counts[b] - counts[a]; });
+  return keys[0];
+}
+
+async function loadSpecialOrders(b, weekStart) {
+  const endD = new Date(weekStart + 'T12:00');
+  endD.setDate(endD.getDate() + 6);
+  const weekEnd = endD.getFullYear() + '-' + String(endD.getMonth()+1).padStart(2,'0') + '-' + String(endD.getDate()).padStart(2,'0');
+  let q = supa.from('special_orders').select('*').eq('tenant_id', TENANT_ID);
+  if (b !== 'local') {
+    q = q.or('origin_shop.eq.' + b + ',production_shop.eq.' + b);
+  } else {
+    q = q.eq('production_shop', 'local');
+  }
+  q = q.gte('pickup_date', weekStart).lte('pickup_date', weekEnd).order('pickup_date').order('pickup_time', { nullsFirst: true });
+  const { data: ordersData, error } = await q;
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  const orderIds = (ordersData || []).map(function(o) { return o.id; });
+  let itemsData = [];
+  if (orderIds.length) {
+    const { data: its, error: e2 } = await supa.from('special_order_items').select('*').in('order_id', orderIds).order('position');
+    if (!e2) itemsData = its || [];
+  }
+  specialOrdersData = (ordersData || []).map(function(o) {
+    o.items = itemsData.filter(function(i) { return i.order_id === o.id; });
+    return o;
+  });
+}
+
+async function upsertSpecialOrder() {
+  const d = specialFormDraft;
+  if (!d) return;
+  if (!d.customer_name || !d.customer_name.trim()) { showToast('Nom client obligatoire', 'error'); return; }
+  if (!d.pickup_date) { showToast('Date de retrait obligatoire', 'error'); return; }
+  const cleanItems = (d.items || []).filter(function(it) {
+    return (it.product_id || (it.product_name_custom && it.product_name_custom.trim()));
+  });
+  if (!cleanItems.length) { showToast('Au moins 1 produit', 'error'); return; }
+
+  setSyncStatus('syncing');
+  const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: cleanItems });
+  const nowISO = new Date().toISOString();
+  const orderRow = {
+    tenant_id: TENANT_ID,
+    origin_shop: d.origin_shop,
+    production_shop: productionShop,
+    customer_name: d.customer_name.trim(),
+    customer_phone: d.customer_phone ? d.customer_phone.trim() : null,
+    pickup_date: d.pickup_date,
+    pickup_time: d.pickup_time || null,
+    status: d.status || 'brouillon',
+    notes: d.notes ? d.notes.trim() : null,
+    updated_at: nowISO
+  };
+
+  let orderId = d.id;
+  if (orderId) {
+    const { error } = await supa.from('special_orders').update(orderRow).eq('id', orderId);
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+    await supa.from('special_order_items').delete().eq('order_id', orderId);
+  } else {
+    orderRow.created_by = DEVICE_ID;
+    orderRow.created_at = nowISO;
+    const { data, error } = await supa.from('special_orders').insert(orderRow).select('id').single();
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+    orderId = data.id;
+  }
+
+  const itemRows = cleanItems.map(function(it, idx) {
+    return {
+      order_id: orderId,
+      product_id: it.product_id || null,
+      product_name_custom: it.product_name_custom ? it.product_name_custom.trim() : null,
+      qty: parseQty(it.qty) || 1,
+      unit_price: it.unit_price ? parseQty(it.unit_price) : null,
+      notes: it.notes ? it.notes.trim() : null,
+      position: idx
+    };
+  });
+  if (itemRows.length) {
+    const { error } = await supa.from('special_order_items').insert(itemRows);
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  }
+
+  setSyncStatus('ok');
+  specialFormMode = null;
+  specialFormDraft = null;
+  selectedSpecialDay = d.pickup_date;
+  if (d.pickup_date < currentSpecialWeekStart || d.pickup_date > addDaysISO(currentSpecialWeekStart, 6)) {
+    currentSpecialWeekStart = getMondayOf(d.pickup_date);
+  }
+  await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+  renderSpecials();
+  showToast('Commande enregistree', 'sync');
+}
+
+async function deleteSpecialOrder(oid) {
+  if (!confirm('Supprimer cette commande ?')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('special_orders').delete().eq('id', oid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+  renderSpecials();
+  showToast('Commande supprimee', 'sync');
+}
+
+async function changeSpecialOrderStatus(oid, newStatus) {
+  setSyncStatus('syncing');
+  const { error } = await supa.from('special_orders').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', oid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+  if (o) o.status = newStatus;
+  renderSpecials();
+}
+
+function subscribeRealtimeSpecialOrders() {
+  if (realtimeChannelSpecials) supa.removeChannel(realtimeChannelSpecials);
+  realtimeChannelSpecials = supa.channel('specials_' + currentBoutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'special_orders' }, async function() {
+      if (specialFormMode) return; // ne pas rerender pendant edition
+      await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+      renderSpecials();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'special_order_items' }, async function() {
+      if (specialFormMode) return;
+      await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+      renderSpecials();
+    })
+    .subscribe();
+}
+
+function addDaysISO(iso, n) {
+  const d = new Date(iso + 'T12:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function changeSpecialWeek(delta) {
+  currentSpecialWeekStart = addDaysISO(currentSpecialWeekStart, delta * 7);
+  // Si le jour selectionne est hors de la nouvelle semaine, aller sur le lundi
+  if (selectedSpecialDay < currentSpecialWeekStart || selectedSpecialDay > addDaysISO(currentSpecialWeekStart, 6)) {
+    selectedSpecialDay = currentSpecialWeekStart;
+  }
+  await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+  renderSpecials();
+}
+
+function selectSpecialDay(iso) {
+  selectedSpecialDay = iso;
+  renderSpecials();
+}
+
+const STATUS_LBL = {
+  'brouillon': 'Brouillon',
+  'confirmee': 'Confirmee',
+  'prete':     'Prete',
+  'livree':    'Livree',
+  'annulee':   'Annulee'
+};
+const STATUS_NEXT = {
+  'brouillon': 'confirmee',
+  'confirmee': 'prete',
+  'prete':     'livree',
+  'livree':    'livree',
+  'annulee':   'annulee'
+};
+const SHOP_COLOR_CLASS = {
+  'veigne': 'shop-veigne',
+  'tours': 'shop-tours',
+  'saint-avertin': 'shop-stav',
+  'local': 'shop-local'
+};
+const DOW_ABBR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+function renderSpecials() {
+  if (specialFormMode) {
+    renderSpecialOrderForm();
+    return;
+  }
+  const mc = document.getElementById('main-content');
+  let html = '';
+
+  // Bandeau semaine
+  html += '<div class="sp-week-bar">';
+  html += '<button class="sp-week-nav" onclick="changeSpecialWeek(-1)">&#8592;</button>';
+  html += '<div class="sp-week-days">';
+  for (let i = 0; i < 7; i++) {
+    const iso = addDaysISO(currentSpecialWeekStart, i);
+    const d = new Date(iso + 'T12:00');
+    const cnt = specialOrdersData.filter(function(o) { return o.pickup_date === iso; }).length;
+    const cls = 'sp-day' + (iso === selectedSpecialDay ? ' active' : '') + (iso === serviceDateISO() ? ' today' : '');
+    html += '<button class="' + cls + '" onclick="selectSpecialDay(\'' + iso + '\')">';
+    html += '<div class="sp-day-dow">' + DOW_ABBR[d.getDay()] + '</div>';
+    html += '<div class="sp-day-num">' + d.getDate() + '</div>';
+    html += '<div class="sp-day-cnt">' + (cnt > 0 ? cnt : '') + '</div>';
+    html += '</button>';
+  }
+  html += '</div>';
+  html += '<button class="sp-week-nav" onclick="changeSpecialWeek(1)">&#8594;</button>';
+  html += '</div>';
+
+  // Nouvelle commande CTA (sauf Local qui ne prend pas de commandes client)
+  if (currentBoutique !== 'local') {
+    html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">&#43; Nouvelle commande</button></div>';
+  }
+
+  // Filtrer les commandes du jour selectionne
+  const dayOrders = specialOrdersData.filter(function(o) { return o.pickup_date === selectedSpecialDay; });
+  const myOrders = dayOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
+  // Commandes a produire pour d'autres boutiques
+  const toProduce = dayOrders.filter(function(o) { return o.production_shop === currentBoutique && o.origin_shop !== currentBoutique; });
+
+  const dLbl = formatDateFr(selectedSpecialDay);
+  html += '<div class="sp-section-title">&#128197; ' + escapeHtml(dLbl) + '</div>';
+
+  // Section Mes commandes
+  if (currentBoutique !== 'local') {
+    html += '<div class="section sp-section ' + SHOP_COLOR_CLASS[currentBoutique] + '">';
+    html += '<div class="sp-section-header"><span>&#11088; Speciales - ' + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique) + '</span>';
+    html += '<span class="sp-count-badge">' + myOrders.length + '</span></div>';
+    if (!myOrders.length) {
+      html += '<div class="sp-empty">Aucune commande speciale</div>';
+    } else {
+      myOrders.forEach(function(o) { html += renderSpecialOrderCard(o, true); });
+    }
+    html += '</div>';
+  }
+
+  // Section A produire pour ... (groupe par origin)
+  if (toProduce.length) {
+    const byOrigin = {};
+    toProduce.forEach(function(o) {
+      if (!byOrigin[o.origin_shop]) byOrigin[o.origin_shop] = [];
+      byOrigin[o.origin_shop].push(o);
+    });
+    Object.keys(byOrigin).forEach(function(origin) {
+      html += '<div class="section sp-section ' + SHOP_COLOR_CLASS[origin] + '">';
+      html += '<div class="sp-section-header"><span>&#128230; A produire - ' + escapeHtml(BOUTIQUE_NAMES[origin] || origin) + '</span>';
+      html += '<span class="sp-count-badge">' + byOrigin[origin].length + '</span></div>';
+      byOrigin[origin].forEach(function(o) { html += renderSpecialOrderCard(o, false); });
+      html += '</div>';
+    });
+  }
+
+  // Consolidation des produits du jour (section de synthese)
+  if (dayOrders.length && currentBoutique !== 'local') {
+    const agg = {};
+    dayOrders.forEach(function(o) {
+      (o.items || []).forEach(function(it) {
+        const key = it.product_id || ('custom:' + (it.product_name_custom || ''));
+        const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
+        if (!agg[key]) agg[key] = { name: name, qty: 0 };
+        agg[key].qty += parseQty(it.qty) || 0;
+      });
+    });
+    const items = Object.keys(agg).map(function(k) { return agg[k]; }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+    if (items.length) {
+      html += '<div class="section sp-section" style="margin-top:14px">';
+      html += '<div class="sp-section-header"><span>&#128203; Total produits du ' + escapeHtml(dLbl) + '</span></div>';
+      html += '<div class="sp-consol">';
+      items.forEach(function(it) {
+        html += '<div class="sp-consol-row"><span>' + escapeHtml(it.name) + '</span><strong>' + it.qty + '</strong></div>';
+      });
+      html += '</div></div>';
+    }
+  }
+
+  if (!dayOrders.length) {
+    if (currentBoutique === 'local') {
+      html += '<div class="empty-state">Aucune commande a produire ce jour.</div>';
+    }
+  }
+
+  const mc2 = document.getElementById('main-content');
+  mc2.innerHTML = html;
+}
+
+function renderSpecialOrderCard(o, isMine) {
+  const nbItems = (o.items || []).reduce(function(s, it) { return s + (parseQty(it.qty) || 0); }, 0);
+  const summary = (o.items || []).map(function(it) {
+    const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
+    return (parseQty(it.qty) || 1) + 'x ' + name;
+  }).join(' + ');
+  let html = '<div class="sp-card status-' + o.status + '" onclick="openEditSpecialOrder(\'' + o.id + '\')">';
+  html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
+  if (o.pickup_time) html += '<span class="sp-card-time">&#128340; ' + escapeHtml(o.pickup_time) + '</span>';
+  html += '</div>';
+  html += '<div class="sp-card-body">' + escapeHtml(summary) + '</div>';
+  html += '<div class="sp-card-footer">';
+  html += '<span class="sp-status-badge sp-st-' + o.status + '">' + STATUS_LBL[o.status] + '</span>';
+  if (o.origin_shop !== o.production_shop) {
+    html += '<span class="sp-prod-tag">&#10140; ' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</span>';
+  }
+  if (o.status !== 'livree' && o.status !== 'annulee') {
+    const next = STATUS_NEXT[o.status];
+    html += '<button class="sp-status-next" onclick="event.stopPropagation(); changeSpecialOrderStatus(\'' + o.id + '\', \'' + next + '\')">' + STATUS_LBL[next] + ' &#10003;</button>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function openNewSpecialOrder() {
+  specialFormMode = 'new';
+  specialFormDraft = {
+    id: null,
+    origin_shop: currentBoutique,
+    customer_name: '',
+    customer_phone: '',
+    pickup_date: selectedSpecialDay || currentSpecialWeekStart,
+    pickup_time: '',
+    status: 'brouillon',
+    notes: '',
+    items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' }]
+  };
+  renderSpecials();
+}
+
+function openEditSpecialOrder(oid) {
+  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+  if (!o) return;
+  specialFormMode = 'edit';
+  specialFormDraft = {
+    id: o.id,
+    origin_shop: o.origin_shop,
+    customer_name: o.customer_name || '',
+    customer_phone: o.customer_phone || '',
+    pickup_date: o.pickup_date,
+    pickup_time: o.pickup_time || '',
+    status: o.status || 'brouillon',
+    notes: o.notes || '',
+    items: (o.items || []).map(function(it) {
+      const p = it.product_id ? products.find(function(x) { return x.id === it.product_id; }) : null;
+      return {
+        id: it.id,
+        product_id: it.product_id,
+        product_name_custom: it.product_name_custom || '',
+        qty: String(it.qty || 1),
+        notes: it.notes || '',
+        category: p ? (p.category || '') : (it.product_name_custom ? '__custom' : '')
+      };
+    })
+  };
+  if (!specialFormDraft.items.length) {
+    specialFormDraft.items = [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' }];
+  }
+  renderSpecials();
+}
+
+function cancelSpecialForm() {
+  specialFormMode = null;
+  specialFormDraft = null;
+  renderSpecials();
+}
+
+function addSpecialItem() {
+  specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' });
+  renderSpecials();
+}
+
+function removeSpecialItem(idx) {
+  specialFormDraft.items.splice(idx, 1);
+  if (!specialFormDraft.items.length) {
+    specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' });
+  }
+  renderSpecials();
+}
+
+function handleSpecialFormField(field, val) {
+  if (!specialFormDraft) return;
+  specialFormDraft[field] = val;
+}
+
+function handleSpecialItemField(idx, field, val) {
+  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
+  const it = specialFormDraft.items[idx];
+  it[field] = val;
+  if (field === 'category') {
+    // Reset le produit quand on change de categorie
+    it.product_id = null;
+    if (val === '__custom') {
+      it.product_name_custom = it.product_name_custom || '';
+    } else {
+      it.product_name_custom = '';
+    }
+    renderSpecials();
+  }
+  if (field === 'product_id') {
+    // si on met un vrai produit, vider le custom
+    if (val) it.product_name_custom = '';
+  }
+}
+
+function renderSpecialOrderForm() {
+  const mc = document.getElementById('main-content');
+  const d = specialFormDraft;
+  const isEdit = specialFormMode === 'edit';
+
+  // Dates : 14 prochains jours a partir d'aujourd'hui
+  const dateOpts = [];
+  const today = serviceDateISO();
+  // Permettre aussi les 7 derniers jours (rattrapage)
+  for (let i = -7; i <= 30; i++) {
+    const iso = addDaysISO(today, i);
+    const dd = new Date(iso + 'T12:00');
+    const lbl = DOW_ABBR[dd.getDay()] + '. ' + dd.getDate() + ' ' + ['jan', 'fev', 'mar', 'avr', 'mai', 'juin', 'juil', 'aou', 'sep', 'oct', 'nov', 'dec'][dd.getMonth()] + '.';
+    dateOpts.push({ v: iso, l: lbl + (iso === today ? ' (auj.)' : '') });
+  }
+
+  // Heures : par 15 min de 06:00 a 20:00
+  const timeOpts = [{ v: '', l: '-- heure --' }];
+  for (let h = 6; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const v = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      timeOpts.push({ v: v, l: v });
+    }
+  }
+
+  let html = '<div class="sp-form-header">';
+  html += '<button class="sp-back" onclick="cancelSpecialForm()">&#8592;</button>';
+  html += '<div class="sp-form-title">' + (isEdit ? 'Editer commande' : 'Nouvelle commande') + '</div>';
+  if (isEdit) {
+    html += '<button class="sp-del-btn" onclick="deleteSpecialOrder(\'' + d.id + '\')">&#128465;</button>';
+  } else {
+    html += '<span style="width:38px"></span>';
+  }
+  html += '</div>';
+
+  html += '<div class="sp-form">';
+
+  // Client
+  html += '<div class="sp-form-row"><label class="sp-lbl">Nom client *</label>';
+  html += '<input class="sp-input" type="text" value="' + escapeHtml(d.customer_name) + '" placeholder="ex : M. Dupont" oninput="handleSpecialFormField(\'customer_name\', this.value)"></div>';
+
+  html += '<div class="sp-form-row"><label class="sp-lbl">Telephone</label>';
+  html += '<input class="sp-input" type="tel" value="' + escapeHtml(d.customer_phone) + '" placeholder="optionnel" oninput="handleSpecialFormField(\'customer_phone\', this.value)"></div>';
+
+  // Date + Heure
+  html += '<div class="sp-form-row-double">';
+  html += '<div><label class="sp-lbl">Date retrait *</label><select class="sp-input" onchange="handleSpecialFormField(\'pickup_date\', this.value); renderSpecials()">';
+  dateOpts.forEach(function(o) {
+    html += '<option value="' + o.v + '"' + (d.pickup_date === o.v ? ' selected' : '') + '>' + escapeHtml(o.l) + '</option>';
+  });
+  html += '</select></div>';
+  html += '<div><label class="sp-lbl">Heure</label><select class="sp-input" onchange="handleSpecialFormField(\'pickup_time\', this.value)">';
+  timeOpts.forEach(function(o) {
+    html += '<option value="' + o.v + '"' + (d.pickup_time === o.v ? ' selected' : '') + '>' + escapeHtml(o.l) + '</option>';
+  });
+  html += '</select></div>';
+  html += '</div>';
+
+  // Items
+  html += '<div class="sp-items-section"><div class="sp-items-title">Produits commandes</div>';
+  d.items.forEach(function(it, idx) {
+    html += renderSpecialItemRow(it, idx);
+  });
+  html += '<button class="sp-add-item-btn" onclick="addSpecialItem()">&#43; Ajouter un produit</button>';
+  html += '</div>';
+
+  // Notes
+  html += '<div class="sp-form-row"><label class="sp-lbl">Notes</label>';
+  html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, decoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
+
+  // Status (si edit)
+  if (isEdit) {
+    html += '<div class="sp-form-row"><label class="sp-lbl">Statut</label><select class="sp-input" onchange="handleSpecialFormField(\'status\', this.value)">';
+    ['brouillon', 'confirmee', 'prete', 'livree', 'annulee'].forEach(function(s) {
+      html += '<option value="' + s + '"' + (d.status === s ? ' selected' : '') + '>' + STATUS_LBL[s] + '</option>';
+    });
+    html += '</select></div>';
+  }
+
+  // Actions
+  html += '<div class="sp-form-actions">';
+  html += '<button class="btn-grey" onclick="cancelSpecialForm()">Annuler</button>';
+  html += '<button class="btn-gold" onclick="upsertSpecialOrder()">' + (isEdit ? 'Enregistrer' : 'Creer commande') + '</button>';
+  html += '</div>';
+
+  // Hint production_shop
+  const prev = computeOrderProductionShop(d);
+  if (prev !== d.origin_shop) {
+    html += '<div class="sp-prod-hint">&#10140; Cette commande sera produite par <strong>' + escapeHtml(BOUTIQUE_NAMES[prev] || prev) + '</strong></div>';
+  }
+
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
+function renderSpecialItemRow(it, idx) {
+  const cats = Array.from(new Set(products.filter(function(p) { return p.actif; }).map(function(p) { return p.category; })));
+  const catOrder = Object.keys(CAT_LABELS);
+  cats.sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  let html = '<div class="sp-item-row">';
+  html += '<div class="sp-item-hdr"><strong>Produit ' + (idx + 1) + '</strong>';
+  html += '<button class="sp-item-del" onclick="removeSpecialItem(' + idx + ')">&#10006;</button></div>';
+
+  // Qty + Categorie sur meme ligne
+  html += '<div class="sp-item-grid">';
+  html += '<div><label class="sp-lbl-sm">Qte</label>';
+  html += '<select class="sp-input sp-qty" onchange="handleSpecialItemField(' + idx + ', \'qty\', this.value)">';
+  for (let i = 1; i <= 50; i++) {
+    html += '<option value="' + i + '"' + (String(it.qty) === String(i) ? ' selected' : '') + '>' + i + '</option>';
+  }
+  // Si qty custom, ajouter l'option
+  if (it.qty && [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,30,40,50].indexOf(Number(it.qty)) === -1) {
+    html += '<option value="' + it.qty + '" selected>' + escapeHtml(String(it.qty)) + '</option>';
+  }
+  html += '</select></div>';
+
+  html += '<div><label class="sp-lbl-sm">Categorie</label>';
+  html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'category\', this.value)">';
+  html += '<option value="">-- choisir --</option>';
+  cats.forEach(function(c) {
+    html += '<option value="' + c + '"' + (it.category === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c] || c) + '</option>';
+  });
+  html += '<option value="__custom"' + (it.category === '__custom' ? ' selected' : '') + '>-- Libre (autre) --</option>';
+  html += '</select></div>';
+  html += '</div>';
+
+  // Produit selon categorie
+  if (it.category === '__custom') {
+    html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Description</label>';
+    html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_name_custom || '') + '" placeholder="ex: Piece montee 30 personnes" oninput="handleSpecialItemField(' + idx + ', \'product_name_custom\', this.value)"></div>';
+  } else if (it.category) {
+    const prodsInCat = products.filter(function(p) { return p.actif && p.category === it.category; });
+    prodsInCat.sort(function(a, b) { return a.name.localeCompare(b.name); });
+    html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Produit</label>';
+    html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'product_id\', this.value)">';
+    html += '<option value="">-- choisir --</option>';
+    prodsInCat.forEach(function(p) {
+      html += '<option value="' + p.id + '"' + (it.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+    });
+    html += '</select></div>';
+  }
+
+  // Notes item
+  html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Notes (optionnel)</label>';
+  html += '<input class="sp-input" type="text" value="' + escapeHtml(it.notes || '') + '" placeholder="decoration, message..." oninput="handleSpecialItemField(' + idx + ', \'notes\', this.value)"></div>';
+
+  html += '</div>';
+  return html;
 }
 
 // === MESSAGERIE LIVREUR ===
