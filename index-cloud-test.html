@@ -274,6 +274,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .market-note-inline:focus { outline: none; border-color: var(--gold); background: white; }
 
+/* === ADMIN PRODUITS === */
+.admin-table {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
+}
+.admin-row {
+  display: grid; grid-template-columns: 1fr auto;
+  padding: 12px 14px; border-bottom: 1px solid #F5F0E5;
+  align-items: center; gap: 12px;
+  font-size: 14px;
+}
+.admin-row:last-child { border-bottom: none; }
+.admin-row.inactive { opacity: 0.55; background: #FAF8F4; }
+.admin-row .prod-name { color: var(--brown); font-weight: 500; }
+.admin-row .prod-unit { font-size: 12px; color: #999; }
+.toggle-btn {
+  background: #D0CCC2; color: white; border: none;
+  padding: 9px 18px; border-radius: 20px; font-weight: 700;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  min-width: 88px; letter-spacing: 0.3px;
+  box-shadow: 0 1px 3px rgba(61,43,31,0.08); transition: all 0.15s;
+}
+.toggle-btn.active { background: var(--green); }
+.toggle-btn:active { transform: scale(0.95); }
+
 /* === Badges marche dans Le Local === */
 .market-header-badge {
   display: block; font-size: 9px; color: #888; font-weight: 500;
@@ -670,7 +695,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 6</div>
+  <div class="splash-sub">Cloud - Phase 7</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -834,7 +859,8 @@ const NAV_ITEMS = {
     { id: 'marche', lbl: 'Tableau marche' }
   ],
   'local': [
-    { id: 'production', lbl: 'Production' }
+    { id: 'production', lbl: 'Production' },
+    { id: 'produits', lbl: 'Produits' }
   ]
 };
 
@@ -871,6 +897,11 @@ let realtimeChannelMarket = null;
 let marketFilterEmpty = true;
 // Market anticipation data for Le Local (aggregated upcoming market demand)
 let marketUpcomingData = {}; // { market_id: { product_id: emmene, _date: 'YYYY-MM-DD' } }
+
+// Admin products (catalog)
+let adminProducts = []; // All products incl. inactive
+let adminHideInactive = false;
+let adminCatFilter = 'all';
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -1054,6 +1085,9 @@ async function setVue(v) {
     subscribeRealtimeProduction();
     subscribeRealtimeProductionLocal();
     renderProduction();
+  } else if (v === 'produits') {
+    await loadAdminProducts();
+    renderAdminProducts();
   } else if (v === 'marche') {
     await loadMarketEntries(currentMarketId, currentMarketDate);
     await loadMarketDayNote(currentMarketId, currentMarketDate);
@@ -2617,6 +2651,116 @@ async function loadMarketUpcoming(localDate) {
     }
     marketUpcomingData[r.market_id]._products[r.product_id] = total;
   });
+}
+
+// === ADMIN PRODUITS ===
+async function loadAdminProducts() {
+  const { data, error } = await supa.from('products').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .order('category', { ascending: true }).order('name', { ascending: true });
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  adminProducts = data || [];
+}
+
+async function toggleProductActif(pid, currentVal) {
+  setSyncStatus('syncing');
+  const newVal = !currentVal;
+  const { error } = await supa.from('products').update({ actif: newVal }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  // MAJ local admin
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (p) p.actif = newVal;
+  // Recharge aussi le cache global products pour que les autres vues reflettent
+  await loadProducts();
+  renderAdminProducts();
+  showToast((newVal ? 'Active' : 'Desactive') + ' : ' + (p ? p.name : pid), 'sync');
+}
+
+function toggleAdminHideInactive() {
+  adminHideInactive = !adminHideInactive;
+  renderAdminProducts();
+}
+
+function setAdminCatFilter(cat) {
+  adminCatFilter = cat;
+  renderAdminProducts();
+}
+
+function renderAdminProducts() {
+  const mc = document.getElementById('main-content');
+
+  // Filtrer
+  let filtered = adminProducts.slice();
+  if (adminHideInactive) filtered = filtered.filter(function(p) { return p.actif; });
+  if (adminCatFilter !== 'all') filtered = filtered.filter(function(p) { return p.category === adminCatFilter; });
+
+  const nbActifs = adminProducts.filter(function(p) { return p.actif; }).length;
+  const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length;
+
+  let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Active / desactive un produit pour le faire apparaitre ou disparaitre partout (boutiques, marches, production).</div>';
+
+  // KPIs
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbInactifs + '</div><div class="prod-kpi-lbl">Inactifs</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + adminProducts.length + '</div><div class="prod-kpi-lbl">Total</div></div>'
+    + '</div>';
+
+  // Filtres categorie
+  const catsPresent = Array.from(new Set(adminProducts.map(function(p) { return p.category || 'autre'; })));
+  const catOrder = Object.keys(CAT_LABELS);
+  catsPresent.sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+  html += '<div class="recap-toggle" style="flex-wrap:wrap">';
+  html += '<button class="recap-toggle-btn ' + (adminCatFilter === 'all' ? 'active' : '') + '" onclick="setAdminCatFilter(\'all\')" style="flex:0 0 auto;padding:6px 12px">Toutes</button>';
+  catsPresent.forEach(function(c) {
+    html += '<button class="recap-toggle-btn ' + (adminCatFilter === c ? 'active' : '') + '" onclick="setAdminCatFilter(\'' + c + '\')" style="flex:0 0 auto;padding:6px 12px">' + escapeHtml(CAT_LABELS[c] || c) + '</button>';
+  });
+  html += '</div>';
+
+  // Filtre cacher inactifs
+  html += '<div class="prod-filter-bar"><label>'
+    + '<input type="checkbox" ' + (adminHideInactive ? 'checked' : '') + ' onchange="toggleAdminHideInactive()">'
+    + '<span>Cacher les inactifs</span></label></div>';
+
+  if (!filtered.length) {
+    html += '<div class="prod-empty">Aucun produit dans ce filtre.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // Grouper par categorie
+  const byCat = {};
+  filtered.forEach(function(p) {
+    const c = p.category || 'autre';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(p);
+  });
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  html += '<div class="admin-table">';
+  cats.forEach(function(cat) {
+    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:10px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
+    byCat[cat].forEach(function(p) {
+      const rowCls = 'admin-row' + (p.actif ? '' : ' inactive');
+      html += '<div class="' + rowCls + '">'
+        + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
+        + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
+        + '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" onclick="toggleProductActif(\'' + p.id + '\', ' + p.actif + ')">'
+        + (p.actif ? 'Actif' : 'Inactif')
+        + '</button>'
+        + '</div>';
+    });
+  });
+  html += '</div>';
+
+  mc.innerHTML = html;
 }
 
 // === HELPERS ===
