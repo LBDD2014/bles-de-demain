@@ -221,10 +221,111 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   box-shadow: 0 2px 6px rgba(206,171,82,0.3); font-family: inherit;
 }
 .btn-gold-sm:active { transform: scale(0.97); }
+
+/* === MARCHE === */
+.market-note-box {
+  background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08);
+}
+.market-note-lbl {
+  font-size: 11px; color: var(--brown-mid); text-transform: uppercase;
+  font-weight: 700; letter-spacing: 0.3px; margin-bottom: 8px;
+}
+.market-note-ta {
+  width: 100%; min-height: 70px; padding: 10px; border: 2px solid #E0D8C8;
+  border-radius: 8px; font-size: 13px; color: var(--brown); background: #FAF8F4;
+  font-family: inherit; resize: vertical; line-height: 1.4;
+}
+.market-note-ta:focus { outline: none; border-color: var(--gold); background: white; }
+
+.market-table {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
+}
+.market-table-header {
+  display: grid; grid-template-columns: 1.2fr 0.6fr 0.6fr 0.6fr 1.2fr;
+  padding: 8px 10px; background: #F5F0E5; gap: 4px;
+  font-size: 10px; font-weight: 700; color: var(--brown); text-transform: uppercase;
+}
+.market-table-header .col-c { text-align: center; }
+.market-row {
+  display: grid; grid-template-columns: 1.2fr 0.6fr 0.6fr 0.6fr 1.2fr;
+  padding: 8px 10px; border-bottom: 1px solid #F5F0E5; gap: 4px; align-items: center;
+  font-size: 13px;
+}
+.market-row:last-child { border-bottom: none; }
+.market-input {
+  width: 100%; padding: 6px 2px; border: 2px solid #E0D8C8; border-radius: 6px;
+  font-size: 13px; font-weight: 700; text-align: center; color: var(--brown);
+  background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
+}
+.market-input::-webkit-outer-spin-button,
+.market-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.market-input:focus { outline: none; border-color: var(--gold); background: white; }
+.market-input.has-emmene { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
+.market-input.has-vendu  { background: #EEF7F2; border-color: var(--green); color: var(--green); }
+.market-input.has-reste  { background: #FEF2F2; border-color: var(--red); color: var(--red); }
+.market-note-inline {
+  width: 100%; padding: 6px 8px; border: 1.5px solid #F0EAE0; border-radius: 6px;
+  font-size: 12px; color: var(--brown); background: #FAF8F4; font-family: inherit;
+}
+.market-note-inline:focus { outline: none; border-color: var(--gold); background: white; }
+
+/* === Badges marche dans Le Local === */
+.market-header-badge {
+  display: block; font-size: 9px; color: #888; font-weight: 500;
+  margin-top: 1px; text-transform: none;
+}
 .prod-empty {
   background: white; border-radius: 14px; padding: 40px 20px; text-align: center;
   color: #999; box-shadow: 0 2px 12px rgba(61,43,31,0.08); font-size: 13px;
 }
+
+/* === MARCHES === */
+.prod-row .cell.market-cell {
+  color: var(--orange); font-weight: 700;
+  background: #FEF3EC; border-radius: 5px; padding: 3px 0;
+}
+.market-notes {
+  width: 100%; min-height: 70px; padding: 10px 12px;
+  border: 2px solid #E0D8C8; border-radius: 8px;
+  font-size: 13px; color: var(--brown); background: #FAF8F4;
+  font-family: inherit; resize: vertical; line-height: 1.4;
+}
+.market-notes:focus { outline: none; border-color: var(--gold); background: white; }
+.market-table {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
+}
+.market-table-header {
+  display: grid; grid-template-columns: 1.3fr 0.7fr 0.7fr 0.7fr 1.4fr;
+  padding: 8px 10px; background: #F5F0E5; gap: 4px;
+  font-size: 10px; font-weight: 700; color: var(--brown); text-transform: uppercase;
+}
+.market-row {
+  display: grid; grid-template-columns: 1.3fr 0.7fr 0.7fr 0.7fr 1.4fr;
+  padding: 8px 10px; border-bottom: 1px solid #F5F0E5; gap: 4px; align-items: center;
+  font-size: 13px;
+}
+.market-row:last-child { border-bottom: none; }
+.market-input {
+  width: 100%; padding: 8px 4px; border: 2px solid #E0D8C8; border-radius: 7px;
+  font-size: 14px; font-weight: 700; text-align: center; color: var(--brown);
+  background: #FAF8F4; font-family: inherit;
+}
+.market-input::-webkit-outer-spin-button,
+.market-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.market-input:focus { outline: none; border-color: var(--gold); background: white; }
+.market-input[data-field="emmene"].has { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
+.market-input[data-field="vendu"].has  { background: #EEF7F2; border-color: var(--green); color: var(--green); }
+.market-input[data-field="reste"].has  { background: #FEF2F2; border-color: var(--red); color: var(--red); }
+.market-note-input {
+  width: 100%; padding: 8px 10px; border: 2px solid #E0D8C8; border-radius: 7px;
+  font-size: 12px; color: var(--brown); background: #FAF8F4;
+  font-family: inherit; text-align: left;
+}
+.market-note-input:focus { outline: none; border-color: var(--gold); background: white; }
+.market-note-input::placeholder { color: #C0B090; font-style: italic; }
 
 .section {
   background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(61,43,31,0.08);
@@ -568,7 +669,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 4</div>
+  <div class="splash-sub">Cloud - Phase 5</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -582,6 +683,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
     <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
       <div class="splash-name">St-Avertin</div>
       <div class="splash-role">Reappro - Ventes</div>
+    </button>
+    <button class="splash-btn" onclick="enterBoutique('amboise')">
+      <div class="splash-name">Marche Amboise</div>
+      <div class="splash-role">Vendredi matin</div>
+    </button>
+    <button class="splash-btn" onclick="enterBoutique('beaujardin')">
+      <div class="splash-name">Marche Beaujardin</div>
+      <div class="splash-role">Samedi matin</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('livreur')">
       <div class="splash-name">Livreur</div>
@@ -687,8 +796,15 @@ const CAT_LABELS = {
 };
 
 const BOUTIQUE_NAMES = {
-  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin', 'local': 'Le Local', 'livreur': 'Livreur'
+  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
+  'amboise': 'Marche Amboise', 'beaujardin': 'Marche Beaujardin',
+  'local': 'Le Local', 'livreur': 'Livreur'
 };
+
+const MARKET_IDS = ['amboise', 'beaujardin'];
+const MARKET_LABELS_SHORT = { 'amboise': 'Amb.', 'beaujardin': 'Beauj.' };
+const MARKET_DAY_OF_WEEK = { 'amboise': 5, 'beaujardin': 6 }; // 0=dim ... 5=ven, 6=sam
+const MARKET_PREP_DAYS = 3;
 
 const NAV_ITEMS = {
   'veigne': [
@@ -709,6 +825,12 @@ const NAV_ITEMS = {
   ],
   'livreur': [
     { id: 'tournee', lbl: 'Tournee' }
+  ],
+  'amboise': [
+    { id: 'marche', lbl: 'Tableau marche' }
+  ],
+  'beaujardin': [
+    { id: 'marche', lbl: 'Tableau marche' }
   ],
   'local': [
     { id: 'production', lbl: 'Production' }
@@ -738,6 +860,16 @@ let productionFilterEmpty = true;
 let productionLocalData = {};
 let realtimeChannelProductionLocal = null;
 let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
+
+// Market state
+let currentMarketId = null; // 'amboise' or 'beaujardin' when in market view
+let currentMarketDate = todayISO();
+let marketEntriesData = {}; // { product_id: { emmene, vendu, reste, product_notes } }
+let marketDayNote = '';
+let realtimeChannelMarket = null;
+let marketFilterEmpty = true;
+// Market anticipation data for Le Local (aggregated upcoming market demand)
+let marketUpcomingData = {}; // { market_id: { product_id: emmene, _date: 'YYYY-MM-DD' } }
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -799,6 +931,26 @@ function formatWeekRange(monday) {
   return 'Semaine du ' + m.getDate() + ' ' + months[m.getMonth()] + ' au ' + s.getDate() + ' ' + months[s.getMonth()];
 }
 
+// Prochaine date d'un marche (DOW target) a partir d'aujourd'hui. Si marche est aujourd'hui, renvoie aujourd'hui.
+function nextMarketDateFor(marketId) {
+  const targetDow = MARKET_DAY_OF_WEEK[marketId];
+  if (targetDow == null) return todayISO();
+  const today = new Date(todayISO() + 'T12:00');
+  const curDow = today.getDay();
+  let delta = (targetDow - curDow + 7) % 7;
+  // Si le marche est aujourd'hui, on reste sur aujourd'hui. Sinon on va au prochain.
+  const d = new Date(today);
+  d.setDate(d.getDate() + delta);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// Retourne la date courte du jour de marche (ex: "ven 24", "sam 25") pour affichage header colonne
+function formatMarketDayLabel(iso) {
+  const d = new Date(iso + 'T12:00');
+  const names = ['dim','lun','mar','mer','jeu','ven','sam'];
+  return names[d.getDay()] + ' ' + d.getDate();
+}
+
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
@@ -841,6 +993,12 @@ async function enterBoutique(b) {
   currentBoutique = b;
   isLivreurMode = (b === 'livreur');
   isLocalMode = (b === 'local');
+  if (MARKET_IDS.indexOf(b) !== -1) {
+    currentMarketId = b;
+    currentMarketDate = nextMarketDateFor(b); // defaulte a la prochaine date de ce marche
+  } else {
+    currentMarketId = null;
+  }
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -854,7 +1012,9 @@ function goSplash() {
   if (realtimeChannelDeliveries) { supa.removeChannel(realtimeChannelDeliveries); realtimeChannelDeliveries = null; }
   if (realtimeChannelProduction) { supa.removeChannel(realtimeChannelProduction); realtimeChannelProduction = null; }
   if (realtimeChannelProductionLocal) { supa.removeChannel(realtimeChannelProductionLocal); realtimeChannelProductionLocal = null; }
+  if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtimeChannelMarket = null; }
   currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
+  marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
   isLivreurMode = false; isLocalMode = false;
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -889,9 +1049,15 @@ async function setVue(v) {
   } else if (v === 'production') {
     await loadProduction(currentReapproDate);
     await loadProductionLocal(currentReapproDate);
+    await loadMarketUpcoming(currentReapproDate);
     subscribeRealtimeProduction();
     subscribeRealtimeProductionLocal();
     renderProduction();
+  } else if (v === 'marche') {
+    await loadMarketEntries(currentMarketId, currentMarketDate);
+    await loadMarketDayNote(currentMarketId, currentMarketDate);
+    subscribeRealtimeMarket();
+    renderMarket();
   }
 }
 
@@ -1958,6 +2124,7 @@ async function changeProductionDate(delta) {
   currentReapproDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   await loadProduction(currentReapproDate);
   await loadProductionLocal(currentReapproDate);
+  await loadMarketUpcoming(currentReapproDate);
   renderProduction();
 }
 
@@ -1970,9 +2137,18 @@ function renderProduction() {
   const mc = document.getElementById('main-content');
   const isToday = (currentReapproDate === serviceDateISO());
 
-  // Le Local = hub central : tous les produits actifs, pas seulement reappro.
-  // Sert aussi marches + Pros (flux a venir).
   const allProducts = products.slice();
+
+  // Marches actifs dans l'horizon : ceux qui ont au moins un produit avec emmene > 0
+  const activeMarkets = MARKET_IDS.filter(function(mid) {
+    return marketUpcomingData[mid] && marketUpcomingData[mid]._products && Object.keys(marketUpcomingData[mid]._products).length > 0;
+  });
+
+  // Grid : Produit | V | T | SA | [marches actifs] | Cmd | Produit | Stock | Ecart
+  const fixedColsBefore = '1.3fr 0.5fr 0.5fr 0.5fr';
+  const marketColsTpl = activeMarkets.map(function() { return '0.6fr'; }).join(' ');
+  const fixedColsAfter = '0.55fr 0.7fr 0.7fr 0.7fr';
+  const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
 
   const rows = allProducts.map(function(p) {
     const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
@@ -1981,25 +2157,30 @@ function renderProduction() {
     const cV = parseQty(vV && vV.commander);
     const cT = parseQty(vT && vT.commander);
     const cS = parseQty(vS && vS.commander);
-    const total = cV + cT + cS;
+    const marketVals = {};
+    let marketSum = 0;
+    activeMarkets.forEach(function(mid) {
+      const mv = (marketUpcomingData[mid] && marketUpcomingData[mid]._products && marketUpcomingData[mid]._products[p.id]) || 0;
+      marketVals[mid] = mv;
+      marketSum += mv;
+    });
+    const total = cV + cT + cS + marketSum;
     const pl = productionLocalData[p.id] || { produit: '', stock: '' };
     const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
     const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
     return {
-      p: p, veigne: cV, tours: cT, savertin: cS, total: total,
+      p: p, veigne: cV, tours: cT, savertin: cS, markets: marketVals, total: total,
       produitRaw: pl.produit, stockRaw: pl.stock,
       produitVal: prod, stockVal: stock
     };
   });
 
-  // Filtre : cache les lignes vides partout (ni commande, ni produit, ni stock)
   const filtered = productionFilterEmpty
     ? rows.filter(function(r) {
         return r.total > 0 || (r.produitVal != null && r.produitVal !== 0) || (r.stockVal != null && r.stockVal !== 0);
       })
     : rows;
 
-  const nbProdCommandes = rows.filter(function(r) { return r.total > 0; }).length;
   const volumeTotal = rows.reduce(function(s, r) { return s + r.total; }, 0);
   const volumeProduit = rows.reduce(function(s, r) { return s + (r.produitVal || 0); }, 0);
   const nbManque = rows.filter(function(r) {
@@ -2007,11 +2188,15 @@ function renderProduction() {
     return r.total > 0 && dispo < r.total;
   }).length;
 
+  const horizonTxt = activeMarkets.length
+    ? 'Boutiques + marches (horizon ' + MARKET_PREP_DAYS + 'j)'
+    : 'Commandes boutiques';
+
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changeProductionDate(-1)">&#8592;</button>'
     + '<div class="date-title">Production du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
-    + '<div class="date-sub">Commandes + production + stock</div>'
+    + '<div class="date-sub">' + horizonTxt + '</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changeProductionDate(1)">&#8594;</button>'
     + '</div>';
@@ -2022,7 +2207,6 @@ function renderProduction() {
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbManque > 0 ? 'var(--red)' : 'var(--green)') + '">' + nbManque + '</div><div class="prod-kpi-lbl">A produire</div></div>'
     + '</div>';
 
-  // Bouton Reporter stocks d'hier (uniquement s'il y a des produits reportables)
   const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
   if (hasReportable) {
     html += '<div class="copy-stock-box">'
@@ -2039,7 +2223,7 @@ function renderProduction() {
     html += '<div class="prod-empty">'
       + (productionFilterEmpty
           ? 'Aucune activite pour cette date.<br>Decoche le filtre pour voir tous les produits.'
-          : 'Aucun produit dans la base reappro.')
+          : 'Aucun produit dans la base.')
       + '</div>';
     mc.innerHTML = html;
     return;
@@ -2058,24 +2242,31 @@ function renderProduction() {
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
 
-  html += '<div class="prod-table">'
-    + '<div class="prod-table-header">'
+  // Header
+  let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' + gridTpl + '">'
     + '<span>Produit</span>'
     + '<span class="col-c">V</span>'
     + '<span class="col-c">T</span>'
-    + '<span class="col-c">SA</span>'
-    + '<span class="col-c col-total">Cmd</span>'
+    + '<span class="col-c">SA</span>';
+  activeMarkets.forEach(function(mid) {
+    const dateBadge = marketUpcomingData[mid]._date
+      ? '<span class="market-header-badge">' + formatMarketDayLabel(marketUpcomingData[mid]._date) + '</span>'
+      : '';
+    headerHtml += '<span class="col-c" style="color:var(--orange)">' + escapeHtml(MARKET_LABELS_SHORT[mid]) + dateBadge + '</span>';
+  });
+  headerHtml += '<span class="col-c col-total">Cmd</span>'
     + '<span class="col-c col-prod">Produit</span>'
     + '<span class="col-c col-stock">Stock</span>'
     + '<span class="col-c col-ecart">Ecart</span>'
     + '</div>';
+
+  html += '<div class="prod-table">' + headerHtml;
 
   cats.forEach(function(cat) {
     const isReportable = REPORTABLE_CATS.indexOf(cat) !== -1;
     const catLabel = (CAT_LABELS[cat] || cat) + (isReportable ? ' <span style="font-size:10px;color:var(--gold);font-weight:700">(reportable)</span>' : '');
     html += '<div class="prod-cat-title">' + catLabel + '</div>';
     byCat[cat].forEach(function(r) {
-      // Ecart = (Produit + Stock) - Cmd
       const p = r.produitVal || 0;
       const s = r.stockVal || 0;
       const dispo = p + s;
@@ -2090,23 +2281,335 @@ function renderProduction() {
       }
       const prodCls = r.produitRaw ? 'has-prod' : '';
       const stockCls = r.stockRaw ? 'has-stock' : '';
-      html += '<div class="prod-row">'
+      let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + '">'
         + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
         + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
         + '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
         + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
-        + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>'
-        + '<div class="cell total">' + formatQty(r.total) + '</div>'
+        + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
+      activeMarkets.forEach(function(mid) {
+        const v = r.markets[mid] || 0;
+        rowHtml += '<div class="cell ' + (v > 0 ? '' : 'zero') + '" style="color:' + (v > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + formatQty(v) + '</div>';
+      });
+      rowHtml += '<div class="cell total">' + formatQty(r.total) + '</div>'
         + '<input type="text" inputmode="decimal" class="prod-input ' + prodCls + '" data-pid="' + r.p.id + '" data-field="produit" value="' + escapeHtml(r.produitRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
         + '<input type="text" inputmode="decimal" class="prod-input ' + stockCls + '" data-pid="' + r.p.id + '" data-field="stock" value="' + escapeHtml(r.stockRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
         + '<div id="ecart_' + r.p.id + '" data-cmd="' + r.total + '">' + ecartHtml + '</div>'
         + '</div>';
+      html += rowHtml;
     });
   });
 
   html += '</div>';
 
   mc.innerHTML = html;
+}
+
+// === MARCHES ===
+async function loadMarketEntries(marketId, date) {
+  const { data, error } = await supa.from('market_entries').select('*')
+    .eq('tenant_id', TENANT_ID).eq('market_id', marketId).eq('service_date', date);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  marketEntriesData = {};
+  (data || []).forEach(function(r) {
+    marketEntriesData[r.product_id] = {
+      emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
+      vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
+      reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
+      product_notes: r.product_notes || ''
+    };
+  });
+}
+
+async function loadMarketEntriesForDate(marketId, date) {
+  const { data, error } = await supa.from('market_entries').select('*')
+    .eq('tenant_id', TENANT_ID).eq('market_id', marketId).eq('service_date', date);
+  if (error) return {};
+  const result = {};
+  (data || []).forEach(function(r) {
+    result[r.product_id] = {
+      emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
+      vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
+      reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
+      product_notes: r.product_notes || ''
+    };
+  });
+  return result;
+}
+
+async function upsertMarketEntry(pid) {
+  setSyncStatus('syncing');
+  const d = marketEntriesData[pid] || {};
+  const emmene = d.emmene === '' || d.emmene == null ? null : parseQty(d.emmene);
+  const vendu  = d.vendu  === '' || d.vendu  == null ? null : parseQty(d.vendu);
+  const reste  = d.reste  === '' || d.reste  == null ? null : parseQty(d.reste);
+  const { error } = await supa.from('market_entries').upsert({
+    tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDate,
+    product_id: pid,
+    emmene: emmene, vendu: vendu, reste: reste,
+    product_notes: d.product_notes || null,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,market_id,service_date,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
+  else { setSyncStatus('ok'); }
+}
+
+async function loadMarketDayNote(marketId, date) {
+  const { data, error } = await supa.from('market_day_notes').select('*')
+    .eq('tenant_id', TENANT_ID).eq('market_id', marketId).eq('service_date', date).maybeSingle();
+  if (error) { marketDayNote = ''; return; }
+  marketDayNote = (data && data.notes) || '';
+}
+
+async function upsertMarketDayNote(text) {
+  setSyncStatus('syncing');
+  const { error } = await supa.from('market_day_notes').upsert({
+    tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDate,
+    notes: text || null,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,market_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
+  else { setSyncStatus('ok'); }
+}
+
+function subscribeRealtimeMarket() {
+  if (realtimeChannelMarket) supa.removeChannel(realtimeChannelMarket);
+  realtimeChannelMarket = supa.channel('market_' + currentMarketId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'market_entries', filter: 'market_id=eq.' + currentMarketId },
+      function(payload) {
+        const r = payload.new;
+        if (!r || r.updated_by === DEVICE_ID) return;
+        if (r.service_date !== currentMarketDate) return;
+        marketEntriesData[r.product_id] = {
+          emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
+          vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
+          reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
+          product_notes: r.product_notes || ''
+        };
+        renderMarket();
+        showToast('MAJ marche d un autre appareil', 'sync');
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'market_day_notes', filter: 'market_id=eq.' + currentMarketId },
+      function(payload) {
+        const r = payload.new;
+        if (!r || r.updated_by === DEVICE_ID) return;
+        if (r.service_date !== currentMarketDate) return;
+        marketDayNote = r.notes || '';
+        const ta = document.getElementById('market-day-note');
+        if (ta && document.activeElement !== ta) ta.value = marketDayNote;
+      })
+    .subscribe();
+}
+
+async function changeMarketDate(delta) {
+  const d = new Date(currentMarketDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentMarketDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadMarketEntries(currentMarketId, currentMarketDate);
+  await loadMarketDayNote(currentMarketId, currentMarketDate);
+  renderMarket();
+}
+
+async function copyFromLastMarket() {
+  // Meme marche, semaine d'avant
+  const d = new Date(currentMarketDate + 'T12:00');
+  d.setDate(d.getDate() - 7);
+  const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const prevData = await loadMarketEntriesForDate(currentMarketId, prevISO);
+  const pids = Object.keys(prevData).filter(function(pid) {
+    const v = prevData[pid];
+    return (v.emmene && v.emmene !== '') || (v.vendu && v.vendu !== '') || (v.reste && v.reste !== '');
+  });
+  if (!pids.length) {
+    showToast('Aucune donnee a reprendre du ' + prevISO, 'error');
+    return;
+  }
+  if (!confirm('Reprendre le "Emmene" de ' + pids.length + ' produit(s) du marche du ' + prevISO + ' ?')) return;
+  setSyncStatus('syncing');
+  const rows = pids.map(function(pid) {
+    return {
+      tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDate,
+      product_id: pid,
+      emmene: prevData[pid].emmene === '' ? null : parseQty(prevData[pid].emmene),
+      // Ne pas recopier vendu/reste : ce sera saisi le jour du marche
+      vendu: null, reste: null,
+      product_notes: prevData[pid].product_notes || null,
+      updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+    };
+  });
+  const { error } = await supa.from('market_entries').upsert(rows, { onConflict: 'tenant_id,market_id,service_date,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadMarketEntries(currentMarketId, currentMarketDate);
+  renderMarket();
+  showToast('Base reprise depuis ' + prevISO, 'sync');
+}
+
+function handleMarketInput(el) {
+  const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
+  if (!marketEntriesData[pid]) marketEntriesData[pid] = { emmene: '', vendu: '', reste: '', product_notes: '' };
+  marketEntriesData[pid][field] = val;
+  if (field !== 'product_notes') {
+    el.classList.toggle('has-' + field, !!val);
+  }
+  clearTimeout(updateTimers['m_' + pid]);
+  updateTimers['m_' + pid] = setTimeout(function() { upsertMarketEntry(pid); }, 400);
+}
+
+function handleMarketDayNoteInput(el) {
+  marketDayNote = el.value;
+  clearTimeout(updateTimers['m_daynote']);
+  updateTimers['m_daynote'] = setTimeout(function() { upsertMarketDayNote(marketDayNote); }, 500);
+}
+
+function toggleMarketFilter() {
+  marketFilterEmpty = !marketFilterEmpty;
+  renderMarket();
+}
+
+function renderMarket() {
+  const mc = document.getElementById('main-content');
+  const isMarketDay = (new Date(currentMarketDate + 'T12:00').getDay() === MARKET_DAY_OF_WEEK[currentMarketId]);
+  const marketLabel = BOUTIQUE_NAMES[currentMarketId];
+
+  // Tous les produits actifs (meme logique que Le Local)
+  const allProducts = products.slice();
+
+  // Agregation par ligne
+  const rows = allProducts.map(function(p) {
+    const m = marketEntriesData[p.id] || { emmene: '', vendu: '', reste: '', product_notes: '' };
+    const emm = m.emmene === '' || m.emmene == null ? null : parseQty(m.emmene);
+    const ven = m.vendu  === '' || m.vendu  == null ? null : parseQty(m.vendu);
+    const res = m.reste  === '' || m.reste  == null ? null : parseQty(m.reste);
+    return {
+      p: p,
+      emmeneRaw: m.emmene, venduRaw: m.vendu, resteRaw: m.reste,
+      notesRaw: m.product_notes,
+      emmeneVal: emm, venduVal: ven, resteVal: res
+    };
+  });
+
+  const filtered = marketFilterEmpty
+    ? rows.filter(function(r) {
+        return (r.emmeneVal != null && r.emmeneVal !== 0) ||
+               (r.venduVal != null && r.venduVal !== 0) ||
+               (r.resteVal != null && r.resteVal !== 0) ||
+               (r.notesRaw && r.notesRaw !== '');
+      })
+    : rows;
+
+  // KPIs
+  const totalEmmene = rows.reduce(function(s, r) { return s + (r.emmeneVal || 0); }, 0);
+  const totalVendu  = rows.reduce(function(s, r) { return s + (r.venduVal  || 0); }, 0);
+  const totalReste  = rows.reduce(function(s, r) { return s + (r.resteVal  || 0); }, 0);
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeMarketDate(-1)">&#8592;</button>'
+    + '<div class="date-title">' + escapeHtml(marketLabel) + ' - <strong>' + escapeHtml(formatDateFr(currentMarketDate)) + '</strong>'
+    + (isMarketDay ? ' <span class="date-today">(jour de marche)</span>' : '')
+    + '<div class="date-sub">Emmene / Vendu / Reste</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeMarketDate(1)">&#8594;</button>'
+    + '</div>';
+
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(totalEmmene) + '</div><div class="prod-kpi-lbl">Emmene</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + formatQty(totalVendu) + '</div><div class="prod-kpi-lbl">Vendu</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--red)">' + formatQty(totalReste) + '</div><div class="prod-kpi-lbl">Reste</div></div>'
+    + '</div>';
+
+  // Bouton reprendre la semaine d'avant
+  html += '<div class="copy-stock-box">'
+    + '<div class="copy-stock-txt">Reprendre la base "Emmene" du meme marche la semaine derniere.</div>'
+    + '<button class="btn-gold-sm" onclick="copyFromLastMarket()">Reprendre la semaine d avant</button>'
+    + '</div>';
+
+  // Notes globales du marche
+  html += '<div class="market-note-box">'
+    + '<div class="market-note-lbl">Notes du marche (pre-commandes clients, infos generales)</div>'
+    + '<textarea id="market-day-note" class="market-note-ta" placeholder="Ex: Mme Martin - 2 baguettes + 1 Mathis 1kg tranche pour 9h" oninput="handleMarketDayNoteInput(this)">' + escapeHtml(marketDayNote) + '</textarea>'
+    + '</div>';
+
+  // Filtre
+  html += '<div class="prod-filter-bar"><label>'
+    + '<input type="checkbox" ' + (marketFilterEmpty ? 'checked' : '') + ' onchange="toggleMarketFilter()">'
+    + '<span>Cacher les produits sans activite</span></label></div>';
+
+  if (!filtered.length) {
+    html += '<div class="prod-empty">'
+      + (marketFilterEmpty
+          ? 'Aucun produit saisi pour ce marche.<br>Decoche le filtre pour voir tous les produits et commencer la saisie.'
+          : 'Aucun produit dans la base.')
+      + '</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // Grouper par categorie
+  const byCat = {};
+  filtered.forEach(function(r) {
+    const c = r.p.category || 'autre';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(r);
+  });
+  const catOrder = Object.keys(CAT_LABELS);
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  html += '<div class="market-table">'
+    + '<div class="market-table-header">'
+    + '<span>Produit</span>'
+    + '<span class="col-c" style="color:var(--blue)">Emm.</span>'
+    + '<span class="col-c" style="color:var(--green)">Vendu</span>'
+    + '<span class="col-c" style="color:var(--red)">Reste</span>'
+    + '<span>Notes</span>'
+    + '</div>';
+
+  cats.forEach(function(cat) {
+    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+    byCat[cat].forEach(function(r) {
+      const emmCls = r.emmeneRaw ? 'has-emmene' : '';
+      const venCls = r.venduRaw ? 'has-vendu' : '';
+      const resCls = r.resteRaw ? 'has-reste' : '';
+      html += '<div class="market-row">'
+        + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
+        + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
+        + '<input type="text" inputmode="decimal" class="market-input ' + emmCls + '" data-pid="' + r.p.id + '" data-field="emmene" value="' + escapeHtml(r.emmeneRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + venCls + '" data-pid="' + r.p.id + '" data-field="vendu" value="' + escapeHtml(r.venduRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + resCls + '" data-pid="' + r.p.id + '" data-field="reste" value="' + escapeHtml(r.resteRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" class="market-note-inline" data-pid="' + r.p.id + '" data-field="product_notes" value="' + escapeHtml(r.notesRaw || '') + '" placeholder="ex: 600g, tranche..." oninput="handleMarketInput(this)">'
+        + '</div>';
+    });
+  });
+
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
+// === MARCHES - Anticipation pour Le Local ===
+// Charge les commandes marche a venir dans les MARKET_PREP_DAYS jours suivant la date du Local
+async function loadMarketUpcoming(localDate) {
+  marketUpcomingData = {};
+  const startD = new Date(localDate + 'T12:00');
+  const endD = new Date(localDate + 'T12:00');
+  endD.setDate(endD.getDate() + MARKET_PREP_DAYS);
+  const startISO = startD.getFullYear() + '-' + String(startD.getMonth()+1).padStart(2,'0') + '-' + String(startD.getDate()).padStart(2,'0');
+  const endISO = endD.getFullYear() + '-' + String(endD.getMonth()+1).padStart(2,'0') + '-' + String(endD.getDate()).padStart(2,'0');
+  const { data, error } = await supa.from('market_entries').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .gte('service_date', startISO).lte('service_date', endISO);
+  if (error) return;
+  (data || []).forEach(function(r) {
+    if (r.emmene == null || r.emmene === 0) return;
+    if (!marketUpcomingData[r.market_id]) marketUpcomingData[r.market_id] = { _date: r.service_date, _products: {} };
+    // On garde la date la plus proche (au cas ou plusieurs : ne devrait pas arriver car marches hebdos)
+    if (r.service_date < marketUpcomingData[r.market_id]._date) {
+      marketUpcomingData[r.market_id]._date = r.service_date;
+    }
+    marketUpcomingData[r.market_id]._products[r.product_id] = r.emmene;
+  });
 }
 
 // === HELPERS ===
