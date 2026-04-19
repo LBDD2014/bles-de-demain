@@ -17,6 +17,7 @@
   --brown-mid: #6B4226;
   --green: #4A7C59;
   --red: #B83232;
+  --orange: #D4701A;
   --blue: #2C5F8A;
   --white: #FFFFFF;
 }
@@ -27,11 +28,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   position: fixed; inset: 0; background: var(--grey);
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px;
 }
-.splash-logo {
-  width: 160px; height: 160px;
-  margin-bottom: 22px;
-  display: flex; align-items: center; justify-content: center;
-}
+.splash-logo { width: 160px; height: 160px; margin-bottom: 22px; display: flex; align-items: center; justify-content: center; }
 .splash-logo img { width: 100%; height: 100%; object-fit: contain; }
 .splash-sub { color: var(--gold); font-size: 13px; opacity: 0.75; margin-top: 4px; }
 .splash-cloud {
@@ -57,10 +54,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   box-shadow: 0 2px 16px rgba(0,0,0,0.18);
 }
 .header-left { display: flex; align-items: center; gap: 12px; }
-.header-icon {
-  width: 56px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-}
+.header-icon { width: 56px; height: 40px; display: flex; align-items: center; justify-content: center; }
 .header-icon img { width: 100%; height: 100%; object-fit: contain; }
 .header-title { font-family: Georgia, serif; color: var(--white); font-size: 14px; font-weight: 700; }
 .header-boutique { color: var(--gold); font-size: 11px; opacity: 0.85; }
@@ -83,6 +77,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 
 .main { flex: 1; padding: 10px 12px 80px; max-width: 700px; margin: 0 auto; width: 100%; }
 
+/* === BOTTOM NAV === */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--grey); display: flex; justify-content: space-around;
+  border-top: 1px solid rgba(206,171,82,0.2); z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.bnav-item {
+  flex: 1; padding: 10px 4px 8px; cursor: pointer; border: none; background: transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-family: inherit;
+}
+.bnav-item .lbl {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45);
+}
+.bnav-item.active .lbl { color: var(--gold); }
+.bnav-item.active { border-top: 2px solid var(--gold); padding-top: 8px; }
+
+/* === COMMON === */
 .info-banner {
   background: white; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
   border-left: 4px solid var(--blue); font-size: 12px; color: var(--brown-mid); line-height: 1.5;
@@ -98,6 +111,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   padding: 11px 14px; border-bottom: 1px solid #F0EAE0;
   font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(--brown);
 }
+
+/* === REAPPRO === */
 .col-header {
   display: grid; grid-template-columns: 1fr 80px 90px; padding: 6px 14px;
   background: #F5F0E5; gap: 6px;
@@ -129,8 +144,48 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   30% { background: #D6E8F5; border-color: var(--blue); }
 }
 
-.loading { text-align: center; padding: 40px 20px; color: var(--brown-mid); font-size: 13px; }
+/* === VENTES === */
+.ventes-col-header {
+  display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
+  padding: 6px 12px; background: #F5F0E5; gap: 4px;
+}
+.ventes-row {
+  display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
+  align-items: center; padding: 8px 12px; border-bottom: 1px solid #F5F0E8; gap: 4px;
+}
+.ventes-row:last-child { border-bottom: none; }
+.v-inp {
+  width: 100%; padding: 9px 4px; border: 2px solid #E0D8C8; border-radius: 7px;
+  font-size: 15px; font-weight: 700; text-align: center; color: var(--brown);
+  background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
+}
+.v-inp::-webkit-outer-spin-button,
+.v-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.v-inp:focus { outline: none; border-color: var(--gold); background: white; }
+.v-inp.matin.has { background: #EEF7F2; border-color: var(--green); color: var(--green); }
+.v-inp.aprem.has { background: #FEF3EC; border-color: var(--orange); color: var(--orange); }
+.v-inp.reste.has { background: #FEF2F2; border-color: var(--red); color: var(--red); }
+.v-inp.just-updated { animation: flash 1s; }
+.v-vendu {
+  text-align: center; font-family: Georgia, serif; font-size: 16px; font-weight: 900;
+  color: var(--blue); padding: 8px 0;
+}
+.v-vendu.zero { color: #C0B090; font-size: 13px; }
 
+.ventes-day-bar {
+  background: var(--green); color: white; border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ventes-day-title { font-family: Georgia, serif; font-size: 14px; font-weight: 700; }
+.ventes-day-nav { display: flex; gap: 6px; }
+.ventes-day-btn {
+  background: rgba(255,255,255,0.15); border: none; border-radius: 7px;
+  padding: 4px 10px; color: white; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+
+.loading { text-align: center; padding: 40px 20px; color: var(--brown-mid); font-size: 13px; }
 .error-box {
   background: #FEF2F2; border: 2px solid var(--red); border-radius: 12px;
   padding: 16px; margin: 20px 12px; color: var(--red); font-size: 13px;
@@ -140,9 +195,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   margin-top: 10px; padding: 10px; background: white; border-radius: 6px;
   font-size: 11px; overflow-x: auto; color: var(--brown); white-space: pre-wrap; word-break: break-word;
 }
-
 .toast {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(100px);
   background: var(--grey); color: var(--white); padding: 12px 20px;
   border-radius: 12px; font-size: 13px; font-weight: 600; z-index: 300;
   opacity: 0; transition: all 0.3s; box-shadow: 0 6px 20px rgba(0,0,0,0.3);
@@ -151,7 +205,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.sync { background: var(--blue); }
 .toast.error { background: var(--red); }
-
 .empty-state {
   text-align: center; padding: 40px 20px; color: var(--brown-mid);
   background: white; border-radius: 12px; margin-top: 10px;
@@ -164,24 +217,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud Test - Phase 1</div>
+  <div class="splash-sub">Cloud - Phase 2</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
       <div class="splash-name">Veigne</div>
-      <div class="splash-role">Viennoiserie - Brioches - Bases - Ingredients</div>
+      <div class="splash-role">Reappro - Ventes</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('tours')">
       <div class="splash-name">Tours</div>
-      <div class="splash-role">Tout sauf pains</div>
+      <div class="splash-role">Reappro</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
       <div class="splash-name">St-Avertin</div>
-      <div class="splash-role">Patisserie petits - Brioches</div>
+      <div class="splash-role">Reappro</div>
     </button>
     <button class="splash-btn" disabled>
       <div class="splash-name">Le Local</div>
-      <div class="splash-role">Pas de reassort</div>
+      <div class="splash-role">A venir</div>
     </button>
   </div>
 </div>
@@ -204,8 +257,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
     <span class="device-id" id="device-id-label"></span>
   </div>
   <div class="main" id="main-content">
-    <div class="loading">Chargement des produits...</div>
+    <div class="loading">Chargement...</div>
   </div>
+  <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -215,14 +269,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
 const TENANT_ID    = '00000000-0000-0000-0000-000000000001';
-
-const DEVICE_ID = 'dev_' + Math.random().toString(36).substring(2, 8);
+const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
   'tours':         ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'ingredients'],
   'saint-avertin': ['patisserie_petits', 'brioches_special']
 };
+
+const VENTES_BOUTIQUES = ['veigne'];
 
 const CAT_LABELS = {
   'viennoiserie':      'Viennoiserie',
@@ -231,7 +286,8 @@ const CAT_LABELS = {
   'patisserie_gros':   'Gros Gateaux',
   'sec_traiteur':      'Sec & Traiteur',
   'bases_patisserie':  'Bases Patisserie',
-  'ingredients':       'Ingredients'
+  'ingredients':       'Ingredients',
+  'pains':             'Pains'
 };
 
 const BOUTIQUE_NAMES = {
@@ -241,12 +297,35 @@ const BOUTIQUE_NAMES = {
   'local': 'Le Local'
 };
 
+const NAV_ITEMS = {
+  'veigne': [
+    { id: 'reappro', lbl: 'Reappro' },
+    { id: 'ventes',  lbl: 'Ventes' }
+  ],
+  'tours':         [{ id: 'reappro', lbl: 'Reappro' }],
+  'saint-avertin': [{ id: 'reappro', lbl: 'Reappro' }]
+};
+
 let supa;
 let currentBoutique = null;
+let currentVue = 'reappro';
 let products = [];
 let reapprosData = {};
-let realtimeChannel = null;
+let salesData = {};
+let realtimeChannelReappro = null;
+let realtimeChannelSales = null;
 let updateTimers = {};
+let currentDate = todayISO();
+
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function formatDateFr(iso) {
+  const d = new Date(iso + 'T12:00');
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
 
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -266,7 +345,6 @@ async function loadProducts() {
       .eq('actif', true)
       .order('category', { ascending: true })
       .order('name', { ascending: true });
-
     if (error) throw error;
     products = data || [];
     console.log(products.length + ' produits charges.');
@@ -280,7 +358,7 @@ function showInitError(err) {
   document.getElementById('app').style.display = 'flex';
   const msg = err && err.message ? err.message : String(err);
   document.getElementById('main-content').innerHTML =
-    '<div class="error-box"><h3>Erreur de connexion Supabase</h3><pre>' + escapeHtml(msg) + '</pre></div>';
+    '<div class="error-box"><h3>Erreur Supabase</h3><pre>' + escapeHtml(msg) + '</pre></div>';
 }
 
 async function enterBoutique(b) {
@@ -288,41 +366,57 @@ async function enterBoutique(b) {
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
-  document.getElementById('main-content').innerHTML = '<div class="loading">Chargement des donnees...</div>';
-
-  await loadReappros(b);
-  subscribeRealtime(b);
-  renderReappro();
+  renderNav();
+  setVue(NAV_ITEMS[b][0].id);
 }
 
 function goSplash() {
-  if (realtimeChannel) {
-    supa.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
+  if (realtimeChannelReappro) { supa.removeChannel(realtimeChannelReappro); realtimeChannelReappro = null; }
+  if (realtimeChannelSales)   { supa.removeChannel(realtimeChannelSales);   realtimeChannelSales = null; }
   currentBoutique = null;
   reapprosData = {};
+  salesData = {};
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 
+function renderNav() {
+  const items = NAV_ITEMS[currentBoutique] || [];
+  const nav = document.getElementById('bottom-nav');
+  nav.innerHTML = items.map(function(it) {
+    return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" onclick="setVue(\'' + it.id + '\')"><span class="lbl">' + it.lbl + '</span></button>';
+  }).join('');
+}
+
+async function setVue(v) {
+  currentVue = v;
+  renderNav();
+  document.getElementById('main-content').innerHTML = '<div class="loading">Chargement...</div>';
+
+  if (v === 'reappro') {
+    await loadReappros(currentBoutique);
+    subscribeRealtimeReappro(currentBoutique);
+    renderReappro();
+  } else if (v === 'ventes') {
+    await loadSales(currentBoutique, currentDate);
+    subscribeRealtimeSales(currentBoutique);
+    renderVentes();
+  }
+}
+
+// ============================================================
+// REAPPRO
+// ============================================================
 async function loadReappros(b) {
   const { data, error } = await supa
     .from('reappros')
     .select('*')
     .eq('tenant_id', TENANT_ID)
     .eq('boutique_id', b);
-
-  if (error) {
-    showToast('Erreur chargement: ' + error.message, 'error');
-    return;
-  }
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   reapprosData = {};
   (data || []).forEach(function(r) {
-    reapprosData[r.product_id] = {
-      avoir: r.avoir || '',
-      commander: r.commander || ''
-    };
+    reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
   });
 }
 
@@ -338,45 +432,27 @@ async function upsertReappro(pid) {
     updated_by: DEVICE_ID,
     updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,boutique_id,product_id' });
-
-  if (error) {
-    setSyncStatus('error');
-    showToast(error.message, 'error');
-  } else {
-    setSyncStatus('ok');
-  }
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
+  else { setSyncStatus('ok'); }
 }
 
-function subscribeRealtime(b) {
-  if (realtimeChannel) supa.removeChannel(realtimeChannel);
-
-  realtimeChannel = supa
-    .channel('reappros_' + b)
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reappros',
-      filter: 'boutique_id=eq.' + b
-    }, function(payload) {
-      const r = payload.new;
-      if (!r) return;
-      if (r.updated_by === DEVICE_ID) return;
-
-      reapprosData[r.product_id] = {
-        avoir: r.avoir || '',
-        commander: r.commander || ''
-      };
-      updateInputValue(r.product_id, 'avoir', r.avoir);
-      updateInputValue(r.product_id, 'commander', r.commander);
-      showToast('MAJ d un autre appareil', 'sync');
-    })
-    .subscribe();
+function subscribeRealtimeReappro(b) {
+  if (realtimeChannelReappro) supa.removeChannel(realtimeChannelReappro);
+  realtimeChannelReappro = supa.channel('reappros_' + b)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reappros', filter: 'boutique_id=eq.' + b },
+      function(payload) {
+        const r = payload.new;
+        if (!r || r.updated_by === DEVICE_ID) return;
+        reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
+        updateReapproInput(r.product_id, 'avoir', r.avoir);
+        updateReapproInput(r.product_id, 'commander', r.commander);
+        showToast('MAJ d un autre appareil', 'sync');
+      }).subscribe();
 }
 
-function updateInputValue(pid, field, val) {
+function updateReapproInput(pid, field, val) {
   const input = document.querySelector('[data-pid="' + pid + '"][data-field="' + field + '"]');
-  if (!input) return;
-  if (document.activeElement === input) return;
+  if (!input || document.activeElement === input) return;
   input.value = val || '';
   input.classList.toggle('has-value', !!val);
   input.classList.remove('just-updated');
@@ -387,72 +463,197 @@ function updateInputValue(pid, field, val) {
 function renderReappro() {
   const cats = REAPPRO_CATS[currentBoutique] || [];
   const mc = document.getElementById('main-content');
-
-  if (!cats.length) {
-    mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>';
-    return;
-  }
-
-  let html =
-    '<div class="info-banner">' +
-      '<strong>Mode cloud actif</strong><br>' +
-      'Modifie une valeur ici. Ouvre ce meme lien dans un autre onglet sur la meme boutique pour voir la synchro live.' +
-    '</div>';
-
+  if (!cats.length) { mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>'; return; }
+  let html = '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - elles se synchronisent en temps reel entre tous les appareils.</div>';
   cats.forEach(function(cat) {
     const prods = products.filter(function(p) { return p.category === cat; });
     if (!prods.length) return;
-
-    html +=
-      '<div class="section">' +
-        '<div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>' +
-        '<div class="col-header">' +
-          '<span class="col-lbl">Produit</span>' +
-          '<span class="col-lbl">J ai</span>' +
-          '<span class="col-lbl cmd">Je commande</span>' +
-        '</div>';
-
+    html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
+      + '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J ai</span><span class="col-lbl cmd">Je commande</span></div>';
     prods.forEach(function(p) {
       const val = reapprosData[p.id] || { avoir: '', commander: '' };
-      const a = val.avoir || '';
-      const c = val.commander || '';
-      html +=
-        '<div class="produit-row">' +
-          '<div>' +
-            '<div class="produit-name">' + escapeHtml(p.name) + '</div>' +
-            '<div class="produit-unit">' + escapeHtml(p.unit || '') + '</div>' +
-          '</div>' +
-          '<input type="text" inputmode="decimal" ' +
-            'class="qty-input ' + (a ? 'has-value' : '') + '" ' +
-            'data-pid="' + p.id + '" data-field="avoir" ' +
-            'value="' + escapeHtml(a) + '" placeholder="-" ' +
-            'oninput="handleInput(this)" onfocus="this.select()">' +
-          '<input type="text" inputmode="decimal" ' +
-            'class="qty-input cmd ' + (c ? 'has-value' : '') + '" ' +
-            'data-pid="' + p.id + '" data-field="commander" ' +
-            'value="' + escapeHtml(c) + '" placeholder="-" ' +
-            'oninput="handleInput(this)" onfocus="this.select()">' +
-        '</div>';
+      const a = val.avoir || '', c = val.commander || '';
+      html += '<div class="produit-row"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
+        + '<input type="text" inputmode="decimal" class="qty-input ' + (a ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="avoir" value="' + escapeHtml(a) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="qty-input cmd ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" value="' + escapeHtml(c) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">'
+        + '</div>';
     });
     html += '</div>';
   });
-
   mc.innerHTML = html;
 }
 
-function handleInput(el) {
-  const pid = el.dataset.pid;
-  const field = el.dataset.field;
-  const val = el.value;
-
+function handleReapproInput(el) {
+  const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
   if (!reapprosData[pid]) reapprosData[pid] = { avoir: '', commander: '' };
   reapprosData[pid][field] = val;
   el.classList.toggle('has-value', !!val);
-
-  clearTimeout(updateTimers[pid]);
-  updateTimers[pid] = setTimeout(function() { upsertReappro(pid); }, 400);
+  clearTimeout(updateTimers['r_' + pid]);
+  updateTimers['r_' + pid] = setTimeout(function() { upsertReappro(pid); }, 400);
 }
 
+// ============================================================
+// VENTES
+// ============================================================
+async function loadSales(b, date) {
+  const { data, error } = await supa
+    .from('sales')
+    .select('*')
+    .eq('tenant_id', TENANT_ID)
+    .eq('boutique_id', b)
+    .eq('date', date);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  salesData = {};
+  (data || []).forEach(function(r) {
+    salesData[r.product_id] = {
+      matin: r.matin == null ? '' : r.matin,
+      aprem: r.aprem == null ? '' : r.aprem,
+      reste: r.reste == null ? '' : r.reste
+    };
+  });
+}
+
+async function upsertSale(pid) {
+  setSyncStatus('syncing');
+  const d = salesData[pid] || {};
+  const matin = d.matin === '' ? null : parseInt(d.matin) || 0;
+  const aprem = d.aprem === '' ? null : parseInt(d.aprem) || 0;
+  const reste = d.reste === '' ? null : parseInt(d.reste) || 0;
+  const { error } = await supa.from('sales').upsert({
+    tenant_id: TENANT_ID,
+    boutique_id: currentBoutique,
+    product_id: pid,
+    date: currentDate,
+    matin: matin,
+    aprem: aprem,
+    reste: reste,
+    updated_by: DEVICE_ID,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
+  else { setSyncStatus('ok'); }
+}
+
+function subscribeRealtimeSales(b) {
+  if (realtimeChannelSales) supa.removeChannel(realtimeChannelSales);
+  realtimeChannelSales = supa.channel('sales_' + b)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sales', filter: 'boutique_id=eq.' + b },
+      function(payload) {
+        const r = payload.new;
+        if (!r || r.updated_by === DEVICE_ID) return;
+        if (r.date !== currentDate) return;
+        salesData[r.product_id] = {
+          matin: r.matin == null ? '' : r.matin,
+          aprem: r.aprem == null ? '' : r.aprem,
+          reste: r.reste == null ? '' : r.reste
+        };
+        ['matin','aprem','reste'].forEach(function(f) { updateSaleInput(r.product_id, f, r[f]); });
+        updateVendu(r.product_id);
+        showToast('MAJ ventes d un autre appareil', 'sync');
+      }).subscribe();
+}
+
+function updateSaleInput(pid, field, val) {
+  const input = document.querySelector('.v-inp[data-pid="' + pid + '"][data-field="' + field + '"]');
+  if (!input || document.activeElement === input) return;
+  const v = (val == null ? '' : val);
+  input.value = v;
+  input.classList.toggle('has', v !== '' && v !== 0);
+  input.classList.remove('just-updated');
+  void input.offsetWidth;
+  input.classList.add('just-updated');
+}
+
+function calcVendu(pid) {
+  const d = salesData[pid] || {};
+  const m = d.matin === '' ? null : parseInt(d.matin) || 0;
+  const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
+  const r = d.reste === '' ? null : parseInt(d.reste) || 0;
+  if (m === null || r === null) return null;
+  return Math.max(0, m + a - r);
+}
+
+function updateVendu(pid) {
+  const el = document.getElementById('vendu_' + pid);
+  if (!el) return;
+  const v = calcVendu(pid);
+  if (v === null) { el.textContent = '-'; el.className = 'v-vendu zero'; }
+  else { el.textContent = v; el.className = 'v-vendu'; }
+}
+
+function renderVentes() {
+  const mc = document.getElementById('main-content');
+  if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
+    mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active pour cette boutique.</div>';
+    return;
+  }
+  // Pour le moment uniquement les Pains pour Veigne
+  const prods = products.filter(function(p) {
+    return p.category === 'pains' || p.category === 'viennoiserie';
+  });
+  // Note: tu n'as pas de "pains" dans products car l'export SQL initial portait sur le reappro
+  // donc on bascule sur viennoiserie pour le test (vrais produits dans la base)
+  // -> on utilisera la categorie disponible
+
+  const cats = ['viennoiserie']; // catégorie qu'on a déjà dans products
+  let html = '<div class="ventes-day-bar">'
+    + '<button class="ventes-day-btn" onclick="changeDate(-1)">&lt;</button>'
+    + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
+    + '<button class="ventes-day-btn" onclick="changeDate(1)">&gt;</button>'
+    + '</div>';
+  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Apres-midi / Reste -> Vendu calcule automatiquement.</div>';
+
+  cats.forEach(function(cat) {
+    const ps = products.filter(function(p) { return p.category === cat; });
+    if (!ps.length) return;
+    html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
+      + '<div class="ventes-col-header">'
+      + '<span class="col-lbl">Produit</span>'
+      + '<span class="col-lbl" style="color:var(--green)">Matin</span>'
+      + '<span class="col-lbl" style="color:var(--orange)">Aprem</span>'
+      + '<span class="col-lbl" style="color:var(--red)">Reste</span>'
+      + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
+      + '</div>';
+    ps.forEach(function(p) {
+      const d = salesData[p.id] || {};
+      const m = d.matin === '' || d.matin === undefined ? '' : d.matin;
+      const a = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
+      const r = d.reste === '' || d.reste === undefined ? '' : d.reste;
+      const vendu = calcVendu(p.id);
+      html += '<div class="ventes-row">'
+        + '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp matin ' + (m !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin" value="' + m + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem ' + (a !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem" value="' + a + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp reste ' + (r !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste" value="' + r + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  });
+  mc.innerHTML = html;
+}
+
+function handleSaleInput(el) {
+  const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
+  if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste: '' };
+  salesData[pid][field] = val;
+  el.classList.toggle('has', val !== '');
+  updateVendu(pid);
+  clearTimeout(updateTimers['s_' + pid]);
+  updateTimers['s_' + pid] = setTimeout(function() { upsertSale(pid); }, 400);
+}
+
+async function changeDate(delta) {
+  const d = new Date(currentDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadSales(currentBoutique, currentDate);
+  renderVentes();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
 function setSyncStatus(s) {
   const dot = document.getElementById('sync-dot');
   const text = document.getElementById('sync-text');
