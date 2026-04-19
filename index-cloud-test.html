@@ -1965,9 +1965,11 @@ function renderProduction() {
   const mc = document.getElementById('main-content');
   const isToday = (currentReapproDate === serviceDateISO());
 
-  const reappProducts = products.filter(function(p) { return p.usage === 'reappro' || p.usage === 'both'; });
+  // Le Local = hub central : tous les produits actifs, pas seulement reappro.
+  // Sert aussi marches + Pros (flux a venir).
+  const allProducts = products.slice();
 
-  const rows = reappProducts.map(function(p) {
+  const rows = allProducts.map(function(p) {
     const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
     const vT = productionData['tours'] ? productionData['tours'][p.id] : null;
     const vS = productionData['saint-avertin'] ? productionData['saint-avertin'][p.id] : null;
@@ -2015,7 +2017,7 @@ function renderProduction() {
     + '</div>';
 
   // Bouton Reporter stocks d'hier (uniquement s'il y a des produits reportables)
-  const hasReportable = reappProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
+  const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
   if (hasReportable) {
     html += '<div class="copy-stock-box">'
       + '<div class="copy-stock-txt">Reporter le stock de la veille pour Ingredients, Sec &amp; Traiteur, Gateaux Secs.</div>'
