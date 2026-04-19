@@ -28,7 +28,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px;
 }
 .splash-logo {
-  width: 140px; height: 140px;
+  width: 160px; height: 160px;
   margin-bottom: 22px;
   display: flex; align-items: center; justify-content: center;
 }
@@ -42,13 +42,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .splash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 380px; }
 .splash-btn {
   background: rgba(255,255,255,0.05); border: 2px solid rgba(206,171,82,0.25);
-  border-radius: 18px; padding: 22px 14px; cursor: pointer; text-align: center;
+  border-radius: 18px; padding: 24px 16px; cursor: pointer; text-align: center;
   color: inherit; font-family: inherit; transition: transform 0.15s;
 }
 .splash-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.12); }
 .splash-btn[disabled] { opacity: 0.4; }
-.splash-icon { font-size: 30px; margin-bottom: 8px; }
-.splash-name { color: var(--white); font-size: 15px; font-weight: 700; margin-bottom: 3px; font-family: Georgia, serif; }
+.splash-name { color: var(--white); font-size: 17px; font-weight: 700; margin-bottom: 6px; font-family: Georgia, serif; }
 .splash-role { color: var(--gold); font-size: 11px; opacity: 0.75; line-height: 1.4; }
 
 #app { display: none; flex-direction: column; min-height: 100vh; }
@@ -57,10 +56,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   justify-content: space-between; position: sticky; top: 0; z-index: 100;
   box-shadow: 0 2px 16px rgba(0,0,0,0.18);
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left { display: flex; align-items: center; gap: 12px; }
 .header-icon {
-  width: 36px; height: 36px; background: var(--white); border-radius: 8px;
-  display: flex; align-items: center; justify-content: center; padding: 4px;
+  width: 56px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
 }
 .header-icon img { width: 100%; height: 100%; object-fit: contain; }
 .header-title { font-family: Georgia, serif; color: var(--white); font-size: 14px; font-weight: 700; }
@@ -169,22 +168,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
-      <div class="splash-icon">&#127978;</div>
       <div class="splash-name">Veigne</div>
       <div class="splash-role">Viennoiserie - Brioches - Bases - Ingredients</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('tours')">
-      <div class="splash-icon">&#127978;</div>
       <div class="splash-name">Tours</div>
       <div class="splash-role">Tout sauf pains</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
-      <div class="splash-icon">&#127978;</div>
       <div class="splash-name">St-Avertin</div>
       <div class="splash-role">Patisserie petits - Brioches</div>
     </button>
     <button class="splash-btn" disabled>
-      <div class="splash-icon">&#127981;</div>
       <div class="splash-name">Le Local</div>
       <div class="splash-role">Pas de reassort</div>
     </button>
@@ -195,14 +190,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="header">
     <div class="header-left">
       <div class="header-icon">
-        <img src="logo-header.png.png" alt="LBDD" onerror="this.parentElement.innerHTML='&#127806;'">
+        <img src="logo-splash.png.png" alt="LBDD" onerror="this.parentElement.style.display='none'">
       </div>
       <div>
         <div class="header-title">Les Bles de Demain</div>
         <div class="header-boutique" id="header-boutique"></div>
       </div>
     </div>
-    <button class="change-btn" onclick="goSplash()">&#8646; Changer</button>
+    <button class="change-btn" onclick="goSplash()">Changer</button>
   </div>
   <div class="sync-bar">
     <span><span class="sync-dot ok" id="sync-dot"></span><span id="sync-text">Connecte</span></span>
