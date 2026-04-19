@@ -99,6 +99,103 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .info-banner strong { color: var(--brown); }
 
+/* === DATE BAR (Reappro + Production) === */
+.date-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: white; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08);
+}
+.date-bar .date-nav {
+  width: 44px; height: 44px; border: 1px solid var(--gold);
+  background: #FFF9ED; color: var(--gold); border-radius: 10px;
+  font-size: 22px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.date-bar .date-nav:active { background: var(--gold); color: white; }
+.date-bar .date-title {
+  flex: 1; text-align: center; font-size: 14px; color: var(--brown); line-height: 1.3;
+}
+.date-bar .date-title strong {
+  text-transform: capitalize; font-size: 15px; color: var(--brown);
+}
+.date-bar .date-today {
+  display: inline-block; font-size: 11px; color: var(--gold); font-weight: 700;
+  background: #FFF9ED; padding: 2px 7px; border-radius: 8px; margin-left: 4px;
+}
+.date-bar .date-sub {
+  font-size: 11px; color: #999; margin-top: 3px;
+}
+
+.copy-prev-box {
+  background: white; border-radius: 14px; padding: 16px; margin-bottom: 10px;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); text-align: center;
+}
+.copy-prev-txt { font-size: 13px; color: var(--brown-mid); margin-bottom: 12px; line-height: 1.5; }
+.btn-gold {
+  background: var(--gold); color: white; border: none; padding: 12px 20px;
+  border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(206,171,82,0.3);
+}
+.btn-gold:active { transform: scale(0.98); }
+
+/* === PRODUCTION (Le Local) === */
+.prod-filter-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: white; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(61,43,31,0.05); font-size: 13px; color: var(--brown-mid);
+}
+.prod-filter-bar label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.prod-filter-bar input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--gold); }
+
+.prod-kpi-bar {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;
+}
+.prod-kpi {
+  background: white; border-radius: 12px; padding: 10px 8px; text-align: center;
+  box-shadow: 0 2px 8px rgba(61,43,31,0.06);
+}
+.prod-kpi-val {
+  font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: var(--brown);
+  line-height: 1;
+}
+.prod-kpi-lbl { font-size: 10px; color: #888; text-transform: uppercase; margin-top: 4px; letter-spacing: 0.3px; }
+
+.prod-table {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
+}
+.prod-table-header {
+  display: grid; grid-template-columns: 1.3fr 0.7fr 0.7fr 0.7fr 0.7fr;
+  padding: 8px 10px; background: #F5F0E5; gap: 4px;
+  font-size: 10px; font-weight: 700; color: var(--brown); text-transform: uppercase;
+}
+.prod-table-header .col-c { text-align: center; }
+.prod-table-header .col-total { color: var(--gold); }
+.prod-cat-title {
+  padding: 10px 12px; font-family: Georgia, serif; font-weight: 700;
+  font-size: 13px; color: var(--brown); background: #FAF5EA;
+  border-bottom: 1px solid #F0EAE0;
+}
+.prod-row {
+  display: grid; grid-template-columns: 1.3fr 0.7fr 0.7fr 0.7fr 0.7fr;
+  padding: 10px; border-bottom: 1px solid #F5F0E5; gap: 4px; align-items: center;
+  font-size: 13px;
+}
+.prod-row:last-child { border-bottom: none; }
+.prod-row .prod-name { color: var(--brown); font-weight: 500; }
+.prod-row .prod-unit { font-size: 10px; color: #999; display: block; margin-top: 1px; }
+.prod-row .cell {
+  text-align: center; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.prod-row .cell.zero { color: #CCC; font-weight: 400; }
+.prod-row .cell.total {
+  color: var(--gold); font-size: 15px; font-weight: 700;
+  background: #FFF9ED; border-radius: 6px; padding: 3px 0;
+}
+.prod-empty {
+  background: white; border-radius: 14px; padding: 40px 20px; text-align: center;
+  color: #999; box-shadow: 0 2px 12px rgba(61,43,31,0.08); font-size: 13px;
+}
+
 .section {
   background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(61,43,31,0.08);
   margin-bottom: 10px; overflow: hidden;
@@ -455,7 +552,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 2</div>
+  <div class="splash-sub">Cloud - Phase 3</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -474,9 +571,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
       <div class="splash-name">Livreur</div>
       <div class="splash-role">Feuille de route</div>
     </button>
-    <button class="splash-btn" disabled>
+    <button class="splash-btn" onclick="enterBoutique('local')">
       <div class="splash-name">Le Local</div>
-      <div class="splash-role">A venir</div>
+      <div class="splash-role">Production - Commandes du jour</div>
     </button>
   </div>
 </div>
@@ -597,6 +694,9 @@ const NAV_ITEMS = {
   ],
   'livreur': [
     { id: 'tournee', lbl: 'Tournee' }
+  ],
+  'local': [
+    { id: 'production', lbl: 'Production' }
   ]
 };
 
@@ -605,6 +705,7 @@ let products = [], reapprosData = {}, salesData = {};
 let realtimeChannelReappro = null, realtimeChannelSales = null;
 let updateTimers = {}, currentDate = todayISO();
 let rupturePid = null;
+let currentReapproDate = serviceDateISO();
 
 // Recap state
 let recapWeekData = {}; // { 'YYYY-MM-DD': [ {product_id, matin, aprem, reste}, ... ] }
@@ -617,6 +718,10 @@ let deliveriesData = []; // tous les arrets de la date courante toutes tournees
 let currentTour = 'matin'; // 'matin', 'aprem', 'autre'
 let realtimeChannelDeliveries = null;
 let isLivreurMode = false; // true quand on est sur la boutique 'livreur'
+let isLocalMode = false; // true quand on est sur la boutique 'local'
+let productionData = {}; // { boutique_id: { product_id: {avoir, commander} } }
+let realtimeChannelProduction = null;
+let productionFilterEmpty = true; // cacher les produits sans commandes par defaut
 let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
 
 const DEFAULT_STOPS = [
@@ -626,6 +731,15 @@ const DEFAULT_STOPS = [
 
 function todayISO() {
   const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// Date de service : avant 2h du matin, on est encore "hier"
+function serviceDateISO() {
+  const d = new Date();
+  if (d.getHours() < 2) {
+    d.setDate(d.getDate() - 1);
+  }
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
@@ -714,6 +828,7 @@ function showInitError(err) {
 async function enterBoutique(b) {
   currentBoutique = b;
   isLivreurMode = (b === 'livreur');
+  isLocalMode = (b === 'local');
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -725,8 +840,9 @@ function goSplash() {
   if (realtimeChannelReappro)    { supa.removeChannel(realtimeChannelReappro);    realtimeChannelReappro = null; }
   if (realtimeChannelSales)      { supa.removeChannel(realtimeChannelSales);      realtimeChannelSales = null; }
   if (realtimeChannelDeliveries) { supa.removeChannel(realtimeChannelDeliveries); realtimeChannelDeliveries = null; }
-  currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = [];
-  isLivreurMode = false;
+  if (realtimeChannelProduction) { supa.removeChannel(realtimeChannelProduction); realtimeChannelProduction = null; }
+  currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {};
+  isLivreurMode = false; isLocalMode = false;
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
@@ -757,13 +873,18 @@ async function setVue(v) {
     await loadDeliveries(currentDate);
     subscribeRealtimeDeliveries();
     renderLivraison();
+  } else if (v === 'production') {
+    await loadProduction(currentReapproDate);
+    subscribeRealtimeProduction();
+    renderProduction();
   }
 }
 
 // === REAPPRO ===
 async function loadReappros(b) {
   const { data, error } = await supa.from('reappros').select('*')
-    .eq('tenant_id', TENANT_ID).eq('boutique_id', b);
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', b)
+    .eq('service_date', currentReapproDate);
   if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   reapprosData = {};
   (data || []).forEach(function(r) {
@@ -771,16 +892,69 @@ async function loadReappros(b) {
   });
 }
 
+async function loadReapprosDate(b, date) {
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', b)
+    .eq('service_date', date);
+  if (error) return {};
+  const result = {};
+  (data || []).forEach(function(r) {
+    result[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
+  });
+  return result;
+}
+
 async function upsertReappro(pid) {
   setSyncStatus('syncing');
   const d = reapprosData[pid] || {};
   const { error } = await supa.from('reappros').upsert({
     tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
+    service_date: currentReapproDate,
     avoir: d.avoir || null, commander: d.commander || null,
     updated_by: DEVICE_ID, updated_at: new Date().toISOString()
-  }, { onConflict: 'tenant_id,boutique_id,product_id' });
+  }, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
   else { setSyncStatus('ok'); }
+}
+
+async function changeReapproDate(delta) {
+  const d = new Date(currentReapproDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentReapproDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadReappros(currentBoutique);
+  renderReappro();
+}
+
+async function copyFromPreviousDay() {
+  const d = new Date(currentReapproDate + 'T12:00');
+  d.setDate(d.getDate() - 1);
+  const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const prevData = await loadReapprosDate(currentBoutique, prevISO);
+  const pids = Object.keys(prevData);
+  if (!pids.length) {
+    showToast('Aucune commande a reprendre pour ' + prevISO, 'error');
+    return;
+  }
+  if (!confirm('Reprendre les ' + pids.length + ' produits commandes le ' + prevISO + ' ?')) return;
+  setSyncStatus('syncing');
+  const rows = pids.map(function(pid) {
+    return {
+      tenant_id: TENANT_ID,
+      boutique_id: currentBoutique,
+      product_id: pid,
+      service_date: currentReapproDate,
+      avoir: prevData[pid].avoir || null,
+      commander: prevData[pid].commander || null,
+      updated_by: DEVICE_ID,
+      updated_at: new Date().toISOString()
+    };
+  });
+  const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadReappros(currentBoutique);
+  renderReappro();
+  showToast('Commande reprise de ' + prevISO, 'sync');
 }
 
 function subscribeRealtimeReappro(b) {
@@ -790,6 +964,8 @@ function subscribeRealtimeReappro(b) {
       function(payload) {
         const r = payload.new;
         if (!r || r.updated_by === DEVICE_ID) return;
+        // Ne prendre en compte que les changements sur la date en cours
+        if (r.service_date !== currentReapproDate) return;
         reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
         updateReapproInput(r.product_id, 'avoir', r.avoir);
         updateReapproInput(r.product_id, 'commander', r.commander);
@@ -811,7 +987,27 @@ function renderReappro() {
   const cats = REAPPRO_CATS[currentBoutique] || [];
   const mc = document.getElementById('main-content');
   if (!cats.length) { mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>'; return; }
-  let html = '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - synchro temps reel entre tous les appareils.</div>';
+  const nbLignes = Object.keys(reapprosData).filter(function(k) {
+    const v = reapprosData[k];
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '');
+  }).length;
+  const isToday = (currentReapproDate === serviceDateISO());
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeReapproDate(-1)">&larr;</button>'
+    + '<div class="date-title">Commande du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
+    + '<div class="date-sub">' + nbLignes + ' produit' + (nbLignes > 1 ? 's' : '') + ' saisi' + (nbLignes > 1 ? 's' : '') + '</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeReapproDate(1)">&rarr;</button>'
+    + '</div>';
+  if (nbLignes === 0) {
+    html += '<div class="copy-prev-box">'
+      + '<div class="copy-prev-txt">Ecran vide pour ce jour. Tu peux reprendre la commande d hier :</div>'
+      + '<button class="btn-gold" onclick="copyFromPreviousDay()">Reprendre la commande d hier</button>'
+      + '</div>';
+  } else {
+    html += '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - synchro temps reel entre tous les appareils.</div>';
+  }
   const reappProducts = getProductsForReappro();
   cats.forEach(function(cat) {
     const prods = reappProducts.filter(function(p) { return p.category === cat; });
@@ -1637,6 +1833,169 @@ function clearRupture() {
   updateRuptureBtn(rupturePid);
   upsertSale(rupturePid);
   closeRuptureModal();
+}
+
+// === PRODUCTION (Le Local) ===
+const PROD_BOUTIQUES = ['veigne', 'tours', 'saint-avertin'];
+const PROD_BOUTIQUE_LABELS = { 'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avert.' };
+
+async function loadProduction(date) {
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('service_date', date)
+    .in('boutique_id', PROD_BOUTIQUES);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  productionData = { veigne: {}, tours: {}, 'saint-avertin': {} };
+  (data || []).forEach(function(r) {
+    if (!productionData[r.boutique_id]) productionData[r.boutique_id] = {};
+    productionData[r.boutique_id][r.product_id] = {
+      avoir: r.avoir || '',
+      commander: r.commander || ''
+    };
+  });
+}
+
+function subscribeRealtimeProduction() {
+  if (realtimeChannelProduction) supa.removeChannel(realtimeChannelProduction);
+  realtimeChannelProduction = supa.channel('prod_reappros')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reappros' },
+      function(payload) {
+        const r = payload.new;
+        if (!r || r.updated_by === DEVICE_ID) return;
+        if (r.service_date !== currentReapproDate) return;
+        if (PROD_BOUTIQUES.indexOf(r.boutique_id) === -1) return;
+        if (!productionData[r.boutique_id]) productionData[r.boutique_id] = {};
+        productionData[r.boutique_id][r.product_id] = {
+          avoir: r.avoir || '', commander: r.commander || ''
+        };
+        renderProduction();
+        showToast('Commande mise a jour (' + PROD_BOUTIQUE_LABELS[r.boutique_id] + ')', 'sync');
+      }).subscribe();
+}
+
+function parseQty(v) {
+  if (v == null || v === '') return 0;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+function formatQty(n) {
+  if (!n) return '0';
+  return (Math.round(n * 100) / 100).toString().replace('.', ',');
+}
+
+async function changeProductionDate(delta) {
+  const d = new Date(currentReapproDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentReapproDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadProduction(currentReapproDate);
+  renderProduction();
+}
+
+function toggleProductionFilter() {
+  productionFilterEmpty = !productionFilterEmpty;
+  renderProduction();
+}
+
+function renderProduction() {
+  const mc = document.getElementById('main-content');
+  const isToday = (currentReapproDate === serviceDateISO());
+
+  // Collecte tous les produits reappro
+  const reappProducts = products.filter(function(p) { return p.usage === 'reappro' || p.usage === 'both'; });
+
+  // Agregation par produit
+  const rows = reappProducts.map(function(p) {
+    const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
+    const vT = productionData['tours'] ? productionData['tours'][p.id] : null;
+    const vS = productionData['saint-avertin'] ? productionData['saint-avertin'][p.id] : null;
+    const cV = parseQty(vV && vV.commander);
+    const cT = parseQty(vT && vT.commander);
+    const cS = parseQty(vS && vS.commander);
+    const total = cV + cT + cS;
+    return { p: p, veigne: cV, tours: cT, savertin: cS, total: total };
+  });
+
+  // Filtre : cacher produits vides
+  const filtered = productionFilterEmpty ? rows.filter(function(r) { return r.total > 0; }) : rows;
+
+  // Calcul KPIs
+  const nbProdCommandes = rows.filter(function(r) { return r.total > 0; }).length;
+  const nbBoutiquesActives = ['veigne', 'tours', 'saint-avertin'].filter(function(b) {
+    return rows.some(function(r) { return r[b === 'saint-avertin' ? 'savertin' : b] > 0; });
+  }).length;
+  const volumeTotal = rows.reduce(function(s, r) { return s + r.total; }, 0);
+
+  // Rendu
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeProductionDate(-1)">&larr;</button>'
+    + '<div class="date-title">Production du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
+    + '<div class="date-sub">Commandes recues des boutiques</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeProductionDate(1)">&rarr;</button>'
+    + '</div>';
+
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + nbProdCommandes + '</div><div class="prod-kpi-lbl">Produits</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Volume total</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + nbBoutiquesActives + '/3</div><div class="prod-kpi-lbl">Boutiques</div></div>'
+    + '</div>';
+
+  html += '<div class="prod-filter-bar"><label>'
+    + '<input type="checkbox" ' + (productionFilterEmpty ? 'checked' : '') + ' onchange="toggleProductionFilter()">'
+    + '<span>Cacher les produits sans commandes</span></label></div>';
+
+  if (!filtered.length) {
+    html += '<div class="prod-empty">'
+      + (productionFilterEmpty
+          ? 'Aucune commande pour cette date.<br>Decoche le filtre pour voir tous les produits.'
+          : 'Aucun produit dans la base reappro.')
+      + '</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // Grouper par categorie
+  const byCat = {};
+  filtered.forEach(function(r) {
+    const c = r.p.category || 'autre';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(r);
+  });
+
+  // Liste de categories ordonnees (on garde l'ordre natif de CAT_LABELS si possible)
+  const catOrder = Object.keys(CAT_LABELS);
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  html += '<div class="prod-table">'
+    + '<div class="prod-table-header">'
+    + '<span>Produit</span>'
+    + '<span class="col-c">Veigne</span>'
+    + '<span class="col-c">Tours</span>'
+    + '<span class="col-c">St-Avert.</span>'
+    + '<span class="col-c col-total">TOTAL</span>'
+    + '</div>';
+
+  cats.forEach(function(cat) {
+    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+    byCat[cat].forEach(function(r) {
+      html += '<div class="prod-row">'
+        + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
+        + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
+        + '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
+        + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
+        + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>'
+        + '<div class="cell total">' + formatQty(r.total) + '</div>'
+        + '</div>';
+    });
+  });
+
+  html += '</div>';
+
+  mc.innerHTML = html;
 }
 
 // === HELPERS ===
