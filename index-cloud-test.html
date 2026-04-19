@@ -243,17 +243,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
 }
 .market-table-header {
-  display: grid; grid-template-columns: 1.2fr 0.6fr 0.6fr 0.6fr 1.2fr;
-  padding: 8px 10px; background: #F5F0E5; gap: 4px;
+  display: grid; grid-template-columns: 1.2fr 0.55fr 0.6fr 0.7fr 0.55fr 1.1fr;
+  padding: 8px 8px; background: #F5F0E5; gap: 4px;
   font-size: 10px; font-weight: 700; color: var(--brown); text-transform: uppercase;
 }
 .market-table-header .col-c { text-align: center; }
 .market-row {
-  display: grid; grid-template-columns: 1.2fr 0.6fr 0.6fr 0.6fr 1.2fr;
-  padding: 8px 10px; border-bottom: 1px solid #F5F0E5; gap: 4px; align-items: center;
+  display: grid; grid-template-columns: 1.2fr 0.55fr 0.6fr 0.7fr 0.55fr 1.1fr;
+  padding: 8px 8px; border-bottom: 1px solid #F5F0E5; gap: 4px; align-items: center;
   font-size: 13px;
 }
 .market-row:last-child { border-bottom: none; }
+.market-row .prod-name { display: block; color: var(--brown); font-weight: 500; font-size: 13px; }
+.market-row .prod-unit { display: block; font-size: 10px; color: #999; margin-top: 1px; }
 .market-input {
   width: 100%; padding: 6px 2px; border: 2px solid #E0D8C8; border-radius: 6px;
   font-size: 13px; font-weight: 700; text-align: center; color: var(--brown);
@@ -262,9 +264,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .market-input::-webkit-outer-spin-button,
 .market-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .market-input:focus { outline: none; border-color: var(--gold); background: white; }
-.market-input.has-emmene { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
-.market-input.has-vendu  { background: #EEF7F2; border-color: var(--green); color: var(--green); }
-.market-input.has-reste  { background: #FEF2F2; border-color: var(--red); color: var(--red); }
+.market-input.has-marche             { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
+.market-input.has-commande           { background: #FFF9ED; border-color: var(--gold); color: var(--gold-dark); }
+.market-input.has-commande_tranchee  { background: #FBF0D5; border-color: var(--gold-dark); color: var(--gold-dark); }
+.market-input.has-pertes             { background: #FEF2F2; border-color: var(--red); color: var(--red); }
 .market-note-inline {
   width: 100%; padding: 6px 8px; border: 1.5px solid #F0EAE0; border-radius: 6px;
   font-size: 12px; color: var(--brown); background: #FAF8F4; font-family: inherit;
@@ -317,8 +320,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .market-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .market-input:focus { outline: none; border-color: var(--gold); background: white; }
 .market-input[data-field="emmene"].has { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
-.market-input[data-field="vendu"].has  { background: #EEF7F2; border-color: var(--green); color: var(--green); }
-.market-input[data-field="reste"].has  { background: #FEF2F2; border-color: var(--red); color: var(--red); }
 .market-note-input {
   width: 100%; padding: 8px 10px; border: 2px solid #E0D8C8; border-radius: 7px;
   font-size: 12px; color: var(--brown); background: #FAF8F4;
@@ -669,7 +670,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 5</div>
+  <div class="splash-sub">Cloud - Phase 6</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -2313,10 +2314,11 @@ async function loadMarketEntries(marketId, date) {
   marketEntriesData = {};
   (data || []).forEach(function(r) {
     marketEntriesData[r.product_id] = {
-      emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
-      vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
-      reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
-      product_notes: r.product_notes || ''
+      marche:             r.marche             == null ? '' : String(r.marche).replace('.', ','),
+      commande:           r.commande           == null ? '' : String(r.commande).replace('.', ','),
+      commande_tranchee:  r.commande_tranchee  == null ? '' : String(r.commande_tranchee).replace('.', ','),
+      pertes:             r.pertes             == null ? '' : String(r.pertes).replace('.', ','),
+      product_notes:      r.product_notes || ''
     };
   });
 }
@@ -2328,10 +2330,11 @@ async function loadMarketEntriesForDate(marketId, date) {
   const result = {};
   (data || []).forEach(function(r) {
     result[r.product_id] = {
-      emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
-      vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
-      reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
-      product_notes: r.product_notes || ''
+      marche:             r.marche             == null ? '' : String(r.marche).replace('.', ','),
+      commande:           r.commande           == null ? '' : String(r.commande).replace('.', ','),
+      commande_tranchee:  r.commande_tranchee  == null ? '' : String(r.commande_tranchee).replace('.', ','),
+      pertes:             r.pertes             == null ? '' : String(r.pertes).replace('.', ','),
+      product_notes:      r.product_notes || ''
     };
   });
   return result;
@@ -2340,13 +2343,14 @@ async function loadMarketEntriesForDate(marketId, date) {
 async function upsertMarketEntry(pid) {
   setSyncStatus('syncing');
   const d = marketEntriesData[pid] || {};
-  const emmene = d.emmene === '' || d.emmene == null ? null : parseQty(d.emmene);
-  const vendu  = d.vendu  === '' || d.vendu  == null ? null : parseQty(d.vendu);
-  const reste  = d.reste  === '' || d.reste  == null ? null : parseQty(d.reste);
+  const marche = d.marche === '' || d.marche == null ? null : parseQty(d.marche);
+  const commande = d.commande === '' || d.commande == null ? null : parseQty(d.commande);
+  const commandeTr = d.commande_tranchee === '' || d.commande_tranchee == null ? null : parseQty(d.commande_tranchee);
+  const pertes = d.pertes === '' || d.pertes == null ? null : parseQty(d.pertes);
   const { error } = await supa.from('market_entries').upsert({
     tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDate,
     product_id: pid,
-    emmene: emmene, vendu: vendu, reste: reste,
+    marche: marche, commande: commande, commande_tranchee: commandeTr, pertes: pertes,
     product_notes: d.product_notes || null,
     updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,market_id,service_date,product_id' });
@@ -2381,9 +2385,10 @@ function subscribeRealtimeMarket() {
         if (!r || r.updated_by === DEVICE_ID) return;
         if (r.service_date !== currentMarketDate) return;
         marketEntriesData[r.product_id] = {
-          emmene: r.emmene == null ? '' : String(r.emmene).replace('.', ','),
-          vendu:  r.vendu  == null ? '' : String(r.vendu).replace('.', ','),
-          reste:  r.reste  == null ? '' : String(r.reste).replace('.', ','),
+          marche:             r.marche             == null ? '' : String(r.marche).replace('.', ','),
+          commande:           r.commande           == null ? '' : String(r.commande).replace('.', ','),
+          commande_tranchee:  r.commande_tranchee  == null ? '' : String(r.commande_tranchee).replace('.', ','),
+          pertes:             r.pertes             == null ? '' : String(r.pertes).replace('.', ','),
           product_notes: r.product_notes || ''
         };
         renderMarket();
@@ -2411,28 +2416,28 @@ async function changeMarketDate(delta) {
 }
 
 async function copyFromLastMarket() {
-  // Meme marche, semaine d'avant
+  // Meme marche, semaine d'avant - on ne reprend que le volume "Marche" (walk-in)
+  // et les notes produit. Les commandes clients ne se reportent pas (specifiques chaque semaine).
   const d = new Date(currentMarketDate + 'T12:00');
   d.setDate(d.getDate() - 7);
   const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   const prevData = await loadMarketEntriesForDate(currentMarketId, prevISO);
   const pids = Object.keys(prevData).filter(function(pid) {
     const v = prevData[pid];
-    return (v.emmene && v.emmene !== '') || (v.vendu && v.vendu !== '') || (v.reste && v.reste !== '');
+    return (v.marche && v.marche !== '');
   });
   if (!pids.length) {
-    showToast('Aucune donnee a reprendre du ' + prevISO, 'error');
+    showToast('Aucune base Marche a reprendre du ' + prevISO, 'error');
     return;
   }
-  if (!confirm('Reprendre le "Emmene" de ' + pids.length + ' produit(s) du marche du ' + prevISO + ' ?')) return;
+  if (!confirm('Reprendre la base "Marche" de ' + pids.length + ' produit(s) du marche du ' + prevISO + ' ?')) return;
   setSyncStatus('syncing');
   const rows = pids.map(function(pid) {
     return {
       tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDate,
       product_id: pid,
-      emmene: prevData[pid].emmene === '' ? null : parseQty(prevData[pid].emmene),
-      // Ne pas recopier vendu/reste : ce sera saisi le jour du marche
-      vendu: null, reste: null,
+      marche: prevData[pid].marche === '' ? null : parseQty(prevData[pid].marche),
+      commande: null, commande_tranchee: null, pertes: null,
       product_notes: prevData[pid].product_notes || null,
       updated_by: DEVICE_ID, updated_at: new Date().toISOString()
     };
@@ -2442,12 +2447,12 @@ async function copyFromLastMarket() {
   setSyncStatus('ok');
   await loadMarketEntries(currentMarketId, currentMarketDate);
   renderMarket();
-  showToast('Base reprise depuis ' + prevISO, 'sync');
+  showToast('Base Marche reprise depuis ' + prevISO, 'sync');
 }
 
 function handleMarketInput(el) {
   const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
-  if (!marketEntriesData[pid]) marketEntriesData[pid] = { emmene: '', vendu: '', reste: '', product_notes: '' };
+  if (!marketEntriesData[pid]) marketEntriesData[pid] = { marche: '', commande: '', commande_tranchee: '', pertes: '', product_notes: '' };
   marketEntriesData[pid][field] = val;
   if (field !== 'product_notes') {
     el.classList.toggle('has-' + field, !!val);
@@ -2472,55 +2477,55 @@ function renderMarket() {
   const isMarketDay = (new Date(currentMarketDate + 'T12:00').getDay() === MARKET_DAY_OF_WEEK[currentMarketId]);
   const marketLabel = BOUTIQUE_NAMES[currentMarketId];
 
-  // Tous les produits actifs (meme logique que Le Local)
   const allProducts = products.slice();
 
-  // Agregation par ligne
   const rows = allProducts.map(function(p) {
-    const m = marketEntriesData[p.id] || { emmene: '', vendu: '', reste: '', product_notes: '' };
-    const emm = m.emmene === '' || m.emmene == null ? null : parseQty(m.emmene);
-    const ven = m.vendu  === '' || m.vendu  == null ? null : parseQty(m.vendu);
-    const res = m.reste  === '' || m.reste  == null ? null : parseQty(m.reste);
+    const m = marketEntriesData[p.id] || { marche: '', commande: '', commande_tranchee: '', pertes: '', product_notes: '' };
+    const marche  = m.marche            === '' || m.marche            == null ? null : parseQty(m.marche);
+    const cmd     = m.commande          === '' || m.commande          == null ? null : parseQty(m.commande);
+    const cmdTr   = m.commande_tranchee === '' || m.commande_tranchee == null ? null : parseQty(m.commande_tranchee);
+    const pertes  = m.pertes            === '' || m.pertes            == null ? null : parseQty(m.pertes);
     return {
       p: p,
-      emmeneRaw: m.emmene, venduRaw: m.vendu, resteRaw: m.reste,
+      marcheRaw: m.marche, commandeRaw: m.commande, commandeTranRaw: m.commande_tranchee, pertesRaw: m.pertes,
       notesRaw: m.product_notes,
-      emmeneVal: emm, venduVal: ven, resteVal: res
+      marcheVal: marche, commandeVal: cmd, commandeTranVal: cmdTr, pertesVal: pertes
     };
   });
 
   const filtered = marketFilterEmpty
     ? rows.filter(function(r) {
-        return (r.emmeneVal != null && r.emmeneVal !== 0) ||
-               (r.venduVal != null && r.venduVal !== 0) ||
-               (r.resteVal != null && r.resteVal !== 0) ||
+        return (r.marcheVal != null && r.marcheVal !== 0) ||
+               (r.commandeVal != null && r.commandeVal !== 0) ||
+               (r.commandeTranVal != null && r.commandeTranVal !== 0) ||
+               (r.pertesVal != null && r.pertesVal !== 0) ||
                (r.notesRaw && r.notesRaw !== '');
       })
     : rows;
 
-  // KPIs
-  const totalEmmene = rows.reduce(function(s, r) { return s + (r.emmeneVal || 0); }, 0);
-  const totalVendu  = rows.reduce(function(s, r) { return s + (r.venduVal  || 0); }, 0);
-  const totalReste  = rows.reduce(function(s, r) { return s + (r.resteVal  || 0); }, 0);
+  // KPIs : total charger (marche+cmd+cmdTr), total commandes clients (cmd+cmdTr), pertes
+  const totalCharger = rows.reduce(function(s, r) { return s + (r.marcheVal || 0) + (r.commandeVal || 0) + (r.commandeTranVal || 0); }, 0);
+  const totalCommandes = rows.reduce(function(s, r) { return s + (r.commandeVal || 0) + (r.commandeTranVal || 0); }, 0);
+  const totalPertes = rows.reduce(function(s, r) { return s + (r.pertesVal || 0); }, 0);
 
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changeMarketDate(-1)">&#8592;</button>'
     + '<div class="date-title">' + escapeHtml(marketLabel) + ' - <strong>' + escapeHtml(formatDateFr(currentMarketDate)) + '</strong>'
     + (isMarketDay ? ' <span class="date-today">(jour de marche)</span>' : '')
-    + '<div class="date-sub">Emmene / Vendu / Reste</div>'
+    + '<div class="date-sub">Marche / Commande / Cmd tranchee / Pertes</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changeMarketDate(1)">&#8594;</button>'
     + '</div>';
 
   html += '<div class="prod-kpi-bar">'
-    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(totalEmmene) + '</div><div class="prod-kpi-lbl">Emmene</div></div>'
-    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + formatQty(totalVendu) + '</div><div class="prod-kpi-lbl">Vendu</div></div>'
-    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--red)">' + formatQty(totalReste) + '</div><div class="prod-kpi-lbl">Reste</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(totalCharger) + '</div><div class="prod-kpi-lbl">A charger</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + formatQty(totalCommandes) + '</div><div class="prod-kpi-lbl">Commandes</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--red)">' + formatQty(totalPertes) + '</div><div class="prod-kpi-lbl">Pertes</div></div>'
     + '</div>';
 
   // Bouton reprendre la semaine d'avant
   html += '<div class="copy-stock-box">'
-    + '<div class="copy-stock-txt">Reprendre la base "Emmene" du meme marche la semaine derniere.</div>'
+    + '<div class="copy-stock-txt">Reprendre la base "Marche" du meme marche la semaine derniere.</div>'
     + '<button class="btn-gold-sm" onclick="copyFromLastMarket()">Reprendre la semaine d avant</button>'
     + '</div>';
 
@@ -2530,7 +2535,6 @@ function renderMarket() {
     + '<textarea id="market-day-note" class="market-note-ta" placeholder="Ex: Mme Martin - 2 baguettes + 1 Mathis 1kg tranche pour 9h" oninput="handleMarketDayNoteInput(this)">' + escapeHtml(marketDayNote) + '</textarea>'
     + '</div>';
 
-  // Filtre
   html += '<div class="prod-filter-bar"><label>'
     + '<input type="checkbox" ' + (marketFilterEmpty ? 'checked' : '') + ' onchange="toggleMarketFilter()">'
     + '<span>Cacher les produits sans activite</span></label></div>';
@@ -2545,7 +2549,6 @@ function renderMarket() {
     return;
   }
 
-  // Grouper par categorie
   const byCat = {};
   filtered.forEach(function(r) {
     const c = r.p.category || 'autre';
@@ -2561,24 +2564,27 @@ function renderMarket() {
   html += '<div class="market-table">'
     + '<div class="market-table-header">'
     + '<span>Produit</span>'
-    + '<span class="col-c" style="color:var(--blue)">Emm.</span>'
-    + '<span class="col-c" style="color:var(--green)">Vendu</span>'
-    + '<span class="col-c" style="color:var(--red)">Reste</span>'
+    + '<span class="col-c" style="color:var(--blue)">Marche</span>'
+    + '<span class="col-c" style="color:var(--gold-dark)">Cmd</span>'
+    + '<span class="col-c" style="color:var(--gold-dark)">Cmd tr.</span>'
+    + '<span class="col-c" style="color:var(--red)">Pertes</span>'
     + '<span>Notes</span>'
     + '</div>';
 
   cats.forEach(function(cat) {
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
     byCat[cat].forEach(function(r) {
-      const emmCls = r.emmeneRaw ? 'has-emmene' : '';
-      const venCls = r.venduRaw ? 'has-vendu' : '';
-      const resCls = r.resteRaw ? 'has-reste' : '';
+      const clsM  = r.marcheRaw          ? 'has-marche' : '';
+      const clsC  = r.commandeRaw        ? 'has-commande' : '';
+      const clsCt = r.commandeTranRaw    ? 'has-commande_tranchee' : '';
+      const clsP  = r.pertesRaw          ? 'has-pertes' : '';
       html += '<div class="market-row">'
         + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
         + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
-        + '<input type="text" inputmode="decimal" class="market-input ' + emmCls + '" data-pid="' + r.p.id + '" data-field="emmene" value="' + escapeHtml(r.emmeneRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
-        + '<input type="text" inputmode="decimal" class="market-input ' + venCls + '" data-pid="' + r.p.id + '" data-field="vendu" value="' + escapeHtml(r.venduRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
-        + '<input type="text" inputmode="decimal" class="market-input ' + resCls + '" data-pid="' + r.p.id + '" data-field="reste" value="' + escapeHtml(r.resteRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + clsM  + '" data-pid="' + r.p.id + '" data-field="marche"            value="' + escapeHtml(r.marcheRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + clsC  + '" data-pid="' + r.p.id + '" data-field="commande"          value="' + escapeHtml(r.commandeRaw     || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + clsCt + '" data-pid="' + r.p.id + '" data-field="commande_tranchee" value="' + escapeHtml(r.commandeTranRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
+        + '<input type="text" inputmode="decimal" class="market-input ' + clsP  + '" data-pid="' + r.p.id + '" data-field="pertes"            value="' + escapeHtml(r.pertesRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
         + '<input type="text" class="market-note-inline" data-pid="' + r.p.id + '" data-field="product_notes" value="' + escapeHtml(r.notesRaw || '') + '" placeholder="ex: 600g, tranche..." oninput="handleMarketInput(this)">'
         + '</div>';
     });
@@ -2602,13 +2608,14 @@ async function loadMarketUpcoming(localDate) {
     .gte('service_date', startISO).lte('service_date', endISO);
   if (error) return;
   (data || []).forEach(function(r) {
-    if (r.emmene == null || r.emmene === 0) return;
+    // Total a produire pour ce produit/marche/date = marche + commande + commande_tranchee
+    const total = (r.marche || 0) + (r.commande || 0) + (r.commande_tranchee || 0);
+    if (total === 0) return;
     if (!marketUpcomingData[r.market_id]) marketUpcomingData[r.market_id] = { _date: r.service_date, _products: {} };
-    // On garde la date la plus proche (au cas ou plusieurs : ne devrait pas arriver car marches hebdos)
     if (r.service_date < marketUpcomingData[r.market_id]._date) {
       marketUpcomingData[r.market_id]._date = r.service_date;
     }
-    marketUpcomingData[r.market_id]._products[r.product_id] = r.emmene;
+    marketUpcomingData[r.market_id]._products[r.product_id] = total;
   });
 }
 
