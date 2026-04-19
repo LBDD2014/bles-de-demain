@@ -77,7 +77,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 
 .main { flex: 1; padding: 10px 12px 80px; max-width: 700px; margin: 0 auto; width: 100%; }
 
-/* === BOTTOM NAV === */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: var(--grey); display: flex; justify-content: space-around;
@@ -89,13 +88,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   font-family: inherit;
 }
-.bnav-item .lbl {
-  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45);
-}
+.bnav-item .lbl { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); }
 .bnav-item.active .lbl { color: var(--gold); }
 .bnav-item.active { border-top: 2px solid var(--gold); padding-top: 8px; }
 
-/* === COMMON === */
 .info-banner {
   background: white; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
   border-left: 4px solid var(--blue); font-size: 12px; color: var(--brown-mid); line-height: 1.5;
@@ -146,17 +142,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 
 /* === VENTES === */
 .ventes-col-header {
-  display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
-  padding: 6px 12px; background: #F5F0E5; gap: 4px;
+  display: grid; grid-template-columns: 1fr 48px 48px 48px 48px 56px 44px;
+  padding: 6px 10px; background: #F5F0E5; gap: 3px;
 }
 .ventes-row {
-  display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
-  align-items: center; padding: 8px 12px; border-bottom: 1px solid #F5F0E8; gap: 4px;
+  display: grid; grid-template-columns: 1fr 48px 48px 48px 48px 56px 44px;
+  align-items: center; padding: 8px 10px; border-bottom: 1px solid #F5F0E8; gap: 3px;
 }
 .ventes-row:last-child { border-bottom: none; }
 .v-inp {
-  width: 100%; padding: 9px 4px; border: 2px solid #E0D8C8; border-radius: 7px;
-  font-size: 15px; font-weight: 700; text-align: center; color: var(--brown);
+  width: 100%; padding: 9px 2px; border: 2px solid #E0D8C8; border-radius: 7px;
+  font-size: 14px; font-weight: 700; text-align: center; color: var(--brown);
   background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 }
 .v-inp::-webkit-outer-spin-button,
@@ -167,10 +163,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .v-inp.reste.has { background: #FEF2F2; border-color: var(--red); color: var(--red); }
 .v-inp.just-updated { animation: flash 1s; }
 .v-vendu {
-  text-align: center; font-family: Georgia, serif; font-size: 16px; font-weight: 900;
+  text-align: center; font-family: Georgia, serif; font-size: 15px; font-weight: 900;
   color: var(--blue); padding: 8px 0;
 }
 .v-vendu.zero { color: #C0B090; font-size: 13px; }
+.v-perte {
+  text-align: center; font-size: 11px; font-weight: 700;
+  padding: 4px 0; border-radius: 5px;
+}
+.v-perte.zero { color: #C0B090; }
+.v-perte.ok { color: var(--green); background: #EEF7F2; }
+.v-perte.warn { color: var(--orange); background: #FEF3EC; }
+.v-perte.bad { color: var(--red); background: #FEF2F2; }
+.v-rupture-btn {
+  background: transparent; border: 1.5px solid #E0D8C8; border-radius: 7px;
+  padding: 6px 0; font-size: 18px; cursor: pointer; font-family: inherit;
+  color: #B8A890; line-height: 1; transition: all 0.15s;
+}
+.v-rupture-btn.has {
+  background: #FEF3EC; border-color: var(--orange); color: var(--orange);
+  font-size: 11px; font-weight: 800;
+}
+.v-rupture-btn:active { transform: scale(0.94); }
 
 .ventes-day-bar {
   background: var(--green); color: white; border-radius: 12px;
@@ -178,12 +192,44 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   display: flex; align-items: center; justify-content: space-between;
 }
 .ventes-day-title { font-family: Georgia, serif; font-size: 14px; font-weight: 700; }
-.ventes-day-nav { display: flex; gap: 6px; }
 .ventes-day-btn {
   background: rgba(255,255,255,0.15); border: none; border-radius: 7px;
   padding: 4px 10px; color: white; font-size: 14px; font-weight: 700;
   cursor: pointer; font-family: inherit;
 }
+
+/* === MODAL RUPTURE === */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white; border-radius: 16px; padding: 22px; max-width: 360px; width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.modal-title {
+  font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: var(--brown);
+  margin-bottom: 4px;
+}
+.modal-sub { font-size: 12px; color: var(--brown-mid); margin-bottom: 16px; }
+.modal-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
+}
+.modal-btn {
+  background: #F5F0E5; border: 1.5px solid #E0D8C8; border-radius: 10px;
+  padding: 12px 0; font-size: 14px; font-weight: 700; color: var(--brown);
+  cursor: pointer; font-family: inherit;
+}
+.modal-btn:active { transform: scale(0.96); background: #E8D5A3; }
+.modal-btn.selected { background: var(--orange); color: white; border-color: var(--orange); }
+.modal-actions { display: flex; gap: 8px; }
+.modal-action {
+  flex: 1; padding: 11px; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.modal-action.cancel { background: #F0EAE0; color: var(--brown); }
+.modal-action.clear  { background: #FEF2F2; color: var(--red); border: 1px solid var(--red); }
 
 .loading { text-align: center; padding: 40px 20px; color: var(--brown-mid); font-size: 13px; }
 .error-box {
@@ -262,6 +308,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
+<!-- Modal heure de rupture -->
+<div class="modal-overlay" id="rupture-modal">
+  <div class="modal">
+    <div class="modal-title">Heure de rupture</div>
+    <div class="modal-sub" id="rupture-modal-product"></div>
+    <div class="modal-grid" id="rupture-modal-grid"></div>
+    <div class="modal-actions">
+      <button class="modal-action cancel" onclick="closeRuptureModal()">Annuler</button>
+      <button class="modal-action clear" onclick="clearRupture()">Effacer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -278,6 +337,7 @@ const REAPPRO_CATS = {
 };
 
 const VENTES_BOUTIQUES = ['veigne'];
+const HEURES_RUPTURE = ['9h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h'];
 
 const CAT_LABELS = {
   'viennoiserie':      'Viennoiserie',
@@ -286,15 +346,11 @@ const CAT_LABELS = {
   'patisserie_gros':   'Gros Gateaux',
   'sec_traiteur':      'Sec & Traiteur',
   'bases_patisserie':  'Bases Patisserie',
-  'ingredients':       'Ingredients',
-  'pains':             'Pains'
+  'ingredients':       'Ingredients'
 };
 
 const BOUTIQUE_NAMES = {
-  'veigne': 'Veigne',
-  'tours': 'Tours',
-  'saint-avertin': 'St-Avertin',
-  'local': 'Le Local'
+  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin', 'local': 'Le Local'
 };
 
 const NAV_ITEMS = {
@@ -306,16 +362,11 @@ const NAV_ITEMS = {
   'saint-avertin': [{ id: 'reappro', lbl: 'Reappro' }]
 };
 
-let supa;
-let currentBoutique = null;
-let currentVue = 'reappro';
-let products = [];
-let reapprosData = {};
-let salesData = {};
-let realtimeChannelReappro = null;
-let realtimeChannelSales = null;
-let updateTimers = {};
-let currentDate = todayISO();
+let supa, currentBoutique = null, currentVue = 'reappro';
+let products = [], reapprosData = {}, salesData = {};
+let realtimeChannelReappro = null, realtimeChannelSales = null;
+let updateTimers = {}, currentDate = todayISO();
+let rupturePid = null;
 
 function todayISO() {
   const d = new Date();
@@ -330,35 +381,25 @@ function formatDateFr(iso) {
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
-  console.log('Supabase OK, device =', DEVICE_ID);
   loadProducts();
-} catch (err) {
-  showInitError(err);
-}
+} catch (err) { showInitError(err); }
 
 async function loadProducts() {
   try {
     const { data, error } = await supa
-      .from('products')
-      .select('*')
-      .eq('tenant_id', TENANT_ID)
-      .eq('actif', true)
-      .order('category', { ascending: true })
-      .order('name', { ascending: true });
+      .from('products').select('*')
+      .eq('tenant_id', TENANT_ID).eq('actif', true)
+      .order('category', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     products = data || [];
-    console.log(products.length + ' produits charges.');
-  } catch (err) {
-    showInitError(err);
-  }
+  } catch (err) { showInitError(err); }
 }
 
 function showInitError(err) {
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  const msg = err && err.message ? err.message : String(err);
   document.getElementById('main-content').innerHTML =
-    '<div class="error-box"><h3>Erreur Supabase</h3><pre>' + escapeHtml(msg) + '</pre></div>';
+    '<div class="error-box"><h3>Erreur Supabase</h3><pre>' + escapeHtml(err && err.message ? err.message : String(err)) + '</pre></div>';
 }
 
 async function enterBoutique(b) {
@@ -373,17 +414,14 @@ async function enterBoutique(b) {
 function goSplash() {
   if (realtimeChannelReappro) { supa.removeChannel(realtimeChannelReappro); realtimeChannelReappro = null; }
   if (realtimeChannelSales)   { supa.removeChannel(realtimeChannelSales);   realtimeChannelSales = null; }
-  currentBoutique = null;
-  reapprosData = {};
-  salesData = {};
+  currentBoutique = null; reapprosData = {}; salesData = {};
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 
 function renderNav() {
   const items = NAV_ITEMS[currentBoutique] || [];
-  const nav = document.getElementById('bottom-nav');
-  nav.innerHTML = items.map(function(it) {
+  document.getElementById('bottom-nav').innerHTML = items.map(function(it) {
     return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" onclick="setVue(\'' + it.id + '\')"><span class="lbl">' + it.lbl + '</span></button>';
   }).join('');
 }
@@ -392,7 +430,6 @@ async function setVue(v) {
   currentVue = v;
   renderNav();
   document.getElementById('main-content').innerHTML = '<div class="loading">Chargement...</div>';
-
   if (v === 'reappro') {
     await loadReappros(currentBoutique);
     subscribeRealtimeReappro(currentBoutique);
@@ -404,15 +441,10 @@ async function setVue(v) {
   }
 }
 
-// ============================================================
-// REAPPRO
-// ============================================================
+// === REAPPRO ===
 async function loadReappros(b) {
-  const { data, error } = await supa
-    .from('reappros')
-    .select('*')
-    .eq('tenant_id', TENANT_ID)
-    .eq('boutique_id', b);
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', b);
   if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   reapprosData = {};
   (data || []).forEach(function(r) {
@@ -424,13 +456,9 @@ async function upsertReappro(pid) {
   setSyncStatus('syncing');
   const d = reapprosData[pid] || {};
   const { error } = await supa.from('reappros').upsert({
-    tenant_id: TENANT_ID,
-    boutique_id: currentBoutique,
-    product_id: pid,
-    avoir: d.avoir || null,
-    commander: d.commander || null,
-    updated_by: DEVICE_ID,
-    updated_at: new Date().toISOString()
+    tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
+    avoir: d.avoir || null, commander: d.commander || null,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,boutique_id,product_id' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
   else { setSyncStatus('ok'); }
@@ -464,7 +492,7 @@ function renderReappro() {
   const cats = REAPPRO_CATS[currentBoutique] || [];
   const mc = document.getElementById('main-content');
   if (!cats.length) { mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>'; return; }
-  let html = '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - elles se synchronisent en temps reel entre tous les appareils.</div>';
+  let html = '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - synchro temps reel entre tous les appareils.</div>';
   cats.forEach(function(cat) {
     const prods = products.filter(function(p) { return p.category === cat; });
     if (!prods.length) return;
@@ -492,23 +520,18 @@ function handleReapproInput(el) {
   updateTimers['r_' + pid] = setTimeout(function() { upsertReappro(pid); }, 400);
 }
 
-// ============================================================
-// VENTES
-// ============================================================
+// === VENTES ===
 async function loadSales(b, date) {
-  const { data, error } = await supa
-    .from('sales')
-    .select('*')
-    .eq('tenant_id', TENANT_ID)
-    .eq('boutique_id', b)
-    .eq('date', date);
+  const { data, error } = await supa.from('sales').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', b).eq('date', date);
   if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   salesData = {};
   (data || []).forEach(function(r) {
     salesData[r.product_id] = {
       matin: r.matin == null ? '' : r.matin,
       aprem: r.aprem == null ? '' : r.aprem,
-      reste: r.reste == null ? '' : r.reste
+      reste: r.reste == null ? '' : r.reste,
+      rupture_heure: r.rupture_heure || ''
     };
   });
 }
@@ -520,15 +543,10 @@ async function upsertSale(pid) {
   const aprem = d.aprem === '' ? null : parseInt(d.aprem) || 0;
   const reste = d.reste === '' ? null : parseInt(d.reste) || 0;
   const { error } = await supa.from('sales').upsert({
-    tenant_id: TENANT_ID,
-    boutique_id: currentBoutique,
-    product_id: pid,
-    date: currentDate,
-    matin: matin,
-    aprem: aprem,
-    reste: reste,
-    updated_by: DEVICE_ID,
-    updated_at: new Date().toISOString()
+    tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
+    matin: matin, aprem: aprem, reste: reste,
+    rupture_heure: d.rupture_heure || null,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,boutique_id,product_id,date' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
   else { setSyncStatus('ok'); }
@@ -545,10 +563,12 @@ function subscribeRealtimeSales(b) {
         salesData[r.product_id] = {
           matin: r.matin == null ? '' : r.matin,
           aprem: r.aprem == null ? '' : r.aprem,
-          reste: r.reste == null ? '' : r.reste
+          reste: r.reste == null ? '' : r.reste,
+          rupture_heure: r.rupture_heure || ''
         };
         ['matin','aprem','reste'].forEach(function(f) { updateSaleInput(r.product_id, f, r[f]); });
         updateVendu(r.product_id);
+        updateRuptureBtn(r.product_id);
         showToast('MAJ ventes d un autre appareil', 'sync');
       }).subscribe();
 }
@@ -573,35 +593,60 @@ function calcVendu(pid) {
   return Math.max(0, m + a - r);
 }
 
+function calcPertePct(pid) {
+  const d = salesData[pid] || {};
+  const m = d.matin === '' ? null : parseInt(d.matin) || 0;
+  const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
+  const r = d.reste === '' ? null : parseInt(d.reste) || 0;
+  if (m === null || r === null) return null;
+  const total = m + a;
+  if (total === 0) return null;
+  return Math.round((r / total) * 100);
+}
+
 function updateVendu(pid) {
   const el = document.getElementById('vendu_' + pid);
-  if (!el) return;
-  const v = calcVendu(pid);
-  if (v === null) { el.textContent = '-'; el.className = 'v-vendu zero'; }
-  else { el.textContent = v; el.className = 'v-vendu'; }
+  if (el) {
+    const v = calcVendu(pid);
+    if (v === null) { el.textContent = '-'; el.className = 'v-vendu zero'; }
+    else { el.textContent = v; el.className = 'v-vendu'; }
+  }
+  const pe = document.getElementById('perte_' + pid);
+  if (pe) {
+    const p = calcPertePct(pid);
+    if (p === null) { pe.textContent = '-'; pe.className = 'v-perte zero'; }
+    else {
+      pe.textContent = p + '%';
+      pe.className = 'v-perte ' + (p > 20 ? 'bad' : p > 10 ? 'warn' : 'ok');
+    }
+  }
+}
+
+function updateRuptureBtn(pid) {
+  const btn = document.getElementById('rupt_' + pid);
+  if (!btn) return;
+  const d = salesData[pid] || {};
+  if (d.rupture_heure) {
+    btn.textContent = d.rupture_heure;
+    btn.classList.add('has');
+  } else {
+    btn.innerHTML = '&#9203;';
+    btn.classList.remove('has');
+  }
 }
 
 function renderVentes() {
   const mc = document.getElementById('main-content');
   if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
-    mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active pour cette boutique.</div>';
-    return;
+    mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active.</div>'; return;
   }
-  // Pour le moment uniquement les Pains pour Veigne
-  const prods = products.filter(function(p) {
-    return p.category === 'pains' || p.category === 'viennoiserie';
-  });
-  // Note: tu n'as pas de "pains" dans products car l'export SQL initial portait sur le reappro
-  // donc on bascule sur viennoiserie pour le test (vrais produits dans la base)
-  // -> on utilisera la categorie disponible
-
-  const cats = ['viennoiserie']; // catégorie qu'on a déjà dans products
+  const cats = ['viennoiserie'];
   let html = '<div class="ventes-day-bar">'
     + '<button class="ventes-day-btn" onclick="changeDate(-1)">&lt;</button>'
     + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
     + '<button class="ventes-day-btn" onclick="changeDate(1)">&gt;</button>'
     + '</div>';
-  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Apres-midi / Reste -> Vendu calcule automatiquement.</div>';
+  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Aprem / Reste -> Vendu et % Perte automatiques. Tape l icone horloge pour saisir une rupture.</div>';
 
   cats.forEach(function(cat) {
     const ps = products.filter(function(p) { return p.category === cat; });
@@ -609,10 +654,12 @@ function renderVentes() {
     html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
       + '<div class="ventes-col-header">'
       + '<span class="col-lbl">Produit</span>'
-      + '<span class="col-lbl" style="color:var(--green)">Matin</span>'
-      + '<span class="col-lbl" style="color:var(--orange)">Aprem</span>'
-      + '<span class="col-lbl" style="color:var(--red)">Reste</span>'
+      + '<span class="col-lbl" style="color:var(--green)">Mat</span>'
+      + '<span class="col-lbl" style="color:var(--orange)">Apr</span>'
+      + '<span class="col-lbl" style="color:var(--red)">Res</span>'
       + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
+      + '<span class="col-lbl">Perte</span>'
+      + '<span class="col-lbl">Rupt</span>'
       + '</div>';
     ps.forEach(function(p) {
       const d = salesData[p.id] || {};
@@ -620,12 +667,20 @@ function renderVentes() {
       const a = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
       const r = d.reste === '' || d.reste === undefined ? '' : d.reste;
       const vendu = calcVendu(p.id);
+      const perte = calcPertePct(p.id);
+      const ruptH = d.rupture_heure || '';
+      const perteCls = perte === null ? 'zero' : (perte > 20 ? 'bad' : perte > 10 ? 'warn' : 'ok');
+      const perteTxt = perte === null ? '-' : (perte + '%');
+      const ruptCls = ruptH ? 'has' : '';
+      const ruptTxt = ruptH ? ruptH : '&#9203;';
       html += '<div class="ventes-row">'
         + '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp matin ' + (m !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin" value="' + m + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem ' + (a !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem" value="' + a + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp reste ' + (r !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste" value="' + r + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
+        + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
+        + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
         + '</div>';
     });
     html += '</div>';
@@ -635,7 +690,7 @@ function renderVentes() {
 
 function handleSaleInput(el) {
   const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
-  if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste: '' };
+  if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste: '', rupture_heure: '' };
   salesData[pid][field] = val;
   el.classList.toggle('has', val !== '');
   updateVendu(pid);
@@ -651,12 +706,45 @@ async function changeDate(delta) {
   renderVentes();
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
+// === MODAL RUPTURE ===
+function openRuptureModal(pid) {
+  rupturePid = pid;
+  const p = products.find(function(x) { return x.id === pid; });
+  document.getElementById('rupture-modal-product').textContent = p ? p.name : '';
+  const cur = (salesData[pid] || {}).rupture_heure || '';
+  const grid = document.getElementById('rupture-modal-grid');
+  grid.innerHTML = HEURES_RUPTURE.map(function(h) {
+    return '<button class="modal-btn ' + (h === cur ? 'selected' : '') + '" onclick="selectRupture(\'' + h + '\')">' + h + '</button>';
+  }).join('');
+  document.getElementById('rupture-modal').classList.add('show');
+}
+
+function closeRuptureModal() {
+  document.getElementById('rupture-modal').classList.remove('show');
+  rupturePid = null;
+}
+
+function selectRupture(h) {
+  if (!rupturePid) return;
+  if (!salesData[rupturePid]) salesData[rupturePid] = { matin: '', aprem: '', reste: '', rupture_heure: '' };
+  salesData[rupturePid].rupture_heure = h;
+  updateRuptureBtn(rupturePid);
+  upsertSale(rupturePid);
+  closeRuptureModal();
+}
+
+function clearRupture() {
+  if (!rupturePid) return;
+  if (!salesData[rupturePid]) salesData[rupturePid] = { matin: '', aprem: '', reste: '', rupture_heure: '' };
+  salesData[rupturePid].rupture_heure = '';
+  updateRuptureBtn(rupturePid);
+  upsertSale(rupturePid);
+  closeRuptureModal();
+}
+
+// === HELPERS ===
 function setSyncStatus(s) {
-  const dot = document.getElementById('sync-dot');
-  const text = document.getElementById('sync-text');
+  const dot = document.getElementById('sync-dot'), text = document.getElementById('sync-text');
   dot.className = 'sync-dot ' + s;
   if (s === 'syncing') text.textContent = 'Synchronisation...';
   else if (s === 'ok') text.textContent = 'Synchronise';
