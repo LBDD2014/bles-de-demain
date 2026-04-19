@@ -44,6 +44,83 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .splash-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.12); }
 .splash-btn[disabled] { opacity: 0.4; }
+.splash-btn-livreur {
+  grid-column: span 2;
+  background: linear-gradient(135deg, rgba(212, 112, 26, 0.32), rgba(212, 112, 26, 0.18));
+  border-color: rgba(212, 112, 26, 0.65);
+  margin-top: 4px;
+}
+.splash-btn-livreur:active { background: rgba(212, 112, 26, 0.42); }
+.splash-btn-livreur .splash-name { color: #F9D4A8; }
+.splash-btn-livreur .splash-role { color: rgba(249, 212, 168, 0.75); }
+
+.splash-lock-btn {
+  position: fixed; bottom: 20px; right: 20px;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--gold); border: none; color: white;
+  font-size: 22px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; z-index: 50;
+  transition: all 0.15s;
+}
+.splash-lock-btn:active { transform: scale(0.92); }
+.splash-lock-icon { line-height: 1; }
+
+/* PIN MODAL */
+.pin-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pin-modal {
+  background: #FAF6EE; border-radius: 20px;
+  width: 100%; max-width: 360px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  position: relative;
+}
+.pin-modal-close {
+  position: absolute; top: 10px; right: 14px;
+  font-size: 28px; color: var(--brown-mid);
+  cursor: pointer; line-height: 1; padding: 4px 8px;
+}
+.pin-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px; color: var(--brown); text-align: center;
+  font-weight: 700; margin-bottom: 4px;
+}
+.pin-modal-sub {
+  text-align: center; color: var(--brown-mid);
+  font-size: 13px; margin-bottom: 22px;
+}
+.pin-display {
+  display: flex; justify-content: center; gap: 16px;
+  margin-bottom: 14px;
+}
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--gold); background: transparent;
+  transition: background 0.15s;
+}
+.pin-dot.filled { background: var(--gold); }
+.pin-error {
+  color: var(--red); text-align: center;
+  font-size: 13px; font-weight: 600; margin-bottom: 10px;
+}
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin-top: 8px;
+}
+.pin-key {
+  background: white; border: 2px solid #E8DCC2; border-radius: 14px;
+  padding: 18px 0; font-size: 22px; font-weight: 600;
+  color: var(--brown); cursor: pointer; font-family: inherit;
+  transition: all 0.1s;
+}
+.pin-key:active { background: var(--gold); color: white; transform: scale(0.95); }
+.pin-key-ghost { background: transparent; border-color: transparent; }
+.pin-key-ghost:active { background: rgba(206,171,82,0.15); color: var(--brown); }
 .splash-name { color: var(--white); font-size: 17px; font-weight: 700; margin-bottom: 6px; font-family: Georgia, serif; }
 .splash-role { color: var(--gold); font-size: 11px; opacity: 0.75; line-height: 1.4; }
 
@@ -280,15 +357,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
 }
 .admin-row {
-  display: grid; grid-template-columns: 1fr auto;
+  display: grid; grid-template-columns: 1fr 90px 88px;
   padding: 12px 14px; border-bottom: 1px solid #F5F0E5;
-  align-items: center; gap: 12px;
+  align-items: center; gap: 10px;
   font-size: 14px;
 }
 .admin-row:last-child { border-bottom: none; }
 .admin-row.inactive { opacity: 0.55; background: #FAF8F4; }
 .admin-row .prod-name { color: var(--brown); font-weight: 500; }
 .admin-row .prod-unit { font-size: 12px; color: #999; }
+.admin-prix {
+  width: 100%; padding: 7px 6px; border: 2px solid #E0D8C8; border-radius: 8px;
+  font-size: 13px; font-weight: 600; text-align: right; color: var(--brown);
+  background: #FAF8F4; font-family: inherit;
+}
+.admin-prix:focus { outline: none; border-color: var(--gold); background: white; }
+.admin-prix.has-prix { background: #FFF9ED; border-color: var(--gold); color: var(--gold-dark); }
+.admin-prix-wrap { position: relative; }
+.admin-prix-eur {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: #999; pointer-events: none;
+}
 .toggle-btn {
   background: #D0CCC2; color: white; border: none;
   padding: 9px 18px; border-radius: 20px; font-weight: 700;
@@ -298,6 +387,41 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .toggle-btn.active { background: var(--green); }
 .toggle-btn:active { transform: scale(0.95); }
+
+/* === VALORISATION === */
+.valo-boutique-card {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 14px;
+}
+.valo-boutique-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 14px; background: linear-gradient(135deg, var(--brown), var(--brown-mid));
+  color: white;
+}
+.valo-boutique-name {
+  font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700;
+}
+.valo-boutique-total {
+  font-size: 15px; font-weight: 700; color: var(--gold);
+}
+.valo-table { padding: 4px 0; }
+.valo-row {
+  display: grid; grid-template-columns: 1.8fr 0.6fr 0.7fr 0.9fr;
+  padding: 8px 14px; border-bottom: 1px solid #F5F0E5;
+  gap: 6px; font-size: 13px; align-items: center;
+}
+.valo-row:last-child { border-bottom: none; }
+.valo-row-head {
+  background: #FAF6EE; font-size: 10px; font-weight: 700;
+  color: var(--brown); text-transform: uppercase;
+  padding: 7px 14px;
+}
+.valo-row-head span:not(.valo-prod) { text-align: right; }
+.valo-row-nopx { opacity: 0.6; }
+.valo-prod { color: var(--brown); font-weight: 500; }
+.valo-qty, .valo-pu, .valo-tot { text-align: right; color: var(--brown); }
+.valo-pu { font-size: 12px; color: #999; }
+.valo-tot { font-weight: 700; color: var(--gold-dark); }
 
 /* === Badges marche dans Le Local === */
 .market-header-badge {
@@ -394,12 +518,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 
 .ventes-col-header {
-  display: grid; grid-template-columns: 1fr 48px 48px 48px 48px 56px 44px;
-  padding: 6px 10px; background: #F5F0E5; gap: 3px;
+  display: grid; grid-template-columns: 1.1fr 42px 42px 42px 42px 46px 44px 40px;
+  padding: 6px 8px; background: #F5F0E5; gap: 3px;
 }
 .ventes-row {
-  display: grid; grid-template-columns: 1fr 48px 48px 48px 48px 56px 44px;
-  align-items: center; padding: 8px 10px; border-bottom: 1px solid #F5F0E8; gap: 3px;
+  display: grid; grid-template-columns: 1.1fr 42px 42px 42px 42px 46px 44px 40px;
+  align-items: center; padding: 8px 8px; border-bottom: 1px solid #F5F0E8; gap: 3px;
 }
 .ventes-row:last-child { border-bottom: none; }
 .v-inp {
@@ -410,9 +534,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .v-inp::-webkit-outer-spin-button,
 .v-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .v-inp:focus { outline: none; border-color: var(--gold); background: white; }
-.v-inp.matin.has { background: #EEF7F2; border-color: var(--green); color: var(--green); }
-.v-inp.aprem.has { background: #FEF3EC; border-color: var(--orange); color: var(--orange); }
-.v-inp.reste.has { background: #FEF2F2; border-color: var(--red); color: var(--red); }
+.v-inp.matin.has    { background: #EEF7F2; border-color: var(--green); color: var(--green); }
+.v-inp.aprem.has    { background: #FEF3EC; border-color: var(--orange); color: var(--orange); }
+.v-inp.reste_j1.has { background: #FFF9ED; border-color: var(--gold-dark); color: var(--gold-dark); }
+.v-inp.perte.has    { background: #FEF2F2; border-color: var(--red); color: var(--red); }
 .v-inp.just-updated { animation: flash 1s; }
 .v-vendu {
   text-align: center; font-family: Georgia, serif; font-size: 15px; font-weight: 900;
@@ -695,7 +820,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 7</div>
+  <div class="splash-sub">Cloud - Phase 8</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -710,6 +835,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
       <div class="splash-name">St-Avertin</div>
       <div class="splash-role">Reappro - Ventes</div>
     </button>
+    <button class="splash-btn" onclick="enterBoutique('local')">
+      <div class="splash-name">Le Local</div>
+      <div class="splash-role">Production - Commandes du jour</div>
+    </button>
     <button class="splash-btn" onclick="enterBoutique('amboise')">
       <div class="splash-name">Marche Amboise</div>
       <div class="splash-role">Vendredi matin</div>
@@ -718,14 +847,42 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
       <div class="splash-name">Marche Beaujardin</div>
       <div class="splash-role">Samedi matin</div>
     </button>
-    <button class="splash-btn" onclick="enterBoutique('livreur')">
+    <button class="splash-btn splash-btn-livreur" onclick="enterBoutique('livreur')">
       <div class="splash-name">Livreur</div>
       <div class="splash-role">Feuille de route</div>
     </button>
-    <button class="splash-btn" onclick="enterBoutique('local')">
-      <div class="splash-name">Le Local</div>
-      <div class="splash-role">Production - Commandes du jour</div>
-    </button>
+  </div>
+  <button class="splash-lock-btn" onclick="openBackOfficePin()" title="Back Office">
+    <span class="splash-lock-icon">&#128274;</span>
+  </button>
+</div>
+
+<div id="pin-modal" class="pin-modal-overlay" style="display:none" onclick="closeBackOfficePin(event)">
+  <div class="pin-modal" onclick="event.stopPropagation()">
+    <div class="pin-modal-close" onclick="closeBackOfficePin()">&times;</div>
+    <div class="pin-modal-title">Back Office</div>
+    <div class="pin-modal-sub">Entre le code d acces</div>
+    <div id="pin-display" class="pin-display">
+      <span class="pin-dot"></span>
+      <span class="pin-dot"></span>
+      <span class="pin-dot"></span>
+      <span class="pin-dot"></span>
+    </div>
+    <div id="pin-error" class="pin-error" style="display:none">Code incorrect</div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key pin-key-ghost" onclick="pinClear()">&#9003;</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key pin-key-ghost" onclick="pinBackspace()">&#8592;</button>
+    </div>
   </div>
 </div>
 
@@ -824,7 +981,8 @@ const CAT_LABELS = {
 const BOUTIQUE_NAMES = {
   'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
   'amboise': 'Marche Amboise', 'beaujardin': 'Marche Beaujardin',
-  'local': 'Le Local', 'livreur': 'Livreur'
+  'local': 'Le Local', 'livreur': 'Livreur',
+  'backoffice': 'Back Office'
 };
 
 const MARKET_IDS = ['amboise', 'beaujardin'];
@@ -859,8 +1017,11 @@ const NAV_ITEMS = {
     { id: 'marche', lbl: 'Tableau marche' }
   ],
   'local': [
-    { id: 'production', lbl: 'Production' },
-    { id: 'produits', lbl: 'Produits' }
+    { id: 'production', lbl: 'Production' }
+  ],
+  'backoffice': [
+    { id: 'produits', lbl: 'Produits' },
+    { id: 'valorisation', lbl: 'Valorisation' }
   ]
 };
 
@@ -1021,6 +1182,70 @@ function showInitError(err) {
     '<div class="error-box"><h3>Erreur Supabase</h3><pre>' + escapeHtml(err && err.message ? err.message : String(err)) + '</pre></div>';
 }
 
+// === BACK OFFICE / PIN PAD ===
+const BACKOFFICE_PIN = '2412';
+let pinEntered = '';
+
+function openBackOfficePin() {
+  pinEntered = '';
+  document.getElementById('pin-error').style.display = 'none';
+  updatePinDisplay();
+  document.getElementById('pin-modal').style.display = 'flex';
+}
+
+function closeBackOfficePin(ev) {
+  if (ev && ev.target && ev.target.id !== 'pin-modal' && !ev.target.classList.contains('pin-modal-close')) {
+    // Click inside modal (not on overlay) - do not close
+    if (!ev.target.classList.contains('pin-modal-overlay')) return;
+  }
+  pinEntered = '';
+  document.getElementById('pin-modal').style.display = 'none';
+}
+
+function updatePinDisplay() {
+  const dots = document.querySelectorAll('#pin-display .pin-dot');
+  dots.forEach(function(d, i) {
+    if (i < pinEntered.length) d.classList.add('filled');
+    else d.classList.remove('filled');
+  });
+}
+
+function pinKey(d) {
+  if (pinEntered.length >= 4) return;
+  pinEntered += d;
+  document.getElementById('pin-error').style.display = 'none';
+  updatePinDisplay();
+  if (pinEntered.length === 4) {
+    setTimeout(function() {
+      if (pinEntered === BACKOFFICE_PIN) {
+        document.getElementById('pin-modal').style.display = 'none';
+        pinEntered = '';
+        enterBackOffice();
+      } else {
+        document.getElementById('pin-error').style.display = 'block';
+        pinEntered = '';
+        updatePinDisplay();
+      }
+    }, 150);
+  }
+}
+
+function pinBackspace() {
+  if (pinEntered.length === 0) return;
+  pinEntered = pinEntered.slice(0, -1);
+  updatePinDisplay();
+}
+
+function pinClear() {
+  pinEntered = '';
+  document.getElementById('pin-error').style.display = 'none';
+  updatePinDisplay();
+}
+
+async function enterBackOffice() {
+  await enterBoutique('backoffice');
+}
+
 async function enterBoutique(b) {
   currentBoutique = b;
   isLivreurMode = (b === 'livreur');
@@ -1088,6 +1313,9 @@ async function setVue(v) {
   } else if (v === 'produits') {
     await loadAdminProducts();
     renderAdminProducts();
+  } else if (v === 'valorisation') {
+    await loadValorisation();
+    renderValorisation();
   } else if (v === 'marche') {
     await loadMarketEntries(currentMarketId, currentMarketDate);
     await loadMarketDayNote(currentMarketId, currentMarketDate);
@@ -1261,7 +1489,8 @@ async function loadSales(b, date) {
     salesData[r.product_id] = {
       matin: r.matin == null ? '' : r.matin,
       aprem: r.aprem == null ? '' : r.aprem,
-      reste: r.reste == null ? '' : r.reste,
+      reste_j1: r.reste_j1 == null ? '' : r.reste_j1,
+      perte: r.perte == null ? '' : r.perte,
       rupture_heure: r.rupture_heure || ''
     };
   });
@@ -1272,10 +1501,11 @@ async function upsertSale(pid) {
   const d = salesData[pid] || {};
   const matin = d.matin === '' ? null : parseInt(d.matin) || 0;
   const aprem = d.aprem === '' ? null : parseInt(d.aprem) || 0;
-  const reste = d.reste === '' ? null : parseInt(d.reste) || 0;
+  const resteJ1 = d.reste_j1 === '' ? null : parseInt(d.reste_j1) || 0;
+  const perte = d.perte === '' ? null : parseInt(d.perte) || 0;
   const { error } = await supa.from('sales').upsert({
     tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
-    matin: matin, aprem: aprem, reste: reste,
+    matin: matin, aprem: aprem, reste_j1: resteJ1, perte: perte,
     rupture_heure: d.rupture_heure || null,
     updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,boutique_id,product_id,date' });
@@ -1294,10 +1524,11 @@ function subscribeRealtimeSales(b) {
         salesData[r.product_id] = {
           matin: r.matin == null ? '' : r.matin,
           aprem: r.aprem == null ? '' : r.aprem,
-          reste: r.reste == null ? '' : r.reste,
+          reste_j1: r.reste_j1 == null ? '' : r.reste_j1,
+          perte: r.perte == null ? '' : r.perte,
           rupture_heure: r.rupture_heure || ''
         };
-        ['matin','aprem','reste'].forEach(function(f) { updateSaleInput(r.product_id, f, r[f]); });
+        ['matin','aprem','reste_j1','perte'].forEach(function(f) { updateSaleInput(r.product_id, f, r[f]); });
         updateVendu(r.product_id);
         updateRuptureBtn(r.product_id);
         showToast('MAJ ventes d un autre appareil', 'sync');
@@ -1317,22 +1548,24 @@ function updateSaleInput(pid, field, val) {
 
 function calcVendu(pid) {
   const d = salesData[pid] || {};
-  const m = d.matin === '' ? null : parseInt(d.matin) || 0;
-  const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
-  const r = d.reste === '' ? null : parseInt(d.reste) || 0;
-  if (m === null || r === null) return null;
-  return Math.max(0, m + a - r);
+  const m  = d.matin === '' ? null : parseInt(d.matin) || 0;
+  const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
+  const rj = d.reste_j1 === '' ? 0 : parseInt(d.reste_j1) || 0;
+  const p  = d.perte === '' ? null : parseInt(d.perte) || 0;
+  if (m === null || p === null) return null;
+  return Math.max(0, m + a - rj - p);
 }
 
 function calcPertePct(pid) {
+  // %Perte uniquement sur la perte REELLE (pas le reste J1 qui sera revendu)
   const d = salesData[pid] || {};
   const m = d.matin === '' ? null : parseInt(d.matin) || 0;
   const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
-  const r = d.reste === '' ? null : parseInt(d.reste) || 0;
-  if (m === null || r === null) return null;
+  const p = d.perte === '' ? null : parseInt(d.perte) || 0;
+  if (m === null || p === null) return null;
   const total = m + a;
   if (total === 0) return null;
-  return Math.round((r / total) * 100);
+  return Math.round((p / total) * 100);
 }
 
 function updateVendu(pid) {
@@ -1382,7 +1615,7 @@ function renderVentes() {
     + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
     + '<button class="ventes-day-btn" onclick="changeDate(1)">&gt;</button>'
     + '</div>';
-  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Aprem / Reste -> Vendu et % Perte automatiques. Tape l icone horloge pour saisir une rupture.</div>';
+  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Aprem / Reste J1 (revendus demain) / Perte (jetes) -> Vendu et % Perte automatiques. Tape l icone horloge pour saisir une rupture.</div>';
 
   if (!presentCats.length) {
     html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.<br><br>Charge tes produits Ventes via SQL Editor.</div>';
@@ -1401,16 +1634,18 @@ function renderVentes() {
       + '<span class="col-lbl">Produit</span>'
       + '<span class="col-lbl" style="color:var(--green)">Mat</span>'
       + '<span class="col-lbl" style="color:var(--orange)">Apr</span>'
-      + '<span class="col-lbl" style="color:var(--red)">Res</span>'
+      + '<span class="col-lbl" style="color:var(--gold-dark)">RJ1</span>'
+      + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
       + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
-      + '<span class="col-lbl">Perte</span>'
+      + '<span class="col-lbl">%P</span>'
       + '<span class="col-lbl">Rupt</span>'
       + '</div>';
     ps.forEach(function(p) {
       const d = salesData[p.id] || {};
-      const m = d.matin === '' || d.matin === undefined ? '' : d.matin;
-      const a = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
-      const r = d.reste === '' || d.reste === undefined ? '' : d.reste;
+      const m  = d.matin === '' || d.matin === undefined ? '' : d.matin;
+      const a  = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
+      const rj = d.reste_j1 === '' || d.reste_j1 === undefined ? '' : d.reste_j1;
+      const pe = d.perte === '' || d.perte === undefined ? '' : d.perte;
       const vendu = calcVendu(p.id);
       const perte = calcPertePct(p.id);
       const ruptH = d.rupture_heure || '';
@@ -1420,9 +1655,10 @@ function renderVentes() {
       const ruptTxt = ruptH ? ruptH : '&#9203;';
       html += '<div class="ventes-row">'
         + '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
-        + '<input type="number" inputmode="numeric" min="0" class="v-inp matin ' + (m !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin" value="' + m + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
-        + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem ' + (a !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem" value="' + a + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
-        + '<input type="number" inputmode="numeric" min="0" class="v-inp reste ' + (r !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste" value="' + r + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp matin '    + (m  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin"    value="' + m  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<input type="number" inputmode="numeric" min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
         + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
         + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
@@ -1435,7 +1671,7 @@ function renderVentes() {
 
 function handleSaleInput(el) {
   const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
-  if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste: '', rupture_heure: '' };
+  if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
   salesData[pid][field] = val;
   el.classList.toggle('has', val !== '');
   updateVendu(pid);
@@ -1469,30 +1705,33 @@ async function loadRecapWeek(b, monday) {
 
 function calcDayStats(dayISO) {
   const rows = recapWeekData[dayISO] || [];
-  let totalVendu = 0, totalProduit = 0, totalReste = 0;
+  let totalVendu = 0, totalProduit = 0, totalPerte = 0, totalResteJ1 = 0;
   let productsMap = {};
   rows.forEach(function(r) {
     if (recapMode === 'category' && recapCategory !== 'all') {
       const p = products.find(function(x) { return x.id === r.product_id; });
       if (!p || p.category !== recapCategory) return;
     }
-    const m = r.matin == null ? 0 : r.matin;
-    const a = r.aprem == null ? 0 : r.aprem;
-    const re = r.reste == null ? 0 : r.reste;
+    const m  = r.matin == null ? 0 : r.matin;
+    const a  = r.aprem == null ? 0 : r.aprem;
+    const rj = r.reste_j1 == null ? 0 : r.reste_j1;
+    const pe = r.perte == null ? 0 : r.perte;
     const total = m + a;
-    const vendu = Math.max(0, total - re);
+    const vendu = Math.max(0, total - rj - pe);
     totalVendu += vendu;
     totalProduit += total;
-    totalReste += re;
+    totalPerte += pe;
+    totalResteJ1 += rj;
     productsMap[r.product_id] = (productsMap[r.product_id] || 0) + vendu;
   });
-  const pertePct = totalProduit > 0 ? Math.round((totalReste / totalProduit) * 100) : null;
-  return { vendu: totalVendu, produit: totalProduit, reste: totalReste, pertePct: pertePct, products: productsMap };
+  // %Perte : sur la PERTE seulement (pas Reste J1)
+  const pertePct = totalProduit > 0 ? Math.round((totalPerte / totalProduit) * 100) : null;
+  return { vendu: totalVendu, produit: totalProduit, perte: totalPerte, resteJ1: totalResteJ1, pertePct: pertePct, products: productsMap };
 }
 
 function calcWeekStats() {
   const days = weekDaysFromMonday(currentWeekStart);
-  let totalV = 0, totalP = 0, totalR = 0;
+  let totalV = 0, totalP = 0, totalPerte = 0, totalRJ1 = 0;
   let dayWithRupture = new Set();
   let productsSold = {};
   let productsLost = {};
@@ -1503,26 +1742,29 @@ function calcWeekStats() {
         const p = products.find(function(x) { return x.id === r.product_id; });
         if (!p || p.category !== recapCategory) return;
       }
-      const m = r.matin == null ? 0 : r.matin;
-      const a = r.aprem == null ? 0 : r.aprem;
-      const re = r.reste == null ? 0 : r.reste;
+      const m  = r.matin == null ? 0 : r.matin;
+      const a  = r.aprem == null ? 0 : r.aprem;
+      const rj = r.reste_j1 == null ? 0 : r.reste_j1;
+      const pe = r.perte == null ? 0 : r.perte;
       const total = m + a;
-      const vendu = Math.max(0, total - re);
+      const vendu = Math.max(0, total - rj - pe);
       totalV += vendu;
       totalP += total;
-      totalR += re;
+      totalPerte += pe;
+      totalRJ1 += rj;
       if (r.rupture_heure) dayWithRupture.add(d);
       productsSold[r.product_id] = (productsSold[r.product_id] || 0) + vendu;
       if (total > 0) {
-        if (!productsLost[r.product_id]) productsLost[r.product_id] = { reste: 0, total: 0 };
-        productsLost[r.product_id].reste += re;
+        if (!productsLost[r.product_id]) productsLost[r.product_id] = { perte: 0, total: 0 };
+        productsLost[r.product_id].perte += pe;
         productsLost[r.product_id].total += total;
       }
     });
   });
-  const pertePct = totalP > 0 ? Math.round((totalR / totalP) * 100) : null;
+  // %Perte : sur la PERTE seulement (pas Reste J1)
+  const pertePct = totalP > 0 ? Math.round((totalPerte / totalP) * 100) : null;
   return {
-    vendu: totalV, produit: totalP, reste: totalR, pertePct: pertePct,
+    vendu: totalV, produit: totalP, perte: totalPerte, resteJ1: totalRJ1, pertePct: pertePct,
     daysWithRupture: dayWithRupture.size,
     productsSold: productsSold, productsLost: productsLost
   };
@@ -1648,7 +1890,7 @@ function renderRecap() {
   const pertePctParJour = [];
   html += '<div class="section"><div class="section-header">Detail par jour</div>';
   html += '<table class="recap-table"><thead><tr>'
-    + '<th>Jour</th><th>Vendu</th><th>Reste</th><th>Perte</th>'
+    + '<th>Jour</th><th>Vendu</th><th>RJ1</th><th>Perte</th><th>%</th>'
     + '</tr></thead><tbody>';
   days.forEach(function(d) {
     const s = calcDayStats(d);
@@ -1658,14 +1900,16 @@ function renderRecap() {
     html += '<tr class="' + cls + '">'
       + '<td>' + formatDayShort(d) + '</td>'
       + '<td>' + (s.vendu > 0 ? s.vendu : '-') + '</td>'
-      + '<td>' + (s.reste > 0 ? s.reste : '-') + '</td>'
+      + '<td>' + (s.resteJ1 > 0 ? s.resteJ1 : '-') + '</td>'
+      + '<td>' + (s.perte > 0 ? s.perte : '-') + '</td>'
       + '<td><span class="pct-badge ' + pctClass(s.pertePct) + '">' + (s.pertePct === null ? '-' : s.pertePct + '%') + '</span></td>'
       + '</tr>';
   });
   html += '<tr class="total">'
     + '<td>Total</td>'
     + '<td>' + weekStats.vendu + '</td>'
-    + '<td>' + weekStats.reste + '</td>'
+    + '<td>' + weekStats.resteJ1 + '</td>'
+    + '<td>' + weekStats.perte + '</td>'
     + '<td><span class="pct-badge ' + perteCls + '">' + (weekStats.pertePct === null ? '-' : weekStats.pertePct + '%') + '</span></td>'
     + '</tr>';
   html += '</tbody></table></div>';
@@ -1701,7 +1945,7 @@ function renderRecap() {
   const lostArr = Object.keys(weekStats.productsLost)
     .map(function(pid) {
       const l = weekStats.productsLost[pid];
-      return { pid: pid, pct: Math.round(l.reste / l.total * 100), total: l.total };
+      return { pid: pid, pct: Math.round(l.perte / l.total * 100), total: l.total };
     })
     .filter(function(x) { return x.pct > 10 && x.total >= 3; })
     .sort(function(a, b) { return b.pct - a.pct; })
@@ -2668,13 +2912,32 @@ async function toggleProductActif(pid, currentVal) {
   const { error } = await supa.from('products').update({ actif: newVal }).eq('id', pid);
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
   setSyncStatus('ok');
-  // MAJ local admin
   const p = adminProducts.find(function(x) { return x.id === pid; });
   if (p) p.actif = newVal;
-  // Recharge aussi le cache global products pour que les autres vues reflettent
   await loadProducts();
   renderAdminProducts();
   showToast((newVal ? 'Active' : 'Desactive') + ' : ' + (p ? p.name : pid), 'sync');
+}
+
+function handleProductPrixInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  p._prix_draft = val; // temp cache
+  el.classList.toggle('has-prix', !!val);
+  clearTimeout(updateTimers['prix_' + pid]);
+  updateTimers['prix_' + pid] = setTimeout(function() { upsertProductPrix(pid, val); }, 500);
+}
+
+async function upsertProductPrix(pid, rawVal) {
+  setSyncStatus('syncing');
+  const newPrice = rawVal === '' || rawVal == null ? null : parseQty(rawVal);
+  const { error } = await supa.from('products').update({ prix_cession: newPrice }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (p) { p.prix_cession = newPrice; delete p._prix_draft; }
+  // Ne pas re-render : evite la perte de focus pendant saisie
 }
 
 function toggleAdminHideInactive() {
@@ -2690,24 +2953,22 @@ function setAdminCatFilter(cat) {
 function renderAdminProducts() {
   const mc = document.getElementById('main-content');
 
-  // Filtrer
   let filtered = adminProducts.slice();
   if (adminHideInactive) filtered = filtered.filter(function(p) { return p.actif; });
   if (adminCatFilter !== 'all') filtered = filtered.filter(function(p) { return p.category === adminCatFilter; });
 
   const nbActifs = adminProducts.filter(function(p) { return p.actif; }).length;
   const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length;
+  const nbSansPrix = adminProducts.filter(function(p) { return p.actif && (p.prix_cession == null); }).length;
 
-  let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Active / desactive un produit pour le faire apparaitre ou disparaitre partout (boutiques, marches, production).</div>';
+  let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Active/desactive un produit (effet immediat partout). Saisis un prix de cession HT pour la valorisation des flux Local vers boutiques.</div>';
 
-  // KPIs
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbInactifs + '</div><div class="prod-kpi-lbl">Inactifs</div></div>'
-    + '<div class="prod-kpi"><div class="prod-kpi-val">' + adminProducts.length + '</div><div class="prod-kpi-lbl">Total</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbSansPrix > 0 ? 'var(--red)' : 'var(--gold-dark)') + '">' + nbSansPrix + '</div><div class="prod-kpi-lbl">Sans prix</div></div>'
     + '</div>';
 
-  // Filtres categorie
   const catsPresent = Array.from(new Set(adminProducts.map(function(p) { return p.category || 'autre'; })));
   const catOrder = Object.keys(CAT_LABELS);
   catsPresent.sort(function(a, b) {
@@ -2721,7 +2982,6 @@ function renderAdminProducts() {
   });
   html += '</div>';
 
-  // Filtre cacher inactifs
   html += '<div class="prod-filter-bar"><label>'
     + '<input type="checkbox" ' + (adminHideInactive ? 'checked' : '') + ' onchange="toggleAdminHideInactive()">'
     + '<span>Cacher les inactifs</span></label></div>';
@@ -2732,7 +2992,6 @@ function renderAdminProducts() {
     return;
   }
 
-  // Grouper par categorie
   const byCat = {};
   filtered.forEach(function(p) {
     const c = p.category || 'autre';
@@ -2744,14 +3003,21 @@ function renderAdminProducts() {
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
 
+  html += '<div class="admin-table-header" style="display:grid;grid-template-columns:1fr 90px 88px;padding:8px 14px;background:#F5F0E5;font-size:10px;font-weight:700;color:var(--brown);text-transform:uppercase;gap:10px"><span>Produit</span><span style="text-align:center">Prix HT</span><span style="text-align:center">Statut</span></div>';
   html += '<div class="admin-table">';
   cats.forEach(function(cat) {
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:10px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
     byCat[cat].forEach(function(p) {
       const rowCls = 'admin-row' + (p.actif ? '' : ' inactive');
+      const prixVal = p._prix_draft != null ? p._prix_draft : (p.prix_cession == null ? '' : String(p.prix_cession).replace('.', ','));
+      const prixCls = prixVal ? 'has-prix' : '';
       html += '<div class="' + rowCls + '">'
         + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
         + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
+        + '<div class="admin-prix-wrap">'
+        + '<input type="text" inputmode="decimal" class="admin-prix ' + prixCls + '" data-pid="' + p.id + '" value="' + escapeHtml(prixVal) + '" placeholder="-" oninput="handleProductPrixInput(this)" onfocus="this.select()">'
+        + '<span class="admin-prix-eur">EUR</span>'
+        + '</div>'
         + '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" onclick="toggleProductActif(\'' + p.id + '\', ' + p.actif + ')">'
         + (p.actif ? 'Actif' : 'Inactif')
         + '</button>'
@@ -2759,6 +3025,158 @@ function renderAdminProducts() {
     });
   });
   html += '</div>';
+
+  mc.innerHTML = html;
+}
+
+// === VALORISATION DES FLUX ===
+let currentValoWeek = null; // lundi de la semaine selectionnee (ISO YYYY-MM-DD)
+let valoData = {}; // { boutique_id: { product_id: { qty, p_name, p_cat } } }
+
+function getMondayOf(dateStr) {
+  const d = new Date(dateStr + 'T12:00');
+  const dow = d.getDay(); // 0=dim, 1=lun
+  const shift = dow === 0 ? -6 : (1 - dow);
+  d.setDate(d.getDate() + shift);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function changeValoWeek(delta) {
+  const d = new Date(currentValoWeek + 'T12:00');
+  d.setDate(d.getDate() + delta * 7);
+  currentValoWeek = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  (async function() {
+    await loadValorisation();
+    renderValorisation();
+  })();
+}
+
+async function loadValorisation() {
+  if (!currentValoWeek) currentValoWeek = getMondayOf(todayISO());
+  const start = currentValoWeek;
+  const d = new Date(start + 'T12:00');
+  d.setDate(d.getDate() + 6);
+  const end = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  // Charger tous les reappros de la semaine
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).gte('service_date', start).lte('service_date', end);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  // Charger aussi produits si pas deja dispo
+  if (!adminProducts.length) await loadAdminProducts();
+  const prodMap = {};
+  adminProducts.forEach(function(p) { prodMap[p.id] = p; });
+  valoData = {};
+  (data || []).forEach(function(r) {
+    if (r.qty == null) return;
+    if (!valoData[r.boutique_id]) valoData[r.boutique_id] = {};
+    if (!valoData[r.boutique_id][r.product_id]) {
+      const p = prodMap[r.product_id];
+      valoData[r.boutique_id][r.product_id] = {
+        qty: 0,
+        name: p ? p.name : r.product_id,
+        cat: p ? (p.category || 'autre') : 'autre',
+        prix: p ? p.prix_cession : null
+      };
+    }
+    valoData[r.boutique_id][r.product_id].qty += Number(r.qty);
+  });
+}
+
+function renderValorisation() {
+  const mc = document.getElementById('main-content');
+  const start = currentValoWeek;
+  const d = new Date(start + 'T12:00');
+  d.setDate(d.getDate() + 6);
+  const endISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+  // Boutiques concernees (ont des reappros)
+  const boutiques = Object.keys(valoData).sort();
+
+  // Totaux par boutique + grand total
+  const totalParBoutique = {};
+  const totalParBoutiqueNonValorise = {};
+  let grandTotal = 0;
+  let grandTotalLignes = 0;
+  let grandTotalNonValorise = 0;
+
+  boutiques.forEach(function(b) {
+    let tot = 0, totNV = 0, nbLignes = 0;
+    Object.keys(valoData[b]).forEach(function(pid) {
+      const e = valoData[b][pid];
+      if (e.prix != null && e.prix > 0) {
+        tot += e.qty * Number(e.prix);
+      } else {
+        totNV += e.qty;
+      }
+      nbLignes++;
+    });
+    totalParBoutique[b] = tot;
+    totalParBoutiqueNonValorise[b] = totNV;
+    grandTotal += tot;
+    grandTotalNonValorise += totNV;
+    grandTotalLignes += nbLignes;
+  });
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeValoWeek(-1)">&#8592;</button>'
+    + '<div class="date-title">Semaine du <strong>' + escapeHtml(formatDateFr(start)) + '</strong> au <strong>' + escapeHtml(formatDateFr(endISO)) + '</strong>'
+    + '<div class="date-sub">Valorisation des flux Local vers Boutiques</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeValoWeek(1)">&#8594;</button>'
+    + '</div>';
+
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + grandTotal.toFixed(2).replace('.', ',') + ' EUR</div><div class="prod-kpi-lbl">Total valorise</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + grandTotalLignes + '</div><div class="prod-kpi-lbl">Produits livres</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (grandTotalNonValorise > 0 ? 'var(--red)' : 'var(--brown-mid)') + '">' + formatQty(grandTotalNonValorise) + '</div><div class="prod-kpi-lbl">Qty sans prix</div></div>'
+    + '</div>';
+
+  if (!boutiques.length) {
+    html += '<div class="prod-empty">Aucune livraison enregistree cette semaine.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  if (grandTotalNonValorise > 0) {
+    html += '<div class="info-banner" style="background:#FEF2F2;border-left:3px solid var(--red)">'
+      + '<strong>Produits sans prix</strong><br>Certains produits livres n ont pas de prix de cession renseigne. Va dans l onglet Produits pour les renseigner.</div>';
+  }
+
+  // Tableau par boutique
+  boutiques.forEach(function(b) {
+    const rows = Object.keys(valoData[b]).map(function(pid) {
+      return Object.assign({ pid: pid }, valoData[b][pid]);
+    });
+    rows.sort(function(a, c) {
+      const ao = Object.keys(CAT_LABELS).indexOf(a.cat);
+      const co = Object.keys(CAT_LABELS).indexOf(c.cat);
+      if (ao !== co) return (ao === -1 ? 999 : ao) - (co === -1 ? 999 : co);
+      return a.name.localeCompare(c.name);
+    });
+
+    html += '<div class="valo-boutique-card">'
+      + '<div class="valo-boutique-head">'
+      + '<div class="valo-boutique-name">' + escapeHtml(BOUTIQUE_NAMES[b] || b) + '</div>'
+      + '<div class="valo-boutique-total">' + totalParBoutique[b].toFixed(2).replace('.', ',') + ' EUR'
+      + (totalParBoutiqueNonValorise[b] > 0 ? ' <span style="color:var(--red);font-size:11px">+ ' + formatQty(totalParBoutiqueNonValorise[b]) + ' sans prix</span>' : '')
+      + '</div>'
+      + '</div>';
+
+    html += '<div class="valo-table">';
+    html += '<div class="valo-row valo-row-head"><span>Produit</span><span>Qty</span><span>PU</span><span>Total</span></div>';
+    rows.forEach(function(r) {
+      const hasPrice = r.prix != null && r.prix > 0;
+      const total = hasPrice ? (r.qty * Number(r.prix)) : 0;
+      html += '<div class="valo-row ' + (hasPrice ? '' : 'valo-row-nopx') + '">'
+        + '<span class="valo-prod">' + escapeHtml(r.name) + '</span>'
+        + '<span class="valo-qty">' + formatQty(r.qty) + '</span>'
+        + '<span class="valo-pu">' + (hasPrice ? Number(r.prix).toFixed(2).replace('.', ',') : '-') + '</span>'
+        + '<span class="valo-tot">' + (hasPrice ? total.toFixed(2).replace('.', ',') + ' EUR' : '<em style="color:var(--red);font-size:11px">sans prix</em>') + '</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    html += '</div>';
+  });
 
   mc.innerHTML = html;
 }
