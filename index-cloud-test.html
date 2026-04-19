@@ -367,10 +367,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 }
 .admin-row {
   display: grid; grid-template-columns: 1fr 90px 88px;
-  padding: 12px 14px; border-bottom: 1px solid #F5F0E5;
+  padding: 12px 14px 6px 14px; border-bottom: none;
   align-items: center; gap: 10px;
   font-size: 14px;
 }
+.admin-row-detail {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; padding: 6px 14px 12px 14px;
+  border-bottom: 1px solid #F5F0E5;
+  background: #FAF8F4;
+}
+.admin-row.inactive + .admin-row-detail { opacity: 0.55; }
+.admin-row-detail:last-child { border-bottom: none; }
+.adr-cell { display: flex; flex-direction: column; gap: 2px; }
+.adr-lbl { font-size: 9px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: 0.3px; }
+.adr-input, .adr-select {
+  padding: 5px 6px; border: 1px solid #E0D8C8; border-radius: 6px;
+  font-size: 11px; background: white; font-family: inherit; color: var(--brown);
+  width: 100%; box-sizing: border-box;
+}
+.adr-input:focus, .adr-select:focus { outline: none; border-color: var(--gold); }
+.adr-select { cursor: pointer; }
 .admin-row:last-child { border-bottom: none; }
 .admin-row.inactive { opacity: 0.55; background: #FAF8F4; }
 .admin-row .prod-name { color: var(--brown); font-weight: 500; }
@@ -617,6 +634,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
 .section-header {
   padding: 11px 14px; border-bottom: 1px solid #F0EAE0;
   font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(--brown);
+}
+
+/* v18 reappro sections */
+.reappro-section { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 14px; }
+.section-header-reappro {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  background: #F5F0E5;
+}
+.send-btn {
+  background: var(--green); color: white; border: none;
+  padding: 8px 14px; border-radius: 18px; font-size: 12px; font-weight: 700;
+  font-family: inherit; cursor: pointer; letter-spacing: 0.3px;
+}
+.send-btn:active { transform: scale(0.96); }
+.send-btn.disabled { background: #CFCABF; }
+.section-status {
+  display: flex; gap: 14px; padding: 6px 14px; background: #FAF6EE;
+  font-size: 11px; font-weight: 600;
+}
+.status-sent { color: var(--green); }
+.status-pending { color: var(--gold-dark); }
+.produit-row.row-sent { background: linear-gradient(to right, rgba(49, 136, 82, 0.04), transparent); }
+.caisse-select {
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold-dark) 50%),
+                    linear-gradient(135deg, var(--gold-dark) 50%, transparent 50%);
+  background-position: calc(100% - 11px) 50%, calc(100% - 6px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 18px !important;
+  cursor: pointer;
+  text-align: left; font-size: 11px;
 }
 
 .col-header {
@@ -953,7 +1002,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 9</div>
+  <div class="splash-sub">Cloud - Phase 10</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -1207,6 +1256,9 @@ let adminCatFilter = 'all';
 let messagesData = [];
 let messageDraft = { content: '', urgent: false, stop_boutique: '' };
 let realtimeChannelMessages = null;
+
+// Reappro v18 : auto-copy last week hint
+let autoCopyLastWeekDate = null;
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -1485,8 +1537,41 @@ async function loadReappros(b) {
   if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   reapprosData = {};
   (data || []).forEach(function(r) {
-    reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
+    reapprosData[r.product_id] = {
+      avoir: r.avoir || '',
+      commander: r.commander || '',
+      previs: r.previs == null ? '' : String(r.previs).replace('.', ','),
+      sent_at: r.sent_at || null
+    };
   });
+  autoCopyLastWeekDate = null;
+  // Auto report J-7 si ecran vide
+  const hasAny = Object.keys(reapprosData).some(function(k) {
+    const v = reapprosData[k];
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
+  });
+  if (!hasAny) await autoCopyFromLastWeekMem();
+}
+
+async function autoCopyFromLastWeekMem() {
+  const d = new Date(currentReapproDate + 'T12:00');
+  d.setDate(d.getDate() - 7);
+  const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const prevData = await loadReapprosDate(currentBoutique, prevISO);
+  const pids = Object.keys(prevData).filter(function(pid) {
+    const v = prevData[pid];
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
+  });
+  if (!pids.length) return;
+  pids.forEach(function(pid) {
+    reapprosData[pid] = {
+      avoir: prevData[pid].avoir || '',
+      commander: prevData[pid].commander || '',
+      previs: prevData[pid].previs == null ? '' : prevData[pid].previs,
+      sent_at: null
+    };
+  });
+  autoCopyLastWeekDate = prevISO;
 }
 
 async function loadReapprosDate(b, date) {
@@ -1496,7 +1581,12 @@ async function loadReapprosDate(b, date) {
   if (error) return {};
   const result = {};
   (data || []).forEach(function(r) {
-    result[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
+    result[r.product_id] = {
+      avoir: r.avoir || '',
+      commander: r.commander || '',
+      previs: r.previs == null ? '' : String(r.previs).replace('.', ','),
+      sent_at: r.sent_at || null
+    };
   });
   return result;
 }
@@ -1507,11 +1597,48 @@ async function upsertReappro(pid) {
   const { error } = await supa.from('reappros').upsert({
     tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
     service_date: currentReapproDate,
-    avoir: d.avoir || null, commander: d.commander || null,
+    avoir: d.avoir || null,
+    commander: d.commander || null,
+    previs: (d.previs === '' || d.previs == null) ? null : parseQty(d.previs),
     updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
   else { setSyncStatus('ok'); }
+}
+
+async function sendReapproToSupplier(supplier) {
+  const pidsToSend = [];
+  Object.keys(reapprosData).forEach(function(pid) {
+    const p = products.find(function(x) { return x.id === pid; });
+    if (!p) return;
+    const s = getProductSupply(p, currentBoutique);
+    if (s !== supplier) return;
+    const d = reapprosData[pid];
+    const hasVal = (d.commander && d.commander !== '') || (d.avoir && d.avoir !== '');
+    if (hasVal) pidsToSend.push(pid);
+  });
+  if (!pidsToSend.length) { showToast('Rien a envoyer', 'error'); return; }
+  if (!confirm('Envoyer ' + pidsToSend.length + ' produit(s) au ' + (supplier === 'local' ? 'Local' : 'Veigne') + ' ?')) return;
+  setSyncStatus('syncing');
+  const nowISO = new Date().toISOString();
+  const rows = pidsToSend.map(function(pid) {
+    const d = reapprosData[pid];
+    return {
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
+      service_date: currentReapproDate,
+      avoir: d.avoir || null,
+      commander: d.commander || null,
+      previs: (d.previs === '' || d.previs == null) ? null : parseQty(d.previs),
+      supplier: supplier, sent_at: nowISO,
+      updated_by: DEVICE_ID, updated_at: nowISO
+    };
+  });
+  const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  pidsToSend.forEach(function(pid) { reapprosData[pid].sent_at = nowISO; });
+  renderReappro();
+  showToast(pidsToSend.length + ' produits envoyes au ' + (supplier === 'local' ? 'Local' : 'Veigne'), 'sync');
 }
 
 async function changeReapproDate(delta) {
@@ -1526,24 +1653,33 @@ async function copyFromPreviousDay() {
   const d = new Date(currentReapproDate + 'T12:00');
   d.setDate(d.getDate() - 1);
   const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await copyFromDateToCurrent(prevISO, 'hier');
+}
+
+async function copyFromLastWeekManual() {
+  const d = new Date(currentReapproDate + 'T12:00');
+  d.setDate(d.getDate() - 7);
+  const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await copyFromDateToCurrent(prevISO, 'la semaine derniere');
+}
+
+async function copyFromDateToCurrent(prevISO, label) {
   const prevData = await loadReapprosDate(currentBoutique, prevISO);
-  const pids = Object.keys(prevData);
-  if (!pids.length) {
-    showToast('Aucune commande a reprendre pour ' + prevISO, 'error');
-    return;
-  }
-  if (!confirm('Reprendre les ' + pids.length + ' produits commandes le ' + prevISO + ' ?')) return;
+  const pids = Object.keys(prevData).filter(function(pid) {
+    const v = prevData[pid];
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
+  });
+  if (!pids.length) { showToast('Aucune valeur a reprendre pour ' + prevISO, 'error'); return; }
+  if (!confirm('Reprendre les ' + pids.length + ' valeurs de ' + label + ' (' + prevISO + ') ?')) return;
   setSyncStatus('syncing');
   const rows = pids.map(function(pid) {
     return {
-      tenant_id: TENANT_ID,
-      boutique_id: currentBoutique,
-      product_id: pid,
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
       service_date: currentReapproDate,
       avoir: prevData[pid].avoir || null,
       commander: prevData[pid].commander || null,
-      updated_by: DEVICE_ID,
-      updated_at: new Date().toISOString()
+      previs: (prevData[pid].previs === '' || prevData[pid].previs == null) ? null : parseQty(prevData[pid].previs),
+      updated_by: DEVICE_ID, updated_at: new Date().toISOString()
     };
   });
   const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
@@ -1551,7 +1687,7 @@ async function copyFromPreviousDay() {
   setSyncStatus('ok');
   await loadReappros(currentBoutique);
   renderReappro();
-  showToast('Commande reprise de ' + prevISO, 'sync');
+  showToast('Valeurs reprises de ' + label, 'sync');
 }
 
 function subscribeRealtimeReappro(b) {
@@ -1562,9 +1698,13 @@ function subscribeRealtimeReappro(b) {
         const r = payload.new;
         if (!r || r.updated_by === DEVICE_ID) return;
         if (r.service_date !== currentReapproDate) return;
-        reapprosData[r.product_id] = { avoir: r.avoir || '', commander: r.commander || '' };
-        updateReapproInput(r.product_id, 'avoir', r.avoir);
-        updateReapproInput(r.product_id, 'commander', r.commander);
+        reapprosData[r.product_id] = {
+          avoir: r.avoir || '',
+          commander: r.commander || '',
+          previs: r.previs == null ? '' : String(r.previs).replace('.', ','),
+          sent_at: r.sent_at || null
+        };
+        renderReappro();
         showToast('MAJ d un autre appareil', 'sync');
       }).subscribe();
 }
@@ -1579,57 +1719,191 @@ function updateReapproInput(pid, field, val) {
   input.classList.add('just-updated');
 }
 
+function getProductSupply(p, boutique) {
+  if (!p || !p.supply_by_boutique) return null;
+  const sb = typeof p.supply_by_boutique === 'string' ? JSON.parse(p.supply_by_boutique) : p.supply_by_boutique;
+  return sb && sb[boutique] ? sb[boutique] : null;
+}
+
+function sortProductsPriority(prods) {
+  const priorityNames = ['tradition', 'tradition graines', 'baguette epeautre'];
+  function priorityIdx(name) {
+    const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    for (let i = 0; i < priorityNames.length; i++) {
+      if (n === priorityNames[i] || n.startsWith(priorityNames[i])) return i;
+    }
+    return 999;
+  }
+  return prods.slice().sort(function(a, b) {
+    const pa = priorityIdx(a.name), pb = priorityIdx(b.name);
+    if (pa !== pb) return pa - pb;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function caisseOptions(pcesPerCaisse) {
+  // Retourne les options pour un menu deroulant caisse/pces
+  const opts = [{ val: '', lbl: '-' }];
+  [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach(function(n) {
+    const pces = n * pcesPerCaisse;
+    const caisseLbl = n === 0.5 ? '1/2 caisse' : (n + ' caisse' + (n > 1 ? 's' : ''));
+    opts.push({ val: String(pces), lbl: caisseLbl + ' (' + Math.round(pces) + ' pces)' });
+  });
+  return opts;
+}
+
 function renderReappro() {
-  const cats = REAPPRO_CATS[currentBoutique] || [];
   const mc = document.getElementById('main-content');
-  if (!cats.length) { mc.innerHTML = '<div class="empty-state">Aucune categorie de reassort.</div>'; return; }
+  const isToday = (currentReapproDate === serviceDateISO());
+  const prodsForBoutique = products.filter(function(p) {
+    return getProductSupply(p, currentBoutique) != null;
+  });
+  const bucketInterne = [], bucketLocal = [], bucketVeigne = [];
+  prodsForBoutique.forEach(function(p) {
+    const s = getProductSupply(p, currentBoutique);
+    if (s === 'on_site') bucketInterne.push(p);
+    else if (s === 'local') bucketLocal.push(p);
+    else if (s === 'veigne') bucketVeigne.push(p);
+  });
+
   const nbLignes = Object.keys(reapprosData).filter(function(k) {
     const v = reapprosData[k];
-    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '');
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
   }).length;
-  const isToday = (currentReapproDate === serviceDateISO());
+
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changeReapproDate(-1)">&#8592;</button>'
-    + '<div class="date-title">Commande du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + '<div class="date-title">Reappro du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
     + '<div class="date-sub">' + nbLignes + ' produit' + (nbLignes > 1 ? 's' : '') + ' saisi' + (nbLignes > 1 ? 's' : '') + '</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changeReapproDate(1)">&#8594;</button>'
     + '</div>';
-  if (nbLignes === 0) {
-    html += '<div class="copy-prev-box">'
-      + '<div class="copy-prev-txt">Ecran vide pour ce jour. Tu peux reprendre la commande d hier :</div>'
-      + '<button class="btn-gold" onclick="copyFromPreviousDay()">Reprendre la commande d hier</button>'
+
+  if (autoCopyLastWeekDate) {
+    html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px solid var(--gold)">'
+      + '<strong>Valeurs reprises de la semaine derniere</strong> (' + escapeHtml(formatDateFr(autoCopyLastWeekDate)) + '). Ajuste si besoin, ca se sauvegarde des ta premiere modif.'
       + '</div>';
-  } else {
-    html += '<div class="info-banner"><strong>Mode cloud actif</strong><br>Saisis tes valeurs - synchro temps reel entre tous les appareils.</div>';
+  } else if (!nbLignes) {
+    html += '<div class="copy-prev-box"><div class="copy-prev-txt">Ecran vide. Tu peux reprendre :</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-gold" onclick="copyFromPreviousDay()">Hier</button>'
+      + '<button class="btn-gold" onclick="copyFromLastWeekManual()">Semaine derniere</button></div></div>';
   }
-  const reappProducts = getProductsForReappro();
-  cats.forEach(function(cat) {
-    const prods = reappProducts.filter(function(p) { return p.category === cat; });
-    if (!prods.length) return;
-    html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
-      + '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J ai</span><span class="col-lbl cmd">Je commande</span></div>';
-    prods.forEach(function(p) {
-      const val = reapprosData[p.id] || { avoir: '', commander: '' };
-      const a = val.avoir || '', c = val.commander || '';
-      html += '<div class="produit-row"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
-        + '<input type="text" inputmode="decimal" class="qty-input ' + (a ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="avoir" value="' + escapeHtml(a) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">'
-        + '<input type="text" inputmode="decimal" class="qty-input cmd ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" value="' + escapeHtml(c) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">'
-        + '</div>';
-    });
-    html += '</div>';
-  });
+
+  if (bucketInterne.length) html += renderReapproSection('previs', 'Previsionnel interne - ' + BOUTIQUE_NAMES[currentBoutique], bucketInterne, null);
+  if (bucketLocal.length)   html += renderReapproSection('reassort', 'A commander au Local', bucketLocal, 'local');
+  if (bucketVeigne.length)  html += renderReapproSection('reassort', 'A commander a Veigne', bucketVeigne, 'veigne');
+
+  if (!bucketInterne.length && !bucketLocal.length && !bucketVeigne.length) {
+    html += '<div class="empty-state">Aucun produit configure pour cette boutique.<br>Verifie en BackOffice > Produits que l origine des produits est bien renseignee.</div>';
+  }
+
   mc.innerHTML = html;
+}
+
+function renderReapproSection(type, title, prods, supplier) {
+  const byCat = {};
+  prods.forEach(function(p) {
+    const c = p.category || 'autre';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(p);
+  });
+  const catOrder = Object.keys(CAT_LABELS);
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  let sentCount = 0, pendingCount = 0;
+  prods.forEach(function(p) {
+    const d = reapprosData[p.id];
+    if (!d) return;
+    const hasVal = (d.commander && d.commander !== '') || (d.avoir && d.avoir !== '');
+    if (!hasVal) return;
+    if (d.sent_at) sentCount++;
+    else pendingCount++;
+  });
+
+  let html = '<div class="section reappro-section">'
+    + '<div class="section-header section-header-reappro"><span>' + escapeHtml(title) + '</span>';
+  if (type === 'reassort') {
+    html += '<button class="send-btn' + (pendingCount === 0 ? ' disabled' : '') + '" onclick="sendReapproToSupplier(\'' + supplier + '\')">&#10003; Envoyer (' + pendingCount + ')</button>';
+  }
+  html += '</div>';
+  if (type === 'reassort' && (sentCount > 0 || pendingCount > 0)) {
+    html += '<div class="section-status">';
+    if (sentCount > 0) html += '<span class="status-sent">&#10003; ' + sentCount + ' envoye(s)</span>';
+    if (pendingCount > 0) html += '<span class="status-pending">&#9203; ' + pendingCount + ' brouillon</span>';
+    html += '</div>';
+  }
+  // Header de colonnes
+  if (type === 'previs') {
+    html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">A produire/plaquer</span></div>';
+  } else {
+    html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J ai</span><span class="col-lbl cmd">Je commande</span></div>';
+  }
+
+  cats.forEach(function(cat) {
+    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+    const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+    sorted.forEach(function(p) { html += renderReapproRow(p, type); });
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderReapproRow(p, type) {
+  const val = reapprosData[p.id] || { avoir: '', commander: '', previs: '', sent_at: null };
+  const isSent = !!val.sent_at;
+  const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
+  let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + '">';
+  html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
+  if (type === 'previs') {
+    const pv = val.previs == null ? '' : String(val.previs);
+    html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv !== '' ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" data-field="previs" value="' + escapeHtml(pv) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
+  } else {
+    const a = val.avoir || '', c = val.commander || '';
+    html += '<input type="text" inputmode="decimal" class="qty-input ' + (a ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="avoir" value="' + escapeHtml(a) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
+    if (pceC && pceC > 0) {
+      // Menu deroulant caisse/pces
+      const opts = caisseOptions(pceC);
+      html += '<select class="qty-input cmd caisse-select ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" onchange="handleReapproInput(this)">';
+      opts.forEach(function(o) {
+        const selected = (String(c) === o.val) ? ' selected' : '';
+        html += '<option value="' + escapeHtml(o.val) + '"' + selected + '>' + escapeHtml(o.lbl) + '</option>';
+      });
+      // Si valeur courante n'est pas un multiple de caisse, ajouter option custom
+      const exists = opts.some(function(o) { return o.val === String(c); });
+      if (c && !exists) {
+        html += '<option value="' + escapeHtml(c) + '" selected>' + escapeHtml(c) + ' pces</option>';
+      }
+      html += '</select>';
+    } else {
+      html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" value="' + escapeHtml(c) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
+    }
+  }
+  html += '</div>';
+  return html;
 }
 
 function handleReapproInput(el) {
   const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
-  if (!reapprosData[pid]) reapprosData[pid] = { avoir: '', commander: '' };
+  if (!reapprosData[pid]) reapprosData[pid] = { avoir: '', commander: '', previs: '', sent_at: null };
   reapprosData[pid][field] = val;
+  // Une modif manuelle = on invalide le "sent"
+  if (field !== 'previs' && reapprosData[pid].sent_at) {
+    reapprosData[pid].sent_at = null;
+  }
   el.classList.toggle('has-value', !!val);
+  // On perd le bandeau "J-7 auto" des qu'on modifie
+  if (autoCopyLastWeekDate) {
+    autoCopyLastWeekDate = null;
+    // Pas de re-render pour garder le focus, juste masquer au prochain rendu
+  }
   clearTimeout(updateTimers['r_' + pid]);
-  updateTimers['r_' + pid] = setTimeout(function() { upsertReappro(pid); }, 400);
+  updateTimers['r_' + pid] = setTimeout(function() {
+    upsertReappro(pid);
+  }, 500);
 }
 
 // === VENTES ===
@@ -1647,6 +1921,54 @@ async function loadSales(b, date) {
       rupture_heure: r.rupture_heure || ''
     };
   });
+  // v18: Auto-fill Matin depuis Previs (interne) ou Commander (reassort) de J-1 pour les produits sans Matin encore saisi
+  await autoFillMatinFromYesterday(b, date);
+}
+
+async function autoFillMatinFromYesterday(b, date) {
+  const d = new Date(date + 'T12:00');
+  d.setDate(d.getDate() - 1);
+  const yISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const ydData = await loadReapprosDate(b, yISO);
+  const pidsFilled = [];
+  Object.keys(ydData).forEach(function(pid) {
+    const existingMatin = salesData[pid] && salesData[pid].matin !== '' && salesData[pid].matin != null;
+    if (existingMatin) return; // pas ecraser une saisie manuelle
+    const y = ydData[pid];
+    // Si produit interne (previs), prendre previs. Sinon prendre commander (reassort envoye).
+    const p = products.find(function(x) { return x.id === pid; });
+    if (!p) return;
+    const supply = getProductSupply(p, b);
+    let matinVal = null;
+    if (supply === 'on_site' && y.previs !== '' && y.previs != null) {
+      matinVal = y.previs;
+    } else if ((supply === 'local' || supply === 'veigne') && y.commander && y.commander !== '' && y.sent_at) {
+      matinVal = y.commander;
+    }
+    if (matinVal == null) return;
+    const asNum = parseQty(matinVal);
+    if (asNum === 0) return;
+    if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+    salesData[pid].matin = String(asNum);
+    pidsFilled.push(pid);
+  });
+  // Persiste silencieusement en BDD pour que ca apparaisse comme "Matin" normal
+  if (pidsFilled.length) {
+    const nowISO = new Date().toISOString();
+    const rows = pidsFilled.map(function(pid) {
+      const d2 = salesData[pid];
+      return {
+        tenant_id: TENANT_ID, boutique_id: b, product_id: pid, date: date,
+        matin: parseInt(d2.matin) || 0,
+        aprem: d2.aprem === '' ? null : parseInt(d2.aprem) || 0,
+        reste_j1: d2.reste_j1 === '' ? null : parseInt(d2.reste_j1) || 0,
+        perte: d2.perte === '' ? null : parseInt(d2.perte) || 0,
+        rupture_heure: d2.rupture_heure || null,
+        updated_by: DEVICE_ID, updated_at: nowISO
+      };
+    });
+    await supa.from('sales').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  }
 }
 
 async function upsertSale(pid) {
@@ -3090,7 +3412,42 @@ async function upsertProductPrix(pid, rawVal) {
   setSyncStatus('ok');
   const p = adminProducts.find(function(x) { return x.id === pid; });
   if (p) { p.prix_cession = newPrice; delete p._prix_draft; }
-  // Ne pas re-render : evite la perte de focus pendant saisie
+}
+
+function handleProductPcesInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  p._pces_draft = val;
+  el.classList.toggle('has-prix', !!val);
+  clearTimeout(updateTimers['pces_' + pid]);
+  updateTimers['pces_' + pid] = setTimeout(function() { upsertProductPces(pid, val); }, 500);
+}
+
+async function upsertProductPces(pid, rawVal) {
+  setSyncStatus('syncing');
+  const newV = rawVal === '' || rawVal == null ? null : parseQty(rawVal);
+  const { error } = await supa.from('products').update({ pces_per_caisse: newV }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (p) { p.pces_per_caisse = newV; delete p._pces_draft; }
+  // Recharger products global pour que les menus caisse se mettent a jour
+  await loadProducts();
+}
+
+async function setProductSupply(pid, boutique, mode) {
+  setSyncStatus('syncing');
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  const sb = p.supply_by_boutique ? (typeof p.supply_by_boutique === 'string' ? JSON.parse(p.supply_by_boutique) : Object.assign({}, p.supply_by_boutique)) : {};
+  if (mode === 'none') delete sb[boutique]; else sb[boutique] = mode;
+  const { error } = await supa.from('products').update({ supply_by_boutique: sb }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  p.supply_by_boutique = sb;
+  await loadProducts();
+  renderAdminProducts();
 }
 
 function toggleAdminHideInactive() {
@@ -3160,22 +3517,48 @@ function renderAdminProducts() {
   html += '<div class="admin-table">';
   cats.forEach(function(cat) {
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:10px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
-    byCat[cat].forEach(function(p) {
-      const rowCls = 'admin-row' + (p.actif ? '' : ' inactive');
-      const prixVal = p._prix_draft != null ? p._prix_draft : (p.prix_cession == null ? '' : String(p.prix_cession).replace('.', ','));
-      const prixCls = prixVal ? 'has-prix' : '';
-      html += '<div class="' + rowCls + '">'
-        + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
-        + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
-        + '<div class="admin-prix-wrap">'
-        + '<input type="text" inputmode="decimal" class="admin-prix ' + prixCls + '" data-pid="' + p.id + '" value="' + escapeHtml(prixVal) + '" placeholder="-" oninput="handleProductPrixInput(this)" onfocus="this.select()">'
-        + '<span class="admin-prix-eur">EUR</span>'
-        + '</div>'
-        + '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" onclick="toggleProductActif(\'' + p.id + '\', ' + p.actif + ')">'
-        + (p.actif ? 'Actif' : 'Inactif')
-        + '</button>'
-        + '</div>';
-    });
+      byCat[cat].forEach(function(p) {
+        const rowCls = 'admin-row' + (p.actif ? '' : ' inactive');
+        const prixVal = p._prix_draft != null ? p._prix_draft : (p.prix_cession == null ? '' : String(p.prix_cession).replace('.', ','));
+        const prixCls = prixVal ? 'has-prix' : '';
+        const pcesVal = p._pces_draft != null ? p._pces_draft : (p.pces_per_caisse == null ? '' : String(p.pces_per_caisse).replace('.', ','));
+        const sb = p.supply_by_boutique ? (typeof p.supply_by_boutique === 'string' ? JSON.parse(p.supply_by_boutique) : p.supply_by_boutique) : {};
+        const supVeigne = sb['veigne'] || 'none';
+        const supTours = sb['tours'] || 'none';
+        const supSA = sb['saint-avertin'] || 'none';
+        function supplyOpts(currentVal) {
+          const opts = [
+            { v: 'on_site', l: 'Sur place' },
+            { v: 'local', l: 'Local' },
+            { v: 'veigne', l: 'Veigne' },
+            { v: 'none', l: 'Non vendu' }
+          ];
+          return opts.map(function(o) {
+            return '<option value="' + o.v + '"' + (currentVal === o.v ? ' selected' : '') + '>' + o.l + '</option>';
+          }).join('');
+        }
+        html += '<div class="' + rowCls + '">'
+          + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
+          + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
+          + '<div class="admin-prix-wrap">'
+          + '<input type="text" inputmode="decimal" class="admin-prix ' + prixCls + '" data-pid="' + p.id + '" value="' + escapeHtml(prixVal) + '" placeholder="-" oninput="handleProductPrixInput(this)" onfocus="this.select()">'
+          + '<span class="admin-prix-eur">EUR</span>'
+          + '</div>'
+          + '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" onclick="toggleProductActif(\'' + p.id + '\', ' + p.actif + ')">'
+          + (p.actif ? 'Actif' : 'Inactif')
+          + '</button>'
+          + '</div>'
+          + '<div class="admin-row-detail">'
+          + '<div class="adr-cell"><span class="adr-lbl">Pces/caisse</span>'
+          + '<input type="text" inputmode="decimal" class="adr-input" data-pid="' + p.id + '" value="' + escapeHtml(pcesVal) + '" placeholder="-" oninput="handleProductPcesInput(this)" onfocus="this.select()"></div>'
+          + '<div class="adr-cell"><span class="adr-lbl">Veigne</span>'
+          + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'veigne\', this.value)">' + supplyOpts(supVeigne) + '</select></div>'
+          + '<div class="adr-cell"><span class="adr-lbl">Tours</span>'
+          + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'tours\', this.value)">' + supplyOpts(supTours) + '</select></div>'
+          + '<div class="adr-cell"><span class="adr-lbl">St-Avertin</span>'
+          + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'saint-avertin\', this.value)">' + supplyOpts(supSA) + '</select></div>'
+          + '</div>';
+      });
   });
   html += '</div>';
 
