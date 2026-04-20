@@ -555,6 +555,44 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   border-left: 3px solid var(--gold); border-radius: 6px;
   font-size: 12px; color: var(--brown);
 }
+
+/* v19.1 : Ticket impression commande speciale */
+.print-only-ticket { display: none; }
+@media print {
+  body.printing-ticket > *:not(.print-only-ticket) { display: none !important; }
+  body.printing-ticket .print-only-ticket { display: block !important; }
+  .ticket-box {
+    font-family: Georgia, serif; padding: 20px; max-width: 500px; margin: 0 auto;
+    color: #000;
+  }
+  .ticket-hdr {
+    font-size: 20px; font-weight: 700; border-bottom: 3px solid #000;
+    padding-bottom: 8px; margin-bottom: 14px;
+  }
+  .ticket-row { margin: 6px 0; font-size: 14px; display: flex; gap: 10px; }
+  .ticket-row span { min-width: 100px; color: #555; }
+  .ticket-items {
+    width: 100%; border-collapse: collapse; margin-top: 14px;
+  }
+  .ticket-items th {
+    background: #f0f0f0; padding: 8px; text-align: left;
+    border: 1px solid #777; font-weight: 700;
+  }
+  .ticket-items td {
+    padding: 8px; border: 1px solid #bbb; font-size: 14px;
+  }
+  .ticket-qty { text-align: right; width: 80px; }
+  .ticket-subnote { font-size: 11px; color: #666; font-style: italic; }
+  .ticket-notes {
+    margin-top: 14px; padding: 10px;
+    background: #fff8e7; border-left: 3px solid #c9a24b;
+    font-size: 13px;
+  }
+  .ticket-footer {
+    margin-top: 22px; text-align: center; font-size: 11px;
+    color: #666; font-style: italic;
+  }
+}
 .admin-row:last-child { border-bottom: none; }
 .admin-row.inactive { opacity: 0.55; background: #FAF8F4; }
 .admin-row .prod-name { color: var(--brown); font-weight: 500; }
@@ -1169,7 +1207,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 11</div>
+  <div class="splash-sub">Cloud - Phase 11.1</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -1344,12 +1382,13 @@ const MARKET_PREP_DAYS = 3;
 
 const NAV_ITEMS = {
   'veigne': [
-    { id: 'reappro',   lbl: 'Reappro' },
-    { id: 'ventes',    lbl: 'Ventes' },
-    { id: 'specials',  lbl: 'Speciales' },
-    { id: 'recap',     lbl: 'Recap' },
-    { id: 'livraison', lbl: 'Livraison' },
-    { id: 'messages',  lbl: 'Msg' }
+    { id: 'reappro',    lbl: 'Reappro' },
+    { id: 'ventes',     lbl: 'Ventes' },
+    { id: 'specials',   lbl: 'Speciales' },
+    { id: 'production', lbl: 'Prod.' },
+    { id: 'recap',      lbl: 'Recap' },
+    { id: 'livraison',  lbl: 'Livr.' },
+    { id: 'messages',   lbl: 'Msg' }
   ],
   'tours': [
     { id: 'reappro',  lbl: 'Reappro' },
@@ -1441,6 +1480,11 @@ let specialOrdersData = [];          // array de commandes avec items inclus
 let specialFormMode = null;          // null | 'new' | 'edit'
 let specialFormDraft = null;         // objet commande en cours
 let realtimeChannelSpecials = null;
+
+// v19.1 : mode fournisseur pour la vue Production
+// 'local' = Le Local fournisseur (comportement d'origine)
+// 'veigne' = Veigne fournisseur (commandes entrantes Tours + St-Av dont supply=veigne)
+let productionSupplierMode = 'local';
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -1688,6 +1732,7 @@ async function setVue(v) {
     subscribeRealtimeDeliveries();
     renderLivraison();
   } else if (v === 'production') {
+    productionSupplierMode = (currentBoutique === 'veigne') ? 'veigne' : 'local';
     await loadProduction(currentReapproDate);
     await loadProductionLocal(currentReapproDate);
     await loadMarketUpcoming(currentReapproDate);
@@ -2908,7 +2953,8 @@ async function loadProduction(date) {
     if (!productionData[r.boutique_id]) productionData[r.boutique_id] = {};
     productionData[r.boutique_id][r.product_id] = {
       avoir: r.avoir || '',
-      commander: r.commander || ''
+      commander: r.commander || '',
+      previs: r.previs == null ? '' : r.previs
     };
   });
 }
@@ -2924,7 +2970,8 @@ function subscribeRealtimeProduction() {
         if (PROD_BOUTIQUES.indexOf(r.boutique_id) === -1) return;
         if (!productionData[r.boutique_id]) productionData[r.boutique_id] = {};
         productionData[r.boutique_id][r.product_id] = {
-          avoir: r.avoir || '', commander: r.commander || ''
+          avoir: r.avoir || '', commander: r.commander || '',
+          previs: r.previs == null ? '' : r.previs
         };
         renderProduction();
         showToast('Commande mise a jour (' + PROD_BOUTIQUE_LABELS[r.boutique_id] + ')', 'sync');
@@ -3099,16 +3146,37 @@ function renderProduction() {
     const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
     const vT = productionData['tours'] ? productionData['tours'][p.id] : null;
     const vS = productionData['saint-avertin'] ? productionData['saint-avertin'][p.id] : null;
-    const cV = parseQty(vV && vV.commander);
-    const cT = parseQty(vT && vT.commander);
-    const cS = parseQty(vS && vS.commander);
+
+    // v19.1 : filtrer selon le mode fournisseur
+    // Mode 'local' : on ne compte que les commandes dont supply=local
+    // Mode 'veigne' : on ne compte que les commandes dont supply=veigne. Pour Veigne elle-meme, on prend son previs (produit sur place).
+    const supV = getProductSupply(p, 'veigne');
+    const supT = getProductSupply(p, 'tours');
+    const supS = getProductSupply(p, 'saint-avertin');
+
+    let cV = 0, cT = 0, cS = 0;
+    if (productionSupplierMode === 'local') {
+      // Tolerance : si supply n'est pas configure (null), on garde l'ancien comportement
+      cV = (supV == null || supV === 'local') ? parseQty(vV && vV.commander) : 0;
+      cT = (supT == null || supT === 'local') ? parseQty(vT && vT.commander) : 0;
+      cS = (supS == null || supS === 'local') ? parseQty(vS && vS.commander) : 0;
+    } else if (productionSupplierMode === 'veigne') {
+      // Veigne pour elle-meme : son previs interne (ce qu'elle prevoit de produire pour son propre compte)
+      cV = (supV === 'on_site') ? parseQty(vV && vV.previs) : 0;
+      cT = (supT === 'veigne') ? parseQty(vT && vT.commander) : 0;
+      cS = (supS === 'veigne') ? parseQty(vS && vS.commander) : 0;
+    }
+
     const marketVals = {};
     let marketSum = 0;
-    activeMarkets.forEach(function(mid) {
-      const mv = (marketUpcomingData[mid] && marketUpcomingData[mid]._products && marketUpcomingData[mid]._products[p.id]) || 0;
-      marketVals[mid] = mv;
-      marketSum += mv;
-    });
+    // Les marches ne concernent que le Local
+    if (productionSupplierMode === 'local') {
+      activeMarkets.forEach(function(mid) {
+        const mv = (marketUpcomingData[mid] && marketUpcomingData[mid]._products && marketUpcomingData[mid]._products[p.id]) || 0;
+        marketVals[mid] = mv;
+        marketSum += mv;
+      });
+    }
     const total = cV + cT + cS + marketSum;
     const pl = productionLocalData[p.id] || { produit: '', stock: '' };
     const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
@@ -3136,10 +3204,11 @@ function renderProduction() {
   const horizonTxt = activeMarkets.length
     ? 'Boutiques + marches (horizon ' + MARKET_PREP_DAYS + 'j)'
     : 'Commandes boutiques';
+  const modeLabel = productionSupplierMode === 'veigne' ? 'Prod. Veigne' : 'Production Local';
 
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changeProductionDate(-1)">&#8592;</button>'
-    + '<div class="date-title">Production du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + '<div class="date-title">' + modeLabel + ' du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
     + '<div class="date-sub">' + horizonTxt + '</div>'
     + '</div>'
@@ -4240,6 +4309,56 @@ async function changeSpecialOrderStatus(oid, newStatus) {
   renderSpecials();
 }
 
+function printSpecialOrderTicket(oid) {
+  const o = (specialOrdersData || []).find(function(x) { return x.id === oid; });
+  if (!o) {
+    // Peut etre une nouvelle commande pas encore persistee : si specialFormDraft a les infos, on utilise ca
+    if (specialFormDraft && specialFormDraft.id === oid) {
+      printSpecialTicketFromDraft(specialFormDraft);
+      return;
+    }
+    showToast('Commande introuvable', 'error');
+    return;
+  }
+  printSpecialTicketFromDraft(o);
+}
+
+function printSpecialTicketFromDraft(o) {
+  let printDiv = document.getElementById('print-ticket');
+  if (!printDiv) {
+    printDiv = document.createElement('div');
+    printDiv.id = 'print-ticket';
+    printDiv.className = 'print-only-ticket';
+    document.body.appendChild(printDiv);
+  }
+  let html = '<div class="ticket-box">';
+  html += '<div class="ticket-hdr">Commande - ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop) + '</div>';
+  html += '<div class="ticket-row"><span>Client :</span><strong>' + escapeHtml(o.customer_name) + '</strong></div>';
+  if (o.customer_phone) html += '<div class="ticket-row"><span>Tel :</span>' + escapeHtml(o.customer_phone) + '</div>';
+  html += '<div class="ticket-row"><span>Retrait :</span><strong>' + escapeHtml(formatDateFr(o.pickup_date)) + (o.pickup_time ? ' - ' + escapeHtml(o.pickup_time) : '') + '</strong></div>';
+  if (o.origin_shop !== o.production_shop) {
+    html += '<div class="ticket-row"><span>Production :</span>' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</div>';
+  }
+  if (o.status) html += '<div class="ticket-row"><span>Statut :</span>' + escapeHtml(STATUS_LBL[o.status] || o.status) + '</div>';
+  html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qte</th></tr></thead><tbody>';
+  (o.items || []).forEach(function(it) {
+    const name = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
+    html += '<tr><td>' + escapeHtml(name) + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td></tr>';
+  });
+  html += '</tbody></table>';
+  if (o.notes) html += '<div class="ticket-notes"><strong>Notes :</strong> ' + escapeHtml(o.notes) + '</div>';
+  html += '<div class="ticket-footer">Les Bles de Demain</div>';
+  html += '</div>';
+  printDiv.innerHTML = html;
+  document.body.classList.add('printing-ticket');
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() {
+      document.body.classList.remove('printing-ticket');
+    }, 300);
+  }, 50);
+}
+
 function subscribeRealtimeSpecialOrders() {
   if (realtimeChannelSpecials) supa.removeChannel(realtimeChannelSpecials);
   realtimeChannelSpecials = supa.channel('specials_' + currentBoutique)
@@ -4546,7 +4665,8 @@ function renderSpecialOrderForm() {
   html += '<button class="sp-back" onclick="cancelSpecialForm()">&#8592;</button>';
   html += '<div class="sp-form-title">' + (isEdit ? 'Editer commande' : 'Nouvelle commande') + '</div>';
   if (isEdit) {
-    html += '<button class="sp-del-btn" onclick="deleteSpecialOrder(\'' + d.id + '\')">&#128465;</button>';
+    html += '<button class="sp-del-btn" onclick="printSpecialOrderTicket(\'' + d.id + '\')" title="Imprimer ticket">&#128424;</button>';
+    html += '<button class="sp-del-btn" onclick="deleteSpecialOrder(\'' + d.id + '\')" title="Supprimer">&#128465;</button>';
   } else {
     html += '<span style="width:38px"></span>';
   }
