@@ -556,6 +556,53 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   font-size: 12px; color: var(--brown);
 }
 
+/* v20 : Previs + Traiteur */
+.previs-j1 {
+  text-align: center; font-size: 13px; font-weight: 600;
+  color: var(--brown-mid);
+}
+.traiteur-grid-header {
+  display: grid;
+  grid-template-columns: 1.3fr 60px 48px 60px 48px 72px;
+  gap: 6px; padding: 8px 12px; background: #F5F0E5;
+  font-size: 10px;
+}
+.traiteur-row {
+  display: grid;
+  grid-template-columns: 1.3fr 60px 48px 60px 48px 72px;
+  gap: 6px; padding: 8px 12px; align-items: center;
+  border-bottom: 1px solid #F5F0E8;
+}
+.traiteur-row:last-child { border-bottom: none; }
+.traiteur-row .produit-name { font-size: 13px; }
+.traiteur-j1 {
+  text-align: center; font-size: 12px; font-weight: 600;
+  color: var(--brown-mid);
+}
+.traiteur-total {
+  text-align: center; font-size: 15px; font-family: Georgia, serif;
+  color: var(--gold-dark);
+}
+.traiteur-total strong { font-weight: 700; }
+.traiteur-grand-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 14px; background: #FFF8E7;
+  border-top: 2px solid var(--gold);
+  font-family: Georgia, serif;
+}
+.traiteur-grand-total span { font-size: 13px; font-weight: 600; color: var(--brown); }
+.traiteur-grand-total strong { font-size: 22px; font-weight: 700; color: var(--gold-dark); }
+
+.matin-cell-wrap { position: relative; display: flex; align-items: center; }
+.matin-auto-badge {
+  position: absolute; top: -8px; right: -4px;
+  background: var(--gold); color: white;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 5px; border-radius: 6px;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* v19.1 : Ticket impression commande speciale */
 .print-only-ticket { display: none; }
 @media print {
@@ -1207,7 +1254,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 11.1</div>
+  <div class="splash-sub">Cloud - Phase 12</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -1383,8 +1430,10 @@ const MARKET_PREP_DAYS = 3;
 const NAV_ITEMS = {
   'veigne': [
     { id: 'reappro',    lbl: 'Reappro' },
+    { id: 'previs',     lbl: 'Previs' },
+    { id: 'traiteur',   lbl: 'Traiteur' },
     { id: 'ventes',     lbl: 'Ventes' },
-    { id: 'specials',   lbl: 'Speciales' },
+    { id: 'specials',   lbl: 'Special' },
     { id: 'production', lbl: 'Prod.' },
     { id: 'recap',      lbl: 'Recap' },
     { id: 'livraison',  lbl: 'Livr.' },
@@ -1392,15 +1441,18 @@ const NAV_ITEMS = {
   ],
   'tours': [
     { id: 'reappro',  lbl: 'Reappro' },
+    { id: 'previs',   lbl: 'Previs' },
+    { id: 'traiteur', lbl: 'Traiteur' },
     { id: 'ventes',   lbl: 'Ventes' },
-    { id: 'specials', lbl: 'Speciales' },
+    { id: 'specials', lbl: 'Special' },
     { id: 'recap',    lbl: 'Recap' }
   ],
   'saint-avertin': [
-    { id: 'reappro',  lbl: 'Reappro' },
-    { id: 'ventes',   lbl: 'Ventes' },
-    { id: 'specials', lbl: 'Speciales' },
-    { id: 'recap',    lbl: 'Recap' }
+    { id: 'reappro',        lbl: 'Reappro' },
+    { id: 'previs_traiteur', lbl: 'Prev.Trait' },
+    { id: 'ventes',         lbl: 'Ventes' },
+    { id: 'specials',       lbl: 'Special' },
+    { id: 'recap',          lbl: 'Recap' }
   ],
   'livreur': [
     { id: 'tournee',  lbl: 'Tournee' },
@@ -1413,13 +1465,15 @@ const NAV_ITEMS = {
     { id: 'marche', lbl: 'Tableau marche' }
   ],
   'local': [
-    { id: 'production', lbl: 'Production' },
-    { id: 'specials',   lbl: 'Speciales' },
-    { id: 'messages',   lbl: 'Messages' }
+    { id: 'production',    lbl: 'Prod.Reappro' },
+    { id: 'production_sa', lbl: 'Prod.St-Av' },
+    { id: 'specials',      lbl: 'Special' },
+    { id: 'messages',      lbl: 'Messages' }
   ],
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
-    { id: 'valorisation', lbl: 'Valorisation' }
+    { id: 'categories', lbl: 'Categ.' },
+    { id: 'valorisation', lbl: 'Valo.' }
   ]
 };
 
@@ -1485,6 +1539,14 @@ let realtimeChannelSpecials = null;
 // 'local' = Le Local fournisseur (comportement d'origine)
 // 'veigne' = Veigne fournisseur (commandes entrantes Tours + St-Av dont supply=veigne)
 let productionSupplierMode = 'local';
+
+// v20 : Previs (frais quotidien) - table separee
+let previsData = {};           // { product_id: qty } pour boutique + date courante
+let previsTraiteurDataSA = {}; // { product_id: qty } prevision traiteur St-Av (vue depuis Veigne ou St-Av)
+let previsTraiteurDataV  = {}; // { product_id: qty } prevision traiteur Veigne
+let currentPrevisDate = null;  // ISO de la date du service pour Previs
+let realtimeChannelPrevis = null;
+let categorySettings = {};     // { category: { a_previs: bool } }
 
 const REPORTABLE_CATS = ['ingredients', 'sec_traiteur', 'gateaux_secs'];
 
@@ -1583,6 +1645,46 @@ async function loadProducts() {
   } catch (err) { showInitError(err); }
 }
 
+async function loadCategorySettings() {
+  try {
+    const { data, error } = await supa.from('category_settings').select('*').eq('tenant_id', TENANT_ID);
+    if (error) throw error;
+    categorySettings = {};
+    (data || []).forEach(function(r) {
+      categorySettings[r.category] = { a_previs: !!r.a_previs };
+    });
+  } catch (err) {
+    // Silencieux : si la table n existe pas encore, on ne bloque pas l app
+    categorySettings = {};
+  }
+}
+
+function categoryHasPrevis(cat) {
+  return categorySettings[cat] && categorySettings[cat].a_previs === true;
+}
+
+// Liste des produits eligibles au Previs pour une boutique (hors traiteur)
+function getProductsForPrevisScreen(boutique) {
+  return products.filter(function(p) {
+    if (!categoryHasPrevis(p.category)) return false;
+    if (p.category === 'traiteur') return false; // traiteur a son propre onglet
+    const supply = getProductSupply(p, boutique);
+    return supply === 'on_site';
+  });
+}
+
+// Liste des produits traiteur a previs pour une boutique
+function getProductsForTraiteurPrevis(boutique) {
+  return products.filter(function(p) {
+    if (p.category !== 'traiteur') return false;
+    if (!categoryHasPrevis(p.category)) return false;
+    const supply = getProductSupply(p, boutique);
+    // Pour Veigne et Tours : ils produisent eux-memes -> on_site
+    // Pour St-Av : le traiteur vient de Veigne mais on veut qu'elle saisisse sa prevision
+    return supply === 'on_site' || supply === 'veigne';
+  });
+}
+
 function getProductsForReappro() {
   return products.filter(function(p) {
     const u = p.usage || 'reappro';
@@ -1674,10 +1776,11 @@ async function enterBoutique(b) {
   isLocalMode = (b === 'local');
   if (MARKET_IDS.indexOf(b) !== -1) {
     currentMarketId = b;
-    currentMarketDate = nextMarketDateFor(b); // defaulte a la prochaine date de ce marche
+    currentMarketDate = nextMarketDateFor(b);
   } else {
     currentMarketId = null;
   }
+  await loadCategorySettings(); // v20 : charger config Previs par categorie
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -1694,10 +1797,12 @@ function goSplash() {
   if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtimeChannelMarket = null; }
   if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); realtimeChannelMessages = null; }
   if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
+  if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
   currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
   marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
   messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
   specialOrdersData = []; specialFormMode = null; specialFormDraft = null; selectedSpecialDay = null; currentSpecialWeekStart = null;
+  previsData = {}; previsTraiteurDataV = {}; previsTraiteurDataSA = {};
   isLivreurMode = false; isLocalMode = false;
   document.getElementById('splash').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -1742,6 +1847,9 @@ async function setVue(v) {
   } else if (v === 'produits') {
     await loadAdminProducts();
     renderAdminProducts();
+  } else if (v === 'categories') {
+    await loadCategorySettings();
+    renderAdminCategories();
   } else if (v === 'valorisation') {
     await loadValorisation();
     renderValorisation();
@@ -1762,6 +1870,27 @@ async function setVue(v) {
     await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
     subscribeRealtimeSpecialOrders();
     renderSpecials();
+  } else if (v === 'previs') {
+    if (!currentPrevisDate) currentPrevisDate = currentDate;
+    await loadPrevis(currentBoutique, currentPrevisDate);
+    subscribeRealtimePrevis();
+    renderPrevis();
+  } else if (v === 'traiteur') {
+    if (!currentPrevisDate) currentPrevisDate = currentDate;
+    await reloadTraiteurData();
+    subscribeRealtimePrevis();
+    renderTraiteur();
+  } else if (v === 'previs_traiteur') {
+    if (!currentPrevisDate) currentPrevisDate = currentDate;
+    await loadPrevis(currentBoutique, currentPrevisDate);
+    previsTraiteurDataSA = {};
+    Object.keys(previsData).forEach(function(pid) { previsTraiteurDataSA[pid] = previsData[pid]; });
+    subscribeRealtimePrevis();
+    renderPrevisTraiteurSA();
+  } else if (v === 'production_sa') {
+    if (!currentReapproDate) currentReapproDate = currentDate;
+    await loadProductionSA();
+    renderProductionSA();
   }
 }
 
@@ -1988,11 +2117,143 @@ function caisseOptions(pcesPerCaisse) {
   return opts;
 }
 
+// v20 : Production St-Av au Local - pain/vienn cuites + cmd speciales
+let productionSAData = { reappro: {}, previs_sa: {}, specials_sa: [] };
+
+async function loadProductionSA() {
+  const date = currentReapproDate;
+  // Reappros St-Av envoyes au Local
+  const { data: reapData } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', 'saint-avertin').eq('service_date', date);
+  // Previs St-Av (pour son propre traiteur)
+  const { data: prevSA } = await supa.from('previs').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', 'saint-avertin').eq('service_date', date);
+  // Commandes speciales pour St-Av ce jour-la
+  const { data: specs } = await supa.from('special_orders').select('*')
+    .eq('tenant_id', TENANT_ID).eq('origin_shop', 'saint-avertin').eq('pickup_date', date);
+  let items = [];
+  if (specs && specs.length) {
+    const ids = specs.map(function(o) { return o.id; });
+    const { data: its } = await supa.from('special_order_items').select('*').in('order_id', ids);
+    items = its || [];
+  }
+  productionSAData = { reappro: {}, previs_sa: {}, specials_sa: [] };
+  (reapData || []).forEach(function(r) {
+    productionSAData.reappro[r.product_id] = r.commander == null ? 0 : parseQty(r.commander);
+  });
+  (prevSA || []).forEach(function(r) {
+    productionSAData.previs_sa[r.product_id] = r.qty == null ? 0 : parseQty(r.qty);
+  });
+  productionSAData.specials_sa = (specs || []).map(function(o) {
+    o.items = items.filter(function(i) { return i.order_id === o.id; });
+    return o;
+  });
+}
+
+function renderProductionSA() {
+  const mc = document.getElementById('main-content');
+  const isToday = (currentReapproDate === serviceDateISO());
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeProductionDate(-1)">&#8592;</button>'
+    + '<div class="date-title">Prod. St-Avertin du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
+    + '<div class="date-sub">Reappros + Previs + Cmd speciales</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeProductionDate(1)">&#8594;</button>'
+    + '</div>';
+
+  // Section 1 : Reappros St-Av qui arrivent au Local
+  const reapPids = Object.keys(productionSAData.reappro).filter(function(pid) {
+    return productionSAData.reappro[pid] > 0;
+  });
+  if (reapPids.length) {
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>Reappros St-Avertin a preparer</span></div>';
+    html += '<div class="col-header" style="grid-template-columns:1fr 100px"><span class="col-lbl">Produit</span><span class="col-lbl cmd">Quantite</span></div>';
+    const reapProds = reapPids.map(function(pid) {
+      const p = products.find(function(x) { return x.id === pid; });
+      return p ? { p: p, qty: productionSAData.reappro[pid] } : null;
+    }).filter(Boolean);
+    const byCat = {};
+    reapProds.forEach(function(r) {
+      const c = r.p.category || 'autre';
+      if (!byCat[c]) byCat[c] = [];
+      byCat[c].push(r);
+    });
+    const catOrder = Object.keys(CAT_LABELS);
+    Object.keys(byCat).sort(function(a, b) {
+      const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    }).forEach(function(cat) {
+      html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+      byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); }).forEach(function(r) {
+        html += '<div class="produit-row" style="grid-template-columns:1fr 100px">';
+        html += '<div><div class="produit-name">' + escapeHtml(r.p.name) + '</div></div>';
+        html += '<div class="traiteur-total"><strong>' + r.qty + '</strong></div>';
+        html += '</div>';
+      });
+    });
+    html += '</div>';
+  }
+
+  // Section 2 : Previs traiteur St-Av (doit etre produit par Veigne mais le Local doit savoir)
+  const prevPids = Object.keys(productionSAData.previs_sa).filter(function(pid) {
+    return productionSAData.previs_sa[pid] > 0;
+  });
+  if (prevPids.length) {
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>Previs Traiteur St-Av (info)</span></div>';
+    html += '<div class="info-banner" style="margin:8px 14px;padding:8px 12px">Produit par Veigne. Info pour logistique tournee.</div>';
+    prevPids.forEach(function(pid) {
+      const p = products.find(function(x) { return x.id === pid; });
+      if (!p) return;
+      html += '<div class="produit-row" style="grid-template-columns:1fr 100px">';
+      html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+      html += '<div class="traiteur-total"><strong>' + productionSAData.previs_sa[pid] + '</strong></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Section 3 : Commandes speciales St-Av
+  if (productionSAData.specials_sa && productionSAData.specials_sa.length) {
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>Commandes speciales St-Avertin</span></div>';
+    productionSAData.specials_sa.forEach(function(o) {
+      html += '<div class="sp-card">';
+      html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
+      if (o.pickup_time) html += '<span class="sp-card-time">' + escapeHtml(o.pickup_time) + '</span>';
+      html += '</div>';
+      const summary = (o.items || []).map(function(it) {
+        const name = it.product_id ? ((products.find(function(x) { return x.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
+        return (it.qty || 1) + 'x ' + name;
+      }).join(' + ');
+      html += '<div class="sp-card-body">' + escapeHtml(summary) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  if (!reapPids.length && !prevPids.length && (!productionSAData.specials_sa || !productionSAData.specials_sa.length)) {
+    html += '<div class="empty-state">Aucune production St-Avertin a preparer pour ce jour.</div>';
+  }
+
+  mc.innerHTML = html;
+}
+
 function renderReappro() {
   const mc = document.getElementById('main-content');
   const isToday = (currentReapproDate === serviceDateISO());
   const prodsForBoutique = products.filter(function(p) {
-    return getProductSupply(p, currentBoutique) != null;
+    if (getProductSupply(p, currentBoutique) == null) return false;
+    // v20 : exclure les produits qui ont desormais leur propre ecran Previs / Traiteur
+    const s = getProductSupply(p, currentBoutique);
+    // Onglet Traiteur dedie gere le traiteur (on_site + veigne-origin)
+    if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
+    // Onglet Previs gere pains + viennoiseries + autres cat a_previs produits sur place
+    if (s === 'on_site' && categoryHasPrevis(p.category) && p.category !== 'traiteur') return false;
+    return true;
   });
   const bucketInterne = [], bucketLocal = [], bucketVeigne = [];
   prodsForBoutique.forEach(function(p) {
@@ -2004,14 +2265,14 @@ function renderReappro() {
 
   const nbLignes = Object.keys(reapprosData).filter(function(k) {
     const v = reapprosData[k];
-    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
+    return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '');
   }).length;
 
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changeReapproDate(-1)">&#8592;</button>'
     + '<div class="date-title">Reappro du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
-    + '<div class="date-sub">' + nbLignes + ' produit' + (nbLignes > 1 ? 's' : '') + ' saisi' + (nbLignes > 1 ? 's' : '') + '</div>'
+    + '<div class="date-sub">Stockable : surgeles, brioches, secs, ingredients' + (nbLignes > 0 ? ' - ' + nbLignes + ' saisi' + (nbLignes > 1 ? 's' : '') : '') + '</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changeReapproDate(1)">&#8594;</button>'
     + '</div>';
@@ -2151,44 +2412,73 @@ async function loadSales(b, date) {
   (data || []).forEach(function(r) {
     salesData[r.product_id] = {
       matin: r.matin == null ? '' : r.matin,
+      matin_auto: r.matin_auto == null ? null : r.matin_auto,
       aprem: r.aprem == null ? '' : r.aprem,
       reste_j1: r.reste_j1 == null ? '' : r.reste_j1,
       perte: r.perte == null ? '' : r.perte,
       rupture_heure: r.rupture_heure || ''
     };
   });
-  // v18: Auto-fill Matin depuis Previs (interne) ou Commander (reassort) de J-1 pour les produits sans Matin encore saisi
+  // v20 : Auto-fill Matin depuis Previs (J-1) - ResteJ1 (J-1), ou depuis Reappro envoye
   await autoFillMatinFromYesterday(b, date);
 }
 
 async function autoFillMatinFromYesterday(b, date) {
+  // v20 : Matin(J) = Previs(J-1) - ResteJ1(J-1) si produit sur place et categorie a_previs
+  //       Sinon (produit en reappro externe) : Matin(J) = Commander(J-1) validated + sent_at
+  //       Dans les deux cas : on stocke aussi matin_auto pour garder la trace
   const d = new Date(date + 'T12:00');
   d.setDate(d.getDate() - 1);
   const yISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  const ydData = await loadReapprosDate(b, yISO);
+
+  // Recuperer previs J-1 + reappros J-1 + reste_j1 J-1 en parallele
+  const [previsY, reapY, restesY] = await Promise.all([
+    loadPrevisRaw(b, yISO),
+    loadReapprosDate(b, yISO),
+    loadRestesJ1(b, date)
+  ]);
+  // Note : loadRestesJ1 fait deja le J-1 (il sort reste_j1 de la veille de `date`)
+
   const pidsFilled = [];
-  Object.keys(ydData).forEach(function(pid) {
-    const existingMatin = salesData[pid] && salesData[pid].matin !== '' && salesData[pid].matin != null;
-    if (existingMatin) return; // pas ecraser une saisie manuelle
-    const y = ydData[pid];
-    // Si produit interne (previs), prendre previs. Sinon prendre commander (reassort envoye).
-    const p = products.find(function(x) { return x.id === pid; });
-    if (!p) return;
+  products.forEach(function(p) {
+    const pid = p.id;
+    // Ne pas ecraser si matin est deja saisi (matin_auto servira d'indicateur mais matin manuel prevaut)
+    const existing = salesData[pid] || {};
+    if (existing.matin !== '' && existing.matin != null && existing.matin !== 0) return;
+
     const supply = getProductSupply(p, b);
     let matinVal = null;
-    if (supply === 'on_site' && y.previs !== '' && y.previs != null) {
-      matinVal = y.previs;
-    } else if ((supply === 'local' || supply === 'veigne') && y.commander && y.commander !== '' && y.sent_at) {
-      matinVal = y.commander;
+    let matinAutoVal = null;
+
+    // Cas 1 : produit sur place avec Previs
+    if (supply === 'on_site' && categoryHasPrevis(p.category)) {
+      const pv = previsY[pid] || 0;
+      const j1 = restesY[pid] || 0;
+      const net = Math.max(0, pv - j1);
+      if (pv > 0 || j1 > 0) {
+        matinVal = net;
+        matinAutoVal = net;
+      }
     }
+    // Cas 2 : produit arrive en reappro externe (local ou veigne)
+    else if ((supply === 'local' || supply === 'veigne')) {
+      const y = reapY[pid];
+      if (y && y.commander && y.commander !== '' && y.sent_at) {
+        const cmd = parseQty(y.commander);
+        if (cmd > 0) {
+          matinVal = cmd;
+          matinAutoVal = cmd;
+        }
+      }
+    }
+
     if (matinVal == null) return;
-    const asNum = parseQty(matinVal);
-    if (asNum === 0) return;
     if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
-    salesData[pid].matin = String(asNum);
+    salesData[pid].matin = String(matinVal);
+    salesData[pid].matin_auto = matinAutoVal;
     pidsFilled.push(pid);
   });
-  // Persiste silencieusement en BDD pour que ca apparaisse comme "Matin" normal
+
   if (pidsFilled.length) {
     const nowISO = new Date().toISOString();
     const rows = pidsFilled.map(function(pid) {
@@ -2196,6 +2486,7 @@ async function autoFillMatinFromYesterday(b, date) {
       return {
         tenant_id: TENANT_ID, boutique_id: b, product_id: pid, date: date,
         matin: parseInt(d2.matin) || 0,
+        matin_auto: d2.matin_auto == null ? null : d2.matin_auto,
         aprem: d2.aprem === '' ? null : parseInt(d2.aprem) || 0,
         reste_j1: d2.reste_j1 === '' ? null : parseInt(d2.reste_j1) || 0,
         perte: d2.perte === '' ? null : parseInt(d2.perte) || 0,
@@ -2364,9 +2655,22 @@ function renderVentes() {
       const perteTxt = perte === null ? '-' : (perte + '%');
       const ruptCls = ruptH ? 'has' : '';
       const ruptTxt = ruptH ? ruptH : '&#9203;';
+      // v20 : trace du calcul auto - badge si Matin != Matin auto
+      const matinAuto = d.matin_auto;
+      let matinTitle = '';
+      let matinBadge = '';
+      if (matinAuto != null) {
+        const mNum = parseQty(m);
+        if (String(matinAuto) === String(mNum)) {
+          matinTitle = 'Auto (Previs J-1 - ResteJ1 J-1)';
+        } else {
+          matinTitle = 'Auto etait : ' + matinAuto + ' (modifie a ' + mNum + ')';
+          matinBadge = '<span class="matin-auto-badge" title="' + matinTitle + '">' + matinAuto + '*</span>';
+        }
+      }
       html += '<div class="ventes-row">'
         + '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
-        + '<input type="number" inputmode="numeric" min="0" class="v-inp matin '    + (m  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin"    value="' + m  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
+        + '<div class="matin-cell-wrap"><input type="number" inputmode="numeric" min="0" class="v-inp matin '    + (m  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin"    value="' + m  + '" placeholder="-" title="' + matinTitle + '" oninput="handleSaleInput(this)" onfocus="this.select()">' + matinBadge + '</div>'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
@@ -3850,6 +4154,50 @@ async function saveEditProduct(pid) {
   showToast('Produit mis a jour', 'sync');
 }
 
+async function toggleCategoryPrevis(cat, current) {
+  setSyncStatus('syncing');
+  const newVal = !current;
+  const { error } = await supa.from('category_settings').upsert({
+    tenant_id: TENANT_ID, category: cat, a_previs: newVal
+  }, { onConflict: 'tenant_id,category' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  categorySettings[cat] = { a_previs: newVal };
+  renderAdminCategories();
+  showToast('Previs ' + (newVal ? 'active' : 'desactive') + ' pour ' + (CAT_LABELS[cat] || cat), 'sync');
+}
+
+function renderAdminCategories() {
+  const mc = document.getElementById('main-content');
+  const allCats = Array.from(new Set(adminProducts.concat(products).map(function(p) { return p.category; }).filter(Boolean)));
+  const known = Object.keys(CAT_LABELS);
+  known.forEach(function(c) { if (allCats.indexOf(c) === -1) allCats.push(c); });
+  allCats.sort(function(a, b) {
+    const ia = known.indexOf(a), ib = known.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  let html = '<div class="info-banner"><strong>Categories</strong><br>Active "Previs quotidien" sur les categories dont les produits sont frais a produire chaque jour (pains, viennoiseries cuites sur place, traiteur). Les produits stockables (surgeles, brioches, secs) doivent rester OFF.</div>';
+  html += '<div class="admin-table" style="margin-top:10px">';
+  html += '<div class="admin-table-header" style="grid-template-columns:1fr 100px">';
+  html += '<span>Categorie</span><span style="text-align:center">Previs</span>';
+  html += '</div>';
+  allCats.forEach(function(cat) {
+    const cfg = categorySettings[cat] || { a_previs: false };
+    const label = CAT_LABELS[cat] || cat;
+    const nbProducts = (adminProducts.length ? adminProducts : products).filter(function(p) { return p.category === cat; }).length;
+    html += '<div class="admin-row" style="grid-template-columns:1fr 100px">';
+    html += '<div><span class="prod-name">' + escapeHtml(label) + '</span>'
+      + ' <span class="prod-unit">(' + nbProducts + ' prod.)</span></div>';
+    html += '<button class="toggle-btn ' + (cfg.a_previs ? 'active' : '') + '" onclick="toggleCategoryPrevis(\'' + cat + '\', ' + cfg.a_previs + ')">'
+      + (cfg.a_previs ? 'ON' : 'OFF')
+      + '</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
 function renderAdminProducts() {
   const mc = document.getElementById('main-content');
 
@@ -4164,6 +4512,362 @@ function renderValorisation() {
     html += '</div>';
     html += '</div>';
   });
+
+  mc.innerHTML = html;
+}
+
+// === PREVIS (v20) ===
+
+async function loadPrevis(boutique, date) {
+  const { data, error } = await supa.from('previs').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', boutique).eq('service_date', date);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  previsData = {};
+  (data || []).forEach(function(r) {
+    previsData[r.product_id] = r.qty == null ? '' : String(r.qty).replace('.', ',');
+  });
+}
+
+async function loadPrevisRaw(boutique, date) {
+  const { data, error } = await supa.from('previs').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', boutique).eq('service_date', date);
+  if (error) return {};
+  const out = {};
+  (data || []).forEach(function(r) {
+    out[r.product_id] = r.qty == null ? 0 : parseQty(r.qty);
+  });
+  return out;
+}
+
+async function upsertPrevis(pid, boutique, date, raw) {
+  setSyncStatus('syncing');
+  const qty = raw === '' || raw == null ? null : parseQty(raw);
+  const { error } = await supa.from('previs').upsert({
+    tenant_id: TENANT_ID, boutique_id: boutique, product_id: pid,
+    service_date: date, qty: qty,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+}
+
+function subscribeRealtimePrevis() {
+  if (realtimeChannelPrevis) supa.removeChannel(realtimeChannelPrevis);
+  realtimeChannelPrevis = supa.channel('previs_rt')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'previs' }, async function(payload) {
+      const r = payload.new;
+      if (!r || r.updated_by === DEVICE_ID) return;
+      if (r.service_date !== currentPrevisDate) return;
+      if (r.boutique_id === currentBoutique) {
+        previsData[r.product_id] = r.qty == null ? '' : String(r.qty).replace('.', ',');
+        if (currentVue === 'previs') renderPrevis();
+      }
+      if (currentVue === 'traiteur' && (currentBoutique === 'veigne' || currentBoutique === 'tours')) {
+        // Pour le traiteur consolide, recharger les previs utiles
+        if (currentBoutique === 'veigne' && (r.boutique_id === 'veigne' || r.boutique_id === 'saint-avertin')) {
+          await reloadTraiteurData();
+          renderTraiteur();
+        } else if (currentBoutique === 'tours' && r.boutique_id === 'tours') {
+          await reloadTraiteurData();
+          renderTraiteur();
+        }
+      }
+      if (currentVue === 'previs_traiteur' && currentBoutique === 'saint-avertin' && r.boutique_id === 'saint-avertin') {
+        previsTraiteurDataSA[r.product_id] = r.qty == null ? '' : String(r.qty).replace('.', ',');
+        renderPrevisTraiteurSA();
+      }
+    }).subscribe();
+}
+
+async function reloadTraiteurData() {
+  if (currentBoutique === 'veigne') {
+    const [vData, saData] = await Promise.all([
+      loadPrevisRaw('veigne', currentPrevisDate),
+      loadPrevisRaw('saint-avertin', currentPrevisDate)
+    ]);
+    previsTraiteurDataV = {};
+    previsTraiteurDataSA = {};
+    Object.keys(vData).forEach(function(pid) { previsTraiteurDataV[pid] = String(vData[pid]).replace('.', ','); });
+    Object.keys(saData).forEach(function(pid) { previsTraiteurDataSA[pid] = String(saData[pid]).replace('.', ','); });
+  } else if (currentBoutique === 'tours') {
+    const tData = await loadPrevisRaw('tours', currentPrevisDate);
+    previsTraiteurDataV = {};
+    Object.keys(tData).forEach(function(pid) { previsTraiteurDataV[pid] = String(tData[pid]).replace('.', ','); });
+  }
+}
+
+async function changePrevisDate(delta) {
+  const d = new Date(currentPrevisDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentPrevisDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadPrevis(currentBoutique, currentPrevisDate);
+  renderPrevis();
+}
+
+async function changeTraiteurDate(delta) {
+  const d = new Date(currentPrevisDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentPrevisDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await reloadTraiteurData();
+  renderTraiteur();
+}
+
+async function changePrevisTraiteurSADate(delta) {
+  const d = new Date(currentPrevisDate + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  currentPrevisDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  await loadPrevis('saint-avertin', currentPrevisDate);
+  previsTraiteurDataSA = {};
+  Object.keys(previsData).forEach(function(pid) { previsTraiteurDataSA[pid] = previsData[pid]; });
+  renderPrevisTraiteurSA();
+}
+
+function handlePrevisInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  previsData[pid] = val;
+  el.classList.toggle('has-value', !!val);
+  clearTimeout(updateTimers['pv_' + pid]);
+  updateTimers['pv_' + pid] = setTimeout(function() { upsertPrevis(pid, currentBoutique, currentPrevisDate, val); }, 500);
+}
+
+function handleTraiteurPrevisInput(el) {
+  const pid = el.dataset.pid, val = el.value, boutique = el.dataset.boutique;
+  if (boutique === 'veigne' || boutique === 'tours') previsTraiteurDataV[pid] = val;
+  if (boutique === 'saint-avertin') previsTraiteurDataSA[pid] = val;
+  el.classList.toggle('has-value', !!val);
+  clearTimeout(updateTimers['tp_' + boutique + '_' + pid]);
+  updateTimers['tp_' + boutique + '_' + pid] = setTimeout(function() {
+    upsertPrevis(pid, boutique, currentPrevisDate, val);
+  }, 500);
+}
+
+function handlePrevisTraiteurSAInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  previsTraiteurDataSA[pid] = val;
+  previsData[pid] = val;
+  el.classList.toggle('has-value', !!val);
+  clearTimeout(updateTimers['pts_' + pid]);
+  updateTimers['pts_' + pid] = setTimeout(function() {
+    upsertPrevis(pid, 'saint-avertin', currentPrevisDate, val);
+  }, 500);
+}
+
+// Fetch reste_j1 de la veille pour un ensemble de produits
+async function loadRestesJ1(boutique, serviceDate) {
+  const d = new Date(serviceDate + 'T12:00');
+  d.setDate(d.getDate() - 1);
+  const yISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const { data, error } = await supa.from('sales').select('product_id, reste_j1')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', boutique).eq('date', yISO);
+  if (error) return {};
+  const out = {};
+  (data || []).forEach(function(r) {
+    if (r.reste_j1 != null && r.reste_j1 !== '') {
+      out[r.product_id] = parseQty(r.reste_j1);
+    }
+  });
+  return out;
+}
+
+let _previsJ1Cache = {};
+
+async function renderPrevis() {
+  const mc = document.getElementById('main-content');
+  const prods = getProductsForPrevisScreen(currentBoutique);
+  const isToday = (currentPrevisDate === serviceDateISO());
+
+  // Fetch J1 de la veille
+  const j1 = await loadRestesJ1(currentBoutique, currentPrevisDate);
+  _previsJ1Cache = j1;
+
+  // Grouper par categorie
+  const byCat = {};
+  prods.forEach(function(p) {
+    const c = p.category || 'autre';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(p);
+  });
+  const catOrder = Object.keys(CAT_LABELS);
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changePrevisDate(-1)">&#8592;</button>'
+    + '<div class="date-title">Previs du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
+    + '<div class="date-sub">Frais a produire pour le jour meme</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changePrevisDate(1)">&#8594;</button>'
+    + '</div>';
+
+  html += '<div class="info-banner"><strong>Previsionnel quotidien</strong><br>Ce que tu vas produire/cuire frais pour ' + escapeHtml(formatDateFr(currentPrevisDate)) + '. La case Matin des Ventes sera auto-pre-remplie avec (Previs - J1) et restera modifiable.</div>';
+
+  if (!prods.length) {
+    html += '<div class="empty-state">Aucun produit eligible au Previs dans cette boutique.<br>Va en BackOffice > Categories pour activer le Previs sur les categories concernees (pains, viennoiseries...) ET verifier que les produits ont bien <em>supply = "Sur place"</em>.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  cats.forEach(function(cat) {
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>' + escapeHtml(CAT_LABELS[cat] || cat) + '</span></div>';
+    html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1 hier</span><span class="col-lbl cmd">A produire</span></div>';
+    const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+    sorted.forEach(function(p) {
+      const pv = previsData[p.id] == null ? '' : previsData[p.id];
+      const j1v = j1[p.id] || 0;
+      html += '<div class="produit-row">';
+      html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
+      html += '<div class="previs-j1">' + (j1v > 0 ? j1v : '<span style="color:#bbb">-</span>') + '</div>';
+      html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  mc.innerHTML = html;
+}
+
+async function renderTraiteur() {
+  const mc = document.getElementById('main-content');
+  const isToday = (currentPrevisDate === serviceDateISO());
+  const isVeigne = (currentBoutique === 'veigne');
+  const isTours = (currentBoutique === 'tours');
+
+  let prods, j1V, j1SA;
+  if (isVeigne) {
+    prods = getProductsForTraiteurPrevis('veigne').concat(
+      getProductsForTraiteurPrevis('saint-avertin').filter(function(p) {
+        // pas de doublon
+        return getProductSupply(p, 'veigne') !== 'on_site';
+      })
+    );
+    // Dedupe
+    const seen = {};
+    prods = prods.filter(function(p) { if (seen[p.id]) return false; seen[p.id] = true; return true; });
+    [j1V, j1SA] = await Promise.all([
+      loadRestesJ1('veigne', currentPrevisDate),
+      loadRestesJ1('saint-avertin', currentPrevisDate)
+    ]);
+  } else if (isTours) {
+    prods = getProductsForTraiteurPrevis('tours');
+    j1V = await loadRestesJ1('tours', currentPrevisDate);
+    j1SA = {};
+  } else {
+    mc.innerHTML = '<div class="empty-state">Vue traiteur non disponible pour cette boutique.</div>';
+    return;
+  }
+
+  prods.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeTraiteurDate(-1)">&#8592;</button>'
+    + '<div class="date-title">Traiteur du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
+    + '<div class="date-sub">' + (isVeigne ? 'Consolide Veigne + St-Avertin' : 'Tours uniquement') + '</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeTraiteurDate(1)">&#8594;</button>'
+    + '</div>';
+
+  if (!prods.length) {
+    html += '<div class="empty-state">Aucun produit traiteur configure.<br>Verifie en BackOffice > Categories que "traiteur" a Previs = ON, et que les produits traiteur ont supply = Sur place pour la boutique productrice.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  if (isVeigne) {
+    html += '<div class="info-banner"><strong>Vue Traiteur consolidee</strong><br>Saisis ton previs Veigne et celui que St-Avertin a communique. Le total a produire = (Previs - J1).</div>';
+
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>Traiteur du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
+    html += '<div class="traiteur-grid-header">';
+    html += '<span class="col-lbl">Produit</span>';
+    html += '<span class="col-lbl">V prev.</span><span class="col-lbl">V J1</span>';
+    html += '<span class="col-lbl">SA prev.</span><span class="col-lbl">SA J1</span>';
+    html += '<span class="col-lbl cmd">Total</span>';
+    html += '</div>';
+
+    let grandTotal = 0;
+    prods.forEach(function(p) {
+      const pv = previsTraiteurDataV[p.id] == null ? '' : previsTraiteurDataV[p.id];
+      const psa = previsTraiteurDataSA[p.id] == null ? '' : previsTraiteurDataSA[p.id];
+      const pvN = parseQty(pv);
+      const psaN = parseQty(psa);
+      const j1vN = j1V[p.id] || 0;
+      const j1saN = j1SA[p.id] || 0;
+      const total = Math.max(0, pvN - j1vN) + Math.max(0, psaN - j1saN);
+      grandTotal += total;
+      html += '<div class="traiteur-row">';
+      html += '<div class="produit-name">' + escapeHtml(p.name) + '</div>';
+      html += '<input type="text" inputmode="decimal" class="qty-input ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+      html += '<div class="traiteur-j1">' + (j1vN > 0 ? j1vN : '-') + '</div>';
+      html += '<input type="text" inputmode="decimal" class="qty-input ' + (psa ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" value="' + escapeHtml(String(psa)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+      html += '<div class="traiteur-j1">' + (j1saN > 0 ? j1saN : '-') + '</div>';
+      html += '<div class="traiteur-total">' + (total > 0 ? '<strong>' + total + '</strong>' : '<span style="color:#bbb">-</span>') + '</div>';
+      html += '</div>';
+    });
+    html += '<div class="traiteur-grand-total"><span>Volume total a produire</span><strong>' + grandTotal + '</strong></div>';
+    html += '</div>';
+  } else {
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro"><span>Traiteur Tours du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
+    html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1</span><span class="col-lbl cmd">A produire</span></div>';
+    let grandTotal = 0;
+    prods.forEach(function(p) {
+      const pv = previsTraiteurDataV[p.id] == null ? '' : previsTraiteurDataV[p.id];
+      const pvN = parseQty(pv);
+      const j1vN = j1V[p.id] || 0;
+      const total = Math.max(0, pvN - j1vN);
+      grandTotal += total;
+      html += '<div class="produit-row">';
+      html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+      html += '<div class="previs-j1">' + (j1vN > 0 ? j1vN : '<span style="color:#bbb">-</span>') + '</div>';
+      html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="tours" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+      html += '</div>';
+    });
+    html += '<div class="traiteur-grand-total"><span>Volume total a produire</span><strong>' + grandTotal + '</strong></div>';
+    html += '</div>';
+  }
+
+  mc.innerHTML = html;
+}
+
+async function renderPrevisTraiteurSA() {
+  const mc = document.getElementById('main-content');
+  const isToday = (currentPrevisDate === serviceDateISO());
+  const prods = getProductsForTraiteurPrevis('saint-avertin');
+  prods.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changePrevisTraiteurSADate(-1)">&#8592;</button>'
+    + '<div class="date-title">Previs Traiteur du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
+    + '<div class="date-sub">Saisie St-Avertin pour vue consolidee Veigne</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changePrevisTraiteurSADate(1)">&#8594;</button>'
+    + '</div>';
+
+  html += '<div class="info-banner"><strong>Saisis ta prevision traiteur</strong><br>Cette saisie remonte directement chez Veigne pour consolidation. Veigne produira (Ton previs - Ton J1).</div>';
+
+  if (!prods.length) {
+    html += '<div class="empty-state">Aucun produit traiteur eligible pour St-Avertin.<br>Verifie en BackOffice que les sandwiches ont <em>supply St-Av = Veigne</em> et que la categorie traiteur a Previs = ON.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="section reappro-section">';
+  html += '<div class="section-header section-header-reappro"><span>Traiteur St-Avertin du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
+  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">Previs</span></div>';
+  prods.forEach(function(p) {
+    const pv = previsData[p.id] == null ? '' : previsData[p.id];
+    html += '<div class="produit-row">';
+    html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+    html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handlePrevisTraiteurSAInput(this)" onfocus="this.select()">';
+    html += '</div>';
+  });
+  html += '</div>';
 
   mc.innerHTML = html;
 }
