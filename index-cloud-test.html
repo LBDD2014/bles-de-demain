@@ -603,6 +603,115 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   pointer-events: none;
 }
 
+/* v20.1 Ventes refondue */
+.ventes-col-header.v201 {
+  display: grid;
+  grid-template-columns: 1.4fr 42px 42px 42px 42px 52px 40px 36px;
+  padding: 6px 10px; background: #F5F0E5; gap: 4px;
+}
+.ventes-row.v201 {
+  display: grid;
+  grid-template-columns: 1.4fr 42px 42px 42px 42px 52px 40px 36px;
+  padding: 6px 10px; gap: 4px; align-items: center;
+  border-bottom: 1px solid #F5F0E8;
+}
+.prod-with-x {
+  display: flex; align-items: center; gap: 4px;
+}
+.prod-with-x > div { flex: 1; }
+.btn-x-mask {
+  background: transparent; border: none; color: #D9A59A;
+  font-size: 13px; font-weight: 700;
+  padding: 2px 4px; cursor: pointer; font-family: inherit;
+  opacity: 0.55;
+}
+.btn-x-mask:active { opacity: 1; color: var(--red); }
+.v-prev-ro {
+  text-align: center; font-size: 14px; font-weight: 700;
+  color: var(--gold-dark); font-family: Georgia, serif;
+}
+.ventes-actions-bar {
+  padding: 8px 14px; display: flex; gap: 8px;
+  background: #FAF6EE; border-bottom: 1px solid #F0EAE0;
+}
+.ventes-actions-bar .btn-gold {
+  flex: 1; padding: 10px; font-size: 13px; font-weight: 700;
+}
+
+/* v20.1 Stock Local */
+.stock-actions-bar {
+  padding: 10px 14px; display: flex; gap: 8px;
+}
+.stock-col-header {
+  display: grid !important;
+  grid-template-columns: 1.3fr 55px 70px 55px 55px !important;
+  gap: 4px;
+}
+.stock-row {
+  display: grid !important;
+  grid-template-columns: 1.3fr 55px 70px 55px 55px !important;
+  gap: 4px; align-items: center;
+}
+.stock-cell {
+  text-align: center; font-size: 13px;
+  font-family: Georgia, serif;
+}
+.stock-cell.stock-red { color: var(--red); font-weight: 700; }
+.stock-cell.stock-orange { color: var(--orange); font-weight: 600; }
+.stock-cell.stock-green { color: var(--green); font-weight: 600; }
+.stock-row.stock-red { background: rgba(193,49,29,0.05); }
+.stock-row.stock-orange { background: rgba(233,127,31,0.05); }
+.stock-real-inp {
+  width: 100%; text-align: center; padding: 6px 4px;
+  font-size: 13px;
+}
+
+/* v20.1 Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-content {
+  background: white; border-radius: 14px; max-width: 480px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: var(--brown); color: white;
+  border-radius: 14px 14px 0 0;
+  font-family: Georgia, serif; font-size: 16px;
+}
+.modal-close {
+  background: none; border: none; color: white;
+  font-size: 22px; cursor: pointer; padding: 0 6px;
+}
+.modal-body {
+  padding: 16px; display: flex; flex-direction: column; gap: 4px;
+}
+
+/* v20.1 Livreur validations */
+.livreur-row {
+  display: grid;
+  grid-template-columns: 1.3fr 70px 40px;
+  gap: 8px; align-items: center;
+  padding: 8px 12px; border-bottom: 1px solid #F5F0E8;
+}
+.livreur-row.validated { background: rgba(49,136,82,0.08); opacity: 0.75; }
+.livreur-row.partial { background: rgba(233,127,31,0.1); }
+.livreur-qty {
+  text-align: center; font-size: 13px; padding: 6px;
+}
+.livreur-check {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid #E5DCC8; background: white;
+  font-size: 16px; color: #DBD5C6; cursor: pointer;
+  font-family: inherit;
+}
+.livreur-check.checked {
+  background: var(--green); color: white; border-color: var(--green);
+}
+
 /* v19.1 : Ticket impression commande speciale */
 .print-only-ticket { display: none; }
 @media print {
@@ -1254,7 +1363,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: v
   <div class="splash-logo">
     <img src="logo-splash.png.png" alt="Les Bles de Demain" onerror="this.style.display='none'">
   </div>
-  <div class="splash-sub">Cloud - Phase 12</div>
+  <div class="splash-sub">Cloud - Phase 12.1</div>
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
@@ -1429,30 +1538,33 @@ const MARKET_PREP_DAYS = 3;
 
 const NAV_ITEMS = {
   'veigne': [
-    { id: 'reappro',    lbl: 'Reappro' },
-    { id: 'previs',     lbl: 'Previs' },
-    { id: 'traiteur',   lbl: 'Traiteur' },
-    { id: 'ventes',     lbl: 'Ventes' },
-    { id: 'specials',   lbl: 'Special' },
-    { id: 'production', lbl: 'Prod.' },
-    { id: 'recap',      lbl: 'Recap' },
-    { id: 'livraison',  lbl: 'Livr.' },
-    { id: 'messages',   lbl: 'Msg' }
+    { id: 'reappro',      lbl: 'Reap.' },
+    { id: 'previs_pain',  lbl: 'Prev.Pain' },
+    { id: 'previs_pat',   lbl: 'Prev.Pat' },
+    { id: 'traiteur',     lbl: 'Traiteur' },
+    { id: 'ventes',       lbl: 'Ventes' },
+    { id: 'specials',     lbl: 'Special' },
+    { id: 'production',   lbl: 'Prod.' },
+    { id: 'recap',        lbl: 'Recap' },
+    { id: 'livraison',    lbl: 'Livr.' },
+    { id: 'messages',     lbl: 'Msg' }
   ],
   'tours': [
-    { id: 'reappro',  lbl: 'Reappro' },
-    { id: 'previs',   lbl: 'Previs' },
-    { id: 'traiteur', lbl: 'Traiteur' },
-    { id: 'ventes',   lbl: 'Ventes' },
-    { id: 'specials', lbl: 'Special' },
-    { id: 'recap',    lbl: 'Recap' }
+    { id: 'reappro',     lbl: 'Reap.' },
+    { id: 'previs_pain', lbl: 'Prev.Pain' },
+    { id: 'previs_pat',  lbl: 'Prev.Pat' },
+    { id: 'traiteur',    lbl: 'Traiteur' },
+    { id: 'ventes',      lbl: 'Ventes' },
+    { id: 'specials',    lbl: 'Special' },
+    { id: 'recap',       lbl: 'Recap' }
   ],
   'saint-avertin': [
-    { id: 'reappro',        lbl: 'Reappro' },
-    { id: 'previs_traiteur', lbl: 'Prev.Trait' },
-    { id: 'ventes',         lbl: 'Ventes' },
-    { id: 'specials',       lbl: 'Special' },
-    { id: 'recap',          lbl: 'Recap' }
+    { id: 'reappro_pain',     lbl: 'Reap.Pain' },
+    { id: 'reappro_vienn',    lbl: 'Reap.Vienn' },
+    { id: 'previs_traiteur',  lbl: 'Prev.Trait' },
+    { id: 'ventes',           lbl: 'Ventes' },
+    { id: 'specials',         lbl: 'Special' },
+    { id: 'recap',            lbl: 'Recap' }
   ],
   'livreur': [
     { id: 'tournee',  lbl: 'Tournee' },
@@ -1465,10 +1577,11 @@ const NAV_ITEMS = {
     { id: 'marche', lbl: 'Tableau marche' }
   ],
   'local': [
-    { id: 'production',    lbl: 'Prod.Reappro' },
+    { id: 'production',    lbl: 'Prod.Reap' },
     { id: 'production_sa', lbl: 'Prod.St-Av' },
+    { id: 'stock',         lbl: 'Stock' },
     { id: 'specials',      lbl: 'Special' },
-    { id: 'messages',      lbl: 'Messages' }
+    { id: 'messages',      lbl: 'Msg' }
   ],
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
@@ -1673,6 +1786,35 @@ function getProductsForPrevisScreen(boutique) {
   });
 }
 
+// v20.1 : 3 onglets previs avec routage strict par categorie
+function getPrevisCatGroup(cat) {
+  if (cat === 'pains' || cat === 'viennoiserie') return 'pain';
+  if (cat === 'patisserie_petits' || cat === 'patisserie_gros' || cat === 'gateaux_secs') return 'pat';
+  if (cat === 'traiteur') return 'traiteur';
+  return null;
+}
+
+function getProductsForPrevisGroup(boutique, group) {
+  return products.filter(function(p) {
+    if (!categoryHasPrevis(p.category)) return false;
+    if (getPrevisCatGroup(p.category) !== group) return false;
+    const supply = getProductSupply(p, boutique);
+    return supply === 'on_site';
+  });
+}
+
+// v20.1 : sections Reappro ventilees par groupe
+function getReapproSectionGroup(p, boutique) {
+  const cat = p.category;
+  const supply = getProductSupply(p, boutique);
+  if (supply === 'veigne') return 'patisserie_veigne'; // a commander a Veigne (gros gateaux Tours)
+  if (cat === 'ingredients' || cat === 'sec_traiteur') return 'ingredients';
+  if (cat === 'viennoiserie' || cat === 'brioches_special') return 'surgeles';
+  if (cat === 'patisserie_petits' || cat === 'patisserie_gros' || cat === 'gateaux_secs') return 'patisserie';
+  if (cat === 'pains') return 'pain';
+  return 'autre';
+}
+
 // Liste des produits traiteur a previs pour une boutique
 function getProductsForTraiteurPrevis(boutique) {
   return products.filter(function(p) {
@@ -1870,11 +2012,18 @@ async function setVue(v) {
     await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
     subscribeRealtimeSpecialOrders();
     renderSpecials();
+  } else if (v === 'previs_pain' || v === 'previs_pat') {
+    if (!currentPrevisDate) currentPrevisDate = currentDate;
+    const group = (v === 'previs_pain') ? 'pain' : 'pat';
+    await loadPrevis(currentBoutique, currentPrevisDate);
+    subscribeRealtimePrevis();
+    renderPrevisGroup(group);
   } else if (v === 'previs') {
+    // Retrocompat - redirige vers previs_pain
     if (!currentPrevisDate) currentPrevisDate = currentDate;
     await loadPrevis(currentBoutique, currentPrevisDate);
     subscribeRealtimePrevis();
-    renderPrevis();
+    renderPrevisGroup('pain');
   } else if (v === 'traiteur') {
     if (!currentPrevisDate) currentPrevisDate = currentDate;
     await reloadTraiteurData();
@@ -1891,6 +2040,14 @@ async function setVue(v) {
     if (!currentReapproDate) currentReapproDate = currentDate;
     await loadProductionSA();
     renderProductionSA();
+  } else if (v === 'reappro_pain' || v === 'reappro_vienn') {
+    // St-Avertin uniquement - 2 onglets reappro separes
+    await loadReappros(currentBoutique);
+    subscribeRealtimeReappro(currentBoutique);
+    renderReapproSA(v);
+  } else if (v === 'stock') {
+    await loadStockData();
+    renderStock();
   }
 }
 
@@ -2247,20 +2404,25 @@ function renderReappro() {
   const isToday = (currentReapproDate === serviceDateISO());
   const prodsForBoutique = products.filter(function(p) {
     if (getProductSupply(p, currentBoutique) == null) return false;
-    // v20 : exclure les produits qui ont desormais leur propre ecran Previs / Traiteur
     const s = getProductSupply(p, currentBoutique);
-    // Onglet Traiteur dedie gere le traiteur (on_site + veigne-origin)
+    // Exclusions v20 : les produits qui ont leur propre ecran Previs / Traiteur
     if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
-    // Onglet Previs gere pains + viennoiseries + autres cat a_previs produits sur place
     if (s === 'on_site' && categoryHasPrevis(p.category) && p.category !== 'traiteur') return false;
     return true;
   });
-  const bucketInterne = [], bucketLocal = [], bucketVeigne = [];
+
+  // v20.1 : ventiler par groupe de section au lieu de bucket par supply
+  const sections = {
+    patisserie_veigne: [],  // Tours : gros gateaux commandes a Veigne
+    pain: [],               // pain frais (St-Av, exceptionnellement)
+    surgeles: [],           // viennoiserie surgelee + brioches
+    patisserie: [],         // patisserie pour stock (gateaux secs aussi)
+    ingredients: [],        // ingredients + sec traiteur
+    autre: []
+  };
   prodsForBoutique.forEach(function(p) {
-    const s = getProductSupply(p, currentBoutique);
-    if (s === 'on_site') bucketInterne.push(p);
-    else if (s === 'local') bucketLocal.push(p);
-    else if (s === 'veigne') bucketVeigne.push(p);
+    const group = getReapproSectionGroup(p, currentBoutique);
+    (sections[group] || sections.autre).push(p);
   });
 
   const nbLignes = Object.keys(reapprosData).filter(function(k) {
@@ -2272,14 +2434,14 @@ function renderReappro() {
     + '<button class="date-nav" onclick="changeReapproDate(-1)">&#8592;</button>'
     + '<div class="date-title">Reappro du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
-    + '<div class="date-sub">Stockable : surgeles, brioches, secs, ingredients' + (nbLignes > 0 ? ' - ' + nbLignes + ' saisi' + (nbLignes > 1 ? 's' : '') : '') + '</div>'
+    + '<div class="date-sub">Stockable : surgeles, brioches, ingredients' + (nbLignes > 0 ? ' - ' + nbLignes + ' saisi' + (nbLignes > 1 ? 's' : '') : '') + '</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changeReapproDate(1)">&#8594;</button>'
     + '</div>';
 
   if (autoCopyLastWeekDate) {
     html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px solid var(--gold)">'
-      + '<strong>Valeurs reprises de la semaine derniere</strong> (' + escapeHtml(formatDateFr(autoCopyLastWeekDate)) + '). Ajuste si besoin, ca se sauvegarde des ta premiere modif.'
+      + '<strong>Valeurs reprises de la semaine derniere</strong> (' + escapeHtml(formatDateFr(autoCopyLastWeekDate)) + '). Ajuste si besoin.'
       + '</div>';
   } else if (!nbLignes) {
     html += '<div class="copy-prev-box"><div class="copy-prev-txt">Ecran vide. Tu peux reprendre :</div>'
@@ -2287,14 +2449,65 @@ function renderReappro() {
       + '<button class="btn-gold" onclick="copyFromLastWeekManual()">Semaine derniere</button></div></div>';
   }
 
-  if (bucketInterne.length) html += renderReapproSection('previs', 'Previsionnel interne - ' + BOUTIQUE_NAMES[currentBoutique], bucketInterne, null);
-  if (bucketLocal.length)   html += renderReapproSection('reassort', 'A commander au Local', bucketLocal, 'local');
-  if (bucketVeigne.length)  html += renderReapproSection('reassort', 'A commander a Veigne', bucketVeigne, 'veigne');
-
-  if (!bucketInterne.length && !bucketLocal.length && !bucketVeigne.length) {
-    html += '<div class="empty-state">Aucun produit configure pour cette boutique.<br>Verifie en BackOffice > Produits que l origine des produits est bien renseignee.</div>';
+  // Tours : Pâtisserie à Veigné en premier
+  if (sections.patisserie_veigne.length) {
+    html += renderReapproSection('reassort', 'A commander a Veigne (Patisserie)', sections.patisserie_veigne, 'veigne');
+  }
+  // Surgelés + brioches au Local
+  if (sections.surgeles.length) {
+    html += renderReapproSection('reassort', 'Surgeles, brioches, pain de mie (au Local)', sections.surgeles, 'local');
+  }
+  // Pâtisserie stock (pour Tours qui commande a Veigne si applicable, ou Local)
+  if (sections.patisserie.length) {
+    html += renderReapproSection('reassort', 'Patisserie', sections.patisserie, null);
+  }
+  // Pain
+  if (sections.pain.length) {
+    html += renderReapproSection('reassort', 'Pain (au Local)', sections.pain, 'local');
+  }
+  // Ingrédients
+  if (sections.ingredients.length) {
+    html += renderReapproSection('reassort', 'Ingredients (au Local)', sections.ingredients, 'local');
+  }
+  if (sections.autre.length) {
+    html += renderReapproSection('reassort', 'Autres', sections.autre, null);
   }
 
+  if (!prodsForBoutique.length) {
+    html += '<div class="empty-state">Aucun produit configure pour cette boutique.</div>';
+  }
+
+  mc.innerHTML = html;
+}
+
+// v20.1 : St-Avertin a 2 onglets reappro separes
+function renderReapproSA(tabId) {
+  const mc = document.getElementById('main-content');
+  const isToday = (currentReapproDate === serviceDateISO());
+  const isPain = (tabId === 'reappro_pain');
+  const wantedCats = isPain ? ['pains'] : ['viennoiserie', 'brioches_special'];
+
+  const prods = products.filter(function(p) {
+    if (wantedCats.indexOf(p.category) === -1) return false;
+    if (getProductSupply(p, 'saint-avertin') == null) return false;
+    return true;
+  });
+
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeReapproDate(-1)">&#8592;</button>'
+    + '<div class="date-title">' + (isPain ? 'Reap. Pain' : 'Reap. Viennoiserie/Brioche') + ' du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
+    + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
+    + '</div>'
+    + '<button class="date-nav" onclick="changeReapproDate(1)">&#8594;</button>'
+    + '</div>';
+
+  if (!prods.length) {
+    html += '<div class="empty-state">Aucun produit.<br>Verifie en BackOffice que ' + (isPain ? 'les pains' : 'les viennoiseries et brioches') + ' sont bien configures avec <em>supply St-Av</em> defini.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  html += renderReapproSection('reassort', (isPain ? 'Pain a commander au Local' : 'Viennoiseries + brioches a commander au Local'), prods, 'local');
   mc.innerHTML = html;
 }
 
@@ -2570,16 +2783,19 @@ function calcPertePct(pid) {
   return Math.round((p / total) * 100);
 }
 
+let _ventesPrevisCache = {};
+
 function updateVendu(pid) {
+  const prev = _ventesPrevisCache[pid] || 0;
   const el = document.getElementById('vendu_' + pid);
   if (el) {
-    const v = calcVendu(pid);
+    const v = calcVenduV201(pid, prev);
     if (v === null) { el.textContent = '-'; el.className = 'v-vendu zero'; }
     else { el.textContent = v; el.className = 'v-vendu'; }
   }
   const pe = document.getElementById('perte_' + pid);
   if (pe) {
-    const p = calcPertePct(pid);
+    const p = calcPerteV201(pid, prev);
     if (p === null) { pe.textContent = '-'; pe.className = 'v-perte zero'; }
     else {
       pe.textContent = p + '%';
@@ -2601,7 +2817,7 @@ function updateRuptureBtn(pid) {
   }
 }
 
-function renderVentes() {
+async function renderVentes() {
   const mc = document.getElementById('main-content');
   if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
     mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active.</div>'; return;
@@ -2612,15 +2828,23 @@ function renderVentes() {
     return ventesProducts.some(function(p) { return p.category === c; });
   });
 
+  // v20.1 : charger previs du jour pour affichage lecture seule
+  const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
+  _ventesPrevisCache = previsRaw;
+
   let html = '<div class="ventes-day-bar">'
     + '<button class="ventes-day-btn" onclick="changeDate(-1)">&lt;</button>'
     + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
     + '<button class="ventes-day-btn" onclick="changeDate(1)">&gt;</button>'
     + '</div>';
-  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Matin / Aprem / Reste J1 (revendus demain) / Perte (jetes) -> Vendu et % Perte automatiques. Tape l icone horloge pour saisir une rupture.</div>';
+  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prevision (depuis l onglet Previs) / Aprem / Reste J1 / Perte. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un previs (rien ne reste).</div>';
+
+  html += '<div class="ventes-actions-bar">'
+    + '<button class="btn-gold" onclick="importJ1Zero()">&#10003; Importer (J1=0 tous)</button>'
+    + '</div>';
 
   if (!presentCats.length) {
-    html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.<br><br>Charge tes produits Ventes via SQL Editor.</div>';
+    html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.</div>';
     mc.innerHTML = html;
     return;
   }
@@ -2632,10 +2856,10 @@ function renderVentes() {
     });
     if (!ps.length) return;
     html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
-      + '<div class="ventes-col-header">'
+      + '<div class="ventes-col-header v201">'
       + '<span class="col-lbl">Produit</span>'
-      + '<span class="col-lbl" style="color:var(--green)">Mat</span>'
-      + '<span class="col-lbl" style="color:var(--orange)">Apr</span>'
+      + '<span class="col-lbl" style="color:var(--gold-dark)">Prev.</span>'
+      + '<span class="col-lbl" style="color:var(--orange)">Aprem</span>'
       + '<span class="col-lbl" style="color:var(--gold-dark)">RJ1</span>'
       + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
       + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
@@ -2644,33 +2868,22 @@ function renderVentes() {
       + '</div>';
     ps.forEach(function(p) {
       const d = salesData[p.id] || {};
-      const m  = d.matin === '' || d.matin === undefined ? '' : d.matin;
+      const prev = previsRaw[p.id] || 0;
       const a  = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
       const rj = d.reste_j1 === '' || d.reste_j1 === undefined ? '' : d.reste_j1;
       const pe = d.perte === '' || d.perte === undefined ? '' : d.perte;
-      const vendu = calcVendu(p.id);
-      const perte = calcPertePct(p.id);
+      const vendu = calcVenduV201(p.id, prev);
+      const perte = calcPerteV201(p.id, prev);
       const ruptH = d.rupture_heure || '';
       const perteCls = perte === null ? 'zero' : (perte > 20 ? 'bad' : perte > 10 ? 'warn' : 'ok');
       const perteTxt = perte === null ? '-' : (perte + '%');
       const ruptCls = ruptH ? 'has' : '';
       const ruptTxt = ruptH ? ruptH : '&#9203;';
-      // v20 : trace du calcul auto - badge si Matin != Matin auto
-      const matinAuto = d.matin_auto;
-      let matinTitle = '';
-      let matinBadge = '';
-      if (matinAuto != null) {
-        const mNum = parseQty(m);
-        if (String(matinAuto) === String(mNum)) {
-          matinTitle = 'Auto (Previs J-1 - ResteJ1 J-1)';
-        } else {
-          matinTitle = 'Auto etait : ' + matinAuto + ' (modifie a ' + mNum + ')';
-          matinBadge = '<span class="matin-auto-badge" title="' + matinTitle + '">' + matinAuto + '*</span>';
-        }
-      }
-      html += '<div class="ventes-row">'
-        + '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
-        + '<div class="matin-cell-wrap"><input type="number" inputmode="numeric" min="0" class="v-inp matin '    + (m  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="matin"    value="' + m  + '" placeholder="-" title="' + matinTitle + '" oninput="handleSaleInput(this)" onfocus="this.select()">' + matinBadge + '</div>'
+      html += '<div class="ventes-row v201">'
+        + '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
+        + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\'") + '\')" title="Masquer ce produit">&#10006;</button>'
+        + '</div>'
+        + '<div class="v-prev-ro">' + (prev > 0 ? prev : '<span style="color:#bbb">-</span>') + '</div>'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
         + '<input type="number" inputmode="numeric" min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
@@ -2682,6 +2895,71 @@ function renderVentes() {
     html += '</div>';
   });
   mc.innerHTML = html;
+}
+
+// v20.1 : nouveau calcul Vendu base sur Previs au lieu de Matin
+function calcVenduV201(pid, previs) {
+  const d = salesData[pid] || {};
+  const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
+  const rj = d.reste_j1 === '' ? 0 : parseInt(d.reste_j1) || 0;
+  const pe = d.perte === '' ? null : parseInt(d.perte) || 0;
+  const pv = previs || 0;
+  if (pv === 0 && a === 0 && rj === 0 && pe == null) return null;
+  if (pe == null) return null;
+  return Math.max(0, pv + a - rj - pe);
+}
+
+function calcPerteV201(pid, previs) {
+  const d = salesData[pid] || {};
+  const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
+  const pe = d.perte === '' ? null : parseInt(d.perte) || 0;
+  if (pe == null) return null;
+  const total = (previs || 0) + a;
+  if (total === 0) return null;
+  return Math.round((pe / total) * 100);
+}
+
+// v20.1 : Importer global = J1=0 pour tous les produits avec previs
+async function importJ1Zero() {
+  if (!confirm('Mettre J1=0 (rien ne reste d hier) pour tous les produits qui ont un previs aujourd hui ?')) return;
+  setSyncStatus('syncing');
+  const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
+  const pidsToSet = Object.keys(previsRaw).filter(function(pid) { return previsRaw[pid] > 0; });
+  if (!pidsToSet.length) { showToast('Aucun previs pour aujourd hui', 'error'); return; }
+  const nowISO = new Date().toISOString();
+  const rows = pidsToSet.map(function(pid) {
+    const d = salesData[pid] || {};
+    return {
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
+      matin: d.matin == null || d.matin === '' ? null : parseInt(d.matin) || 0,
+      aprem: d.aprem === '' ? null : parseInt(d.aprem) || 0,
+      reste_j1: 0,  // <--- le cœur du bouton
+      perte: d.perte === '' ? null : parseInt(d.perte) || 0,
+      rupture_heure: d.rupture_heure || null,
+      updated_by: DEVICE_ID, updated_at: nowISO
+    };
+  });
+  const { error } = await supa.from('sales').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  pidsToSet.forEach(function(pid) {
+    if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+    salesData[pid].reste_j1 = 0;
+  });
+  renderVentes();
+  showToast(pidsToSet.length + ' produits valides J1=0', 'sync');
+}
+
+// v20.1 : masquer produit = passe actif=false via BackOffice
+async function maskProductInactive(pid, name) {
+  if (!confirm('Masquer "' + name + '" ? Il passera en inactif (disponible re-activation en BackOffice > Produits).')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ actif: false }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadProducts();
+  renderVentes();
+  showToast('"' + name + '" masque. Re-activation en BackOffice.', 'sync');
 }
 
 function handleSaleInput(el) {
@@ -3132,7 +3410,7 @@ function formatDeliveredTime(iso) {
   return String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
 }
 
-function renderLivraison() {
+async function renderLivraison() {
   const mc = document.getElementById('main-content');
   const stopsForTour = deliveriesData
     .filter(function(d) { return d.tour === currentTour; })
@@ -3153,9 +3431,14 @@ function renderLivraison() {
     + '<button class="tour-btn ' + (currentTour === 'autre' ? 'active' : '') + '" onclick="setTour(\'autre\')">Autre</button>'
     + '</div>';
 
+  // v20.1 : En mode livreur, valider les reappros produit par produit
+  if (isLivreurMode) {
+    html += await renderLivreurValidations();
+  }
+
   if (totalStops > 0) {
     const pct = Math.round(deliveredStops / totalStops * 100);
-    html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Progression : ' + deliveredStops + ' / ' + totalStops + ' arrets livres (' + pct + '%)</strong></div>';
+    html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Arrets tournee : ' + deliveredStops + ' / ' + totalStops + ' (' + pct + '%)</strong></div>';
   }
 
   if (!isLivreurMode) {
@@ -3205,6 +3488,139 @@ function renderLivraison() {
   }
 
   mc.innerHTML = html;
+}
+
+// v20.1 : Validation produit par produit côté livreur
+async function renderLivreurValidations() {
+  // Charger reappros du jour non encore livrés
+  const { data: reaps } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .eq('service_date', currentDate)
+    .not('sent_at', 'is', null); // ne montrer que les commandes ENVOYÉES
+  const byBoutique = {};
+  (reaps || []).forEach(function(r) {
+    const cmd = parseQty(r.commander);
+    if (cmd <= 0) return;
+    if (!byBoutique[r.boutique_id]) byBoutique[r.boutique_id] = [];
+    byBoutique[r.boutique_id].push(r);
+  });
+
+  const boutiques = Object.keys(byBoutique);
+  if (!boutiques.length) {
+    return '<div class="info-banner">Aucun reappro envoye pour ' + escapeHtml(formatDateFr(currentDate)) + '.</div>';
+  }
+
+  let html = '<div class="info-banner"><strong>Validations reappros</strong><br>Coche chaque ligne livree, ou appuie sur "Tout valider [Boutique]". Si manque, tape la qte reelle livree.</div>';
+
+  boutiques.forEach(function(bid) {
+    const items = byBoutique[bid];
+    const totalItems = items.length;
+    const validatedItems = items.filter(function(r) { return r.livre_at != null; }).length;
+    const progressPct = totalItems > 0 ? Math.round(validatedItems / totalItems * 100) : 0;
+    html += '<div class="section reappro-section">';
+    html += '<div class="section-header section-header-reappro">'
+      + '<span>' + escapeHtml(BOUTIQUE_NAMES[bid] || bid) + ' (' + validatedItems + '/' + totalItems + ')</span>'
+      + '<button class="send-btn' + (validatedItems === totalItems ? ' disabled' : '') + '" onclick="validateAllBoutique(\'' + bid + '\')">Tout valider</button>'
+      + '</div>';
+    items.sort(function(a, b) {
+      const pa = products.find(function(x) { return x.id === a.product_id; });
+      const pb = products.find(function(x) { return x.id === b.product_id; });
+      return (pa ? pa.name : '').localeCompare(pb ? pb.name : '');
+    });
+    items.forEach(function(r) {
+      const p = products.find(function(x) { return x.id === r.product_id; });
+      if (!p) return;
+      const cmdQty = parseQty(r.commander);
+      const livreeQty = r.qty_livree != null ? parseQty(r.qty_livree) : null;
+      const isLivre = r.livre_at != null;
+      const livreDisplay = livreeQty != null ? livreeQty : cmdQty;
+      const isPartial = livreeQty != null && livreeQty < cmdQty;
+      html += '<div class="livreur-row' + (isLivre ? ' validated' : '') + (isPartial ? ' partial' : '') + '">';
+      html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">Cmd : ' + cmdQty + '</div></div>';
+      html += '<input type="number" inputmode="numeric" min="0" class="qty-input livreur-qty" data-rid="' + r.id + '" placeholder="' + cmdQty + '" value="' + (livreeQty != null ? livreeQty : '') + '" onchange="updateLivreeQty(this)">';
+      html += '<button class="livreur-check ' + (isLivre ? 'checked' : '') + '" onclick="toggleLivre(\'' + r.id + '\', ' + isLivre + ')">&#10003;</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  return html;
+}
+
+async function toggleLivre(rid, wasLivre) {
+  setSyncStatus('syncing');
+  let update;
+  if (wasLivre) {
+    update = { livre_at: null, qty_livree: null, livre_by: null };
+  } else {
+    // Si une qty_livree est saisie sur l'input dans la page, la prendre
+    const input = document.querySelector('input[data-rid="' + rid + '"]');
+    let qtyLivreeVal = null;
+    if (input && input.value !== '' && input.value != null) {
+      qtyLivreeVal = parseQty(input.value);
+    }
+    update = { livre_at: new Date().toISOString(), livre_by: DEVICE_ID };
+    if (qtyLivreeVal != null) update.qty_livree = qtyLivreeVal;
+  }
+  const { error } = await supa.from('reappros').update(update).eq('id', rid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await maybeDeductStock(rid, wasLivre);
+  await setVue('tournee');
+}
+
+async function updateLivreeQty(el) {
+  const rid = el.dataset.rid;
+  const val = el.value.trim();
+  const qty = val === '' ? null : parseQty(val);
+  setSyncStatus('syncing');
+  const { error } = await supa.from('reappros').update({ qty_livree: qty }).eq('id', rid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+}
+
+async function validateAllBoutique(bid) {
+  if (!confirm('Valider TOUS les reappros de ' + (BOUTIQUE_NAMES[bid] || bid) + ' ? Les qtes livrees prennent les qtes commandees par defaut.')) return;
+  setSyncStatus('syncing');
+  const { data: reaps } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', bid).eq('service_date', currentDate)
+    .not('sent_at', 'is', null).is('livre_at', null);
+  const rows = (reaps || []).map(function(r) {
+    return {
+      id: r.id, tenant_id: r.tenant_id, boutique_id: r.boutique_id, product_id: r.product_id,
+      service_date: r.service_date,
+      avoir: r.avoir, commander: r.commander, previs: r.previs,
+      supplier: r.supplier, sent_at: r.sent_at,
+      livre_at: new Date().toISOString(),
+      qty_livree: parseQty(r.commander),
+      livre_by: DEVICE_ID,
+      updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+    };
+  });
+  if (rows.length) {
+    const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'id' });
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  }
+  setSyncStatus('ok');
+  // Déduire stock pour chaque produit suivi
+  for (const r of (reaps || [])) {
+    await maybeDeductStock(r.id, false);
+  }
+  await setVue('tournee');
+  showToast(rows.length + ' reappros valides', 'sync');
+}
+
+async function maybeDeductStock(rid, wasAlreadyLivre) {
+  // Si deja livré, on ne fait rien (la 1re validation a deja deduit)
+  if (wasAlreadyLivre) return;
+  // Charger la ligne pour savoir quel produit et quelle qte
+  const { data: r } = await supa.from('reappros').select('*').eq('id', rid).single();
+  if (!r) return;
+  const p = products.find(function(x) { return x.id === r.product_id; });
+  if (!p) return;
+  if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
+  // La deduction se fait automatiquement dans le calcul du stock Local (loadStockData prend deja qty_livree en compte)
+  // Rien a faire ici : le stock recalculera au prochain affichage.
 }
 
 // === MODAL RUPTURE ===
@@ -3996,7 +4412,27 @@ async function upsertProductPces(pid, rawVal) {
   setSyncStatus('ok');
   const p = adminProducts.find(function(x) { return x.id === pid; });
   if (p) { p.pces_per_caisse = newV; delete p._pces_draft; }
-  // Recharger products global pour que les menus caisse se mettent a jour
+  await loadProducts();
+}
+
+function handleProductSeuilInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  p._seuil_draft = val;
+  el.classList.toggle('has-prix', !!val);
+  clearTimeout(updateTimers['seuil_' + pid]);
+  updateTimers['seuil_' + pid] = setTimeout(function() { upsertProductSeuil(pid, val); }, 500);
+}
+
+async function upsertProductSeuil(pid, rawVal) {
+  setSyncStatus('syncing');
+  const newV = rawVal === '' || rawVal == null ? null : parseQty(rawVal);
+  const { error } = await supa.from('products').update({ seuil_stock: newV }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const p = adminProducts.find(function(x) { return x.id === pid; });
+  if (p) { p.seuil_stock = newV; delete p._seuil_draft; }
   await loadProducts();
 }
 
@@ -4345,6 +4781,8 @@ function renderAdminProducts() {
           + '<div class="admin-row-detail">'
           + '<div class="adr-cell"><span class="adr-lbl">Pces/caisse</span>'
           + '<input type="text" inputmode="decimal" class="adr-input" data-pid="' + p.id + '" value="' + escapeHtml(pcesVal) + '" placeholder="-" oninput="handleProductPcesInput(this)" onfocus="this.select()"></div>'
+          + '<div class="adr-cell"><span class="adr-lbl">Seuil stock</span>'
+          + '<input type="text" inputmode="decimal" class="adr-input" data-pid="' + p.id + '" value="' + escapeHtml(p._seuil_draft != null ? p._seuil_draft : (p.seuil_stock == null ? '' : String(p.seuil_stock).replace('.', ','))) + '" placeholder="-" oninput="handleProductSeuilInput(this)" onfocus="this.select()"></div>'
           + '<div class="adr-cell"><span class="adr-lbl">Veigne</span>'
           + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'veigne\', this.value)">' + supplyOpts(supVeigne) + '</select></div>'
           + '<div class="adr-cell"><span class="adr-lbl">Tours</span>'
@@ -4516,6 +4954,223 @@ function renderValorisation() {
   mc.innerHTML = html;
 }
 
+// === STOCK LOCAL (v20.1) ===
+
+let stockData = {
+  // par product_id : { last_real_qty, last_real_at, receipts_since, outputs_since, theoretical, seuil }
+};
+let stockReceiptModalOpen = false;
+let stockReceiptDraft = { product_id: '', qty: '', supplier: '', note: '' };
+
+async function loadStockData() {
+  // 1. Dernier inventaire de chaque produit
+  const { data: invRows } = await supa.from('stock_inventory').select('*').eq('tenant_id', TENANT_ID).order('inventoried_at', { ascending: false });
+  // 2. Receptions fournisseur (toutes)
+  const { data: recRows } = await supa.from('stock_receipts').select('*').eq('tenant_id', TENANT_ID);
+  // 3. Reappros envoyes aux boutiques (qty_livree si defini, sinon commander) - sert au calcul sorties
+  const { data: reapRows } = await supa.from('reappros').select('*').eq('tenant_id', TENANT_ID);
+
+  // Grouper par produit
+  const byProd = {};
+  (invRows || []).forEach(function(r) {
+    if (!byProd[r.product_id]) byProd[r.product_id] = { last_real: null };
+    if (!byProd[r.product_id].last_real) byProd[r.product_id].last_real = r; // le + recent
+  });
+  (recRows || []).forEach(function(r) {
+    if (!byProd[r.product_id]) byProd[r.product_id] = { last_real: null };
+    byProd[r.product_id].receipts = byProd[r.product_id].receipts || [];
+    byProd[r.product_id].receipts.push(r);
+  });
+  (reapRows || []).forEach(function(r) {
+    if (!byProd[r.product_id]) byProd[r.product_id] = { last_real: null };
+    byProd[r.product_id].reappros = byProd[r.product_id].reappros || [];
+    byProd[r.product_id].reappros.push(r);
+  });
+
+  stockData = {};
+  products.forEach(function(p) {
+    // Ne suivre stock QUE viennoiserie + brioches (Phil a confirme)
+    if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
+    const entry = byProd[p.id] || {};
+    const baseReal = entry.last_real ? parseQty(entry.last_real.qty_real) : 0;
+    const baseDate = entry.last_real ? entry.last_real.inventoried_at : null;
+    // Receptions depuis baseDate
+    let recSince = 0;
+    (entry.receipts || []).forEach(function(r) {
+      if (!baseDate || r.received_at > baseDate) recSince += parseQty(r.qty);
+    });
+    // Sorties reappros depuis baseDate (prend qty_livree si defini, sinon commander)
+    let outSince = 0;
+    (entry.reappros || []).forEach(function(r) {
+      if (!baseDate || (r.updated_at && r.updated_at > baseDate)) {
+        if (r.qty_livree != null) outSince += parseQty(r.qty_livree);
+        else if (r.commander != null) outSince += parseQty(r.commander);
+      }
+    });
+    const theo = baseReal + recSince - outSince;
+    stockData[p.id] = {
+      product: p,
+      last_real: baseReal,
+      last_real_at: baseDate,
+      receipts_since: recSince,
+      outputs_since: outSince,
+      theoretical: Math.max(0, theo),
+      seuil: p.seuil_stock != null ? parseQty(p.seuil_stock) : null
+    };
+  });
+}
+
+function renderStock() {
+  const mc = document.getElementById('main-content');
+  let html = '<div class="info-banner"><strong>Stock Local</strong><br>Theorique = auto (dernier reel + receptions - sorties). Reel = inventaire physique (saisis pour remettre la base a zero). Seuil en BackOffice > Produits.</div>';
+
+  html += '<div class="stock-actions-bar">'
+    + '<button class="btn-gold" onclick="openStockReceiptModal()">&#43; Reception fournisseur</button>'
+    + '</div>';
+
+  const entries = Object.keys(stockData).map(function(pid) { return stockData[pid]; });
+  if (!entries.length) {
+    html += '<div class="empty-state">Aucun produit suivi en stock.<br>Seules les viennoiseries et brioches sont suivies.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // Grouper par categorie
+  const byCat = { 'viennoiserie': [], 'brioches_special': [] };
+  entries.forEach(function(e) { byCat[e.product.category].push(e); });
+
+  html += '<div class="section reappro-section">';
+  html += '<div class="col-header stock-col-header">'
+    + '<span class="col-lbl">Produit</span>'
+    + '<span class="col-lbl">Theo.</span>'
+    + '<span class="col-lbl cmd">Reel</span>'
+    + '<span class="col-lbl">Ecart</span>'
+    + '<span class="col-lbl">Seuil</span>'
+    + '</div>';
+
+  ['viennoiserie', 'brioches_special'].forEach(function(cat) {
+    if (!byCat[cat] || !byCat[cat].length) return;
+    html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + '</div>';
+    byCat[cat].sort(function(a, b) { return a.product.name.localeCompare(b.product.name); });
+    byCat[cat].forEach(function(e) {
+      const theo = e.theoretical;
+      const real = e.last_real;
+      const ecart = real - theo;
+      const seuil = e.seuil;
+      // Alerte
+      let alertCls = '';
+      if (seuil != null && seuil > 0) {
+        const ratio = real / seuil;
+        if (ratio < 0.3) alertCls = 'stock-red';
+        else if (ratio < 0.5) alertCls = 'stock-orange';
+        else alertCls = 'stock-green';
+      }
+      let ecartCls = '';
+      if (Math.abs(ecart) > Math.max(theo * 0.1, 1)) ecartCls = 'stock-red';
+      html += '<div class="produit-row stock-row ' + alertCls + '">';
+      html += '<div><div class="produit-name">' + escapeHtml(e.product.name) + '</div></div>';
+      html += '<div class="stock-cell">' + theo + '</div>';
+      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input stock-real-inp" data-pid="' + e.product.id + '" placeholder="' + real + '" onchange="saveStockReal(this)"></div>';
+      html += '<div class="stock-cell ' + ecartCls + '">' + (ecart > 0 ? '+' : '') + ecart + '</div>';
+      html += '<div class="stock-cell">' + (seuil != null ? seuil : '<span style="color:#bbb">-</span>') + '</div>';
+      html += '</div>';
+    });
+  });
+
+  html += '</div>';
+  mc.innerHTML = html;
+
+  if (stockReceiptModalOpen) renderStockReceiptModal();
+}
+
+async function saveStockReal(el) {
+  const pid = el.dataset.pid;
+  const val = el.value.trim();
+  if (!val) return;
+  const qty = parseQty(val);
+  if (!confirm('Confirmer inventaire physique : ' + qty + ' ? Cela remet la base du stock a zero pour ce produit.')) { el.value = ''; return; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('stock_inventory').insert({
+    tenant_id: TENANT_ID, product_id: pid, qty_real: qty,
+    inventoried_at: new Date().toISOString(), updated_by: DEVICE_ID
+  });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadStockData();
+  renderStock();
+  showToast('Inventaire enregistre', 'sync');
+}
+
+function openStockReceiptModal() {
+  stockReceiptDraft = { product_id: '', qty: '', supplier: '', note: '' };
+  stockReceiptModalOpen = true;
+  renderStock();
+}
+
+function closeStockReceiptModal() {
+  stockReceiptModalOpen = false;
+  renderStock();
+}
+
+function handleStockReceiptField(field, val) {
+  stockReceiptDraft[field] = val;
+}
+
+async function saveStockReceipt() {
+  const d = stockReceiptDraft;
+  if (!d.product_id) { showToast('Choisis un produit', 'error'); return; }
+  const qty = parseQty(d.qty);
+  if (!qty || qty <= 0) { showToast('Quantite invalide', 'error'); return; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('stock_receipts').insert({
+    tenant_id: TENANT_ID, product_id: d.product_id, qty: qty,
+    received_at: new Date().toISOString(), supplier: d.supplier || null,
+    note: d.note || null, updated_by: DEVICE_ID
+  });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  stockReceiptModalOpen = false;
+  await loadStockData();
+  renderStock();
+  showToast('+' + qty + ' en stock', 'sync');
+}
+
+function renderStockReceiptModal() {
+  // Ajoute modal dans le body (une fois)
+  let modal = document.getElementById('stock-receipt-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'stock-receipt-modal';
+  modal.className = 'modal-overlay';
+  modal.onclick = function(e) { if (e.target === modal) closeStockReceiptModal(); };
+
+  const stockProds = products.filter(function(p) {
+    return p.category === 'viennoiserie' || p.category === 'brioches_special';
+  }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+  let html = '<div class="modal-content stock-modal">';
+  html += '<div class="modal-header"><strong>Reception fournisseur</strong><button onclick="closeStockReceiptModal()" class="modal-close">&times;</button></div>';
+  html += '<div class="modal-body">';
+  html += '<label class="sp-lbl">Produit *</label>';
+  html += '<select class="sp-input" onchange="handleStockReceiptField(\'product_id\', this.value)">';
+  html += '<option value="">-- choisir --</option>';
+  stockProds.forEach(function(p) {
+    html += '<option value="' + p.id + '"' + (stockReceiptDraft.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+  });
+  html += '</select>';
+  html += '<label class="sp-lbl" style="margin-top:10px">Quantite recue *</label>';
+  html += '<input type="text" inputmode="decimal" class="sp-input" placeholder="ex: 3" value="' + escapeHtml(stockReceiptDraft.qty) + '" oninput="handleStockReceiptField(\'qty\', this.value)">';
+  html += '<label class="sp-lbl" style="margin-top:10px">Fournisseur</label>';
+  html += '<input type="text" class="sp-input" placeholder="optionnel" value="' + escapeHtml(stockReceiptDraft.supplier) + '" oninput="handleStockReceiptField(\'supplier\', this.value)">';
+  html += '<label class="sp-lbl" style="margin-top:10px">Note</label>';
+  html += '<input type="text" class="sp-input" placeholder="optionnel" value="' + escapeHtml(stockReceiptDraft.note) + '" oninput="handleStockReceiptField(\'note\', this.value)">';
+  html += '<div class="sp-form-actions"><button class="btn-grey" onclick="closeStockReceiptModal()">Annuler</button><button class="btn-gold" onclick="saveStockReceipt()">Enregistrer</button></div>';
+  html += '</div></div>';
+
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
 // === PREVIS (v20) ===
 
 async function loadPrevis(boutique, date) {
@@ -4671,10 +5326,11 @@ async function loadRestesJ1(boutique, serviceDate) {
 
 let _previsJ1Cache = {};
 
-async function renderPrevis() {
+async function renderPrevisGroup(group) {
   const mc = document.getElementById('main-content');
-  const prods = getProductsForPrevisScreen(currentBoutique);
+  const prods = getProductsForPrevisGroup(currentBoutique, group);
   const isToday = (currentPrevisDate === serviceDateISO());
+  const groupLabel = (group === 'pain') ? 'Pain' : 'Patisserie';
 
   // Fetch J1 de la veille
   const j1 = await loadRestesJ1(currentBoutique, currentPrevisDate);
@@ -4695,17 +5351,17 @@ async function renderPrevis() {
 
   let html = '<div class="date-bar">'
     + '<button class="date-nav" onclick="changePrevisDate(-1)">&#8592;</button>'
-    + '<div class="date-title">Previs du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
+    + '<div class="date-title">Previs ' + groupLabel + ' du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
     + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
-    + '<div class="date-sub">Frais a produire pour le jour meme</div>'
+    + '<div class="date-sub">Frais a produire pour ce jour</div>'
     + '</div>'
     + '<button class="date-nav" onclick="changePrevisDate(1)">&#8594;</button>'
     + '</div>';
 
-  html += '<div class="info-banner"><strong>Previsionnel quotidien</strong><br>Ce que tu vas produire/cuire frais pour ' + escapeHtml(formatDateFr(currentPrevisDate)) + '. La case Matin des Ventes sera auto-pre-remplie avec (Previs - J1) et restera modifiable.</div>';
+  html += '<div class="info-banner"><strong>Previsionnel ' + groupLabel + '</strong><br>Ce que tu vas produire/cuire. Ventes Matin se remplira auto avec (Previs - J1 hier).</div>';
 
   if (!prods.length) {
-    html += '<div class="empty-state">Aucun produit eligible au Previs dans cette boutique.<br>Va en BackOffice > Categories pour activer le Previs sur les categories concernees (pains, viennoiseries...) ET verifier que les produits ont bien <em>supply = "Sur place"</em>.</div>';
+    html += '<div class="empty-state">Aucun produit ' + groupLabel + ' eligible.<br>Verifie en BackOffice > Categ. que la categorie a "Previs = ON" et que les produits sont en <em>supply = Sur place</em> pour cette boutique.</div>';
     mc.innerHTML = html;
     return;
   }
@@ -4729,6 +5385,9 @@ async function renderPrevis() {
 
   mc.innerHTML = html;
 }
+
+// Retrocompat
+async function renderPrevis() { return renderPrevisGroup('pain'); }
 
 async function renderTraiteur() {
   const mc = document.getElementById('main-content');
