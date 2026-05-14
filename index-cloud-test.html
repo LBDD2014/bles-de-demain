@@ -557,7 +557,7 @@ border-left: 3px solid var(--gold); border-radius: 6px;
 font-size: 12px; color: var(--brown);
 }
 
-/* v20 : Previs + Traiteur */
+/* v20 : Prévis + Traiteur */
 .previs-j1 {
 text-align: center; font-size: 13px; font-weight: 600;
 color: var(--brown-mid);
@@ -1369,27 +1369,27 @@ outline: none; border-color: var(--gold); background: white;
   <div class="splash-cloud">Synchronisation Supabase</div>
   <div class="splash-grid">
     <button class="splash-btn" onclick="enterBoutique('veigne')">
-      <div class="splash-name">Veigne</div>
-      <div class="splash-role">Reappro - Ventes - Livraison</div>
+      <div class="splash-name">Veigné</div>
+      <div class="splash-role">Réappro - Ventes - Livraison</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('tours')">
       <div class="splash-name">Tours</div>
-      <div class="splash-role">Reappro - Ventes</div>
+      <div class="splash-role">Réappro - Ventes</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('saint-avertin')">
       <div class="splash-name">St-Avertin</div>
-      <div class="splash-role">Reappro - Ventes</div>
+      <div class="splash-role">Réappro - Ventes</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('local')">
       <div class="splash-name">Le Local</div>
       <div class="splash-role">Production - Commandes du jour</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('amboise')">
-      <div class="splash-name">Marche Amboise</div>
+      <div class="splash-name">Marché Amboise</div>
       <div class="splash-role">Vendredi matin</div>
     </button>
     <button class="splash-btn" onclick="enterBoutique('beaujardin')">
-      <div class="splash-name">Marche Beaujardin</div>
+      <div class="splash-name">Marché Beaujardin</div>
       <div class="splash-role">Samedi matin</div>
     </button>
     <button class="splash-btn splash-btn-livreur" onclick="enterBoutique('livreur')">
@@ -1471,8 +1471,8 @@ outline: none; border-color: var(--gold); background: white;
 
 <div class="modal-overlay" id="add-stop-modal">
   <div class="modal">
-    <div class="modal-title" id="add-stop-title">Ajouter un arret</div>
-    <div class="modal-sub">Cet arret sera ajoute a la tournee selectionnee.</div>
+    <div class="modal-title" id="add-stop-title">Ajouter un arrêt</div>
+    <div class="modal-sub">Cet arrêt sera ajouté à la tournée sélectionnée.</div>
     <div class="add-stop-form">
       <label>Type</label>
       <select id="add-stop-type" onchange="onStopTypeChange()">
@@ -1485,7 +1485,7 @@ outline: none; border-color: var(--gold); background: white;
       <label>Adresse (optionnel)</label>
       <input type="text" id="add-stop-address" placeholder="Ex: 12 rue de la Paix">
       <label>Notes (optionnel)</label>
-      <textarea id="add-stop-notes" placeholder="Ex: Livraison avant 9h, sonner a la porte"></textarea>
+      <textarea id="add-stop-notes" placeholder="Ex: Livraison avant 9h, sonner à la porte"></textarea>
     </div>
     <div class="modal-actions" style="margin-top:14px">
       <button class="modal-action cancel" onclick="closeAddStopModal()">Annuler</button>
@@ -1517,18 +1517,18 @@ const CAT_LABELS = {
   'pains':             'Pains',
   'viennoiserie':      'Viennoiserie',
   'brioches_special':  'Brioches',
-  'patisserie_petits': 'Petits Gateaux',
-  'patisserie_gros':   'Gros Gateaux',
+  'patisserie_petits': 'Petits Gâteaux',
+  'patisserie_gros':   'Gros Gâteaux',
   'sec_traiteur':      'Sec & Traiteur',
-  'bases_patisserie':  'Bases Patisserie',
-  'ingredients':       'Ingredients',
+  'bases_patisserie':  'Bases Pâtisserie',
+  'ingredients':       'Ingrédients',
   'traiteur':          'Traiteur',
-  'gateaux_secs':      'Gateaux Secs'
+  'gateaux_secs':      'Gâteaux Secs'
 };
 
 const BOUTIQUE_NAMES = {
-  'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
-  'amboise': 'Marche Amboise', 'beaujardin': 'Marche Beaujardin',
+  'veigne': 'Veigné', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
+  'amboise': 'Marché Amboise', 'beaujardin': 'Marché Beaujardin',
   'local': 'Le Local', 'livreur': 'Livreur',
   'backoffice': 'Back Office'
 };
@@ -1569,7 +1569,7 @@ const NAV_ITEMS = {
     { id: 'recap',            lbl: 'Recap' }
   ],
   'livreur': [
-    { id: 'tournee',  lbl: 'Tournee' },
+    { id: 'tournée',  lbl: 'Tournee' },
     { id: 'messages', lbl: 'Messages' }
   ],
   'amboise': [
@@ -1587,7 +1587,7 @@ const NAV_ITEMS = {
   ],
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
-    { id: 'categories', lbl: 'Categ.' },
+    { id: 'catégories', lbl: 'Catég.' },
     { id: 'valorisation', lbl: 'Valo.' }
   ]
 };
@@ -1639,27 +1639,27 @@ let messagesData = [];
 let messageDraft = { content: '', urgent: false, stop_boutique: '' };
 let realtimeChannelMessages = null;
 
-// Reappro v18 : auto-copy last week hint
+// Réappro v18 : auto-copy last week hint
 let autoCopyLastWeekDate = null;
 
 // v19 : Commandes speciales
 let currentSpecialWeekStart = null;  // ISO lundi
-let selectedSpecialDay = null;       // ISO jour selectionne dans la bandeau
+let selectedSpecialDay = null;       // ISO jour sélectionné dans la bandeau
 let specialOrdersData = [];          // array de commandes avec items inclus
 let specialFormMode = null;          // null | 'new' | 'edit'
 let specialFormDraft = null;         // objet commande en cours
 let realtimeChannelSpecials = null;
 
 // v19.1 : mode fournisseur pour la vue Production
-// 'local' = Le Local fournisseur (comportement d'origine)
-// 'veigne' = Veigne fournisseur (commandes entrantes Tours + St-Av dont supply=veigne)
+// 'local' = Le Local fournisseur (comportement d origine)
+// 'veigne' = Veigné fournisseur (commandes entrantes Tours + St-Av dont supply=veigne)
 let productionSupplierMode = 'local';
 
-// v20 : Previs (frais quotidien) - table separee
+// v20 : Prévis (frais quotidien) - table separee
 let previsData = {};           // { product_id: qty } pour boutique + date courante
-let previsTraiteurDataSA = {}; // { product_id: qty } prevision traiteur St-Av (vue depuis Veigne ou St-Av)
-let previsTraiteurDataV  = {}; // { product_id: qty } prevision traiteur Veigne
-let currentPrevisDate = null;  // ISO de la date du service pour Previs
+let previsTraiteurDataSA = {}; // { product_id: qty } prevision traiteur St-Av (vue depuis Veigné ou St-Av)
+let previsTraiteurDataV  = {}; // { product_id: qty } prevision traiteur Veigné
+let currentPrevisDate = null;  // ISO de la date du service pour Prévis
 let realtimeChannelPrevis = null;
 let categorySettings = {};     // { category: { a_previs: bool } }
 
@@ -1723,14 +1723,14 @@ function formatWeekRange(monday) {
   return 'Semaine du ' + m.getDate() + ' ' + months[m.getMonth()] + ' au ' + s.getDate() + ' ' + months[s.getMonth()];
 }
 
-// Prochaine date d'un marche (DOW target) a partir d'aujourd'hui. Si marche est aujourd'hui, renvoie aujourd'hui.
+// Prochaine date d un marche (DOW target) à partir d aujourd hui. Si marche est aujourd hui, renvoie aujourd hui.
 function nextMarketDateFor(marketId) {
   const targetDow = MARKET_DAY_OF_WEEK[marketId];
   if (targetDow == null) return todayISO();
   const today = new Date(todayISO() + 'T12:00');
   const curDow = today.getDay();
   let delta = (targetDow - curDow + 7) % 7;
-  // Si le marche est aujourd'hui, on reste sur aujourd'hui. Sinon on va au prochain.
+  // Si le marche est aujourd hui, on reste sur aujourd hui. Sinon on va au prochain.
   const d = new Date(today);
   d.setDate(d.getDate() + delta);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -1778,7 +1778,7 @@ function categoryHasPrevis(cat) {
   return categorySettings[cat] && categorySettings[cat].a_previs === true;
 }
 
-// Liste des produits eligibles au Previs pour une boutique (hors traiteur)
+// Liste des produits éligibles au Prévis pour une boutique (hors traiteur)
 function getProductsForPrevisScreen(boutique) {
   return products.filter(function(p) {
     if (!categoryHasPrevis(p.category)) return false;
@@ -1788,7 +1788,7 @@ function getProductsForPrevisScreen(boutique) {
   });
 }
 
-// v20.1 : 3 onglets previs avec routage strict par categorie
+// v20.1 : 3 onglets previs avec routage strict par catégorie
 function getPrevisCatGroup(cat) {
   if (cat === 'pains' || cat === 'viennoiserie') return 'pain';
   if (cat === 'patisserie_petits' || cat === 'patisserie_gros' || cat === 'gateaux_secs') return 'pat';
@@ -1805,13 +1805,13 @@ function getProductsForPrevisGroup(boutique, group) {
   });
 }
 
-// v20.1 : sections Reappro ventilees par groupe
+// v20.1 : sections Réappro ventilees par groupe
 function getReapproSectionGroup(p, boutique) {
   const cat = p.category;
   const supply = getProductSupply(p, boutique);
-  if (supply === 'veigne') return 'patisserie_veigne'; // a commander a Veigne (gros gateaux Tours)
+  if (supply === 'veigne') return 'patisserie_veigne'; // à commander à Veigné (gros gâteaux Tours)
   if (cat === 'ingredients' || cat === 'sec_traiteur') return 'ingredients';
-  if (cat === 'viennoiserie' || cat === 'brioches_special') return 'surgeles';
+  if (cat === 'viennoiserie' || cat === 'brioches_special') return 'surgelés';
   if (cat === 'patisserie_petits' || cat === 'patisserie_gros' || cat === 'gateaux_secs') return 'patisserie';
   if (cat === 'pains') return 'pain';
   return 'autre';
@@ -1823,8 +1823,8 @@ function getProductsForTraiteurPrevis(boutique) {
     if (p.category !== 'traiteur') return false;
     if (!categoryHasPrevis(p.category)) return false;
     const supply = getProductSupply(p, boutique);
-    // Pour Veigne et Tours : ils produisent eux-memes -> on_site
-    // Pour St-Av : le traiteur vient de Veigne mais on veut qu'elle saisisse sa prevision
+    // Pour Veigné et Tours : ils produisent eux-memes -> on_site
+    // Pour St-Av : le traiteur vient de Veigné mais on veut qu'elle saisisse sa prevision
     return supply === 'on_site' || supply === 'veigne';
   });
 }
@@ -1925,7 +1925,7 @@ currentMarketDate = nextMarketDateFor(b);
 } else {
 currentMarketId = null;
 }
-await loadCategorySettings(); // v20 : charger config Previs par categorie
+await loadCategorySettings(); // v20 : charger config Prévis par catégorie
 document.getElementById('splash').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
 document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -1977,7 +1977,7 @@ renderVentes();
 } else if (v === 'recap') {
 await loadRecapWeek(currentBoutique, currentWeekStart);
 renderRecap();
-} else if (v === 'livraison' || v === 'tournee') {
+} else if (v === 'livraison' || v === 'tournée') {
 await loadDeliveries(currentDate);
 subscribeRealtimeDeliveries();
 renderLivraison();
@@ -1992,7 +1992,7 @@ renderProduction();
 } else if (v === 'produits') {
 await loadAdminProducts();
 renderAdminProducts();
-} else if (v === 'categories') {
+} else if (v === 'catégories') {
 await loadCategorySettings();
 renderAdminCategories();
 } else if (v === 'valorisation') {
@@ -2143,7 +2143,7 @@ const hasVal = (d.commander && d.commander !== '') || (d.avoir && d.avoir !== ''
 if (hasVal) pidsToSend.push(pid);
 });
 if (!pidsToSend.length) { showToast('Rien a envoyer', 'error'); return; }
-if (!confirm('Envoyer ' + pidsToSend.length + ' produit(s) au ' + (supplier === 'local' ? 'Local' : 'Veigne') + ' ?')) return;
+if (!confirm('Envoyer ' + pidsToSend.length + ' produit(s) au ' + (supplier === 'local' ? 'Local' : 'Veigné') + ' ?')) return;
 setSyncStatus('syncing');
 const nowISO = new Date().toISOString();
 const rows = pidsToSend.map(function(pid) {
@@ -2163,7 +2163,7 @@ if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; 
 setSyncStatus('ok');
 pidsToSend.forEach(function(pid) { reapprosData[pid].sent_at = nowISO; });
 renderReappro();
-showToast(pidsToSend.length + ' produits envoyes au ' + (supplier === 'local' ? 'Local' : 'Veigne'), 'sync');
+showToast(pidsToSend.length + ' produits envoyés au ' + (supplier === 'local' ? 'Local' : 'Veigné'), 'sync');
 }
 
 async function changeReapproDate(delta) {
@@ -2185,7 +2185,7 @@ async function copyFromLastWeekManual() {
 const d = new Date(currentReapproDate + 'T12:00');
 d.setDate(d.getDate() - 7);
 const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-await copyFromDateToCurrent(prevISO, 'la semaine derniere');
+await copyFromDateToCurrent(prevISO, 'la semaine dernière');
 }
 
 async function copyFromDateToCurrent(prevISO, label) {
@@ -2194,7 +2194,7 @@ const pids = Object.keys(prevData).filter(function(pid) {
 const v = prevData[pid];
 return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
 });
-if (!pids.length) { showToast('Aucune valeur a reprendre pour ' + prevISO, 'error'); return; }
+if (!pids.length) { showToast('Aucune valeur à reprendre pour ' + prevISO, 'error'); return; }
 if (!confirm('Reprendre les ' + pids.length + ' valeurs de ' + label + ' (' + prevISO + ') ?')) return;
 setSyncStatus('syncing');
 const rows = pids.map(function(pid) {
@@ -2282,10 +2282,10 @@ let productionSAData = { reappro: {}, previs_sa: {}, specials_sa: [] };
 
 async function loadProductionSA() {
 const date = currentReapproDate;
-// Reappros St-Av envoyes au Local
+// Réappros St-Av envoyés au Local
 const { data: reapData } = await supa.from('reappros').select('*')
 .eq('tenant_id', TENANT_ID).eq('boutique_id', 'saint-avertin').eq('service_date', date);
-// Previs St-Av (pour son propre traiteur)
+// Prévis St-Av (pour son propre traiteur)
 const { data: prevSA } = await supa.from('previs').select('*')
 .eq('tenant_id', TENANT_ID).eq('boutique_id', 'saint-avertin').eq('service_date', date);
 // Commandes speciales pour St-Av ce jour-la
@@ -2319,19 +2319,19 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeProductionDate(-1)">←</button>'
 + '<div class="date-title">Prod. St-Avertin du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
-+ '<div class="date-sub">Reappros + Previs + Cmd speciales</div>'
++ '<div class="date-sub">Réappros + Prévis + Cmd speciales</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changeProductionDate(1)">→</button>'
 + '</div>';
 
-// Section 1 : Reappros St-Av qui arrivent au Local
+// Section 1 : Réappros St-Av qui arrivent au Local
 const reapPids = Object.keys(productionSAData.reappro).filter(function(pid) {
 return productionSAData.reappro[pid] > 0;
 });
 if (reapPids.length) {
 html += '<div class="section reappro-section">';
-html += '<div class="section-header section-header-reappro"><span>Reappros St-Avertin a preparer</span></div>';
-html += '<div class="col-header" style="grid-template-columns:1fr 100px"><span class="col-lbl">Produit</span><span class="col-lbl cmd">Quantite</span></div>';
+html += '<div class="section-header section-header-reappro"><span>Réappros St-Avertin a preparer</span></div>';
+html += '<div class="col-header" style="grid-template-columns:1fr 100px"><span class="col-lbl">Produit</span><span class="col-lbl cmd">Quantité</span></div>';
 const reapProds = reapPids.map(function(pid) {
 const p = products.find(function(x) { return x.id === pid; });
 return p ? { p: p, qty: productionSAData.reappro[pid] } : null;
@@ -2358,14 +2358,14 @@ html += '</div>';
 html += '</div>';
 }
 
-// Section 2 : Previs traiteur St-Av (doit etre produit par Veigne mais le Local doit savoir)
+// Section 2 : Prévis traiteur St-Av (doit etre produit par Veigné mais le Local doit savoir)
 const prevPids = Object.keys(productionSAData.previs_sa).filter(function(pid) {
 return productionSAData.previs_sa[pid] > 0;
 });
 if (prevPids.length) {
 html += '<div class="section reappro-section">';
-html += '<div class="section-header section-header-reappro"><span>Previs Traiteur St-Av (info)</span></div>';
-html += '<div class="info-banner" style="margin:8px 14px;padding:8px 12px">Produit par Veigne. Info pour logistique tournee.</div>';
+html += '<div class="section-header section-header-reappro"><span>Prévis Traiteur St-Av (info)</span></div>';
+html += '<div class="info-banner" style="margin:8px 14px;padding:8px 12px">Produit par Veigné. Info pour logistique tournée.</div>';
 prevPids.forEach(function(pid) {
 const p = products.find(function(x) { return x.id === pid; });
 if (!p) return;
@@ -2409,7 +2409,7 @@ const isToday = (currentReapproDate === serviceDateISO());
 const prodsForBoutique = products.filter(function(p) {
 if (getProductSupply(p, currentBoutique) == null) return false;
 const s = getProductSupply(p, currentBoutique);
-// Exclusions v20 : les produits qui ont leur propre ecran Previs / Traiteur
+// Exclusions v20 : les produits qui ont leur propre ecran Prévis / Traiteur
 if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
 if (s === 'on_site' && categoryHasPrevis(p.category) && p.category !== 'traiteur') return false;
 return true;
@@ -2417,11 +2417,11 @@ return true;
 
 // v20.1 : ventiler par groupe de section au lieu de bucket par supply
 const sections = {
-patisserie_veigne: [],  // Tours : gros gateaux commandes a Veigne
+patisserie_veigne: [],  // Tours : gros gâteaux commandes à Veigné
 pain: [],               // pain frais (St-Av, exceptionnellement)
-surgeles: [],           // viennoiserie surgelee + brioches
-patisserie: [],         // patisserie pour stock (gateaux secs aussi)
-ingredients: [],        // ingredients + sec traiteur
+surgelés: [],           // viennoiserie surgelée + brioches
+patisserie: [],         // patisserie pour stock (gâteaux secs aussi)
+ingrédients: [],        // ingrédients + sec traiteur
 autre: []
 };
 prodsForBoutique.forEach(function(p) {
@@ -2437,9 +2437,9 @@ return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '');
 let html = '<div class="date-bar">'
 
 + '<button class="date-nav" onclick="changeReapproDate(-1)">←</button>'
-+ '<div class="date-title">Reappro du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
++ '<div class="date-title">Réappro du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(aujourd hui)</span>' : '')
-+ '<div class="date-sub">Stockable : surgeles, brioches, ingredients' + (nbLignes > 0 ? ' - ' + nbLignes + ' saisi' + (nbLignes > 1 ? 's' : '') : '') + '</div>'
++ '<div class="date-sub">Stockable : surgelés, brioches, ingrédients' + (nbLignes > 0 ? ' - ' + nbLignes + ' saisi' + (nbLignes > 1 ? 's' : '') : '') + '</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changeReapproDate(1)">→</button>'
 + '</div>';
@@ -2447,40 +2447,40 @@ let html = '<div class="date-bar">'
 if (autoCopyLastWeekDate) {
 html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px solid var(--gold)">'
 
-+ '<strong>Valeurs reprises de la semaine derniere</strong> (' + escapeHtml(formatDateFr(autoCopyLastWeekDate)) + '). Ajuste si besoin.'
++ '<strong>Valeurs reprises de la semaine dernière</strong> (' + escapeHtml(formatDateFr(autoCopyLastWeekDate)) + '). Ajuste si besoin.'
 + '</div>';
   } else if (!nbLignes) {
   html += '<div class="copy-prev-box"><div class="copy-prev-txt">Ecran vide. Tu peux reprendre :</div>'
 + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-gold" onclick="copyFromPreviousDay()">Hier</button>'
-+ '<button class="btn-gold" onclick="copyFromLastWeekManual()">Semaine derniere</button></div></div>';
++ '<button class="btn-gold" onclick="copyFromLastWeekManual()">Semaine dernière</button></div></div>';
   }
 
 // Tours : Pâtisserie à Veigné en premier
 if (sections.patisserie_veigne.length) {
-html += renderReapproSection('reassort', 'A commander a Veigne (Patisserie)', sections.patisserie_veigne, 'veigne');
+html += renderReapproSection('reassort', 'À commander à Veigné (Pâtisserie)', sections.patisserie_veigne, 'veigne');
 }
 // Surgelés + brioches au Local
-if (sections.surgeles.length) {
-html += renderReapproSection('reassort', 'Surgeles, brioches, pain de mie (au Local)', sections.surgeles, 'local');
+if (sections.surgelés.length) {
+html += renderReapproSection('reassort', 'Surgeles, brioches, pain de mie (au Local)', sections.surgelés, 'local');
 }
-// Pâtisserie stock (pour Tours qui commande a Veigne si applicable, ou Local)
+// Pâtisserie stock (pour Tours qui commande à Veigné si applicable, ou Local)
 if (sections.patisserie.length) {
-html += renderReapproSection('reassort', 'Patisserie', sections.patisserie, null);
+html += renderReapproSection('reassort', 'Pâtisserie', sections.patisserie, null);
 }
 // Pain
 if (sections.pain.length) {
 html += renderReapproSection('reassort', 'Pain (au Local)', sections.pain, 'local');
 }
 // Ingrédients
-if (sections.ingredients.length) {
-html += renderReapproSection('reassort', 'Ingredients (au Local)', sections.ingredients, 'local');
+if (sections.ingrédients.length) {
+html += renderReapproSection('reassort', 'Ingrédients (au Local)', sections.ingrédients, 'local');
 }
 if (sections.autre.length) {
 html += renderReapproSection('reassort', 'Autres', sections.autre, null);
 }
 
 if (!prodsForBoutique.length) {
-html += '<div class="empty-state">Aucun produit configure pour cette boutique.</div>';
+html += '<div class="empty-state">Aucun produit configuré pour cette boutique.</div>';
 }
 
 mc.innerHTML = html;
@@ -2509,12 +2509,12 @@ let html = '<div class="date-bar">'
 + '</div>';
 
 if (!prods.length) {
-html += '<div class="empty-state">Aucun produit.<br>Verifie en BackOffice que ' + (isPain ? 'les pains' : 'les viennoiseries et brioches') + ' sont bien configures avec <em>supply St-Av</em> defini.</div>';
+html += '<div class="empty-state">Aucun produit.<br>Vérifie en BackOffice que ' + (isPain ? 'les pains' : 'les viennoiseries et brioches') + ' sont bien configurés avec <em>supply St-Av</em> défini.</div>';
 mc.innerHTML = html;
 return;
 }
 
-html += renderReapproSection('reassort', (isPain ? 'Pain a commander au Local' : 'Viennoiseries + brioches a commander au Local'), prods, 'local');
+html += renderReapproSection('reassort', (isPain ? 'Pain à commander au Local' : 'Viennoiseries + brioches à commander au Local'), prods, 'local');
 mc.innerHTML = html;
 }
 
@@ -2543,26 +2543,26 @@ else pendingCount++;
 
 let html = '<div class="section reappro-section">'
 
-+ '<div class="section-header section-header-reappro"><span>' + escapeHtml(title) + '</span>';
++ '<div class="section-header section-header-reappro"><span>' + escapeHtml(title) + ' <span style="font-size:12px;color:#888;font-weight:500">(' + prods.length + ')</span></span>';
   if (type === 'reassort') {
   html += '<button class="send-btn' + (pendingCount === 0 ? ' disabled' : '') + '" onclick="sendReapproToSupplier(\'' + supplier + '\')">✓ Envoyer (' + pendingCount + ')</button>';
   }
   html += '</div>';
   if (type === 'reassort' && (sentCount > 0 || pendingCount > 0)) {
   html += '<div class="section-status">';
-  if (sentCount > 0) html += '<span class="status-sent">✓ ' + sentCount + ' envoye(s)</span>';
+  if (sentCount > 0) html += '<span class="status-sent">✓ ' + sentCount + ' envoyé(s)</span>';
   if (pendingCount > 0) html += '<span class="status-pending">⏳ ' + pendingCount + ' brouillon</span>';
   html += '</div>';
   }
   // Header de colonnes
   if (type === 'previs') {
-  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">A produire/plaquer</span></div>';
+  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">À produire/plaquer</span></div>';
   } else {
-  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J ai</span><span class="col-lbl cmd">Je commande</span></div>';
+  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">Stock</span><span class="col-lbl cmd">À commander</span></div>';
   }
 
 cats.forEach(function(cat) {
-html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
 const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
 sorted.forEach(function(p) { html += renderReapproRow(p, type); });
 });
@@ -2590,7 +2590,7 @@ opts.forEach(function(o) {
 const selected = (String(c) === o.val) ? ' selected' : '';
 html += '<option value="' + escapeHtml(o.val) + '"' + selected + '>' + escapeHtml(o.lbl) + '</option>';
 });
-// Si valeur courante n'est pas un multiple de caisse, ajouter option custom
+// Si valeur courante n est pas un multiple de caisse, ajouter option custom
 const exists = opts.some(function(o) { return o.val === String(c); });
 if (c && !exists) {
 html += '<option value="' + escapeHtml(c) + '" selected>' + escapeHtml(c) + ' pces</option>';
@@ -2640,12 +2640,12 @@ perte: r.perte == null ? '' : r.perte,
 rupture_heure: r.rupture_heure || ''
 };
 });
-// v20 : Auto-fill Matin depuis Previs (J-1) - ResteJ1 (J-1), ou depuis Reappro envoye
+// v20 : Auto-fill Matin depuis Prévis (J-1) - ResteJ1 (J-1), ou depuis Réappro envoyé
 await autoFillMatinFromYesterday(b, date);
 }
 
 async function autoFillMatinFromYesterday(b, date) {
-// v20 : Matin(J) = Previs(J-1) - ResteJ1(J-1) si produit sur place et categorie a_previs
+// v20 : Matin(J) = Prévis(J-1) - ResteJ1(J-1) si produit sur place et catégorie a_previs
 //       Sinon (produit en reappro externe) : Matin(J) = Commander(J-1) validated + sent_at
 //       Dans les deux cas : on stocke aussi matin_auto pour garder la trace
 const d = new Date(date + 'T12:00');
@@ -2658,12 +2658,12 @@ loadPrevisRaw(b, yISO),
 loadReapprosDate(b, yISO),
 loadRestesJ1(b, date)
 ]);
-// Note : loadRestesJ1 fait deja le J-1 (il sort reste_j1 de la veille de `date`)
+// Note : loadRestesJ1 fait déjà le J-1 (il sort reste_j1 de la veille de `date`)
 
 const pidsFilled = [];
 products.forEach(function(p) {
 const pid = p.id;
-// Ne pas ecraser si matin est deja saisi (matin_auto servira d'indicateur mais matin manuel prevaut)
+// Ne pas ecraser si matin est déjà saisi (matin_auto servira d'indicateur mais matin manuel prevaut)
 const existing = salesData[pid] || {};
 if (existing.matin !== '' && existing.matin != null && existing.matin !== 0) return;
 
@@ -2671,7 +2671,7 @@ const supply = getProductSupply(p, b);
 let matinVal = null;
 let matinAutoVal = null;
 
-// Cas 1 : produit sur place avec Previs
+// Cas 1 : produit sur place avec Prévis
 if (supply === 'on_site' && categoryHasPrevis(p.category)) {
 const pv = previsY[pid] || 0;
 const j1 = restesY[pid] || 0;
@@ -2825,7 +2825,7 @@ let html = '<div class="ventes-day-bar">'
 + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
 + '<button class="ventes-day-btn" onclick="changeDate(1)">></button>'
 + '</div>';
-  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prevision (depuis l onglet Previs) / Aprem / Reste J1 / Perte. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un previs (rien ne reste).</div>';
+  html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prévision (depuis l onglet Prévis) / Aprem / Reste J1 / Perte. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un prévis (rien ne reste).</div>';
 
 html += '<div class="ventes-actions-bar">'
 
@@ -2849,7 +2849,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">Prev.</span>'
-+ '<span class="col-lbl" style="color:var(--orange)">Aprem</span>'
++ '<span class="col-lbl" style="color:var(--orange)">Après-midi</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">RJ1</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
 + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
@@ -2887,7 +2887,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   mc.innerHTML = html;
   }
 
-// v20.1 : nouveau calcul Vendu base sur Previs au lieu de Matin
+// v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
 function calcVenduV201(pid, previs) {
 const d = salesData[pid] || {};
 const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
@@ -2911,11 +2911,11 @@ return Math.round((pe / total) * 100);
 
 // v20.1 : Importer global = J1=0 pour tous les produits avec previs
 async function importJ1Zero() {
-if (!confirm('Mettre J1=0 (rien ne reste d hier) pour tous les produits qui ont un previs aujourd hui ?')) return;
+if (!confirm('Mettre J1=0 (rien ne reste d hier) pour tous les produits qui ont un prévis aujourd hui ?')) return;
 setSyncStatus('syncing');
 const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
 const pidsToSet = Object.keys(previsRaw).filter(function(pid) { return previsRaw[pid] > 0; });
-if (!pidsToSet.length) { showToast('Aucun previs pour aujourd hui', 'error'); return; }
+if (!pidsToSet.length) { showToast('Aucun prévis pour aujourd hui', 'error'); return; }
 const nowISO = new Date().toISOString();
 const rows = pidsToSet.map(function(pid) {
 const d = salesData[pid] || {};
@@ -3145,7 +3145,7 @@ let html = '<div class="recap-week-bar">'
 html += '<div class="recap-toggle">'
 
 + '<button class="recap-toggle-btn ' + (recapMode === 'global' ? 'active' : '') + '" onclick="setRecapMode(\'global\')">Vue globale</button>'
-+ '<button class="recap-toggle-btn ' + (recapMode === 'category' ? 'active' : '') + '" onclick="setRecapMode(\'category\')">Par categorie</button>'
++ '<button class="recap-toggle-btn ' + (recapMode === 'category' ? 'active' : '') + '" onclick="setRecapMode(\'category\')">Par catégorie</button>'
 + '</div>';
 
 if (recapMode === 'category') {
@@ -3253,7 +3253,7 @@ html += '<div class="top-item"><div class="top-rank r' + (i+1) + '">' + (i+1) + 
   }
 
 if (weekStats.produit === 0) {
-html += '<div class="empty-state">Aucune donnee de vente pour cette semaine.<br><br>Saisis des ventes dans l onglet "Ventes" pour voir ton recap ici.</div>';
+html += '<div class="empty-state">Aucune donnée de vente pour cette semaine.<br><br>Saisis des ventes dans l onglet "Ventes" pour voir ton récap ici.</div>';
 }
 
 mc.innerHTML = html;
@@ -3276,8 +3276,8 @@ async function(payload) {
 if (payload.new && payload.new.updated_by === DEVICE_ID) return;
 if (payload.old && payload.old.updated_by === DEVICE_ID) return;
 await loadDeliveries(currentDate);
-if (currentVue === 'livraison' || currentVue === 'tournee') { renderLivraison(); }
-showToast('MAJ tournee d un autre appareil', 'sync');
+if (currentVue === 'livraison' || currentVue === 'tournée') { renderLivraison(); }
+showToast('MAJ tournée d un autre appareil', 'sync');
 }).subscribe();
 }
 
@@ -3294,7 +3294,7 @@ function setTour(t) { currentTour = t; renderLivraison(); }
 async function generateDefaultTour() {
 const stopsForTour = deliveriesData.filter(function(d) { return d.tour === currentTour; });
 if (stopsForTour.length > 0) {
-if (!confirm('Il y a deja ' + stopsForTour.length + ' arret(s) sur cette tournee. Ajouter les arrets par defaut (St-Avertin, Tours) ?')) return;
+if (!confirm('Il y a déjà ' + stopsForTour.length + ' arrêt(s) sur cette tournée. Ajouter les arrêts par defaut (St-Avertin, Tours) ?')) return;
 }
 const maxPos = stopsForTour.reduce(function(m, d) { return Math.max(m, d.position); }, 0);
 const toInsert = DEFAULT_STOPS.map(function(s, i) {
@@ -3392,7 +3392,7 @@ renderLivraison();
 }
 
 async function deleteStop(id) {
-if (!confirm('Supprimer cet arret ?')) return;
+if (!confirm('Supprimer cet arrêt ?')) return;
 setSyncStatus('syncing');
 const { error } = await supa.from('deliveries').delete().eq('id', id);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
@@ -3437,13 +3437,13 @@ html += await renderLivreurValidations();
 
 if (totalStops > 0) {
 const pct = Math.round(deliveredStops / totalStops * 100);
-html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Arrets tournee : ' + deliveredStops + ' / ' + totalStops + ' (' + pct + '%)</strong></div>';
+html += '<div class="info-banner" style="border-left-color:var(--green)"><strong>Arrets tournée : ' + deliveredStops + ' / ' + totalStops + ' (' + pct + '%)</strong></div>';
 }
 
 if (!isLivreurMode) {
 html += '<div class="tour-toolbar">'
 
-+ '<button class="tour-action primary" onclick="generateDefaultTour()">+ Generer tournee</button>'
++ '<button class="tour-action primary" onclick="generateDefaultTour()">+ Generer tournée</button>'
 + '<button class="tour-action" onclick="openAddStopModal()">+ Arret Pro</button>'
 + '</div>';
   }
@@ -3451,10 +3451,10 @@ html += '<div class="tour-toolbar">'
 if (stopsForTour.length === 0) {
 html += '<div class="empty-state">'
 
-+ 'Aucun arret sur cette tournee.<br><br>'
++ 'Aucun arrêt sur cette tournée.<br><br>'
 + (isLivreurMode
-  ? 'Le responsable doit d abord preparer la tournee.'
-  : 'Tape sur "Generer tournee" pour creer les arrets par defaut (St-Avertin puis Tours), ou "+ Arret Pro" pour ajouter un client.')
+  ? 'Le responsable doit d abord preparer la tournée.'
+  : 'Tape sur "Generer tournée" pour creer les arrêts par defaut (St-Avertin puis Tours), ou "+ Arret Pro" pour ajouter un client.')
 + '</div>';
   } else {
   stopsForTour.forEach(function(stop, idx) {
@@ -3509,7 +3509,7 @@ byBoutique[r.boutique_id].push(r);
 
 const boutiques = Object.keys(byBoutique);
 if (!boutiques.length) {
-return '<div class="info-banner">Aucun reappro envoye pour ' + escapeHtml(formatDateFr(currentDate)) + '.</div>';
+return '<div class="info-banner">Aucun reappro envoyé pour ' + escapeHtml(formatDateFr(currentDate)) + '.</div>';
 }
 
 let html = '<div class="info-banner"><strong>Validations reappros</strong><br>Coche chaque ligne livree, ou appuie sur "Tout valider [Boutique]". Si manque, tape la qte reelle livree.</div>';
@@ -3569,7 +3569,7 @@ const { error } = await supa.from('reappros').update(update).eq('id', rid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 await maybeDeductStock(rid, wasLivre);
-await setVue('tournee');
+await setVue('tournée');
 }
 
 async function updateLivreeQty(el) {
@@ -3609,12 +3609,12 @@ setSyncStatus('ok');
 for (const r of (reaps || [])) {
 await maybeDeductStock(r.id, false);
 }
-await setVue('tournee');
+await setVue('tournée');
 showToast(rows.length + ' reappros valides', 'sync');
 }
 
 async function maybeDeductStock(rid, wasAlreadyLivre) {
-// Si deja livré, on ne fait rien (la 1re validation a deja deduit)
+// Si déjà livré, on ne fait rien (la 1re validation a déjà deduit)
 if (wasAlreadyLivre) return;
 // Charger la ligne pour savoir quel produit et quelle qte
 const { data: r } = await supa.from('reappros').select('*').eq('id', rid).single();
@@ -3622,7 +3622,7 @@ if (!r) return;
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p) return;
 if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
-// La deduction se fait automatiquement dans le calcul du stock Local (loadStockData prend deja qty_livree en compte)
+// La deduction se fait automatiquement dans le calcul du stock Local (loadStockData prend déjà qty_livree en compte)
 // Rien a faire ici : le stock recalculera au prochain affichage.
 }
 
@@ -3664,7 +3664,7 @@ closeRuptureModal();
 
 // === PRODUCTION (Le Local) ===
 const PROD_BOUTIQUES = ['veigne', 'tours', 'saint-avertin'];
-const PROD_BOUTIQUE_LABELS = { 'veigne': 'Veigne', 'tours': 'Tours', 'saint-avertin': 'St-Avert.' };
+const PROD_BOUTIQUE_LABELS = { 'veigne': 'Veigné', 'tours': 'Tours', 'saint-avertin': 'St-Avert.' };
 
 async function loadProduction(date) {
 const { data, error } = await supa.from('reappros').select('*')
@@ -3872,19 +3872,19 @@ const vS = productionData['saint-avertin'] ? productionData['saint-avertin'][p.i
 
 // v19.1 : filtrer selon le mode fournisseur
 // Mode 'local' : on ne compte que les commandes dont supply=local
-// Mode 'veigne' : on ne compte que les commandes dont supply=veigne. Pour Veigne elle-meme, on prend son previs (produit sur place).
+// Mode 'veigne' : on ne compte que les commandes dont supply=veigne. Pour Veigné elle-même, on prend son previs (produit sur place).
 const supV = getProductSupply(p, 'veigne');
 const supT = getProductSupply(p, 'tours');
 const supS = getProductSupply(p, 'saint-avertin');
 
 let cV = 0, cT = 0, cS = 0;
 if (productionSupplierMode === 'local') {
-// Tolerance : si supply n'est pas configure (null), on garde l'ancien comportement
+// Tolérance : si supply n est pas configure (null), on garde l'ancien comportement
 cV = (supV == null || supV === 'local') ? parseQty(vV && vV.commander) : 0;
 cT = (supT == null || supT === 'local') ? parseQty(vT && vT.commander) : 0;
 cS = (supS == null || supS === 'local') ? parseQty(vS && vS.commander) : 0;
 } else if (productionSupplierMode === 'veigne') {
-// Veigne pour elle-meme : son previs interne (ce qu'elle prevoit de produire pour son propre compte)
+// Veigné pour elle-même : son previs interne (ce qu'elle prevoit de produire pour son propre compte)
 cV = (supV === 'on_site') ? parseQty(vV && vV.previs) : 0;
 cT = (supT === 'veigne') ? parseQty(vT && vT.commander) : 0;
 cS = (supS === 'veigne') ? parseQty(vS && vS.commander) : 0;
@@ -3928,7 +3928,7 @@ return r.total > 0 && dispo < r.total;
 const horizonTxt = activeMarkets.length
 ? 'Boutiques + marches (horizon ' + MARKET_PREP_DAYS + 'j)'
 : 'Commandes boutiques';
-const modeLabel = productionSupplierMode === 'veigne' ? 'Prod. Veigne' : 'Production Local';
+const modeLabel = productionSupplierMode === 'veigne' ? 'Prod. Veigné' : 'Production Local';
 
 let html = '<div class="date-bar">'
 
@@ -3944,14 +3944,14 @@ html += '<div class="prod-kpi-bar">'
 
 + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Commande</div></div>'
 + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + formatQty(volumeProduit) + '</div><div class="prod-kpi-lbl">Produit</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbManque > 0 ? 'var(--red)' : 'var(--green)') + '">' + nbManque + '</div><div class="prod-kpi-lbl">A produire</div></div>'
++ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbManque > 0 ? 'var(--red)' : 'var(--green)') + '">' + nbManque + '</div><div class="prod-kpi-lbl">À produire</div></div>'
 + '</div>';
 
 const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
 if (hasReportable) {
 html += '<div class="copy-stock-box">'
 
-+ '<div class="copy-stock-txt">Reporter le stock de la veille pour Ingredients, Sec & Traiteur, Gateaux Secs.</div>'
++ '<div class="copy-stock-txt">Reporter le stock de la veille pour Ingrédients, Sec & Traiteur, Gâteaux Secs.</div>'
 + '<button class="btn-gold-sm" onclick="copyStockFromPreviousDay()">Reporter les stocks d hier</button>'
 + '</div>';
   }
@@ -4001,7 +4001,7 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   headerHtml += '<span class="col-c col-total">Cmd</span>'
 + '<span class="col-c col-prod">Produit</span>'
 + '<span class="col-c col-stock">Stock</span>'
-+ '<span class="col-c col-ecart">Ecart</span>'
++ '<span class="col-c col-ecart">Écart</span>'
 + '</div>';
 
 html += '<div class="prod-table">' + headerHtml;
@@ -4160,7 +4160,7 @@ renderMarket();
 }
 
 async function copyFromLastMarket() {
-// Meme marche, semaine d'avant - on ne reprend que le volume "Marche" (walk-in)
+// Meme marche, semaine d'avant - on ne reprend que le volume "Marché" (walk-in)
 // et les notes produit. Les commandes clients ne se reportent pas (specifiques chaque semaine).
 const d = new Date(currentMarketDate + 'T12:00');
 d.setDate(d.getDate() - 7);
@@ -4171,10 +4171,10 @@ const v = prevData[pid];
 return (v.marche && v.marche !== '');
 });
 if (!pids.length) {
-showToast('Aucune base Marche a reprendre du ' + prevISO, 'error');
+showToast('Aucune base Marché à reprendre du ' + prevISO, 'error');
 return;
 }
-if (!confirm('Reprendre la base "Marche" de ' + pids.length + ' produit(s) du marche du ' + prevISO + ' ?')) return;
+if (!confirm('Reprendre la base "Marché" de ' + pids.length + ' produit(s) du marche du ' + prevISO + ' ?')) return;
 setSyncStatus('syncing');
 const rows = pids.map(function(pid) {
 return {
@@ -4191,7 +4191,7 @@ if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; 
 setSyncStatus('ok');
 await loadMarketEntries(currentMarketId, currentMarketDate);
 renderMarket();
-showToast('Base Marche reprise depuis ' + prevISO, 'sync');
+showToast('Base Marché reprise depuis ' + prevISO, 'sync');
 }
 
 function handleMarketInput(el) {
@@ -4257,7 +4257,7 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeMarketDate(-1)">←</button>'
 + '<div class="date-title">' + escapeHtml(marketLabel) + ' - <strong>' + escapeHtml(formatDateFr(currentMarketDate)) + '</strong>'
 + (isMarketDay ? ' <span class="date-today">(jour de marche)</span>' : '')
-+ '<div class="date-sub">Marche / Commande / Cmd tranchee / Pertes</div>'
++ '<div class="date-sub">Marché / Commande / Cmd tranchée / Pertes</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changeMarketDate(1)">→</button>'
 + '</div>';
@@ -4272,7 +4272,7 @@ html += '<div class="prod-kpi-bar">'
 // Bouton reprendre la semaine d'avant
 html += '<div class="copy-stock-box">'
 
-+ '<div class="copy-stock-txt">Reprendre la base "Marche" du meme marche la semaine derniere.</div>'
++ '<div class="copy-stock-txt">Reprendre la base "Marché" du même marche la semaine dernière.</div>'
 + '<button class="btn-gold-sm" onclick="copyFromLastMarket()">Reprendre la semaine d avant</button>'
 + '</div>';
 
@@ -4315,7 +4315,7 @@ html += '<div class="market-table">'
 
 + '<div class="market-table-header">'
 + '<span>Produit</span>'
-+ '<span class="col-c" style="color:var(--blue)">Marche</span>'
++ '<span class="col-c" style="color:var(--blue)">Marché</span>'
 + '<span class="col-c" style="color:var(--gold-dark)">Cmd</span>'
 + '<span class="col-c" style="color:var(--gold-dark)">Cmd tr.</span>'
 + '<span class="col-c" style="color:var(--red)">Pertes</span>'
@@ -4347,7 +4347,7 @@ mc.innerHTML = html;
 }
 
 // === MARCHES - Anticipation pour Le Local ===
-// Charge les commandes marche a venir dans les MARKET_PREP_DAYS jours suivant la date du Local
+// Charge les commandes marche à venir dans les MARKET_PREP_DAYS jours suivant la date du Local
 async function loadMarketUpcoming(localDate) {
 marketUpcomingData = {};
 const startD = new Date(localDate + 'T12:00');
@@ -4360,7 +4360,7 @@ const { data, error } = await supa.from('market_entries').select('*')
 .gte('service_date', startISO).lte('service_date', endISO);
 if (error) return;
 (data || []).forEach(function(r) {
-// Total a produire pour ce produit/marche/date = marche + commande + commande_tranchee
+// Total à produire pour ce produit/marche/date = marche + commande + commande_tranchee
 const total = (r.marche || 0) + (r.commande || 0) + (r.commande_tranchee || 0);
 if (total === 0) return;
 if (!marketUpcomingData[r.market_id]) marketUpcomingData[r.market_id] = { _date: r.service_date, _products: {} };
@@ -4500,7 +4500,7 @@ adminNewProductDraft[field] = val;
 async function saveNewProduct() {
 const d = adminNewProductDraft;
 if (!d.name || !d.name.trim()) { showToast('Nom obligatoire', 'error'); return; }
-if (!d.category || !d.category.trim()) { showToast('Categorie obligatoire', 'error'); return; }
+if (!d.category || !d.category.trim()) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
 const row = {
 tenant_id: TENANT_ID,
@@ -4525,14 +4525,14 @@ showToast('Produit cree', 'sync');
 async function deleteProduct(pid) {
 const p = adminProducts.find(function(x) { return x.id === pid; });
 if (!p) return;
-if (!confirm('Supprimer DEFINITIVEMENT "' + p.name + '" ?\n\nATTENTION : si ce produit a un historique (commandes, ventes, production), la suppression sera impossible et je te proposerai de le desactiver a la place.')) return;
+if (!confirm('Supprimer DEFINITIVEMENT "' + p.name + '" ?\n\nATTENTION : si ce produit a un historique (commandes, ventes, production), la suppression sera impossible et je te proposerai de le desactiver à la place.')) return;
 setSyncStatus('syncing');
 const { error } = await supa.from('products').delete().eq('id', pid);
 if (error) {
 setSyncStatus('error');
 const msg = (error.message || '').toLowerCase();
 if (msg.indexOf('foreign') !== -1 || msg.indexOf('violates') !== -1 || msg.indexOf('referenced') !== -1) {
-if (confirm('Ce produit a de l historique en base.\nLe DESACTIVER a la place (il disparaitra des ecrans mais l historique reste) ?')) {
+if (confirm('Ce produit a de l historique en base.\nLe DESACTIVER à la place (il disparaitra des ecrans mais l historique reste) ?')) {
 const { error: e2 } = await supa.from('products').update({ actif: false }).eq('id', pid);
 if (e2) { showToast(e2.message, 'error'); return; }
 await loadAdminProducts();
@@ -4597,7 +4597,7 @@ const category = catEl.value.trim();
 const unit = unitEl ? (unitEl.value.trim() || null) : null;
 const usage = usageEl.value;
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
-if (!category) { showToast('Categorie obligatoire', 'error'); return; }
+if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
 const { error } = await supa.from('products').update({ name: name, category: category, unit: unit, usage: usage }).eq('id', pid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
@@ -4619,7 +4619,7 @@ if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; 
 setSyncStatus('ok');
 categorySettings[cat] = { a_previs: newVal };
 renderAdminCategories();
-showToast('Previs ' + (newVal ? 'active' : 'desactive') + ' pour ' + (CAT_LABELS[cat] || cat), 'sync');
+showToast('Prévis ' + (newVal ? 'active' : 'desactive') + ' pour ' + (CAT_LABELS[cat] || cat), 'sync');
 }
 
 function renderAdminCategories() {
@@ -4632,10 +4632,10 @@ const ia = known.indexOf(a), ib = known.indexOf(b);
 return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 });
 
-let html = '<div class="info-banner"><strong>Categories</strong><br>Active "Previs quotidien" sur les categories dont les produits sont frais a produire chaque jour (pains, viennoiseries cuites sur place, traiteur). Les produits stockables (surgeles, brioches, secs) doivent rester OFF.</div>';
+let html = '<div class="info-banner"><strong>Catégories</strong><br>Active "Prévis quotidien" sur les catégories dont les produits sont frais à produire chaque jour (pains, viennoiseries cuites sur place, traiteur). Les produits stockables (surgelés, brioches, secs) doivent rester OFF.</div>';
 html += '<div class="admin-table" style="margin-top:10px">';
 html += '<div class="admin-table-header" style="grid-template-columns:1fr 100px">';
-html += '<span>Categorie</span><span style="text-align:center">Previs</span>';
+html += '<span>Catégorie</span><span style="text-align:center">Prévis</span>';
 html += '</div>';
 allCats.forEach(function(cat) {
 const cfg = categorySettings[cat] || { a_previs: false };
@@ -4686,15 +4686,15 @@ html += '<div class="new-prod-form">'
 + '<div class="npf-title">Nouveau produit</div>'
 + '<div class="npf-row"><label class="npf-lbl">Nom *</label>'
 + '<input id="new-prod-name" type="text" class="npf-input" value="' + escapeHtml(adminNewProductDraft.name) + '" oninput="handleNewProductField(\'name\', this.value)" placeholder="ex : Pain de campagne"></div>'
-+ '<div class="npf-row"><label class="npf-lbl">Categorie *</label>'
++ '<div class="npf-row"><label class="npf-lbl">Catégorie *</label>'
 + '<select class="npf-input" onchange="handleNewProductField(\'category\', this.value)">'
 + '<option value="">- Choisir -</option>' + catOptions + '</select></div>'
 + '<div class="npf-row"><label class="npf-lbl">Unite</label>'
 + '<input type="text" class="npf-input" value="' + escapeHtml(adminNewProductDraft.unit) + '" oninput="handleNewProductField(\'unit\', this.value)" placeholder="ex : 400g, piece, kg..."></div>'
 + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
 + '<select class="npf-input" onchange="handleNewProductField(\'usage\', this.value)">'
-+ '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Reappro + Ventes</option>'
-+ '<option value="reappro"' + (adminNewProductDraft.usage === 'reappro' ? ' selected' : '') + '>Reappro uniquement</option>'
++ '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
++ '<option value="reappro"' + (adminNewProductDraft.usage === 'reappro' ? ' selected' : '') + '>Réappro uniquement</option>'
 + '<option value="ventes"' + (adminNewProductDraft.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
 + '</select></div>'
 + '<div class="npf-actions">'
@@ -4758,7 +4758,7 @@ function supplyOpts(currentVal) {
 const opts = [
 { v: 'on_site', l: 'Sur place' },
 { v: 'local', l: 'Local' },
-{ v: 'veigne', l: 'Veigne' },
+{ v: 'veigne', l: 'Veigné' },
 { v: 'none', l: 'Non vendu' }
 ];
 return opts.map(function(o) {
@@ -4773,13 +4773,13 @@ if (isEditing) {
   html += '<div class="admin-row-edit">'
     + '<div class="are-title">Edition : ' + escapeHtml(p.name) + '</div>'
     + '<div class="npf-row"><label class="npf-lbl">Nom *</label><input id="edit-name-' + p.id + '" type="text" class="npf-input" value="' + escapeHtml(p.name) + '"></div>'
-    + '<div class="npf-row"><label class="npf-lbl">Categorie *</label>'
+    + '<div class="npf-row"><label class="npf-lbl">Catégorie *</label>'
     + '<select id="edit-cat-' + p.id + '" class="npf-input"><option value="">- Choisir -</option>' + catOptions + '</select></div>'
     + '<div class="npf-row"><label class="npf-lbl">Unite</label><input id="edit-unit-' + p.id + '" type="text" class="npf-input" value="' + escapeHtml(p.unit || '') + '"></div>'
     + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
     + '<select id="edit-usage-' + p.id + '" class="npf-input">'
-    + '<option value="both"' + ((p.usage || 'both') === 'both' ? ' selected' : '') + '>Reappro + Ventes</option>'
-    + '<option value="reappro"' + (p.usage === 'reappro' ? ' selected' : '') + '>Reappro uniquement</option>'
+    + '<option value="both"' + ((p.usage || 'both') === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
+    + '<option value="reappro"' + (p.usage === 'reappro' ? ' selected' : '') + '>Réappro uniquement</option>'
     + '<option value="ventes"' + (p.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
     + '</select></div>'
     + '<div class="npf-actions">'
@@ -4806,7 +4806,7 @@ html += '<div class="' + rowCls + '">'
   + '<input type="text" inputmode="decimal" class="adr-input" data-pid="' + p.id + '" value="' + escapeHtml(pcesVal) + '" placeholder="-" oninput="handleProductPcesInput(this)" onfocus="this.select()"></div>'
   + '<div class="adr-cell"><span class="adr-lbl">Seuil stock</span>'
   + '<input type="text" inputmode="decimal" class="adr-input" data-pid="' + p.id + '" value="' + escapeHtml(p._seuil_draft != null ? p._seuil_draft : (p.seuil_stock == null ? '' : String(p.seuil_stock).replace('.', ','))) + '" placeholder="-" oninput="handleProductSeuilInput(this)" onfocus="this.select()"></div>'
-  + '<div class="adr-cell"><span class="adr-lbl">Veigne</span>'
+  + '<div class="adr-cell"><span class="adr-lbl">Veigné</span>'
   + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'veigne\', this.value)">' + supplyOpts(supVeigne) + '</select></div>'
   + '<div class="adr-cell"><span class="adr-lbl">Tours</span>'
   + '<select class="adr-select" onchange="setProductSupply(\'' + p.id + '\', \'tours\', this.value)">' + supplyOpts(supTours) + '</select></div>'
@@ -4828,7 +4828,7 @@ mc.innerHTML = html;
 }
 
 // === VALORISATION DES FLUX ===
-let currentValoWeek = null; // lundi de la semaine selectionnee (ISO YYYY-MM-DD)
+let currentValoWeek = null; // lundi de la semaine sélectionnée (ISO YYYY-MM-DD)
 let valoData = {}; // { boutique_id: { product_id: { qty, p_name, p_cat } } }
 
 function getMondayOf(dateStr) {
@@ -4859,7 +4859,7 @@ const end = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-'
 const { data, error } = await supa.from('reappros').select('*')
 .eq('tenant_id', TENANT_ID).gte('service_date', start).lte('service_date', end);
 if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
-// Charger aussi produits si pas deja dispo
+// Charger aussi produits si pas déjà dispo
 if (!adminProducts.length) await loadAdminProducts();
 const prodMap = {};
 adminProducts.forEach(function(p) { prodMap[p.id] = p; });
@@ -4997,7 +4997,7 @@ async function loadStockData() {
 const { data: invRows } = await supa.from('stock_inventory').select('*').eq('tenant_id', TENANT_ID).order('inventoried_at', { ascending: false });
 // 2. Receptions fournisseur (toutes)
 const { data: recRows } = await supa.from('stock_receipts').select('*').eq('tenant_id', TENANT_ID);
-// 3. Reappros envoyes aux boutiques (qty_livree si defini, sinon commander) - sert au calcul sorties
+// 3. Réappros envoyés aux boutiques (qty_livree si défini, sinon commander) - sert au calcul sorties
 const { data: reapRows } = await supa.from('reappros').select('*').eq('tenant_id', TENANT_ID);
 
 // Grouper par produit
@@ -5029,7 +5029,7 @@ let recSince = 0;
 (entry.receipts || []).forEach(function(r) {
 if (!baseDate || r.received_at > baseDate) recSince += parseQty(r.qty);
 });
-// Sorties reappros depuis baseDate (prend qty_livree si defini, sinon commander)
+// Sorties reappros depuis baseDate (prend qty_livree si défini, sinon commander)
 let outSince = 0;
 (entry.reappros || []).forEach(function(r) {
 if (!baseDate || (r.updated_at && r.updated_at > baseDate)) {
@@ -5056,7 +5056,7 @@ let html = '<div class="info-banner"><strong>Stock Local</strong><br>Theorique =
 
 html += '<div class="stock-actions-bar">'
 
-+ '<button class="btn-gold" onclick="openStockReceiptModal()">+ Reception fournisseur</button>'
++ '<button class="btn-gold" onclick="openStockReceiptModal()">+ Réception fournisseur</button>'
 + '</div>';
 
 const entries = Object.keys(stockData).map(function(pid) { return stockData[pid]; });
@@ -5066,7 +5066,7 @@ mc.innerHTML = html;
 return;
 }
 
-// Grouper par categorie
+// Grouper par catégorie
 const byCat = { 'viennoiserie': [], 'brioches_special': [] };
 entries.forEach(function(e) { byCat[e.product.category].push(e); });
 
@@ -5074,15 +5074,15 @@ html += '<div class="section reappro-section">';
 html += '<div class="col-header stock-col-header">'
 
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl">Theo.</span>'
-+ '<span class="col-lbl cmd">Reel</span>'
-+ '<span class="col-lbl">Ecart</span>'
++ '<span class="col-lbl">Théo.</span>'
++ '<span class="col-lbl cmd">Réel</span>'
++ '<span class="col-lbl">Écart</span>'
 + '<span class="col-lbl">Seuil</span>'
 + '</div>';
 
 ['viennoiserie', 'brioches_special'].forEach(function(cat) {
 if (!byCat[cat] || !byCat[cat].length) return;
-html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + '</div>';
+html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
 byCat[cat].sort(function(a, b) { return a.product.name.localeCompare(b.product.name); });
 byCat[cat].forEach(function(e) {
 const theo = e.theoretical;
@@ -5181,7 +5181,7 @@ return p.category === 'viennoiserie' || p.category === 'brioches_special';
 }).sort(function(a, b) { return a.name.localeCompare(b.name); });
 
 let html = '<div class="modal-content stock-modal">';
-html += '<div class="modal-header"><strong>Reception fournisseur</strong><button onclick="closeStockReceiptModal()" class="modal-close">×</button></div>';
+html += '<div class="modal-header"><strong>Réception fournisseur</strong><button onclick="closeStockReceiptModal()" class="modal-close">×</button></div>';
 html += '<div class="modal-body">';
 html += '<label class="sp-lbl">Produit *</label>';
 html += '<select class="sp-input" onchange="handleStockReceiptField(\'product_id\', this.value)">';
@@ -5250,7 +5250,7 @@ previsData[r.product_id] = r.qty == null ? '' : String(r.qty).replace('.', ',');
 if (currentVue === 'previs') renderPrevis();
 }
 if (currentVue === 'traiteur' && (currentBoutique === 'veigne' || currentBoutique === 'tours')) {
-// Pour le traiteur consolide, recharger les previs utiles
+// Pour le traiteur consolide, recharger les prévis utiles
 if (currentBoutique === 'veigne' && (r.boutique_id === 'veigne' || r.boutique_id === 'saint-avertin')) {
 await reloadTraiteurData();
 renderTraiteur();
@@ -5362,13 +5362,13 @@ async function renderPrevisGroup(group) {
 const mc = document.getElementById('main-content');
 const prods = getProductsForPrevisGroup(currentBoutique, group);
 const isToday = (currentPrevisDate === serviceDateISO());
-const groupLabel = (group === 'pain') ? 'Pain' : 'Patisserie';
+const groupLabel = (group === 'pain') ? 'Pain' : 'Pâtisserie';
 
 // Fetch J1 de la veille
 const j1 = await loadRestesJ1(currentBoutique, currentPrevisDate);
 _previsJ1Cache = j1;
 
-// Grouper par categorie
+// Grouper par catégorie
 const byCat = {};
 prods.forEach(function(p) {
 const c = p.category || 'autre';
@@ -5384,25 +5384,25 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 let html = '<div class="date-bar">'
 
 + '<button class="date-nav" onclick="changePrevisDate(-1)">←</button>'
-+ '<div class="date-title">Previs ' + groupLabel + ' du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
++ '<div class="date-title">Prévis ' + groupLabel + ' du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
-+ '<div class="date-sub">Frais a produire pour ce jour</div>'
++ '<div class="date-sub">Frais à produire pour ce jour</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changePrevisDate(1)">→</button>'
 + '</div>';
 
-html += '<div class="info-banner"><strong>Previsionnel ' + groupLabel + '</strong><br>Ce que tu vas produire/cuire. Ventes Matin se remplira auto avec (Previs - J1 hier).</div>';
+html += '<div class="info-banner"><strong>Prévisionnel ' + groupLabel + '</strong><br>Ce que tu vas produire/cuire. Ventes Matin se remplira auto avec (Prévis - J1 hier).</div>';
 
 if (!prods.length) {
-html += '<div class="empty-state">Aucun produit ' + groupLabel + ' eligible.<br>Verifie en BackOffice > Categ. que la categorie a "Previs = ON" et que les produits sont en <em>supply = Sur place</em> pour cette boutique.</div>';
+html += '<div class="empty-state">Aucun produit ' + groupLabel + ' éligible.<br>Vérifie en BackOffice > Catég. que la catégorie a "Prévis = ON" et que les produits sont en <em>supply = Sur place</em> pour cette boutique.</div>';
 mc.innerHTML = html;
 return;
 }
 
 cats.forEach(function(cat) {
 html += '<div class="section reappro-section">';
-html += '<div class="section-header section-header-reappro"><span>' + escapeHtml(CAT_LABELS[cat] || cat) + '</span></div>';
-html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1 hier</span><span class="col-lbl cmd">A produire</span></div>';
+html += '<div class="section-header section-header-reappro"><span>' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:12px;color:#888;font-weight:500">(' + byCat[cat].length + ')</span></span></div>';
+html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1 hier</span><span class="col-lbl cmd">À produire</span></div>';
 const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
 sorted.forEach(function(p) {
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
@@ -5459,19 +5459,19 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeTraiteurDate(-1)">←</button>'
 + '<div class="date-title">Traiteur du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
-+ '<div class="date-sub">' + (isVeigne ? 'Consolide Veigne + St-Avertin' : 'Tours uniquement') + '</div>'
++ '<div class="date-sub">' + (isVeigne ? 'Consolide Veigné + St-Avertin' : 'Tours uniquement') + '</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changeTraiteurDate(1)">→</button>'
 + '</div>';
 
 if (!prods.length) {
-html += '<div class="empty-state">Aucun produit traiteur configure.<br>Verifie en BackOffice > Categories que "traiteur" a Previs = ON, et que les produits traiteur ont supply = Sur place pour la boutique productrice.</div>';
+html += '<div class="empty-state">Aucun produit traiteur configuré.<br>Vérifie en BackOffice > Catégories que "traiteur" à Prévis = ON, et que les produits traiteur ont supply = Sur place pour la boutique productrice.</div>';
 mc.innerHTML = html;
 return;
 }
 
 if (isVeigne) {
-html += '<div class="info-banner"><strong>Vue Traiteur consolidee</strong><br>Saisis ton previs Veigne et celui que St-Avertin a communique. Le total a produire = (Previs - J1).</div>';
+html += '<div class="info-banner"><strong>Vue Traiteur consolidee</strong><br>Saisis ton previs Veigné et celui que St-Avertin a communique. Le total à produire = (Prévis - J1).</div>';
 
 html += '<div class="section reappro-section">';
 html += '<div class="section-header section-header-reappro"><span>Traiteur du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
@@ -5501,13 +5501,13 @@ html += '<div class="traiteur-j1">' + (j1saN > 0 ? j1saN : '-') + '</div>';
 html += '<div class="traiteur-total">' + (total > 0 ? '<strong>' + total + '</strong>' : '<span style="color:#bbb">-</span>') + '</div>';
 html += '</div>';
 });
-html += '<div class="traiteur-grand-total"><span>Volume total a produire</span><strong>' + grandTotal + '</strong></div>';
+html += '<div class="traiteur-grand-total"><span>Volume total à produire</span><strong>' + grandTotal + '</strong></div>';
 html += '</div>';
 
 } else {
 html += '<div class="section reappro-section">';
 html += '<div class="section-header section-header-reappro"><span>Traiteur Tours du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
-html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1</span><span class="col-lbl cmd">A produire</span></div>';
+html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1</span><span class="col-lbl cmd">À produire</span></div>';
 let grandTotal = 0;
 prods.forEach(function(p) {
 const pv = previsTraiteurDataV[p.id] == null ? '' : previsTraiteurDataV[p.id];
@@ -5521,7 +5521,7 @@ html += '<div class="previs-j1">' + (j1vN > 0 ? j1vN : '<span style="color:#bbb"
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="tours" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
 html += '</div>';
 });
-html += '<div class="traiteur-grand-total"><span>Volume total a produire</span><strong>' + grandTotal + '</strong></div>';
+html += '<div class="traiteur-grand-total"><span>Volume total à produire</span><strong>' + grandTotal + '</strong></div>';
 html += '</div>';
 }
 
@@ -5537,24 +5537,24 @@ prods.sort(function(a, b) { return a.name.localeCompare(b.name); });
 let html = '<div class="date-bar">'
 
 + '<button class="date-nav" onclick="changePrevisTraiteurSADate(-1)">←</button>'
-+ '<div class="date-title">Previs Traiteur du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
++ '<div class="date-title">Prévis Traiteur du <strong>' + escapeHtml(formatDateFr(currentPrevisDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
-+ '<div class="date-sub">Saisie St-Avertin pour vue consolidee Veigne</div>'
++ '<div class="date-sub">Saisie St-Avertin pour vue consolidee Veigné</div>'
 + '</div>'
 + '<button class="date-nav" onclick="changePrevisTraiteurSADate(1)">→</button>'
 + '</div>';
 
-html += '<div class="info-banner"><strong>Saisis ta prevision traiteur</strong><br>Cette saisie remonte directement chez Veigne pour consolidation. Veigne produira (Ton previs - Ton J1).</div>';
+html += '<div class="info-banner"><strong>Saisis ta prevision traiteur</strong><br>Cette saisie remonte directement chez Veigné pour consolidation. Veigné produira (Ton previs - Ton J1).</div>';
 
 if (!prods.length) {
-html += '<div class="empty-state">Aucun produit traiteur eligible pour St-Avertin.<br>Verifie en BackOffice que les sandwiches ont <em>supply St-Av = Veigne</em> et que la categorie traiteur a Previs = ON.</div>';
+html += '<div class="empty-state">Aucun produit traiteur éligible pour St-Avertin.<br>Vérifie en BackOffice que les sandwiches ont <em>supply St-Av = Veigné</em> et que la catégorie traiteur à Prévis = ON.</div>';
 mc.innerHTML = html;
 return;
 }
 
 html += '<div class="section reappro-section">';
 html += '<div class="section-header section-header-reappro"><span>Traiteur St-Avertin du ' + escapeHtml(formatDateFr(currentPrevisDate)) + '</span></div>';
-html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">Previs</span></div>';
+html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">Prévis</span></div>';
 prods.forEach(function(p) {
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
 html += '<div class="produit-row">';
@@ -5582,7 +5582,7 @@ return originShop;
 
 function computeOrderProductionShop(draft) {
 // Selon les items de la commande, deduit un production_shop majoritaire.
-// Si plusieurs productions dans une meme commande (cas rare), on prend la plus frequente.
+// Si plusieurs productions dans une même commande (cas rare), on prend la plus frequente.
 const counts = {};
 (draft.items || []).forEach(function(it) {
 if (!it.product_id) return;
@@ -5782,7 +5782,7 @@ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + St
 
 async function changeSpecialWeek(delta) {
 currentSpecialWeekStart = addDaysISO(currentSpecialWeekStart, delta * 7);
-// Si le jour selectionne est hors de la nouvelle semaine, aller sur le lundi
+// Si le jour sélectionné est hors de la nouvelle semaine, aller sur le lundi
 if (selectedSpecialDay < currentSpecialWeekStart || selectedSpecialDay > addDaysISO(currentSpecialWeekStart, 6)) {
 selectedSpecialDay = currentSpecialWeekStart;
 }
@@ -5849,10 +5849,10 @@ if (currentBoutique !== 'local') {
 html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button></div>';
 }
 
-// Filtrer les commandes du jour selectionne
+// Filtrer les commandes du jour sélectionné
 const dayOrders = specialOrdersData.filter(function(o) { return o.pickup_date === selectedSpecialDay; });
 const myOrders = dayOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
-// Commandes a produire pour d'autres boutiques
+// Commandes à produire pour d'autres boutiques
 const toProduce = dayOrders.filter(function(o) { return o.production_shop === currentBoutique && o.origin_shop !== currentBoutique; });
 
 const dLbl = formatDateFr(selectedSpecialDay);
@@ -5861,7 +5861,7 @@ html += '<div class="sp-section-title">📅 ' + escapeHtml(dLbl) + '</div>';
 // Section Mes commandes
 if (currentBoutique !== 'local') {
 html += '<div class="section sp-section ' + SHOP_COLOR_CLASS[currentBoutique] + '">';
-html += '<div class="sp-section-header"><span>⭐ Speciales - ' + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique) + '</span>';
+html += '<div class="sp-section-header"><span>⭐ Spéciales - ' + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique) + '</span>';
 html += '<span class="sp-count-badge">' + myOrders.length + '</span></div>';
 if (!myOrders.length) {
 html += '<div class="sp-empty">Aucune commande speciale</div>';
@@ -5871,7 +5871,7 @@ myOrders.forEach(function(o) { html += renderSpecialOrderCard(o, true); });
 html += '</div>';
 }
 
-// Section A produire pour ... (groupe par origin)
+// Section À produire pour ... (groupe par origin)
 if (toProduce.length) {
 const byOrigin = {};
 toProduce.forEach(function(o) {
@@ -5880,7 +5880,7 @@ byOrigin[o.origin_shop].push(o);
 });
 Object.keys(byOrigin).forEach(function(origin) {
 html += '<div class="section sp-section ' + SHOP_COLOR_CLASS[origin] + '">';
-html += '<div class="sp-section-header"><span>📦 A produire - ' + escapeHtml(BOUTIQUE_NAMES[origin] || origin) + '</span>';
+html += '<div class="sp-section-header"><span>📦 À produire - ' + escapeHtml(BOUTIQUE_NAMES[origin] || origin) + '</span>';
 html += '<span class="sp-count-badge">' + byOrigin[origin].length + '</span></div>';
 byOrigin[origin].forEach(function(o) { html += renderSpecialOrderCard(o, false); });
 html += '</div>';
@@ -5912,7 +5912,7 @@ html += '</div></div>';
 
 if (!dayOrders.length) {
 if (currentBoutique === 'local') {
-html += '<div class="empty-state">Aucune commande a produire ce jour.</div>';
+html += '<div class="empty-state">Aucune commande à produire ce jour.</div>';
 }
 }
 
@@ -6020,7 +6020,7 @@ if (!specialFormDraft || !specialFormDraft.items[idx]) return;
 const it = specialFormDraft.items[idx];
 it[field] = val;
 if (field === 'category') {
-// Reset le produit quand on change de categorie
+// Reset le produit quand on change de catégorie
 it.product_id = null;
 if (val === '__custom') {
 it.product_name_custom = it.product_name_custom || '';
@@ -6040,7 +6040,7 @@ const mc = document.getElementById('main-content');
 const d = specialFormDraft;
 const isEdit = specialFormMode === 'edit';
 
-// Dates : 14 prochains jours a partir d'aujourd'hui
+// Dates : 14 prochains jours à partir d aujourd hui
 const dateOpts = [];
 const today = serviceDateISO();
 // Permettre aussi les 7 derniers jours (rattrapage)
@@ -6143,7 +6143,7 @@ let html = '<div class="sp-item-row">';
 html += '<div class="sp-item-hdr"><strong>Produit ' + (idx + 1) + '</strong>';
 html += '<button class="sp-item-del" onclick="removeSpecialItem(' + idx + ')">✖</button></div>';
 
-// Qty + Categorie sur meme ligne
+// Qty + Catégorie sur même ligne
 html += '<div class="sp-item-grid">';
 html += '<div><label class="sp-lbl-sm">Qte</label>';
 html += '<select class="sp-input sp-qty" onchange="handleSpecialItemField(' + idx + ', \'qty\', this.value)">';
@@ -6156,7 +6156,7 @@ html += '<option value="' + it.qty + '" selected>' + escapeHtml(String(it.qty)) 
 }
 html += '</select></div>';
 
-html += '<div><label class="sp-lbl-sm">Categorie</label>';
+html += '<div><label class="sp-lbl-sm">Catégorie</label>';
 html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'category\', this.value)">';
 html += '<option value="">-- choisir --</option>';
 cats.forEach(function(c) {
@@ -6166,7 +6166,7 @@ html += '<option value="__custom"' + (it.category === '__custom' ? ' selected' :
 html += '</select></div>';
 html += '</div>';
 
-// Produit selon categorie
+// Produit selon catégorie
 if (it.category === '__custom') {
 html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Description</label>';
 html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_name_custom || '') + '" placeholder="ex: Piece montee 30 personnes" oninput="handleSpecialItemField(' + idx + ', \'product_name_custom\', this.value)"></div>';
@@ -6193,7 +6193,7 @@ return html;
 // === MESSAGERIE LIVREUR ===
 async function loadMessages() {
 let q = supa.from('livreur_messages').select('*').eq('tenant_id', TENANT_ID);
-// Le livreur voit tout. Un expediteur (local/veigne) ne voit que ses messages envoyes.
+// Le livreur voit tout. Un expediteur (local/veigne) ne voit que ses messages envoyés.
 if (currentBoutique !== 'livreur') {
 q = q.eq('sender_boutique', currentBoutique);
 }
@@ -6220,7 +6220,7 @@ setSyncStatus('ok');
 messageDraft = { content: '', urgent: false, stop_boutique: '' };
 await loadMessages();
 renderMessages();
-showToast('Message envoye', 'sync');
+showToast('Message envoyé', 'sync');
 }
 
 async function markMessageRead(id) {
@@ -6273,7 +6273,7 @@ if (!r) return;
 // Filtrer selon le contexte (idem loadMessages)
 if (currentBoutique !== 'livreur' && r.sender_boutique !== currentBoutique) return;
 if (payload.eventType === 'INSERT') {
-if (payload.new.sender_device === DEVICE_ID) return; // deja traite localement
+if (payload.new.sender_device === DEVICE_ID) return; // déjà traite localement
 messagesData.unshift(payload.new);
 renderMessages();
 if (currentBoutique === 'livreur' && payload.new.urgent) {
@@ -6366,7 +6366,7 @@ html += '<div class="info-banner"><strong>Messages au livreur</strong><br>Ecris 
 
 // Composer
 html += '<div class="msg-composer">';
-html += '<textarea class="msg-textarea" id="msg-content" placeholder="Ex: Passer chez le maraicher recuperer la commande tomates avant Veigne" oninput="handleMessageDraftInput(\'content\', this.value)">' + escapeHtml(messageDraft.content) + '</textarea>';
+html += '<textarea class="msg-textarea" id="msg-content" placeholder="Ex: Passer chez le maraicher recuperer la commande tomates avant Veigné" oninput="handleMessageDraftInput(\'content\', this.value)">' + escapeHtml(messageDraft.content) + '</textarea>';
 html += '<div class="msg-options">';
 // Urgent toggle
 html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : '') + '" onclick="toggleMessageDraftUrgent()">'
@@ -6377,7 +6377,7 @@ html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : 
   if (currentBoutique === 'local') {
   html += '<select class="msg-stop-select" onchange="handleMessageDraftInput(\'stop_boutique\', this.value)">'
   + '<option value="">-- Arret concerne (optionnel) --</option>'
-  + '<option value="veigne" ' + (messageDraft.stop_boutique === 'veigne' ? 'selected' : '') + '>Veigne</option>'
+  + '<option value="veigne" ' + (messageDraft.stop_boutique === 'veigne' ? 'selected' : '') + '>Veigné</option>'
   + '<option value="tours" ' + (messageDraft.stop_boutique === 'tours' ? 'selected' : '') + '>Tours</option>'
   + '<option value="saint-avertin" ' + (messageDraft.stop_boutique === 'saint-avertin' ? 'selected' : '') + '>St-Avertin</option>'
   + '</select>';
@@ -6386,7 +6386,7 @@ html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : 
     html += '</div>';
     html += '</div>';
 
-// Stats envoyes
+// Stats envoyés
 const unreadSent = messagesData.filter(function(m) { return !m.read_at; }).length;
 const doneSent = messagesData.filter(function(m) { return m.done; }).length;
 html += '<div class="prod-kpi-bar">'
@@ -6396,9 +6396,9 @@ html += '<div class="prod-kpi-bar">'
 + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + doneSent + '</div><div class="prod-kpi-lbl">Fait</div></div>'
 + '</div>';
 
-html += '<div class="section"><div class="section-header">Mes messages envoyes (' + messagesData.length + ')</div>';
+html += '<div class="section"><div class="section-header">Mes messages envoyés (' + messagesData.length + ')</div>';
 if (!messagesData.length) {
-html += '<div class="prod-empty">Aucun message envoye pour le moment.</div>';
+html += '<div class="prod-empty">Aucun message envoyé pour le moment.</div>';
 } else {
 messagesData.forEach(function(m) {
 html += renderMessageCard(m, isLivreur);
