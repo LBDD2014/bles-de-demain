@@ -171,11 +171,14 @@ border-top: 1px solid rgba(206,171,82,0.2); z-index: 100;
 padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .bnav-item {
-flex: 1; padding: 10px 4px 8px; cursor: pointer; border: none; background: transparent;
+flex: 1; padding: 10px 3px 8px; cursor: pointer; border: none; background: transparent;
 display: flex; flex-direction: column; align-items: center; gap: 3px;
-font-family: inherit;
+font-family: inherit; min-width: 0;
 }
-.bnav-item .lbl { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); }
+.bnav-item .lbl {
+font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.45);
+text-align: center; line-height: 1.15; white-space: normal; word-break: break-word;
+}
 .bnav-item.active .lbl { color: var(--gold); }
 .bnav-item.active { border-top: 2px solid var(--gold); padding-top: 8px; }
 
@@ -607,13 +610,17 @@ pointer-events: none;
 /* v20.1 Ventes refondue */
 .ventes-col-header.v201 {
 display: grid;
-grid-template-columns: 1.4fr 42px 42px 42px 42px 52px 40px 36px;
-padding: 6px 10px; background: #F5F0E5; gap: 4px;
+grid-template-columns: 1.2fr 44px 56px 50px 44px 50px 48px 48px;
+padding: 6px 8px; background: #F5F0E5; gap: 3px;
+}
+.ventes-col-header.v201 .col-lbl {
+font-size: 9px; letter-spacing: 0; line-height: 1.15;
+white-space: normal; word-break: break-word; hyphens: auto;
 }
 .ventes-row.v201 {
 display: grid;
-grid-template-columns: 1.4fr 42px 42px 42px 42px 52px 40px 36px;
-padding: 6px 10px; gap: 4px; align-items: center;
+grid-template-columns: 1.2fr 44px 56px 50px 44px 50px 48px 48px;
+padding: 6px 8px; gap: 3px; align-items: center;
 border-bottom: 1px solid #F5F0E8;
 }
 .prod-with-x {
@@ -1540,50 +1547,50 @@ const MARKET_PREP_DAYS = 3;
 
 const NAV_ITEMS = {
   'veigne': [
-    { id: 'reappro',      lbl: 'Reap.' },
-    { id: 'previs_pain',  lbl: 'Prev.Pain' },
-    { id: 'previs_pat',   lbl: 'Prev.Pat' },
+    { id: 'reappro',      lbl: 'Réappro' },
+    { id: 'previs_pain',  lbl: 'Prév. Pain' },
+    { id: 'previs_pat',   lbl: 'Prév. Pât.' },
     { id: 'traiteur',     lbl: 'Traiteur' },
     { id: 'ventes',       lbl: 'Ventes' },
-    { id: 'specials',     lbl: 'Special' },
-    { id: 'production',   lbl: 'Prod.' },
-    { id: 'recap',        lbl: 'Recap' },
-    { id: 'livraison',    lbl: 'Livr.' },
-    { id: 'messages',     lbl: 'Msg' }
+    { id: 'specials',     lbl: 'Spéciales' },
+    { id: 'production',   lbl: 'Production' },
+    { id: 'recap',        lbl: 'Récap' },
+    { id: 'livraison',    lbl: 'Livraison' },
+    { id: 'messages',     lbl: 'Messages' }
   ],
   'tours': [
-    { id: 'reappro',     lbl: 'Reap.' },
-    { id: 'previs_pain', lbl: 'Prev.Pain' },
-    { id: 'previs_pat',  lbl: 'Prev.Pat' },
+    { id: 'reappro',     lbl: 'Réappro' },
+    { id: 'previs_pain', lbl: 'Prév. Pain' },
+    { id: 'previs_pat',  lbl: 'Prév. Pât.' },
     { id: 'traiteur',    lbl: 'Traiteur' },
     { id: 'ventes',      lbl: 'Ventes' },
-    { id: 'specials',    lbl: 'Special' },
-    { id: 'recap',       lbl: 'Recap' }
+    { id: 'specials',    lbl: 'Spéciales' },
+    { id: 'recap',       lbl: 'Récap' }
   ],
   'saint-avertin': [
-    { id: 'reappro_pain',     lbl: 'Reap.Pain' },
-    { id: 'reappro_vienn',    lbl: 'Reap.Vienn' },
-    { id: 'previs_traiteur',  lbl: 'Prev.Trait' },
+    { id: 'reappro_pain',     lbl: 'Réap. Pain' },
+    { id: 'reappro_vienn',    lbl: 'Réap. Vienn.' },
+    { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'ventes',           lbl: 'Ventes' },
-    { id: 'specials',         lbl: 'Special' },
-    { id: 'recap',            lbl: 'Recap' }
+    { id: 'specials',         lbl: 'Spéciales' },
+    { id: 'recap',            lbl: 'Récap' }
   ],
   'livreur': [
-    { id: 'tournée',  lbl: 'Tournee' },
+    { id: 'tournee',  lbl: 'Tournée' },
     { id: 'messages', lbl: 'Messages' }
   ],
   'amboise': [
-    { id: 'marche', lbl: 'Tableau marche' }
+    { id: 'marche', lbl: 'Tableau marché' }
   ],
   'beaujardin': [
-    { id: 'marche', lbl: 'Tableau marche' }
+    { id: 'marche', lbl: 'Tableau marché' }
   ],
   'local': [
-    { id: 'production',    lbl: 'Prod.Reap' },
-    { id: 'production_sa', lbl: 'Prod.St-Av' },
+    { id: 'production',    lbl: 'Prod. Réap.' },
+    { id: 'production_sa', lbl: 'Prod. St-Av' },
     { id: 'stock',         lbl: 'Stock' },
-    { id: 'specials',      lbl: 'Special' },
-    { id: 'messages',      lbl: 'Msg' }
+    { id: 'specials',      lbl: 'Spéciales' },
+    { id: 'messages',      lbl: 'Messages' }
   ],
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
@@ -1977,7 +1984,7 @@ renderVentes();
 } else if (v === 'recap') {
 await loadRecapWeek(currentBoutique, currentWeekStart);
 renderRecap();
-} else if (v === 'livraison' || v === 'tournée') {
+} else if (v === 'livraison' || v === 'tournee') {
 await loadDeliveries(currentDate);
 subscribeRealtimeDeliveries();
 renderLivraison();
@@ -2848,13 +2855,13 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">Prev.</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">Prévis.</span>'
 + '<span class="col-lbl" style="color:var(--orange)">Après-midi</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">RJ1</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">Reste J-1</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
 + '<span class="col-lbl" style="color:var(--blue)">Vendu</span>'
-+ '<span class="col-lbl">%P</span>'
-+ '<span class="col-lbl">Rupt</span>'
++ '<span class="col-lbl">% Perte</span>'
++ '<span class="col-lbl">Rupture</span>'
 + '</div>';
   ps.forEach(function(p) {
   const d = salesData[p.id] || {};
@@ -3276,7 +3283,7 @@ async function(payload) {
 if (payload.new && payload.new.updated_by === DEVICE_ID) return;
 if (payload.old && payload.old.updated_by === DEVICE_ID) return;
 await loadDeliveries(currentDate);
-if (currentVue === 'livraison' || currentVue === 'tournée') { renderLivraison(); }
+if (currentVue === 'livraison' || currentVue === 'tournee') { renderLivraison(); }
 showToast('MAJ tournée d un autre appareil', 'sync');
 }).subscribe();
 }
