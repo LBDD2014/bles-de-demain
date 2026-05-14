@@ -679,6 +679,26 @@ pointer-events: none;
 .prev-input-wrap { display: flex; align-items: center; gap: 2px; }
 .prev-input-wrap .qty-input { flex: 1; min-width: 0; }
 
+/* v20.4 fusion — Prévis éditable dans Ventes */
+.v-prev-wrap { display: flex; align-items: center; gap: 1px; min-width: 0; }
+.v-prev-wrap .v-inp { flex: 1; min-width: 0; }
+.v-prev-wrap .v-pin {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 13px; padding: 0 1px; opacity: 0.45;
+  font-family: inherit; line-height: 1;
+}
+.v-prev-wrap .v-pin:active { transform: scale(0.85); opacity: 1; color: var(--green); }
+.v-prev-wrap .v-pin.pin-flash { opacity: 1; color: var(--green); animation: pinPulse 0.7s ease; }
+.v-inp.v-prev-input {
+  text-align: center; font-weight: 700; color: var(--gold-dark);
+  font-family: Georgia, serif; font-size: 14px;
+  border: 1px solid #DDD; border-radius: 6px; background: white; padding: 4px 2px;
+}
+.v-inp.v-prev-input.has { background: #FAF1D9; border-color: var(--gold-dark); }
+.v-inp.v-prev-input.is-default { color: #BBB; font-style: italic; font-weight: 500; }
+.v-inp.v-prev-input.is-default:focus { color: var(--gold-dark); font-style: normal; font-weight: 700; }
+.v-prev-ro .ro-arrow { color: #888; font-weight: 400; font-size: 10px; }
+
 /* v20.1 Ventes refondue */
 .ventes-col-header.v201 {
 display: grid;
@@ -1622,8 +1642,6 @@ const MARKET_PREP_DAYS = 3;
 const NAV_ITEMS = {
   'veigne': [
     { id: 'reappro',      lbl: 'Réappro' },
-    { id: 'previs_pain',  lbl: 'Prév. Pain' },
-    { id: 'previs_pat',   lbl: 'Prév. Pât.' },
     { id: 'traiteur',     lbl: 'Traiteur' },
     { id: 'ventes',       lbl: 'Ventes' },
     { id: 'specials',     lbl: 'Spéciales' },
@@ -1634,8 +1652,6 @@ const NAV_ITEMS = {
   ],
   'tours': [
     { id: 'reappro',     lbl: 'Réappro' },
-    { id: 'previs_pain', lbl: 'Prév. Pain' },
-    { id: 'previs_pat',  lbl: 'Prév. Pât.' },
     { id: 'traiteur',    lbl: 'Traiteur' },
     { id: 'ventes',      lbl: 'Ventes' },
     { id: 'specials',    lbl: 'Spéciales' },
@@ -3078,7 +3094,24 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 + '</div>';
   ps.forEach(function(p) {
   const d = salesData[p.id] || {};
-  const prev = previsRaw[p.id] || 0;
+  const prevRaw = previsRaw[p.id];
+  const prevFilled = prevRaw != null && prevRaw !== '';
+  const prev = prevFilled ? Number(prevRaw) : 0;
+  // v20.4 fusion : Prévis éditable + défaut par jour de semaine (production_defaults)
+  const supply = getProductSupply(p, currentBoutique);
+  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category));
+  let prevDisplay = '';
+  let prevIsDefault = false;
+  if (prevEditable) {
+    if (prevFilled) {
+      prevDisplay = String(prevRaw);
+    } else {
+      const defQ = getDefaultQty(currentBoutique, p.id, currentDate);
+      if (defQ != null) { prevDisplay = String(defQ); prevIsDefault = true; }
+    }
+  } else if (prevFilled) {
+    prevDisplay = String(prevRaw);
+  }
   const a  = d.aprem === '' || d.aprem === undefined ? '' : d.aprem;
   const rj = d.reste_j1 === '' || d.reste_j1 === undefined ? '' : d.reste_j1;
   const pe = d.perte === '' || d.perte === undefined ? '' : d.perte;
@@ -3089,11 +3122,22 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const perteTxt = perte === null ? '-' : (perte + '%');
   const ruptCls = ruptH ? 'has' : '';
   const ruptTxt = ruptH ? ruptH : '⏳';
+  // Cellule Prévis : input éditable si on_site, sinon span lecture seule (commandée externe)
+  let prevCell;
+  if (prevEditable) {
+    const prevClasses = 'v-inp v-prev-input ' + (prevFilled ? 'has' : '') + (prevIsDefault ? ' is-default' : '');
+    prevCell = '<div class="v-prev-wrap">'
+      + '<input type="text" inputmode="decimal" class="' + prevClasses + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(prevDisplay) + '" placeholder="-" oninput="handleVentesPrevisInput(this)" onfocus="this.select()">'
+      + '<button class="btn-pin-default v-pin" data-pin-pid="' + p.id + '" title="Sauver comme défaut pour ce jour de semaine" onclick="pinAsDefault(\'' + currentBoutique + '\', \'' + p.id + '\', currentDate)">📌</button>'
+      + '</div>';
+  } else {
+    prevCell = '<div class="v-prev-ro" title="Quantité commandée (externe)">' + (prevDisplay ? '<span class="ro-arrow">↳</span> ' + escapeHtml(prevDisplay) : '<span style="color:#bbb">-</span>') + '</div>';
+  }
   html += '<div class="ventes-row v201">'
 + '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
-+ '<div class="v-prev-ro">' + (prev > 0 ? prev : '<span style="color:#bbb">-</span>') + '</div>'
++ prevCell
 + '<input type="number" inputmode="numeric" min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
 + '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
 + '<input type="number" inputmode="numeric" min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
@@ -3180,6 +3224,26 @@ el.classList.toggle('has', val !== '');
 updateVendu(pid);
 clearTimeout(updateTimers['s_' + pid]);
 updateTimers['s_' + pid] = setTimeout(function() { upsertSale(pid); }, 400);
+}
+
+// v20.4 fusion — Prévis éditable depuis l'onglet Ventes
+function handleVentesPrevisInput(el) {
+  const pid = el.dataset.pid, val = el.value;
+  // Maj cache local + classe input
+  if (val === '' || val == null) {
+    _ventesPrevisCache[pid] = 0;
+  } else {
+    const n = parseFloat(String(val).replace(',', '.'));
+    _ventesPrevisCache[pid] = isNaN(n) ? 0 : n;
+  }
+  el.classList.toggle('has', val !== '');
+  el.classList.remove('is-default');
+  // Mise à jour live de Vendu et %P (qui dépendent de Prévis)
+  updateVendu(pid);
+  clearTimeout(updateTimers['vp_' + pid]);
+  updateTimers['vp_' + pid] = setTimeout(function() {
+    upsertPrevis(pid, currentBoutique, currentDate, val);
+  }, 500);
 }
 
 async function changeDate(delta) {
