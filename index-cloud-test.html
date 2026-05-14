@@ -1622,7 +1622,8 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
   'tours':         ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'ingredients'],
-  'saint-avertin': ['patisserie_petits', 'brioches_special']
+  // v20.6 — St-Av peut désormais commander la pâtisserie à Veigné (petits, gros, gâteaux secs)
+  'saint-avertin': ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs']
 };
 
 const VENTES_BOUTIQUES = ['veigne', 'tours', 'saint-avertin'];
@@ -1674,6 +1675,7 @@ const NAV_ITEMS = {
   'saint-avertin': [
     { id: 'reappro_pain',     lbl: 'Réap. Pain' },
     { id: 'reappro_vienn',    lbl: 'Réap. Vienn.' },
+    { id: 'reappro_pat',      lbl: 'Réap. Pât.' },
     { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'ventes',           lbl: 'Ventes' },
     { id: 'specials',         lbl: 'Spéciales' },
@@ -2271,8 +2273,8 @@ renderPrevisTraiteurSA();
 if (!currentReapproDate) currentReapproDate = currentDate;
 await loadProductionSA();
 renderProductionSA();
-} else if (v === 'reappro_pain' || v === 'reappro_vienn') {
-// St-Avertin uniquement - 2 onglets reappro separes
+} else if (v === 'reappro_pain' || v === 'reappro_vienn' || v === 'reappro_pat') {
+// St-Avertin uniquement - 3 onglets reappro separes (v20.6 : + Réap. Pât.)
 await loadReappros(currentBoutique);
 subscribeRealtimeReappro(currentBoutique);
 renderReapproSA(v);
@@ -2359,6 +2361,15 @@ if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
 else { setSyncStatus('ok'); }
 }
 
+// v20.6 — helper : choisit la bonne fonction de rendu Réappro selon la boutique
+function renderReapproByContext() {
+  if (currentBoutique === 'saint-avertin' && (currentVue === 'reappro_pain' || currentVue === 'reappro_vienn' || currentVue === 'reappro_pat')) {
+    renderReapproSA(currentVue);
+  } else {
+    renderReappro();
+  }
+}
+
 async function sendReapproToSupplier(supplier) {
 const pidsToSend = [];
 Object.keys(reapprosData).forEach(function(pid) {
@@ -2390,7 +2401,7 @@ const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 pidsToSend.forEach(function(pid) { reapprosData[pid].sent_at = nowISO; });
-renderReappro();
+renderReapproByContext();
 showToast(pidsToSend.length + ' produits envoyés au ' + (supplier === 'local' ? 'Local' : 'Veigné'), 'sync');
 }
 
@@ -2399,7 +2410,7 @@ const d = new Date(currentReapproDate + 'T12:00');
 d.setDate(d.getDate() + delta);
 currentReapproDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 await loadReappros(currentBoutique);
-renderReappro();
+renderReapproByContext();
 }
 
 async function copyFromPreviousDay() {
@@ -2439,7 +2450,7 @@ const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 await loadReappros(currentBoutique);
-renderReappro();
+renderReapproByContext();
 showToast('Valeurs reprises de ' + label, 'sync');
 }
 
@@ -2457,7 +2468,7 @@ commander: r.commander || '',
 previs: r.previs == null ? '' : String(r.previs).replace('.', ','),
 sent_at: r.sent_at || null
 };
-renderReappro();
+renderReapproByContext();
 showToast('MAJ d un autre appareil', 'sync');
 }).subscribe();
 }
@@ -2722,30 +2733,57 @@ function renderReapproSA(tabId) {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
 const isPain = (tabId === 'reappro_pain');
-const wantedCats = isPain ? ['pains'] : ['viennoiserie', 'brioches_special'];
+const isPat  = (tabId === 'reappro_pat');
+// v20.6 — la pâtisserie part chez Veigné (pas Local) : config dédiée
+let wantedCats, supplier, supplierLabel, dateBarTitle, sectionTitle, emptyHint;
+if (isPain) {
+  wantedCats    = ['pains'];
+  supplier      = 'local';
+  supplierLabel = 'Local';
+  dateBarTitle  = 'Reap. Pain';
+  sectionTitle  = 'Pain à commander au Local';
+  emptyHint     = 'les pains';
+} else if (isPat) {
+  wantedCats    = ['patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
+  supplier      = 'veigne';
+  supplierLabel = 'Veigné';
+  dateBarTitle  = 'Reap. Pâtisserie';
+  sectionTitle  = 'Pâtisserie à commander à Veigné';
+  emptyHint     = 'la pâtisserie (petits, gros, gâteaux secs)';
+} else {
+  wantedCats    = ['viennoiserie', 'brioches_special'];
+  supplier      = 'local';
+  supplierLabel = 'Local';
+  dateBarTitle  = 'Reap. Viennoiserie/Brioche';
+  sectionTitle  = 'Viennoiseries + brioches à commander au Local';
+  emptyHint     = 'les viennoiseries et brioches';
+}
 
 const prods = products.filter(function(p) {
 if (wantedCats.indexOf(p.category) === -1) return false;
-if (getProductSupply(p, 'saint-avertin') == null) return false;
+const sup = getProductSupply(p, 'saint-avertin');
+if (sup == null) return false;
+// Pour la pâtisserie : exiger explicitement supply='veigne'
+if (isPat && sup !== 'veigne') return false;
 return true;
 });
 
 let html = '<div class="date-bar">'
 
 + '<button class="date-nav" onclick="changeReapproDate(-1)">←</button>'
-+ '<div class="date-title">' + (isPain ? 'Reap. Pain' : 'Reap. Viennoiserie/Brioche') + ' du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
++ '<div class="date-title">' + dateBarTitle + ' du <strong>' + escapeHtml(formatDateFr(currentReapproDate)) + '</strong>'
 + (isToday ? ' <span class="date-today">(auj.)</span>' : '')
 + '</div>'
 + '<button class="date-nav" onclick="changeReapproDate(1)">→</button>'
 + '</div>';
 
 if (!prods.length) {
-html += '<div class="empty-state">Aucun produit.<br>Vérifie en BackOffice que ' + (isPain ? 'les pains' : 'les viennoiseries et brioches') + ' sont bien configurés avec <em>supply St-Av</em> défini.</div>';
+html += '<div class="empty-state">Aucun produit.<br>Vérifie en BackOffice que ' + emptyHint + ' sont bien configurés avec <em>supply St-Av = ' + supplierLabel + '</em>.</div>';
 mc.innerHTML = html;
 return;
 }
 
-html += renderReapproSection('reassort', (isPain ? 'Pain à commander au Local' : 'Viennoiseries + brioches à commander au Local'), prods, 'local');
+html += renderReapproSection('reassort', sectionTitle, prods, supplier);
 mc.innerHTML = html;
 }
 
