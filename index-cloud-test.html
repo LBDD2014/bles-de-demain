@@ -684,8 +684,15 @@ pointer-events: none;
 .v-prev-wrap .v-inp { flex: 1; min-width: 0; }
 .v-prev-wrap .v-pin {
   background: transparent; border: none; cursor: pointer;
-  font-size: 13px; padding: 0 1px; opacity: 0.45;
+  font-size: 13px; padding: 0 1px; opacity: 0;
   font-family: inherit; line-height: 1;
+  width: 0; overflow: hidden;
+  transition: opacity 0.15s, width 0.15s;
+}
+/* v20.5 — pin masqué par défaut, apparaît au focus de la cellule Matin */
+.v-prev-wrap:focus-within .v-pin,
+.v-prev-wrap .v-pin.pin-flash {
+  opacity: 0.6; width: 16px;
 }
 .v-prev-wrap .v-pin:active { transform: scale(0.85); opacity: 1; color: var(--green); }
 .v-prev-wrap .v-pin.pin-flash { opacity: 1; color: var(--green); animation: pinPulse 0.7s ease; }
@@ -702,7 +709,7 @@ pointer-events: none;
 /* v20.1 Ventes refondue */
 .ventes-col-header.v201 {
 display: grid;
-grid-template-columns: 1.2fr 44px 56px 50px 44px 50px 48px 48px;
+grid-template-columns: 1.1fr 72px 56px 50px 44px 50px 48px 48px;
 padding: 6px 8px; background: #F5F0E5; gap: 3px;
 }
 .ventes-col-header.v201 .col-lbl {
@@ -711,7 +718,7 @@ white-space: normal; word-break: break-word; hyphens: auto;
 }
 .ventes-row.v201 {
 display: grid;
-grid-template-columns: 1.2fr 44px 56px 50px 44px 50px 48px 48px;
+grid-template-columns: 1.1fr 72px 56px 50px 44px 50px 48px 48px;
 padding: 6px 8px; gap: 3px; align-items: center;
 border-bottom: 1px solid #F5F0E8;
 }
@@ -736,6 +743,13 @@ background: #FAF6EE; border-bottom: 1px solid #F0EAE0;
 }
 .ventes-actions-bar .btn-gold {
 flex: 1; padding: 10px; font-size: 13px; font-weight: 700;
+}
+/* v20.5 — bouton Valider la journée : vert au repos, jaune si déjà validée (re-validation) */
+.ventes-actions-bar .btn-validate-day {
+background: var(--green); color: white; border-color: var(--green);
+}
+.ventes-actions-bar .btn-validate-day.is-closed {
+background: var(--gold-light); color: var(--brown-mid); border-color: var(--gold);
 }
 
 /* v20.1 Stock Local */
@@ -2866,7 +2880,8 @@ matin_auto: r.matin_auto == null ? null : r.matin_auto,
 aprem: r.aprem == null ? '' : r.aprem,
 reste_j1: r.reste_j1 == null ? '' : r.reste_j1,
 perte: r.perte == null ? '' : r.perte,
-rupture_heure: r.rupture_heure || ''
+rupture_heure: r.rupture_heure || '',
+day_closed: r.day_closed === true  // v20.5 — journée validée explicitement
 };
 });
 // v20 : Auto-fill Matin depuis Prévis (J-1) - ResteJ1 (J-1), ou depuis Réappro envoyé
@@ -2930,7 +2945,7 @@ matinAutoVal = cmd;
 }
 
 if (matinVal == null) return;
-if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '', day_closed: false };
 salesData[pid].matin = String(matinVal);
 salesData[pid].matin_auto = matinAutoVal;
 pidsFilled.push(pid);
@@ -2949,6 +2964,7 @@ aprem: d2.aprem === '' ? null : parseInt(d2.aprem) || 0,
 reste_j1: d2.reste_j1 === '' ? null : parseInt(d2.reste_j1) || 0,
 perte: d2.perte === '' ? null : parseInt(d2.perte) || 0,
 rupture_heure: d2.rupture_heure || null,
+day_closed: d2.day_closed === true,  // v20.5 — préserve l'état de validation
 updated_by: DEVICE_ID, updated_at: nowISO
 };
 });
@@ -2967,6 +2983,7 @@ const { error } = await supa.from('sales').upsert({
 tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
 matin: matin, aprem: aprem, reste_j1: resteJ1, perte: perte,
 rupture_heure: d.rupture_heure || null,
+day_closed: d.day_closed === true,  // v20.5 — préserve l'état de validation
 updated_by: DEVICE_ID, updated_at: new Date().toISOString()
 }, { onConflict: 'tenant_id,boutique_id,product_id,date' });
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
@@ -2986,7 +3003,8 @@ matin: r.matin == null ? '' : r.matin,
 aprem: r.aprem == null ? '' : r.aprem,
 reste_j1: r.reste_j1 == null ? '' : r.reste_j1,
 perte: r.perte == null ? '' : r.perte,
-rupture_heure: r.rupture_heure || ''
+rupture_heure: r.rupture_heure || '',
+day_closed: r.day_closed === true
 };
 ['matin','aprem','reste_j1','perte'].forEach(function(f) { updateSaleInput(r.product_id, f, r[f]); });
 updateVendu(r.product_id);
@@ -3063,9 +3081,14 @@ let html = '<div class="ventes-day-bar">'
 + '</div>';
   html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prévision (depuis l onglet Prévis) / Aprem / Reste J1 / Perte. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un prévis (rien ne reste).</div>';
 
+// v20.5 — est-ce que la journée a déjà été validée (au moins une row day_closed=true) ?
+const dayAlreadyClosed = Object.values(salesData).some(function(d) { return d && d.day_closed === true; });
 html += '<div class="ventes-actions-bar">'
 
 + '<button class="btn-gold" onclick="importJ1Zero()">✓ Importer (J1=0 tous)</button>'
++ '<button class="btn-gold btn-validate-day' + (dayAlreadyClosed ? ' is-closed' : '') + '" onclick="validateDay()">'
++ (dayAlreadyClosed ? '🔒 Journée validée — re-valider' : '✓ Valider la journée')
++ '</button>'
 + '</div>';
 
 if (!presentCats.length) {
@@ -3084,7 +3107,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">Prévis.</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">Matin</span>'
 + '<span class="col-lbl" style="color:var(--orange)">Après-midi</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">Reste J-1</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
@@ -3152,25 +3175,65 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   }
 
 // v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
+// v20.5 : gate sur day_closed — Vendu n'apparaît qu'après "Valider la journée"
 function calcVenduV201(pid, previs) {
 const d = salesData[pid] || {};
+if (!d.day_closed) return null;
 const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
 const rj = d.reste_j1 === '' ? 0 : parseInt(d.reste_j1) || 0;
-const pe = d.perte === '' ? null : parseInt(d.perte) || 0;
+const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 const pv = previs || 0;
-if (pv === 0 && a === 0 && rj === 0 && pe == null) return null;
-if (pe == null) return null;
 return Math.max(0, pv + a - rj - pe);
 }
 
 function calcPerteV201(pid, previs) {
 const d = salesData[pid] || {};
+if (!d.day_closed) return null;
 const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
-const pe = d.perte === '' ? null : parseInt(d.perte) || 0;
-if (pe == null) return null;
+const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 const total = (previs || 0) + a;
 if (total === 0) return null;
 return Math.round((pe / total) * 100);
+}
+
+// v20.5 — Valider la journée : day_closed=true + aprem/rj1/perte vides → 0 pour TOUS les produits visibles
+async function validateDay() {
+  const ventesProducts = getProductsForVentes().filter(function(p) {
+    if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
+    return true;
+  });
+  if (!ventesProducts.length) { showToast('Aucun produit a valider', 'error'); return; }
+  if (!confirm('Valider la journée du ' + formatDateFr(currentDate) + ' ? Les champs vides (Aprem / Reste J-1 / Perte) seront mis à 0.')) return;
+  setSyncStatus('syncing');
+  const nowISO = new Date().toISOString();
+  const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
+  const rows = ventesProducts.map(function(p) {
+    const d = salesData[p.id] || {};
+    const matinNum = d.matin === '' || d.matin == null ? null : parseInt(d.matin) || 0;
+    const apremNum = d.aprem === '' || d.aprem == null ? 0 : parseInt(d.aprem) || 0;
+    const rjNum    = d.reste_j1 === '' || d.reste_j1 == null ? 0 : parseInt(d.reste_j1) || 0;
+    const perteNum = d.perte === '' || d.perte == null ? 0 : parseInt(d.perte) || 0;
+    return {
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: p.id, date: currentDate,
+      matin: matinNum, aprem: apremNum, reste_j1: rjNum, perte: perteNum,
+      rupture_heure: d.rupture_heure || null,
+      day_closed: true,
+      updated_by: DEVICE_ID, updated_at: nowISO
+    };
+  });
+  const { error } = await supa.from('sales').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  // Maj cache local
+  rows.forEach(function(r) {
+    if (!salesData[r.product_id]) salesData[r.product_id] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+    salesData[r.product_id].aprem    = String(r.aprem);
+    salesData[r.product_id].reste_j1 = String(r.reste_j1);
+    salesData[r.product_id].perte    = String(r.perte);
+    salesData[r.product_id].day_closed = true;
+  });
+  renderVentes();
+  showToast('Journée validée (' + rows.length + ' produits)', 'sync');
 }
 
 // v20.1 : Importer global = J1=0 pour tous les produits avec previs
@@ -3190,6 +3253,7 @@ aprem: d.aprem === '' ? null : parseInt(d.aprem) || 0,
 reste_j1: 0,  // <-- le cœur du bouton
 perte: d.perte === '' ? null : parseInt(d.perte) || 0,
 rupture_heure: d.rupture_heure || null,
+day_closed: d.day_closed === true,  // v20.5 — préserve l'état de validation
 updated_by: DEVICE_ID, updated_at: nowISO
 };
 });
@@ -3197,7 +3261,7 @@ const { error } = await supa.from('sales').upsert(rows, { onConflict: 'tenant_id
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 pidsToSet.forEach(function(pid) {
-if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '', day_closed: false };
 salesData[pid].reste_j1 = 0;
 });
 renderVentes();
@@ -3218,7 +3282,7 @@ showToast('"' + name + '" masque. Re-activation en BackOffice.', 'sync');
 
 function handleSaleInput(el) {
 const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
-if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '', day_closed: false };
 salesData[pid][field] = val;
 el.classList.toggle('has', val !== '');
 updateVendu(pid);
@@ -3275,6 +3339,7 @@ const rows = recapWeekData[dayISO] || [];
 let totalVendu = 0, totalProduit = 0, totalPerte = 0, totalResteJ1 = 0;
 let productsMap = {};
 rows.forEach(function(r) {
+if (r.day_closed !== true) return;  // v20.5 — exclure les journées non validées
 if (recapMode === 'category' && recapCategory !== 'all') {
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p || p.category !== recapCategory) return;
@@ -3305,6 +3370,7 @@ let productsLost = {};
 days.forEach(function(d) {
 const rows = recapWeekData[d] || [];
 rows.forEach(function(r) {
+if (r.day_closed !== true) return;  // v20.5 — exclure les journées non validées
 if (recapMode === 'category' && recapCategory !== 'all') {
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p || p.category !== recapCategory) return;
