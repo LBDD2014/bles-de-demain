@@ -607,6 +607,52 @@ line-height: 1;
 pointer-events: none;
 }
 
+/* v20.2 Filtre produit + feedback saisie + bouton Envoyer flottant */
+.product-filter {
+  display: flex; align-items: center; gap: 8px;
+  background: white; border-radius: 10px;
+  padding: 6px 10px; margin: 4px 14px 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #EEE5D5;
+}
+.product-filter .filter-icon { font-size: 14px; opacity: 0.55; line-height: 1; }
+.product-filter input {
+  flex: 1; border: none; outline: none;
+  font-family: inherit; font-size: 14px;
+  background: transparent; color: var(--brown);
+  padding: 4px 0;
+}
+.product-filter input::placeholder { color: #B5A78D; }
+.product-filter .filter-clear {
+  background: transparent; border: none; cursor: pointer;
+  color: #999; font-size: 16px; padding: 0 4px; font-family: inherit;
+}
+.product-filter .filter-clear:active { color: var(--red); }
+/* Feedback vert sur lignes saisies */
+.produit-row.row-filled {
+  background: linear-gradient(to right, rgba(74, 124, 89, 0.08), transparent);
+  border-left: 3px solid var(--green);
+  padding-left: 11px;
+}
+.market-row.row-filled {
+  background: linear-gradient(to right, rgba(74, 124, 89, 0.08), transparent);
+  border-left: 3px solid var(--green);
+}
+/* Bouton Envoyer flottant */
+.send-btn-floating {
+  position: fixed; bottom: 70px; right: 14px;
+  background: var(--gold); color: white; font-family: inherit;
+  border: none; border-radius: 24px;
+  padding: 12px 18px; font-size: 14px; font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  cursor: pointer; z-index: 90;
+  display: flex; align-items: center; gap: 8px;
+}
+.send-btn-floating:active { transform: scale(0.97); }
+.send-btn-floating.disabled, .send-btn-floating:disabled {
+  background: #CFC4A8; cursor: default; box-shadow: none;
+}
+
 /* v20.1 Ventes refondue */
 .ventes-col-header.v201 {
 display: grid;
@@ -1010,6 +1056,8 @@ font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: var(--bro
 .section-header-reappro {
 display: flex; justify-content: space-between; align-items: center; gap: 10px;
 background: #F5F0E5;
+position: sticky; top: 56px; z-index: 5;
+box-shadow: 0 1px 0 rgba(0,0,0,0.04);
 }
 .send-btn {
 background: var(--green); color: white; border: none;
@@ -1750,6 +1798,52 @@ function formatMarketDayLabel(iso) {
   return names[d.getDay()] + ' ' + d.getDate();
 }
 
+// v20.2 — Filtre produit (Réappro/Prévis/Stock)
+let productFilterQuery = '';
+function renderProductFilter() {
+  const v = escapeHtml(productFilterQuery);
+  return '<div class="product-filter">'
+    + '<span class="filter-icon">🔍</span>'
+    + '<input type="text" placeholder="Filtrer un produit…" value="' + v + '" oninput="onProductFilterInput(this)">'
+    + (productFilterQuery ? '<button class="filter-clear" onclick="clearProductFilter()" title="Effacer">✕</button>' : '')
+    + '</div>';
+}
+function onProductFilterInput(el) {
+  productFilterQuery = (el.value || '').toLowerCase().trim();
+  applyProductFilter();
+  // Toggle clear button visibility
+  const parent = el.parentElement;
+  let clear = parent.querySelector('.filter-clear');
+  if (productFilterQuery && !clear) {
+    const btn = document.createElement('button');
+    btn.className = 'filter-clear'; btn.textContent = '✕'; btn.title = 'Effacer';
+    btn.onclick = clearProductFilter;
+    parent.appendChild(btn);
+  } else if (!productFilterQuery && clear) {
+    clear.remove();
+  }
+}
+function clearProductFilter() {
+  productFilterQuery = '';
+  const input = document.querySelector('.product-filter input');
+  if (input) input.value = '';
+  const clear = document.querySelector('.product-filter .filter-clear');
+  if (clear) clear.remove();
+  applyProductFilter();
+}
+function applyProductFilter() {
+  const q = productFilterQuery;
+  const mc = document.getElementById('main-content');
+  if (!mc) return;
+  const rows = mc.querySelectorAll('.produit-row, .market-row, .stock-row');
+  rows.forEach(function(row) {
+    const nameEl = row.querySelector('.produit-name, .prod-name');
+    if (!nameEl) return;
+    const matches = !q || nameEl.textContent.toLowerCase().includes(q);
+    row.style.display = matches ? '' : 'none';
+  });
+}
+
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
@@ -1969,6 +2063,7 @@ return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '"
 
 async function setVue(v) {
 currentVue = v;
+productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
 renderNav();
 const pbtn = document.getElementById('print-btn');
 if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison' || v === 'specials') ? 'flex' : 'none';
@@ -2451,6 +2546,8 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeReapproDate(1)">→</button>'
 + '</div>';
 
+html += renderProductFilter();
+
 if (autoCopyLastWeekDate) {
 html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px solid var(--gold)">'
 
@@ -2491,6 +2588,7 @@ html += '<div class="empty-state">Aucun produit configuré pour cette boutique.<
 }
 
 mc.innerHTML = html;
+applyProductFilter();
 }
 
 // v20.1 : St-Avertin a 2 onglets reappro separes
@@ -2581,7 +2679,10 @@ function renderReapproRow(p, type) {
 const val = reapprosData[p.id] || { avoir: '', commander: '', previs: '', sent_at: null };
 const isSent = !!val.sent_at;
 const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
-let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + '">';
+const hasFill = (type === 'previs')
+  ? (val.previs != null && val.previs !== '')
+  : ((val.commander != null && val.commander !== '') || (val.avoir != null && val.avoir !== ''));
+let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '">';
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
 if (type === 'previs') {
 const pv = val.previs == null ? '' : String(val.previs);
@@ -2620,6 +2721,15 @@ if (field !== 'previs' && reapprosData[pid].sent_at) {
 reapprosData[pid].sent_at = null;
 }
 el.classList.toggle('has-value', !!val);
+// v20.2 — feedback vert sur ligne saisie
+const row = el.closest('.produit-row');
+if (row) {
+  const d = reapprosData[pid];
+  const filled = (field === 'previs')
+    ? (d.previs != null && d.previs !== '')
+    : ((d.commander != null && d.commander !== '') || (d.avoir != null && d.avoir !== ''));
+  row.classList.toggle('row-filled', filled);
+}
 // On perd le bandeau "J-7 auto" des qu'on modifie
 if (autoCopyLastWeekDate) {
 autoCopyLastWeekDate = null;
@@ -5059,7 +5169,8 @@ seuil: p.seuil_stock != null ? parseQty(p.seuil_stock) : null
 
 function renderStock() {
 const mc = document.getElementById('main-content');
-let html = '<div class="info-banner"><strong>Stock Local</strong><br>Theorique = auto (dernier reel + receptions - sorties). Reel = inventaire physique (saisis pour remettre la base a zero). Seuil en BackOffice > Produits.</div>';
+let html = renderProductFilter();
+html += '<div class="info-banner"><strong>Stock Local</strong><br>Théorique = auto (dernier réel + réceptions - sorties). Réel = inventaire physique (saisis pour remettre la base à zéro). Seuil en BackOffice > Produits.</div>';
 
 html += '<div class="stock-actions-bar">'
 
@@ -5118,6 +5229,7 @@ html += '</div>';
 
 html += '</div>';
 mc.innerHTML = html;
+applyProductFilter();
 
 if (stockReceiptModalOpen) renderStockReceiptModal();
 }
@@ -5320,6 +5432,8 @@ function handlePrevisInput(el) {
 const pid = el.dataset.pid, val = el.value;
 previsData[pid] = val;
 el.classList.toggle('has-value', !!val);
+const row = el.closest('.produit-row');
+if (row) row.classList.toggle('row-filled', val !== '' && val != null);
 clearTimeout(updateTimers['pv_' + pid]);
 updateTimers['pv_' + pid] = setTimeout(function() { upsertPrevis(pid, currentBoutique, currentPrevisDate, val); }, 500);
 }
@@ -5398,6 +5512,8 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changePrevisDate(1)">→</button>'
 + '</div>';
 
+html += renderProductFilter();
+
 html += '<div class="info-banner"><strong>Prévisionnel ' + groupLabel + '</strong><br>Ce que tu vas produire/cuire. Ventes Matin se remplira auto avec (Prévis - J1 hier).</div>';
 
 if (!prods.length) {
@@ -5414,7 +5530,8 @@ const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat]
 sorted.forEach(function(p) {
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
 const j1v = j1[p.id] || 0;
-html += '<div class="produit-row">';
+const filled = pv !== '' && pv != null;
+html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
 html += '<div class="previs-j1">' + (j1v > 0 ? j1v : '<span style="color:#bbb">-</span>') + '</div>';
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';
@@ -5424,6 +5541,7 @@ html += '</div>';
 });
 
 mc.innerHTML = html;
+applyProductFilter();
 }
 
 // Retrocompat
