@@ -653,6 +653,32 @@ pointer-events: none;
   background: #CFC4A8; cursor: default; box-shadow: none;
 }
 
+/* v20.3 — Valeur par défaut (production_defaults) */
+.qty-input.is-default {
+  color: #BBB; font-style: italic;
+}
+.qty-input.is-default:focus { color: var(--brown); font-style: normal; }
+.previs-row-wrap {
+  display: contents;
+}
+.btn-pin-default {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 16px; opacity: 0.45; padding: 4px 6px;
+  font-family: inherit; transition: opacity 0.15s, transform 0.15s;
+}
+.btn-pin-default:active { transform: scale(0.85); }
+.btn-pin-default.pin-flash {
+  opacity: 1; color: var(--green);
+  animation: pinPulse 0.7s ease;
+}
+@keyframes pinPulse {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.prev-input-wrap { display: flex; align-items: center; gap: 2px; }
+.prev-input-wrap .qty-input { flex: 1; min-width: 0; }
+
 /* v20.1 Ventes refondue */
 .ventes-col-header.v201 {
 display: grid;
@@ -1875,6 +1901,73 @@ async function loadCategorySettings() {
   }
 }
 
+// v20.3 — Défauts de production par jour de la semaine
+// Structure : productionDefaults[boutique_id][product_id][dow] = qty (number)
+// dow = 0 (dim) à 6 (sam), norme JS Date.getDay()
+let productionDefaults = {};
+
+async function loadProductionDefaults(boutique) {
+  try {
+    const { data, error } = await supa.from('production_defaults').select('*')
+      .eq('tenant_id', TENANT_ID).eq('boutique_id', boutique);
+    if (error) throw error;
+    productionDefaults[boutique] = {};
+    (data || []).forEach(function(r) {
+      if (!productionDefaults[boutique][r.product_id]) productionDefaults[boutique][r.product_id] = {};
+      productionDefaults[boutique][r.product_id][r.day_of_week] = Number(r.default_qty);
+    });
+  } catch (err) {
+    // Silencieux : si la table n existe pas encore (SQL pas encore lancée), on continue sans défauts
+    productionDefaults[boutique] = {};
+  }
+}
+
+// Retourne le défaut pour (boutique, product, dateISO) ou null si absent
+function getDefaultQty(boutique, productId, dateISO) {
+  const map = productionDefaults[boutique];
+  if (!map || !map[productId]) return null;
+  const dow = new Date(dateISO + 'T12:00').getDay();
+  const v = map[productId][dow];
+  return v != null ? v : null;
+}
+
+// Sauve le défaut pour (boutique, product, dow) — appelé par le bouton 📌
+async function saveProductionDefault(boutique, productId, dateISO, qty) {
+  const dow = new Date(dateISO + 'T12:00').getDay();
+  const num = parseFloat(String(qty).replace(',', '.'));
+  if (isNaN(num) || num < 0) { showToast('Quantité invalide', 'error'); return false; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('production_defaults').upsert({
+    tenant_id: TENANT_ID, boutique_id: boutique, product_id: productId,
+    day_of_week: dow, default_qty: num,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id,product_id,day_of_week' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return false; }
+  setSyncStatus('ok');
+  // Mise à jour du cache local
+  if (!productionDefaults[boutique]) productionDefaults[boutique] = {};
+  if (!productionDefaults[boutique][productId]) productionDefaults[boutique][productId] = {};
+  productionDefaults[boutique][productId][dow] = num;
+  const dowNames = ['dimanches','lundis','mardis','mercredis','jeudis','vendredis','samedis'];
+  showToast('Défaut sauvé pour les ' + dowNames[dow], 'sync');
+  return true;
+}
+
+// Handler appelé par le bouton 📌 dans le rendu Prévis
+async function pinAsDefault(boutique, productId, dateISO) {
+  // Récupère la valeur actuelle de l'input pour ce produit dans la vue
+  const input = document.querySelector('input[data-pid="' + productId + '"][data-default-pin="1"]');
+  if (!input) { showToast('Champ introuvable', 'error'); return; }
+  const val = input.value;
+  if (val === '' || val == null) { showToast('Saisis d abord une quantité', 'error'); return; }
+  const ok = await saveProductionDefault(boutique, productId, dateISO, val);
+  if (ok) {
+    // Animation visuelle : flash vert sur le bouton
+    const btn = document.querySelector('button[data-pin-pid="' + productId + '"]');
+    if (btn) { btn.classList.add('pin-flash'); setTimeout(function(){ btn.classList.remove('pin-flash'); }, 800); }
+  }
+}
+
 function categoryHasPrevis(cat) {
   return categorySettings[cat] && categorySettings[cat].a_previs === true;
 }
@@ -2027,6 +2120,9 @@ currentMarketDate = nextMarketDateFor(b);
 currentMarketId = null;
 }
 await loadCategorySettings(); // v20 : charger config Prévis par catégorie
+await loadProductionDefaults(b); // v20.3 : charger défauts production par jour de semaine
+// On charge aussi pour les boutiques associées (St-Av est lié à Veigné pour le traiteur)
+if (b === 'veigne') await loadProductionDefaults('saint-avertin');
 document.getElementById('splash').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
 document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
@@ -2790,7 +2886,14 @@ let matinAutoVal = null;
 
 // Cas 1 : produit sur place avec Prévis
 if (supply === 'on_site' && categoryHasPrevis(p.category)) {
-const pv = previsY[pid] || 0;
+// v20.3 — fallback sur défaut de production si pas de Prévis saisi pour J-1
+let pv = previsY[pid];
+if (pv == null || pv === '') {
+  const defQ = getDefaultQty(b, pid, yISO);
+  pv = defQ != null ? defQ : 0;
+} else {
+  pv = Number(pv) || 0;
+}
 const j1 = restesY[pid] || 0;
 const net = Math.max(0, pv - j1);
 if (pv > 0 || j1 > 0) {
@@ -5432,6 +5535,7 @@ function handlePrevisInput(el) {
 const pid = el.dataset.pid, val = el.value;
 previsData[pid] = val;
 el.classList.toggle('has-value', !!val);
+el.classList.remove('is-default');  // v20.3 — l'utilisateur a tapé, ce n'est plus un défaut
 const row = el.closest('.produit-row');
 if (row) row.classList.toggle('row-filled', val !== '' && val != null);
 clearTimeout(updateTimers['pv_' + pid]);
@@ -5443,6 +5547,7 @@ const pid = el.dataset.pid, val = el.value, boutique = el.dataset.boutique;
 if (boutique === 'veigne' || boutique === 'tours') previsTraiteurDataV[pid] = val;
 if (boutique === 'saint-avertin') previsTraiteurDataSA[pid] = val;
 el.classList.toggle('has-value', !!val);
+el.classList.remove('is-default');
 clearTimeout(updateTimers['tp_' + boutique + '_' + pid]);
 updateTimers['tp_' + boutique + '_' + pid] = setTimeout(function() {
 upsertPrevis(pid, boutique, currentPrevisDate, val);
@@ -5454,6 +5559,7 @@ const pid = el.dataset.pid, val = el.value;
 previsTraiteurDataSA[pid] = val;
 previsData[pid] = val;
 el.classList.toggle('has-value', !!val);
+el.classList.remove('is-default');
 clearTimeout(updateTimers['pts_' + pid]);
 updateTimers['pts_' + pid] = setTimeout(function() {
 upsertPrevis(pid, 'saint-avertin', currentPrevisDate, val);
@@ -5531,10 +5637,18 @@ sorted.forEach(function(p) {
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
 const j1v = j1[p.id] || 0;
 const filled = pv !== '' && pv != null;
+// v20.3 — défaut par jour de semaine
+const defaultQty = getDefaultQty(currentBoutique, p.id, currentPrevisDate);
+const displayValue = filled ? pv : (defaultQty != null ? String(defaultQty) : '');
+const isDefault = !filled && defaultQty != null;
+const inputClasses = 'qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '');
 html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
 html += '<div class="previs-j1">' + (j1v > 0 ? j1v : '<span style="color:#bbb">-</span>') + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';
+html += '<div class="prev-input-wrap">';
+html += '<input type="text" inputmode="decimal" class="' + inputClasses + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';
+html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'' + currentBoutique + '\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
+html += '</div>';
 html += '</div>';
 });
 html += '</div>';
@@ -5617,11 +5731,20 @@ const j1vN = j1V[p.id] || 0;
 const j1saN = j1SA[p.id] || 0;
 const total = Math.max(0, pvN - j1vN) + Math.max(0, psaN - j1saN);
 grandTotal += total;
+// v20.3 — défauts pour V et SA séparément
+const defVeigne = getDefaultQty('veigne', p.id, currentPrevisDate);
+const defSA = getDefaultQty('saint-avertin', p.id, currentPrevisDate);
+const pvFilled = pv !== '' && pv != null;
+const psaFilled = psa !== '' && psa != null;
+const pvDisplay = pvFilled ? pv : (defVeigne != null ? String(defVeigne) : '');
+const psaDisplay = psaFilled ? psa : (defSA != null ? String(defSA) : '');
+const pvIsDefault = !pvFilled && defVeigne != null;
+const psaIsDefault = !psaFilled && defSA != null;
 html += '<div class="traiteur-row">';
 html += '<div class="produit-name">' + escapeHtml(p.name) + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="decimal" class="qty-input ' + (pvFilled ? 'has-value' : '') + (pvIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" value="' + escapeHtml(pvDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
 html += '<div class="traiteur-j1">' + (j1vN > 0 ? j1vN : '-') + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input ' + (psa ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" value="' + escapeHtml(String(psa)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="decimal" class="qty-input ' + (psaFilled ? 'has-value' : '') + (psaIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" value="' + escapeHtml(psaDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
 html += '<div class="traiteur-j1">' + (j1saN > 0 ? j1saN : '-') + '</div>';
 html += '<div class="traiteur-total">' + (total > 0 ? '<strong>' + total + '</strong>' : '<span style="color:#bbb">-</span>') + '</div>';
 html += '</div>';
@@ -5640,10 +5763,18 @@ const pvN = parseQty(pv);
 const j1vN = j1V[p.id] || 0;
 const total = Math.max(0, pvN - j1vN);
 grandTotal += total;
-html += '<div class="produit-row">';
+const pvFilled = pv !== '' && pv != null;
+const defTours = getDefaultQty('tours', p.id, currentPrevisDate);
+const displayValue = pvFilled ? pv : (defTours != null ? String(defTours) : '');
+const isDefault = !pvFilled && defTours != null;
+const filled = pvFilled;
+html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
 html += '<div class="previs-j1">' + (j1vN > 0 ? j1vN : '<span style="color:#bbb">-</span>') + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" data-pid="' + p.id + '" data-boutique="tours" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<div class="prev-input-wrap">';
+html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="tours" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'tours\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
+html += '</div>';
 html += '</div>';
 });
 html += '<div class="traiteur-grand-total"><span>Volume total à produire</span><strong>' + grandTotal + '</strong></div>';
@@ -5682,9 +5813,16 @@ html += '<div class="section-header section-header-reappro"><span>Traiteur St-Av
 html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">Prévis</span></div>';
 prods.forEach(function(p) {
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
-html += '<div class="produit-row">';
+const pvFilled = pv !== '' && pv != null;
+const defSA = getDefaultQty('saint-avertin', p.id, currentPrevisDate);
+const displayValue = pvFilled ? pv : (defSA != null ? String(defSA) : '');
+const isDefault = !pvFilled && defSA != null;
+html += '<div class="produit-row' + (pvFilled ? ' row-filled' : '') + '">';
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
-html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" value="' + escapeHtml(String(pv)) + '" placeholder="-" oninput="handlePrevisTraiteurSAInput(this)" onfocus="this.select()">';
+html += '<div class="prev-input-wrap" style="grid-column:2/-1">';
+html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pvFilled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisTraiteurSAInput(this)" onfocus="this.select()">';
+html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'saint-avertin\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
+html += '</div>';
 html += '</div>';
 });
 html += '</div>';
