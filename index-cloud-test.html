@@ -3470,12 +3470,12 @@ html += '<div class="empty-state">'
   if (stop.notes) metaHtml += '<div style="margin-top:4px;font-style:italic">' + escapeHtml(stop.notes) + '</div>';
   
   html += '<div class="' + cardCls + '">'
-  - '<div class="stop-pos">' + (idx + 1) + '</div>'
-  - '<div class="stop-info">'
-    - '<div class="stop-name">' + escapeHtml(stop.stop_label) + '</div>'
-    - '<div class="stop-meta">' + metaHtml + '</div>'
-  - '</div>'
-  - '<button class="stop-check ' + (isDelivered ? 'checked' : '') + '" onclick="toggleDelivered(\'' + stop.id + '\', ' + isDelivered + ')">✓</button>';
+  + '<div class="stop-pos">' + (idx + 1) + '</div>'
+  + '<div class="stop-info">'
+    + '<div class="stop-name">' + escapeHtml(stop.stop_label) + '</div>'
+    + '<div class="stop-meta">' + metaHtml + '</div>'
+  + '</div>'
+  + '<button class="stop-check ' + (isDelivered ? 'checked' : '') + '" onclick="toggleDelivered(\'' + stop.id + '\', ' + isDelivered + ')">✓</button>';
   
   if (!isLivreurMode) {
   html += '<div class="stop-actions">'
@@ -6376,11 +6376,11 @@ html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : 
   // Stop select (only for local sender)
   if (currentBoutique === 'local') {
   html += '<select class="msg-stop-select" onchange="handleMessageDraftInput(\'stop_boutique\', this.value)">'
-  - '<option value="">-- Arret concerne (optionnel) --</option>'
-  - '<option value="veigne" ' + (messageDraft.stop_boutique === 'veigne' ? 'selected' : '') + '>Veigne</option>'
-  - '<option value="tours" ' + (messageDraft.stop_boutique === 'tours' ? 'selected' : '') + '>Tours</option>'
-  - '<option value="saint-avertin" ' + (messageDraft.stop_boutique === 'saint-avertin' ? 'selected' : '') + '>St-Avertin</option>'
-  - '</select>';
+  + '<option value="">-- Arret concerne (optionnel) --</option>'
+  + '<option value="veigne" ' + (messageDraft.stop_boutique === 'veigne' ? 'selected' : '') + '>Veigne</option>'
+  + '<option value="tours" ' + (messageDraft.stop_boutique === 'tours' ? 'selected' : '') + '>Tours</option>'
+  + '<option value="saint-avertin" ' + (messageDraft.stop_boutique === 'saint-avertin' ? 'selected' : '') + '>St-Avertin</option>'
+  + '</select>';
     }
     html += '<button class="msg-send-btn" onclick="sendMessage()">Envoyer</button>';
     html += '</div>';
