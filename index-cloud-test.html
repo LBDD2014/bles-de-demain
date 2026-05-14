@@ -738,6 +738,40 @@ background: #FAF6EE; border-bottom: 1px solid #F0EAE0;
 flex: 1; padding: 10px; font-size: 13px; font-weight: 700;
 }
 
+/* v20.5 — nav catégories Ventes (pills sticky) */
+.ventes-cat-nav {
+position: sticky; top: 56px; z-index: 6;
+display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
+padding: 10px 14px; background: var(--cream);
+border-bottom: 1px solid #E8DFC9;
+box-shadow: 0 2px 6px rgba(61,43,31,0.06);
+-webkit-overflow-scrolling: touch;
+scrollbar-width: none;
+}
+.ventes-cat-nav::-webkit-scrollbar { display: none; }
+.ventes-cat-pill {
+flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+padding: 8px 14px; border-radius: 18px;
+background: white; color: var(--brown);
+border: 1.5px solid var(--gold-light);
+font-family: inherit; font-size: 13px; font-weight: 700;
+cursor: pointer; white-space: nowrap;
+transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.ventes-cat-pill .pill-count {
+display: inline-flex; align-items: center; justify-content: center;
+min-width: 20px; height: 18px; padding: 0 6px;
+border-radius: 9px; background: var(--gold-light); color: var(--brown);
+font-size: 11px; font-weight: 700;
+}
+.ventes-cat-pill:active { transform: scale(0.96); }
+.ventes-cat-pill.active {
+background: var(--gold-dark); color: white; border-color: var(--gold-dark);
+}
+.ventes-cat-pill.active .pill-count {
+background: rgba(255,255,255,0.25); color: white;
+}
+
 /* v20.1 Stock Local */
 .stock-actions-bar {
 padding: 10px 14px; display: flex; gap: 8px;
@@ -3074,13 +3108,33 @@ mc.innerHTML = html;
 return;
 }
 
+// v20.5 — nav catégories (pills sticky). On compte produits visibles par cat pour les badges.
+const catCounts = {};
+presentCats.forEach(function(cat) {
+catCounts[cat] = ventesProducts.filter(function(p) {
+if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
+return p.category === cat;
+}).length;
+});
+const navCats = presentCats.filter(function(cat) { return catCounts[cat] > 0; });
+if (navCats.length > 1) {
+html += '<div class="ventes-cat-nav" id="ventes-cat-nav">';
+navCats.forEach(function(cat, i) {
+html += '<button class="ventes-cat-pill' + (i === 0 ? ' active' : '') + '" data-cat="' + cat + '" onclick="scrollToVentesCat(\'' + cat + '\')">'
++ '<span>' + escapeHtml(CAT_LABELS[cat] || cat) + '</span>'
++ '<span class="pill-count">' + catCounts[cat] + '</span>'
++ '</button>';
+});
+html += '</div>';
+}
+
 presentCats.forEach(function(cat) {
 const ps = ventesProducts.filter(function(p) {
 if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
 return p.category === cat;
 });
 if (!ps.length) return;
-html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
+html += '<div class="section" id="ventes-sec-' + cat + '"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
@@ -3149,7 +3203,60 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   html += '</div>';
   });
   mc.innerHTML = html;
+  setupVentesCatObserver();
   }
+
+// v20.5 — scroll vers une catégorie depuis les pills
+function scrollToVentesCat(cat) {
+  const el = document.getElementById('ventes-sec-' + cat);
+  if (!el) return;
+  // Offset = header app (56) + nav pills (~52)
+  const offset = 56 + 52 + 8;
+  const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
+  window.scrollTo({ top: y, behavior: 'smooth' });
+  // Maj visuelle immédiate (l'observer peut tarder à cause du smooth scroll)
+  setVentesActivePill(cat);
+}
+
+function setVentesActivePill(cat) {
+  const nav = document.getElementById('ventes-cat-nav');
+  if (!nav) return;
+  nav.querySelectorAll('.ventes-cat-pill').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.cat === cat);
+  });
+  // Centre la pill active dans la barre horizontale
+  const activeBtn = nav.querySelector('.ventes-cat-pill.active');
+  if (activeBtn) {
+    const navRect = nav.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    const target = nav.scrollLeft + (btnRect.left - navRect.left) - (navRect.width / 2) + (btnRect.width / 2);
+    nav.scrollTo({ left: target, behavior: 'smooth' });
+  }
+}
+
+let _ventesCatObserver = null;
+function setupVentesCatObserver() {
+  if (_ventesCatObserver) { _ventesCatObserver.disconnect(); _ventesCatObserver = null; }
+  const nav = document.getElementById('ventes-cat-nav');
+  if (!nav) return;
+  const sections = document.querySelectorAll('[id^="ventes-sec-"]');
+  if (!sections.length) return;
+  // Active la pill dont la section a son top juste sous le bandeau pills
+  _ventesCatObserver = new IntersectionObserver(function(entries) {
+    // Garde uniquement les sections qui sont visibles dans le viewport haut
+    const visible = entries.filter(function(e) { return e.isIntersecting; });
+    if (!visible.length) return;
+    // Prendre celle dont le top est le plus proche de la zone d'ancrage
+    visible.sort(function(a, b) { return a.boundingClientRect.top - b.boundingClientRect.top; });
+    const cat = visible[0].target.id.replace('ventes-sec-', '');
+    setVentesActivePill(cat);
+  }, {
+    // Zone d'observation : juste sous le bandeau pills (offset ~120px du haut)
+    rootMargin: '-120px 0px -60% 0px',
+    threshold: 0
+  });
+  sections.forEach(function(s) { _ventesCatObserver.observe(s); });
+}
 
 // v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
 function calcVenduV201(pid, previs) {
