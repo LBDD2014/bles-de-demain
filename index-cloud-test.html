@@ -3196,44 +3196,87 @@ if (total === 0) return null;
 return Math.round((pe / total) * 100);
 }
 
-// v20.5 — Valider la journée : day_closed=true + aprem/rj1/perte vides → 0 pour TOUS les produits visibles
+// v20.5 — Valider la journée :
+//   * Pour les produits avec activité réelle (Matin > 0 ou Aprem > 0) :
+//     day_closed=true et champs vides (Aprem/RJ-1/Perte) → 0.
+//   * Pour les rows fantômes (day_closed=true mais aucune activité réelle,
+//     legacy d'un ancien clic Valider buggé) : on reset day_closed=false
+//     et on vide les valeurs → cases redeviennent "-".
 async function validateDay() {
   const ventesProducts = getProductsForVentes().filter(function(p) {
     if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
     return true;
   });
   if (!ventesProducts.length) { showToast('Aucun produit a valider', 'error'); return; }
-  if (!confirm('Valider la journée du ' + formatDateFr(currentDate) + ' ? Les champs vides (Aprem / Reste J-1 / Perte) seront mis à 0.')) return;
+  function hasVal(v) { return v != null && v !== ''; }
+  function realActivity(d) {
+    return (parseInt(d.matin) || 0) > 0 || (parseInt(d.aprem) || 0) > 0;
+  }
+  const productsToValidate = ventesProducts.filter(function(p) {
+    return realActivity(salesData[p.id] || {});
+  });
+  const productsToUnvalidate = ventesProducts.filter(function(p) {
+    const d = salesData[p.id] || {};
+    return d.day_closed === true && !realActivity(d);
+  });
+  if (!productsToValidate.length && !productsToUnvalidate.length) {
+    showToast('Aucune saisie a valider (tout est vide)', 'error');
+    return;
+  }
+  const msgParts = ['Valider la journée du ' + formatDateFr(currentDate) + ' ?'];
+  if (productsToValidate.length) msgParts.push(productsToValidate.length + ' produit(s) à valider (champs vides → 0)');
+  if (productsToUnvalidate.length) msgParts.push(productsToUnvalidate.length + ' produit(s) fantôme(s) à nettoyer (sans activité réelle)');
+  if (!confirm(msgParts.join('\n'))) return;
   setSyncStatus('syncing');
   const nowISO = new Date().toISOString();
-  const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
-  const rows = ventesProducts.map(function(p) {
+  const validateRows = productsToValidate.map(function(p) {
     const d = salesData[p.id] || {};
-    const matinNum = d.matin === '' || d.matin == null ? null : parseInt(d.matin) || 0;
-    const apremNum = d.aprem === '' || d.aprem == null ? 0 : parseInt(d.aprem) || 0;
-    const rjNum    = d.reste_j1 === '' || d.reste_j1 == null ? 0 : parseInt(d.reste_j1) || 0;
-    const perteNum = d.perte === '' || d.perte == null ? 0 : parseInt(d.perte) || 0;
     return {
       tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: p.id, date: currentDate,
-      matin: matinNum, aprem: apremNum, reste_j1: rjNum, perte: perteNum,
+      matin: hasVal(d.matin) ? (parseInt(d.matin) || 0) : null,
+      aprem: hasVal(d.aprem) ? (parseInt(d.aprem) || 0) : 0,
+      reste_j1: hasVal(d.reste_j1) ? (parseInt(d.reste_j1) || 0) : 0,
+      perte: hasVal(d.perte) ? (parseInt(d.perte) || 0) : 0,
       rupture_heure: d.rupture_heure || null,
       day_closed: true,
       updated_by: DEVICE_ID, updated_at: nowISO
     };
   });
-  const { error } = await supa.from('sales').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  const unvalidateRows = productsToUnvalidate.map(function(p) {
+    return {
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: p.id, date: currentDate,
+      matin: null, aprem: null, reste_j1: null, perte: null,
+      rupture_heure: null,
+      day_closed: false,
+      updated_by: DEVICE_ID, updated_at: nowISO
+    };
+  });
+  const allRows = validateRows.concat(unvalidateRows);
+  const { error } = await supa.from('sales').upsert(allRows, { onConflict: 'tenant_id,boutique_id,product_id,date' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
   setSyncStatus('ok');
   // Maj cache local
-  rows.forEach(function(r) {
-    if (!salesData[r.product_id]) salesData[r.product_id] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '' };
+  validateRows.forEach(function(r) {
+    if (!salesData[r.product_id]) salesData[r.product_id] = { matin: '', aprem: '', reste_j1: '', perte: '', rupture_heure: '', day_closed: false };
     salesData[r.product_id].aprem    = String(r.aprem);
     salesData[r.product_id].reste_j1 = String(r.reste_j1);
     salesData[r.product_id].perte    = String(r.perte);
     salesData[r.product_id].day_closed = true;
   });
+  unvalidateRows.forEach(function(r) {
+    if (salesData[r.product_id]) {
+      salesData[r.product_id].matin = '';
+      salesData[r.product_id].aprem = '';
+      salesData[r.product_id].reste_j1 = '';
+      salesData[r.product_id].perte = '';
+      salesData[r.product_id].day_closed = false;
+    }
+  });
   renderVentes();
-  showToast('Journée validée (' + rows.length + ' produits)', 'sync');
+  const parts = [];
+  if (validateRows.length) parts.push(validateRows.length + ' validés');
+  if (unvalidateRows.length) parts.push(unvalidateRows.length + ' nettoyés');
+  showToast(parts.join(' · '), 'sync');
 }
 
 // v20.1 : Importer global = J1=0 pour tous les produits avec previs
