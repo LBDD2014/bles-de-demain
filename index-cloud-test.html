@@ -4547,7 +4547,8 @@ const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 
 // v20.9 — Veigné Pâtissier : 1 colonne "Matin V" depuis sales.matin (besoin vendeuse Veigné)
 const showMatinV = isVeignePat;
 // v20.11 — Veigné Pâtissier : colonne "Matin SA" visible pour le traiteur produit par Veigné
-const showMatinSA = isVeignePat;
+// v20.16 — Le Local : "Matin SA" visible et éditable pour pain (Boulangers) et viennoiserie cuite (Touriers)
+const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
 const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
@@ -4602,8 +4603,10 @@ marketSum += mv;
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 // v20.9 — Matin Veigné depuis sales (besoin de la vendeuse Veigné pour le jour)
 const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
-// v20.11 — Matin St-Av : pertinent seulement pour le traiteur (Veigné produit le traiteur de St-Av)
-const cMatinSA = (showMatinSA && p.category === 'traiteur') ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+// v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
+// v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
+const matinSAEligible = showMatinSA && (!isVeignePat || p.category === 'traiteur');
+const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
 const totalReassort = cV + cT + cS;
 const total = (showMatinV ? cMatinV : 0) + cMatinSA + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
@@ -4800,8 +4803,10 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-v-input' + (r.matinV > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinDisp) + '" placeholder="-" oninput="handleMatinVInput(this)" onfocus="this.select()" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:700">';
   }
   if (showMatinSA) {
-    // v20.11 — Matin SA : éditable seulement pour catégorie traiteur, sinon "—"
-    if (r.p.category === 'traiteur') {
+    // v20.11 — Matin SA éditable pour catégorie traiteur à Veigné Pâtissier
+    // v20.16 — Matin SA éditable pour pain/viennoiserie au Local (catégorie déjà filtrée en amont)
+    const matinSAEditable = !isVeignePat || r.p.category === 'traiteur';
+    if (matinSAEditable) {
       const matinSADisp = r.matinSA > 0 ? formatQty(r.matinSA) : '';
       rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
     } else {
