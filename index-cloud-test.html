@@ -352,6 +352,10 @@ background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 .prod-input:focus { outline: none; border-color: var(--gold); background: white; }
 .prod-input.has-prod { background: #EFF4FA; border-color: var(--blue); color: var(--blue); }
 .prod-input.has-stock { background: #FAF6EE; border-color: var(--brown-mid); color: var(--brown); }
+/* v20.10 — Matin V input éditable : vert quand renseigné */
+.prod-input.matin-v-input { background: white; border-color: #D8E5DA; color: var(--green) !important; }
+.prod-input.matin-v-input.has-prod { background: #EEF7F2; border-color: var(--green); }
+.prod-input.matin-v-input:focus { background: white; border-color: var(--green); }
 .prod-input.just-updated { animation: flash 1s; }
 .ecart-badge {
 display: inline-block; padding: 4px 0; border-radius: 5px;
@@ -4409,6 +4413,30 @@ productionReassortsExpanded = !productionReassortsExpanded;
 renderProduction();
 }
 
+// v20.10 — édition directe de Matin V depuis "À produire" (boulanger ajuste)
+function handleMatinVInput(el) {
+  const pid = el.dataset.pid;
+  const val = el.value;
+  const q = parseQty(val) || 0;
+  // MAJ cache local
+  if (q > 0) productionVeigneSalesByProduct[pid] = q;
+  else delete productionVeigneSalesByProduct[pid];
+  // Recalcule le Total et l'Écart de la ligne sans full re-render (perf + curseur)
+  const row = el.closest('.prod-row');
+  if (row) {
+    const totalCell = row.querySelector('.cell.total');
+    const spe = productionSpecialByProduct[pid] || 0;
+    const newTotal = q + spe;
+    if (totalCell) totalCell.textContent = formatQty(newTotal);
+    // Écart caché en mode Veigné Pâtissier, donc rien à recalculer ici
+  }
+  // Debounce upsert vers la table previs (= source du Matin Veigné)
+  clearTimeout(updateTimers['matinv_' + pid]);
+  updateTimers['matinv_' + pid] = setTimeout(function() {
+    upsertPrevis(pid, 'veigne', currentReapproDate, val);
+  }, 400);
+}
+
 function renderProduction() {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
@@ -4428,13 +4456,16 @@ const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 
 const showMatinV = isVeignePat;
 const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
-// Grid : Produit | [Matin V | V T SA] | [Spé] | [marches actifs] | Cmd | Produit | Stock | Ecart
+// v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
+// (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
+const showProdStockEcart = !isVeignePat;
+// Grid : Produit | [Matin V | V T SA] | [Spé] | [marches actifs] | Total | [Produit | Stock | Ecart]
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
   + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '')
   + (showSpe ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
-const fixedColsAfter = '0.55fr 0.7fr 0.7fr 0.7fr';
+const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '');
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
 
 const rows = allProducts.map(function(p) {
@@ -4622,11 +4653,13 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   : '';
   headerHtml += '<span class="col-c" style="color:var(--orange)">' + escapeHtml(MARKET_LABELS_SHORT[mid]) + dateBadge + '</span>';
   });
-  headerHtml += '<span class="col-c col-total">Total</span>'
-+ '<span class="col-c col-prod">Produit</span>'
-+ '<span class="col-c col-stock">Stock</span>'
-+ '<span class="col-c col-ecart">Écart</span>'
-+ '</div>';
+  headerHtml += '<span class="col-c col-total">Total</span>';
+  if (showProdStockEcart) {
+    headerHtml += '<span class="col-c col-prod">Produit</span>'
+      + '<span class="col-c col-stock">Stock</span>'
+      + '<span class="col-c col-ecart">Écart</span>';
+  }
+  headerHtml += '</div>';
 
 html += '<div class="prod-table">' + headerHtml;
 
@@ -4654,7 +4687,9 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>';
   if (showMatinV) {
-    rowHtml += '<div class="cell ' + (r.matinV > 0 ? '' : 'zero') + '" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:' + (r.matinV > 0 ? '700' : '400') + '">' + formatQty(r.matinV) + '</div>';
+    // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
+    const matinDisp = r.matinV > 0 ? formatQty(r.matinV) : '';
+    rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-v-input' + (r.matinV > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinDisp) + '" placeholder="-" oninput="handleMatinVInput(this)" onfocus="this.select()" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:700">';
   }
   if (showVTS) {
     rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
@@ -4668,11 +4703,13 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   const v = r.markets[mid] || 0;
   rowHtml += '<div class="cell ' + (v > 0 ? '' : 'zero') + '" style="color:' + (v > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + formatQty(v) + '</div>';
   });
-  rowHtml += '<div class="cell total">' + formatQty(r.total) + '</div>'
-+ '<input type="text" inputmode="decimal" class="prod-input ' + prodCls + '" data-pid="' + r.p.id + '" data-field="produit" value="' + escapeHtml(r.produitRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
-+ '<input type="text" inputmode="decimal" class="prod-input ' + stockCls + '" data-pid="' + r.p.id + '" data-field="stock" value="' + escapeHtml(r.stockRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
-+ '<div id="ecart_' + r.p.id + '" data-cmd="' + r.total + '">' + ecartHtml + '</div>'
-+ '</div>';
+  rowHtml += '<div class="cell total">' + formatQty(r.total) + '</div>';
+  if (showProdStockEcart) {
+    rowHtml += '<input type="text" inputmode="decimal" class="prod-input ' + prodCls + '" data-pid="' + r.p.id + '" data-field="produit" value="' + escapeHtml(r.produitRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
+      + '<input type="text" inputmode="decimal" class="prod-input ' + stockCls + '" data-pid="' + r.p.id + '" data-field="stock" value="' + escapeHtml(r.stockRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
+      + '<div id="ecart_' + r.p.id + '" data-cmd="' + r.total + '">' + ecartHtml + '</div>';
+  }
+  rowHtml += '</div>';
   html += rowHtml;
   });
   });
