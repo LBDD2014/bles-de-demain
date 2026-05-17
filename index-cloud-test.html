@@ -1789,6 +1789,8 @@ let productionSpecialByProduct = {};  // map { product_id: total_qty }
 let productionSpecialsExpanded = false; // état déplié du bloc spéciales
 // v20.8 — bloc Réassorts magasins (consultation, replié par défaut) pour Veigné Pâtissier
 let productionReassortsExpanded = false;
+// v20.9 — Matin Veigné depuis sales (besoin saisi par la vendeuse) pour Veigné Pâtissier
+let productionVeigneSalesByProduct = {};  // { product_id: matin_qty }
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 let productionLocalData = {};
@@ -2285,6 +2287,10 @@ await loadMarketUpcoming(currentReapproDate);
 // v20.7 — charger les commandes spéciales pour pâtissiers/boulangers
 if (currentBoutique === 'veigne' || currentBoutique === 'local') {
 await loadSpecialOrdersForProduction(currentReapproDate);
+}
+// v20.9 — charger les Matins Veigné (besoins vendeuse) pour Veigné Pâtissier
+if (currentBoutique === 'veigne') {
+await loadVeigneSalesForProduction(currentReapproDate);
 }
 subscribeRealtimeProduction();
 subscribeRealtimeProductionLocal();
@@ -4183,6 +4189,21 @@ previs: r.previs == null ? '' : r.previs
 });
 }
 
+// v20.9 — Charge les Matins de Veigné saisis dans Ventes (sales.matin) pour la date
+// Sert à alimenter la colonne "Matin V" dans "À produire" côté Veigné Pâtissier
+async function loadVeigneSalesForProduction(date) {
+productionVeigneSalesByProduct = {};
+const { data, error } = await supa.from('sales').select('product_id, matin')
+.eq('tenant_id', TENANT_ID).eq('boutique_id', 'veigne').eq('date', date);
+if (error) { showToast('Erreur sales Veigné: ' + error.message, 'error'); return; }
+(data || []).forEach(function(r) {
+if (r.matin != null) {
+const q = parseQty(r.matin) || 0;
+if (q > 0) productionVeigneSalesByProduct[r.product_id] = q;
+}
+});
+}
+
 // v20.7 — Charge les commandes spéciales assignées en production à currentBoutique
 async function loadSpecialOrdersForProduction(date) {
 productionSpecialOrders = [];
@@ -4367,6 +4388,10 @@ await loadMarketUpcoming(currentReapproDate);
 if (currentBoutique === 'veigne' || currentBoutique === 'local') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
+// v20.9 — recharger les Matins Veigné pour le nouveau jour
+if (currentBoutique === 'veigne') {
+await loadVeigneSalesForProduction(currentReapproDate);
+}
 renderProduction();
 }
 
@@ -4402,10 +4427,15 @@ return marketUpcomingData[mid] && marketUpcomingData[mid]._products && Object.ke
 const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local');
 // v20.8 — Veigné Pâtissier : focus Spéciales, V/T/SA + marchés en consultation seulement
 const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne');
-const showVTS = !isVeignePat;
+// v20.9 — Veigné Pâtissier : 1 colonne "Matin V" depuis sales.matin (besoin vendeuse Veigné)
+const showMatinV = isVeignePat;
+const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
-// Grid : Produit | [V T SA] | [Spé] | [marches actifs] | Cmd | Produit | Stock | Ecart
-const fixedColsBefore = '1.3fr' + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '') + (showSpe ? ' 0.55fr' : '');
+// Grid : Produit | [Matin V | V T SA] | [Spé] | [marches actifs] | Cmd | Produit | Stock | Ecart
+const fixedColsBefore = '1.3fr'
+  + (showMatinV ? ' 0.65fr' : '')
+  + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '')
+  + (showSpe ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
 const fixedColsAfter = '0.55fr 0.7fr 0.7fr 0.7fr';
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
@@ -4447,14 +4477,17 @@ marketSum += mv;
 }
 // v20.7 — Commandes spéciales du jour pour ce produit (somme des items)
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
-// v20.8 — Veigné Pâtissier : Cmd = Spé seulement (réassorts en consultation séparée)
+// v20.9 — Matin Veigné depuis sales (besoin de la vendeuse Veigné pour le jour)
+const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
+// v20.8 + v20.9 — Veigné Pâtissier : Cmd = Matin V + Spé (réassorts en consultation séparée)
 const totalReassort = cV + cT + cS;
-const total = (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
+const total = (showMatinV ? cMatinV : 0) + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
-p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, markets: marketVals, total: total,
+p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV,
+markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
 produitVal: prod, stockVal: stock
@@ -4575,6 +4608,9 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' + gridTpl + '">'
 
 + '<span>Produit</span>';
+  if (showMatinV) {
+    headerHtml += '<span class="col-c" style="color:var(--green)" title="Matin Veigné (saisi par la vendeuse dans Ventes)">Matin V</span>';
+  }
   if (showVTS) {
     headerHtml += '<span class="col-c">V</span>'
       + '<span class="col-c">T</span>'
@@ -4620,6 +4656,9 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
 
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>';
+  if (showMatinV) {
+    rowHtml += '<div class="cell ' + (r.matinV > 0 ? '' : 'zero') + '" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:' + (r.matinV > 0 ? '700' : '400') + '">' + formatQty(r.matinV) + '</div>';
+  }
   if (showVTS) {
     rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
       + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
