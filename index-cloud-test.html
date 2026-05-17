@@ -2005,7 +2005,9 @@ async function loadProducts() {
 }
 
 // v20.26 — Realtime sur products : toute modif/suppression rafraîchit le cache et re-render
-let realtimeChannelProducts = null;
+// v20.28 — `var` au lieu de `let` pour éviter TDZ si la promise loadProducts se résout
+// avant l'exécution du `let` dans le flux top-level.
+var realtimeChannelProducts = null;
 function subscribeRealtimeProducts() {
   if (realtimeChannelProducts) return;
   realtimeChannelProducts = supa.channel('products_' + TENANT_ID)
