@@ -5603,7 +5603,9 @@ const p = adminProducts.find(function(x) { return x.id === pid; });
 if (!p) return;
 if (!confirm('Supprimer DEFINITIVEMENT "' + p.name + '" ?\n\nATTENTION : si ce produit a un historique (commandes, ventes, production), la suppression sera impossible et je te proposerai de le desactiver à la place.')) return;
 setSyncStatus('syncing');
-const { error } = await supa.from('products').delete().eq('id', pid);
+// v20.29 : .select() pour vérifier que la DELETE a réellement supprimé une ligne
+// (RLS Supabase peut bloquer silencieusement sans renvoyer d'erreur).
+const { data: deletedRows, error } = await supa.from('products').delete().eq('id', pid).select();
 if (error) {
 setSyncStatus('error');
 const msg = (error.message || '').toLowerCase();
@@ -5618,6 +5620,19 @@ showToast('Produit desactive', 'sync');
 }
 } else {
 showToast(error.message, 'error');
+}
+return;
+}
+// v20.29 : si pas d'erreur mais 0 ligne supprimée -> RLS bloque silencieusement.
+if (!deletedRows || deletedRows.length === 0) {
+setSyncStatus('error');
+if (confirm('Suppression bloquée (probablement RLS ou historique).\nLe DESACTIVER à la place (il disparaitra des ecrans mais l historique reste) ?')) {
+const { error: e2 } = await supa.from('products').update({ actif: false }).eq('id', pid);
+if (e2) { showToast(e2.message, 'error'); return; }
+await loadAdminProducts();
+await loadProducts();
+renderAdminProducts();
+showToast('Produit desactive', 'sync');
 }
 return;
 }
