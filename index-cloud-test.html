@@ -1680,6 +1680,8 @@ outline: none; border-color: var(--gold); background: white;
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- v20.24 — SheetJS pour export/import xlsx BackOffice -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
 const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
@@ -5337,6 +5339,87 @@ if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
 adminProducts = data || [];
 }
 
+// v20.24 — Export BackOffice complet en .xlsx (3 onglets : Produits / Catégories / Valorisation)
+async function exportBackOfficeToXlsx() {
+  if (typeof XLSX === 'undefined') { showToast('Lib XLSX non chargée', 'error'); return; }
+  setSyncStatus('syncing');
+  try {
+    // S'assurer que les data sont chargées
+    if (!adminProducts.length) await loadAdminProducts();
+    if (!Object.keys(categorySettings).length) await loadCategorySettings();
+    await loadValorisation();
+
+    // 1. Sheet Produits — éclate supply_by_boutique en 4 colonnes
+    const prodRows = adminProducts.map(function(p) {
+      const sb = p.supply_by_boutique
+        ? (typeof p.supply_by_boutique === 'string' ? JSON.parse(p.supply_by_boutique) : p.supply_by_boutique)
+        : {};
+      return {
+        id: p.id,
+        name: p.name || '',
+        category: p.category || '',
+        actif: p.actif ? 'OUI' : 'NON',
+        unit: p.unit || '',
+        usage: p.usage || 'reappro',
+        prix_cession: p.prix_cession != null ? p.prix_cession : '',
+        pces_per_caisse: p.pces_per_caisse != null ? p.pces_per_caisse : '',
+        seuil_stock: p.seuil_stock != null ? p.seuil_stock : '',
+        supply_veigne: sb.veigne || '',
+        supply_tours: sb.tours || '',
+        supply_saint_avertin: sb['saint-avertin'] || '',
+        supply_local: sb.local || ''
+      };
+    });
+
+    // 2. Sheet Catégories
+    const allCats = Array.from(new Set(adminProducts.map(function(p) { return p.category; }).filter(Boolean)));
+    Object.keys(CAT_LABELS).forEach(function(c) { if (allCats.indexOf(c) === -1) allCats.push(c); });
+    const catRows = allCats.map(function(cat) {
+      const cfg = categorySettings[cat] || { a_previs: false };
+      const nbProducts = adminProducts.filter(function(p) { return p.category === cat; }).length;
+      return {
+        category: cat,
+        label: CAT_LABELS[cat] || cat,
+        a_previs: cfg.a_previs ? 'OUI' : 'NON',
+        nb_produits: nbProducts
+      };
+    });
+
+    // 3. Sheet Valorisation — somme par produit × boutique × semaine courante
+    const valoRows = [];
+    Object.keys(valoData).forEach(function(bid) {
+      Object.keys(valoData[bid]).forEach(function(pid) {
+        const v = valoData[bid][pid];
+        const qty = v.qty || 0;
+        const prix = v.prix || 0;
+        valoRows.push({
+          boutique: bid,
+          product_id: pid,
+          product_name: v.name,
+          category: v.cat,
+          qty: qty,
+          prix_cession: prix,
+          valeur: qty * prix
+        });
+      });
+    });
+
+    // Workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodRows), 'Produits');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(catRows), 'Catégories');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(valoRows), 'Valorisation');
+
+    const today = todayISO();
+    XLSX.writeFile(wb, 'lbdd-backoffice-' + today + '.xlsx');
+    setSyncStatus('ok');
+    showToast('Export Excel téléchargé', 'sync');
+  } catch (e) {
+    setSyncStatus('error');
+    showToast('Erreur export: ' + e.message, 'error');
+  }
+}
+
 async function toggleProductActif(pid, currentVal) {
 setSyncStatus('syncing');
 const newVal = !currentVal;
@@ -5590,6 +5673,7 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 });
 
 let html = '<div class="info-banner"><strong>Catégories</strong><br>Active "Prévis quotidien" sur les catégories dont les produits sont frais à produire chaque jour (pains, viennoiseries cuites sur place, traiteur). Les produits stockables (surgelés, brioches, secs) doivent rester OFF.</div>';
+html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
 html += '<div class="admin-table" style="margin-top:10px">';
 html += '<div class="admin-table-header" style="grid-template-columns:1fr 100px">';
 html += '<span>Catégorie</span><span style="text-align:center">Prévis</span>';
@@ -5623,6 +5707,7 @@ const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length
 const nbSansPrix = adminProducts.filter(function(p) { return p.actif && (p.prix_cession == null); }).length;
 
 let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Ajoute, edite, duplique ou supprime. Le toggle Actif/Inactif masque sans supprimer. Le X supprime definitivement (impossible si historique).</div>';
+html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
 
 html += '<div class="prod-kpi-bar">'
 
@@ -5880,6 +5965,8 @@ let html = '<div class="date-bar">'
 + '</div>'
 + '<button class="date-nav" onclick="changeValoWeek(1)">→</button>'
 + '</div>';
+
+html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
 
 html += '<div class="prod-kpi-bar">'
 
