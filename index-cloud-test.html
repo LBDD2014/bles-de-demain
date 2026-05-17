@@ -4551,12 +4551,18 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeProductionDate(1)">→</button>'
 + '</div>';
 
-html += '<div class="prod-kpi-bar">'
-
-+ '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Commande</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + formatQty(volumeProduit) + '</div><div class="prod-kpi-lbl">Produit</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbManque > 0 ? 'var(--red)' : 'var(--green)') + '">' + nbManque + '</div><div class="prod-kpi-lbl">À produire</div></div>'
-+ '</div>';
+// v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
+if (isVeignePat) {
+  html += '<div class="prod-kpi-bar" style="grid-template-columns:1fr">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Total à produire</div></div>'
+    + '</div>';
+} else {
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Commande</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + formatQty(volumeProduit) + '</div><div class="prod-kpi-lbl">Produit</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (nbManque > 0 ? 'var(--red)' : 'var(--green)') + '">' + nbManque + '</div><div class="prod-kpi-lbl">À produire</div></div>'
+    + '</div>';
+}
 
 // v20.7 — Bloc Spéciales du jour (repliable) pour pâtissiers/boulangers
 if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
