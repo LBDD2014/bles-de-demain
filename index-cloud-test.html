@@ -1988,7 +1988,7 @@ try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
   loadProducts();
-  subscribeRealtimeProducts(); // v20.26
+  // v20.26 — subscribeRealtimeProducts est appelé après init dans loadProducts
 } catch (err) { showInitError(err); }
 
 async function loadProducts() {
@@ -1999,6 +1999,8 @@ async function loadProducts() {
       .order('category', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     products = data || [];
+    // v20.26 — démarrer la subscription realtime products une fois la 1re charge faite
+    if (typeof subscribeRealtimeProducts === 'function') subscribeRealtimeProducts();
   } catch (err) { showInitError(err); }
 }
 
