@@ -275,6 +275,38 @@ background: white; border: 1px solid var(--gold-light); border-radius: 12px;
 padding: 3px 9px; font-size: 11px; color: var(--brown); font-weight: 600;
 }
 
+/* v20.8 — Bloc Réassorts magasins (consultation, replié) */
+.prod-reassort-box {
+background: #F5F0E5; border: 1px solid #E0D5BD;
+border-radius: 12px; margin-top: 12px; margin-bottom: 14px; overflow: hidden;
+}
+.prod-reassort-header {
+display: flex; justify-content: space-between; align-items: center;
+padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--brown-mid);
+}
+.prod-reassort-header:active { background: #EBE3D0; }
+.prod-reassort-toggle { font-size: 12px; color: var(--brown-mid); margin-left: 8px; }
+.prod-reassort-body {
+padding: 4px 12px 12px 12px; border-top: 1px solid #E0D5BD; background: white;
+}
+.prod-reassort-cat {
+font-family: Georgia, serif; font-size: 12px; font-weight: 700;
+color: var(--brown); margin-top: 10px; margin-bottom: 4px;
+padding-bottom: 3px; border-bottom: 1px solid #F0EAE0;
+}
+.prod-reassort-row {
+display: flex; justify-content: space-between; align-items: center;
+padding: 6px 2px; border-bottom: 1px dashed #F0EAE0;
+}
+.prod-reassort-row:last-child { border-bottom: none; }
+.prod-reassort-name { font-size: 12px; color: var(--brown); }
+.prod-reassort-cells { display: flex; gap: 6px; }
+.prod-reassort-cell {
+background: white; border: 1px solid #D8CFB6; border-radius: 10px;
+padding: 2px 7px; font-size: 11px; color: var(--brown-mid);
+}
+.prod-reassort-cell strong { color: var(--gold-dark); }
+
 .prod-table {
 background: white; border-radius: 14px; overflow: hidden;
 box-shadow: 0 2px 12px rgba(61,43,31,0.08); margin-bottom: 10px;
@@ -1755,6 +1787,8 @@ let productionData = {};
 let productionSpecialOrders = [];     // array de commandes (avec items inclus)
 let productionSpecialByProduct = {};  // map { product_id: total_qty }
 let productionSpecialsExpanded = false; // état déplié du bloc spéciales
+// v20.8 — bloc Réassorts magasins (consultation, replié par défaut) pour Veigné Pâtissier
+let productionReassortsExpanded = false;
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 let productionLocalData = {};
@@ -4347,6 +4381,12 @@ productionSpecialsExpanded = !productionSpecialsExpanded;
 renderProduction();
 }
 
+// v20.8 — déplie/replie le bloc Réassorts magasins (consultation)
+function toggleProductionReassorts() {
+productionReassortsExpanded = !productionReassortsExpanded;
+renderProduction();
+}
+
 function renderProduction() {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
@@ -4360,9 +4400,13 @@ return marketUpcomingData[mid] && marketUpcomingData[mid]._products && Object.ke
 
 // v20.7 — colonne Spé pour les boutiques avec spéciales (Veigné/Local)
 const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local');
-// Grid : Produit | V | T | SA | [Spé] | [marches actifs] | Cmd | Produit | Stock | Ecart
-const fixedColsBefore = '1.3fr 0.5fr 0.5fr 0.5fr' + (showSpe ? ' 0.55fr' : '');
-const marketColsTpl = activeMarkets.map(function() { return '0.6fr'; }).join(' ');
+// v20.8 — Veigné Pâtissier : focus Spéciales, V/T/SA + marchés en consultation seulement
+const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne');
+const showVTS = !isVeignePat;
+const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
+// Grid : Produit | [V T SA] | [Spé] | [marches actifs] | Cmd | Produit | Stock | Ecart
+const fixedColsBefore = '1.3fr' + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '') + (showSpe ? ' 0.55fr' : '');
+const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
 const fixedColsAfter = '0.55fr 0.7fr 0.7fr 0.7fr';
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
 
@@ -4403,12 +4447,15 @@ marketSum += mv;
 }
 // v20.7 — Commandes spéciales du jour pour ce produit (somme des items)
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
-const total = cV + cT + cS + marketSum + cSpe;
+// v20.8 — Veigné Pâtissier : Cmd = Spé seulement (réassorts en consultation séparée)
+const totalReassort = cV + cT + cS;
+const total = (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
 p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, markets: marketVals, total: total,
+totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
 produitVal: prod, stockVal: stock
 };
@@ -4527,14 +4574,16 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 // Header
 let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' + gridTpl + '">'
 
-+ '<span>Produit</span>'
-+ '<span class="col-c">V</span>'
-+ '<span class="col-c">T</span>'
-+ '<span class="col-c">SA</span>';
++ '<span>Produit</span>';
+  if (showVTS) {
+    headerHtml += '<span class="col-c">V</span>'
+      + '<span class="col-c">T</span>'
+      + '<span class="col-c">SA</span>';
+  }
   if (showSpe) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Commandes spéciales du jour">⭐ Spé</span>';
   }
-  activeMarkets.forEach(function(mid) {
+  activeMarketsForGrid.forEach(function(mid) {
   const dateBadge = marketUpcomingData[mid]._date
   ? '<span class="market-header-badge">' + formatMarketDayLabel(marketUpcomingData[mid]._date) + '</span>'
   : '';
@@ -4570,14 +4619,16 @@ const stockCls = r.stockRaw ? 'has-stock' : '';
 let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + '">'
 
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
-+ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
-+ '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
-+ '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
-+ '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
++ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>';
+  if (showVTS) {
+    rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
+      + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
+      + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
+  }
   if (showSpe) {
     rowHtml += '<div class="cell ' + (r.spe > 0 ? '' : 'zero') + '" style="color:' + (r.spe > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.spe > 0 ? '700' : '400') + '">' + (r.spe > 0 ? '⭐' + formatQty(r.spe) : '0') + '</div>';
   }
-  activeMarkets.forEach(function(mid) {
+  activeMarketsForGrid.forEach(function(mid) {
   const v = r.markets[mid] || 0;
   rowHtml += '<div class="cell ' + (v > 0 ? '' : 'zero') + '" style="color:' + (v > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + formatQty(v) + '</div>';
   });
@@ -4591,6 +4642,46 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   });
 
 html += '</div>';
+
+// v20.8 — Bloc "Réassorts magasins" en bas pour Veigné Pâtissier (consultation, replié par défaut)
+if (isVeignePat) {
+  const reassortRows = rows.filter(function(r) { return r.totalReassort > 0; });
+  if (reassortRows.length) {
+    html += '<div class="prod-reassort-box">'
+      + '<div class="prod-reassort-header" onclick="toggleProductionReassorts()">'
+      + '<span>📦 <strong>Réassorts magasins</strong> — ' + reassortRows.length + ' produit' + (reassortRows.length > 1 ? 's' : '') + ' à prélever du stock</span>'
+      + '<span class="prod-reassort-toggle">' + (productionReassortsExpanded ? '▲' : '▼') + '</span>'
+      + '</div>';
+    if (productionReassortsExpanded) {
+      html += '<div class="prod-reassort-body">';
+      // Group par catégorie
+      const reassByCat = {};
+      reassortRows.forEach(function(r) {
+        const c = r.p.category || 'autre';
+        if (!reassByCat[c]) reassByCat[c] = [];
+        reassByCat[c].push(r);
+      });
+      const reassCats = Object.keys(reassByCat).sort(function(a, b) {
+        const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      });
+      reassCats.forEach(function(cat) {
+        html += '<div class="prod-reassort-cat">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+        reassByCat[cat].forEach(function(r) {
+          html += '<div class="prod-reassort-row">'
+            + '<span class="prod-reassort-name">' + escapeHtml(r.p.name) + '</span>'
+            + '<span class="prod-reassort-cells">';
+          if (r.veigne > 0) html += '<span class="prod-reassort-cell">V <strong>' + formatQty(r.veigne) + '</strong></span>';
+          if (r.tours > 0) html += '<span class="prod-reassort-cell">T <strong>' + formatQty(r.tours) + '</strong></span>';
+          if (r.savertin > 0) html += '<span class="prod-reassort-cell">SA <strong>' + formatQty(r.savertin) + '</strong></span>';
+          html += '</span></div>';
+        });
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+}
 
 mc.innerHTML = html;
 }
