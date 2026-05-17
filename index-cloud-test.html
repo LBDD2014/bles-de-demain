@@ -1988,6 +1988,7 @@ try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
   loadProducts();
+  subscribeRealtimeProducts(); // v20.26
 } catch (err) { showInitError(err); }
 
 async function loadProducts() {
@@ -1999,6 +2000,34 @@ async function loadProducts() {
     if (error) throw error;
     products = data || [];
   } catch (err) { showInitError(err); }
+}
+
+// v20.26 — Realtime sur products : toute modif/suppression rafraîchit le cache et re-render
+let realtimeChannelProducts = null;
+function subscribeRealtimeProducts() {
+  if (realtimeChannelProducts) return;
+  realtimeChannelProducts = supa.channel('products_' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' },
+      async function() {
+        await loadProducts();
+        if (typeof adminProducts !== 'undefined' && adminProducts.length) await loadAdminProducts();
+        // Re-render la vue courante si applicable
+        if (currentBoutique === 'backoffice') {
+          if (currentVue === 'produits') renderAdminProducts();
+          else if (currentVue === 'catégories') renderAdminCategories();
+        } else if (currentBoutique) {
+          // Vue boutique : re-déclenche le rendu de la vue active
+          if (currentVue === 'reappro' || currentVue === 'reappro_pat' || currentVue === 'reappro_local') {
+            renderReapproByContext();
+          } else if (currentVue === 'ventes') {
+            renderVentes();
+          } else if (currentVue === 'prod_boul' || currentVue === 'prod_tour' || currentVue === 'production') {
+            renderProduction();
+          } else if (currentVue === 'stock' || currentVue === 'stock_tour') {
+            renderStock();
+          }
+        }
+      }).subscribe();
 }
 
 async function loadCategorySettings() {
