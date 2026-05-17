@@ -4189,18 +4189,15 @@ previs: r.previs == null ? '' : r.previs
 });
 }
 
-// v20.9 — Charge les Matins de Veigné saisis dans Ventes (sales.matin) pour la date
-// Sert à alimenter la colonne "Matin V" dans "À produire" côté Veigné Pâtissier
+// v20.9 — Charge les Matins de Veigné saisis dans Ventes pour la date
+// Note v20.9.1 : depuis la v20.4 fusion, la colonne "Matin" de Ventes lit/écrit
+// dans la table `previs`, pas `sales.matin`. On lit donc previs ici.
 async function loadVeigneSalesForProduction(date) {
 productionVeigneSalesByProduct = {};
-const { data, error } = await supa.from('sales').select('product_id, matin')
-.eq('tenant_id', TENANT_ID).eq('boutique_id', 'veigne').eq('date', date);
-if (error) { showToast('Erreur sales Veigné: ' + error.message, 'error'); return; }
-(data || []).forEach(function(r) {
-if (r.matin != null) {
-const q = parseQty(r.matin) || 0;
-if (q > 0) productionVeigneSalesByProduct[r.product_id] = q;
-}
+const data = await loadPrevisRaw('veigne', date);
+Object.keys(data || {}).forEach(function(pid) {
+const q = parseQty(data[pid]) || 0;
+if (q > 0) productionVeigneSalesByProduct[pid] = q;
 });
 }
 
