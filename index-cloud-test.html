@@ -1760,11 +1760,12 @@ const NAV_ITEMS = {
     { id: 'marche', lbl: 'Tableau marché' }
   ],
   'local': [
-    { id: 'production',    lbl: 'Prod. Réap.' },
-    { id: 'production_sa', lbl: 'Prod. St-Av' },
-    { id: 'stock',         lbl: 'Stock' },
-    { id: 'specials',      lbl: 'Spéciales' },
-    { id: 'messages',      lbl: 'Messages' }
+    { id: 'prod_boul',      lbl: 'Prod. Boulangers' },
+    { id: 'prod_tour',      lbl: 'Prod. Touriers' },
+    { id: 'stock_tour',     lbl: 'Stock Tourier' },
+    { id: 'stock_boul_pro', lbl: 'Stock Boul. Pro' },
+    { id: 'specials',       lbl: 'Spéciales' },
+    { id: 'messages',       lbl: 'Messages' }
   ],
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
@@ -2289,19 +2290,21 @@ renderRecap();
 await loadDeliveries(currentDate);
 subscribeRealtimeDeliveries();
 renderLivraison();
-} else if (v === 'production') {
+} else if (v === 'production' || v === 'prod_boul' || v === 'prod_tour') {
+// v20.15 : Le Local split en prod_boul (pains) / prod_tour (viennoiserie+brioches)
 productionSupplierMode = (currentBoutique === 'veigne') ? 'veigne' : 'local';
 await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
-// v20.7 — charger les commandes spéciales pour pâtissiers/boulangers
 if (currentBoutique === 'veigne' || currentBoutique === 'local') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
-// v20.9 — charger les Matins Veigné (besoins vendeuse) pour Veigné Pâtissier
 if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
-// v20.11 — charger aussi les Matins St-Av (pour le traiteur produit à Veigné)
+await loadStAvSalesForProduction(currentReapproDate);
+}
+// v20.15 : pour Le Local, on a besoin des ventes St-Av (pain + viennoiserie cuite éditables)
+if (currentBoutique === 'local') {
 await loadStAvSalesForProduction(currentReapproDate);
 }
 subscribeRealtimeProduction();
@@ -2371,9 +2374,13 @@ if (v === 'reappro_pat' && currentBoutique === 'tours') {
 } else {
   renderReapproSA(v);
 }
-} else if (v === 'stock') {
+} else if (v === 'stock' || v === 'stock_tour') {
+// v20.15 : 'stock' renommé 'stock_tour' (Stock Tourier)
 await loadStockData();
 renderStock();
+} else if (v === 'stock_boul_pro') {
+// v20.15 : placeholder, à configurer après v21 Pros
+renderStockBoulangerPro();
 }
 }
 
@@ -4516,7 +4523,17 @@ function renderProduction() {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
 
-const allProducts = products.slice();
+// v20.15 — Le Local split en 2 équipes (Boulangers / Touriers)
+const isLocalBoul = (currentBoutique === 'local' && currentVue === 'prod_boul');
+const isLocalTour = (currentBoutique === 'local' && currentVue === 'prod_tour');
+let allProducts;
+if (isLocalBoul) {
+  allProducts = products.filter(function(p) { return p.category === 'pains'; });
+} else if (isLocalTour) {
+  allProducts = products.filter(function(p) { return p.category === 'viennoiserie' || p.category === 'brioches_special'; });
+} else {
+  allProducts = products.slice();
+}
 
 // Marches actifs dans l'horizon : ceux qui ont au moins un produit avec emmene > 0
 const activeMarkets = MARKET_IDS.filter(function(mid) {
@@ -4619,7 +4636,9 @@ return r.total > 0 && dispo < r.total;
 const horizonTxt = activeMarkets.length
 ? 'Boutiques + marches (horizon ' + MARKET_PREP_DAYS + 'j)'
 : 'Commandes boutiques';
-const modeLabel = productionSupplierMode === 'veigne' ? 'Prod. Veigné' : 'Production Local';
+const modeLabel = productionSupplierMode === 'veigne'
+  ? 'Prod. Veigné'
+  : (isLocalBoul ? 'Prod. Boulangers' : (isLocalTour ? 'Prod. Touriers' : 'Production Local'));
 
 let html = '<div class="date-bar">'
 
@@ -5860,7 +5879,7 @@ seuil: p.seuil_stock != null ? parseQty(p.seuil_stock) : null
 function renderStock() {
 const mc = document.getElementById('main-content');
 let html = renderProductFilter();
-html += '<div class="info-banner"><strong>Stock Local</strong><br>Théorique = auto (dernier réel + réceptions - sorties). Réel = inventaire physique (saisis pour remettre la base à zéro). Seuil en BackOffice > Produits.</div>';
+html += '<div class="info-banner"><strong>Stock Tourier</strong> (viennoiserie + brioches surgelées)<br>Théorique = auto (dernier réel + réceptions - sorties). Réel = inventaire physique. Décompte auto lors de la validation livreur. Seuil en BackOffice > Produits.</div>';
 
 html += '<div class="stock-actions-bar">'
 
@@ -5974,6 +5993,17 @@ stockReceiptModalOpen = false;
 await loadStockData();
 renderStock();
 showToast('+' + qty + ' en stock', 'sync');
+}
+
+// v20.15 — placeholder en attendant le module Pros (v21)
+function renderStockBoulangerPro() {
+const mc = document.getElementById('main-content');
+mc.innerHTML = '<div class="info-banner" style="border-left-color:var(--gold)">'
+  + '<strong>Stock Boulanger Pro</strong><br>'
+  + 'Stock du pain produit pour les clients professionnels (v21 Pros).<br><br>'
+  + '<em>À configurer après la mise en place du module Pros.</em>'
+  + '</div>'
+  + '<div class="empty-state">Aucun stock pro suivi pour le moment.</div>';
 }
 
 function renderStockReceiptModal() {
