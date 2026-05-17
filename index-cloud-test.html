@@ -2869,12 +2869,13 @@ if (isPain) {
   sectionTitle  = 'Pain à commander au Local';
   emptyHint     = 'les pains';
 } else if (isLocal) {
-  wantedCats    = ['pains', 'viennoiserie', 'brioches_special'];
+  // v20.21 — Pain retiré : passe par l'onglet Ventes (Matin SA lu par Le Local Prod. Boulangers)
+  wantedCats    = ['viennoiserie', 'brioches_special'];
   supplier      = 'local';
   supplierLabel = 'Local';
   dateBarTitle  = 'Cmd Local';
-  sectionTitle  = 'Pain, viennoiseries et brioches à commander au Local';
-  emptyHint     = 'le pain, les viennoiseries et brioches';
+  sectionTitle  = 'Viennoiseries surgelées et brioches feuilletées à commander au Local';
+  emptyHint     = 'les viennoiseries surgelées et brioches feuilletées';
 } else if (isPat) {
   wantedCats    = ['patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
   supplier      = 'veigne';
