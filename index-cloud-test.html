@@ -1724,27 +1724,30 @@ const MARKET_PREP_DAYS = 3;
 
 const NAV_ITEMS = {
   'veigne': [
-    { id: 'reappro',      lbl: 'Réappro' },
     { id: 'ventes',       lbl: 'Ventes' },
+    { id: 'reappro',      lbl: 'Cmd Local' },
+    { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
     { id: 'specials',     lbl: 'Spéciales' },
     { id: 'production',   lbl: 'À produire' },
     { id: 'recap',        lbl: 'Récap' },
     { id: 'messages',     lbl: 'Messages' }
   ],
   'tours': [
-    { id: 'reappro',     lbl: 'Réappro' },
-    { id: 'ventes',      lbl: 'Ventes' },
-    { id: 'specials',    lbl: 'Spéciales' },
-    { id: 'recap',       lbl: 'Récap' }
+    { id: 'ventes',       lbl: 'Ventes' },
+    { id: 'reappro',      lbl: 'Cmd Local' },
+    { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
+    { id: 'specials',     lbl: 'Spéciales' },
+    { id: 'recap',        lbl: 'Récap' },
+    { id: 'messages',     lbl: 'Messages' }
   ],
   'saint-avertin': [
-    { id: 'reappro_pain',     lbl: 'Réap. Pain' },
-    { id: 'reappro_vienn',    lbl: 'Réap. Vienn.' },
-    { id: 'reappro_pat',      lbl: 'Réap. Pât.' },
-    { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'ventes',           lbl: 'Ventes' },
+    { id: 'reappro_local',    lbl: 'Cmd Local' },
+    { id: 'reappro_pat',      lbl: 'Cmd Veigné Pât.' },
+    { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'specials',         lbl: 'Spéciales' },
-    { id: 'recap',            lbl: 'Récap' }
+    { id: 'recap',            lbl: 'Récap' },
+    { id: 'messages',         lbl: 'Messages' }
   ],
   'livreur': [
     { id: 'tournee',  lbl: 'Tournée' },
@@ -2358,11 +2361,16 @@ renderPrevisTraiteurSA();
 if (!currentReapproDate) currentReapproDate = currentDate;
 await loadProductionSA();
 renderProductionSA();
-} else if (v === 'reappro_pain' || v === 'reappro_vienn' || v === 'reappro_pat') {
-// St-Avertin uniquement - 3 onglets reappro separes (v20.6 : + Réap. Pât.)
+} else if (v === 'reappro_pain' || v === 'reappro_vienn' || v === 'reappro_pat' || v === 'reappro_local') {
+// v20.14 : St-Av Cmd Local (fusion pain+vienn) + Cmd Veigné Pât.
+// Veigné/Tours : Cmd Veigné Pât. (pâtisserie depuis Veigné Pâtissier)
 await loadReappros(currentBoutique);
 subscribeRealtimeReappro(currentBoutique);
-renderReapproSA(v);
+if (v === 'reappro_pat' && currentBoutique === 'tours') {
+  renderReappro(); // Tours : filtré sur section patisserie_veigne via currentVue
+} else {
+  renderReapproSA(v);
+}
 } else if (v === 'stock') {
 await loadStockData();
 renderStock();
@@ -2447,9 +2455,13 @@ else { setSyncStatus('ok'); }
 }
 
 // v20.6 — helper : choisit la bonne fonction de rendu Réappro selon la boutique
+// v20.14 — étendu : St-Av reappro_local + Veigné/Tours reappro_pat
 function renderReapproByContext() {
-  if (currentBoutique === 'saint-avertin' && (currentVue === 'reappro_pain' || currentVue === 'reappro_vienn' || currentVue === 'reappro_pat')) {
-    renderReapproSA(currentVue);
+  const v = currentVue;
+  const saMatches = (currentBoutique === 'saint-avertin' && (v === 'reappro_pain' || v === 'reappro_vienn' || v === 'reappro_pat' || v === 'reappro_local'));
+  const veigneMatches = (currentBoutique === 'veigne' && v === 'reappro_pat');
+  if (saMatches || veigneMatches) {
+    renderReapproSA(v);
   } else {
     renderReappro();
   }
@@ -2457,11 +2469,19 @@ function renderReapproByContext() {
 
 async function sendReapproToSupplier(supplier) {
 const pidsToSend = [];
+// v20.14 : Veigné commande à Veigné Pâtissier (supply à Veigné = 'on_site', pas 'veigne')
+// On filtre par catégorie de pâtisserie au lieu de supply pour ce cas.
+const veignePat = (currentBoutique === 'veigne' && supplier === 'veigne');
+const veignePatCats = ['patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
 Object.keys(reapprosData).forEach(function(pid) {
 const p = products.find(function(x) { return x.id === pid; });
 if (!p) return;
-const s = getProductSupply(p, currentBoutique);
-if (s !== supplier) return;
+if (veignePat) {
+  if (veignePatCats.indexOf(p.category) === -1) return;
+} else {
+  const s = getProductSupply(p, currentBoutique);
+  if (s !== supplier) return;
+}
 const d = reapprosData[pid];
 const hasVal = (d.commander && d.commander !== '') || (d.avoir && d.avoir !== '');
 if (hasVal) pidsToSend.push(pid);
@@ -2781,32 +2801,39 @@ html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px soli
 + '<button class="btn-gold" onclick="copyFromLastWeekManual()">Semaine dernière</button></div></div>';
   }
 
-// Tours : Pâtisserie à Veigné en premier
-if (sections.patisserie_veigne.length) {
+// v20.14 — filtrer les sections selon l'onglet courant (Cmd Local vs Cmd Veigné Pât.)
+const showVeignePat = (currentVue === 'reappro_pat'); // onglet Cmd Veigné Pât.
+const showLocal = (currentVue !== 'reappro_pat');      // onglet Cmd Local (par défaut)
+
+// Onglet Cmd Veigné Pât. (Tours) — uniquement la pâtisserie commandée à Veigné
+if (showVeignePat && sections.patisserie_veigne.length) {
 html += renderReapproSection('reassort', 'À commander à Veigné (Pâtisserie)', sections.patisserie_veigne, 'veigne');
 }
-// Surgelés + brioches au Local
+// Onglet Cmd Local — tout sauf pâtisserie Veigné
+if (showLocal) {
 if (sections.surgelés.length) {
 html += renderReapproSection('reassort', 'Surgeles, brioches, pain de mie (au Local)', sections.surgelés, 'local');
 }
-// Pâtisserie stock (pour Tours qui commande à Veigné si applicable, ou Local)
 if (sections.patisserie.length) {
 html += renderReapproSection('reassort', 'Pâtisserie', sections.patisserie, null);
 }
-// Pain
 if (sections.pain.length) {
 html += renderReapproSection('reassort', 'Pain (au Local)', sections.pain, 'local');
 }
-// Ingrédients
 if (sections.ingrédients.length) {
 html += renderReapproSection('reassort', 'Ingrédients (au Local)', sections.ingrédients, 'local');
 }
 if (sections.autre.length) {
 html += renderReapproSection('reassort', 'Autres', sections.autre, null);
 }
+}
 
-if (!prodsForBoutique.length) {
-html += '<div class="empty-state">Aucun produit configuré pour cette boutique.</div>';
+const visibleSections = showVeignePat ? sections.patisserie_veigne.length
+                                       : (sections.surgelés.length + sections.patisserie.length + sections.pain.length + sections.ingrédients.length + sections.autre.length);
+if (!visibleSections) {
+html += '<div class="empty-state">' + (showVeignePat
+  ? 'Aucune pâtisserie à commander à Veigné.<br>Vérifie en BackOffice que les produits ont <em>supply = Veigné</em>.'
+  : 'Aucun produit configuré pour cette boutique.') + '</div>';
 }
 
 mc.innerHTML = html;
@@ -2814,42 +2841,52 @@ applyProductFilter();
 }
 
 // v20.1 : St-Avertin a 2 onglets reappro separes
+// v20.14 : généralisé pour Veigné (Cmd Veigné Pât.) + St-Av (Cmd Local fusion pain+vienn)
 function renderReapproSA(tabId) {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
-const isPain = (tabId === 'reappro_pain');
-const isPat  = (tabId === 'reappro_pat');
-// v20.6 — la pâtisserie part chez Veigné (pas Local) : config dédiée
+const isPain  = (tabId === 'reappro_pain');
+const isPat   = (tabId === 'reappro_pat');
+const isLocal = (tabId === 'reappro_local'); // v20.14 St-Av fusion pain+vienn
+const boutiqueForSupply = currentBoutique;
 let wantedCats, supplier, supplierLabel, dateBarTitle, sectionTitle, emptyHint;
 if (isPain) {
   wantedCats    = ['pains'];
   supplier      = 'local';
   supplierLabel = 'Local';
-  dateBarTitle  = 'Reap. Pain';
+  dateBarTitle  = 'Cmd Pain';
   sectionTitle  = 'Pain à commander au Local';
   emptyHint     = 'les pains';
+} else if (isLocal) {
+  wantedCats    = ['pains', 'viennoiserie', 'brioches_special'];
+  supplier      = 'local';
+  supplierLabel = 'Local';
+  dateBarTitle  = 'Cmd Local';
+  sectionTitle  = 'Pain, viennoiseries et brioches à commander au Local';
+  emptyHint     = 'le pain, les viennoiseries et brioches';
 } else if (isPat) {
   wantedCats    = ['patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
   supplier      = 'veigne';
-  supplierLabel = 'Veigné';
-  dateBarTitle  = 'Reap. Pâtisserie';
-  sectionTitle  = 'Pâtisserie à commander à Veigné';
+  supplierLabel = 'Veigné Pâtissier';
+  dateBarTitle  = 'Cmd Veigné Pât.';
+  sectionTitle  = 'Pâtisserie à commander à Veigné Pâtissier';
   emptyHint     = 'la pâtisserie (petits, gros, gâteaux secs)';
 } else {
   wantedCats    = ['viennoiserie', 'brioches_special'];
   supplier      = 'local';
   supplierLabel = 'Local';
-  dateBarTitle  = 'Reap. Viennoiserie/Brioche';
+  dateBarTitle  = 'Cmd Viennoiserie/Brioche';
   sectionTitle  = 'Viennoiseries + brioches à commander au Local';
   emptyHint     = 'les viennoiseries et brioches';
 }
 
 const prods = products.filter(function(p) {
 if (wantedCats.indexOf(p.category) === -1) return false;
-const sup = getProductSupply(p, 'saint-avertin');
+const sup = getProductSupply(p, boutiqueForSupply);
 if (sup == null) return false;
-// Pour la pâtisserie : exiger explicitement supply='veigne'
-if (isPat && sup !== 'veigne') return false;
+// Pâtisserie : à St-Av on exige supply='veigne' (livrée depuis Veigné).
+// À Veigné on accepte tout supply non null (Veigné Pâtissier produit sur place : 'on_site').
+if (isPat && boutiqueForSupply === 'saint-avertin' && sup !== 'veigne') return false;
 return true;
 });
 
