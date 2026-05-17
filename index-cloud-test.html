@@ -2233,6 +2233,9 @@ currentMarketDate = nextMarketDateFor(b);
 } else {
 currentMarketId = null;
 }
+// v20.25 — recharger products à chaque entrée boutique : garantit que les
+// désactivations en BackOffice prennent effet immédiatement.
+await loadProducts();
 await loadCategorySettings(); // v20 : charger config Prévis par catégorie
 await loadProductionDefaults(b); // v20.3 : charger défauts production par jour de semaine
 // On charge aussi pour les boutiques associées (St-Av est lié à Veigné pour le traiteur)
