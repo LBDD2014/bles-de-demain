@@ -1802,6 +1802,8 @@ let productionReassortsExpanded = false;
 let productionVeigneSalesByProduct = {};  // { product_id: matin_qty }
 // v20.11 — Matin St-Avertin depuis previs (pour les produits traiteur produits par Veigné)
 let productionStAvSalesByProduct = {};  // { product_id: matin_qty }
+// v20.18 — Sales St-Av complètes (matin/aprem/reste_j1) pour Le Local Prod. Boulangers
+let productionStAvSalesFromTable = {};  // { product_id: { matin, aprem, reste_j1 } }
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 let productionLocalData = {};
@@ -2306,6 +2308,8 @@ await loadStAvSalesForProduction(currentReapproDate);
 // v20.15 : pour Le Local, on a besoin des ventes St-Av (pain + viennoiserie cuite éditables)
 if (currentBoutique === 'local') {
 await loadStAvSalesForProduction(currentReapproDate);
+// v20.18 — sales St-Av complètes (matin/aprem/reste_j1) pour Prod. Boulangers
+await loadStAvSalesFromTable(currentReapproDate);
 }
 subscribeRealtimeProduction();
 subscribeRealtimeProductionLocal();
@@ -4266,6 +4270,40 @@ if (q > 0) productionStAvSalesByProduct[pid] = q;
 });
 }
 
+// v20.18 — Charge les sales St-Av complètes (matin/aprem/reste_j1) pour Le Local
+// Permet aux boulangers de voir le contexte de vente et d'ajuster la production.
+async function loadStAvSalesFromTable(date) {
+productionStAvSalesFromTable = {};
+const { data, error } = await supa.from('sales').select('product_id,matin,aprem,reste_j1')
+  .eq('tenant_id', TENANT_ID)
+  .eq('boutique_id', 'saint-avertin')
+  .eq('date', date);
+if (error) { showToast('Erreur sales St-Av: ' + error.message, 'error'); return; }
+(data || []).forEach(function(r) {
+  productionStAvSalesFromTable[r.product_id] = {
+    matin: r.matin == null ? null : r.matin,
+    aprem: r.aprem == null ? null : r.aprem,
+    reste_j1: r.reste_j1 == null ? null : r.reste_j1
+  };
+});
+}
+
+// v20.18 — Upsert d'un champ sales St-Av depuis Le Local (édition Aprem ou Reste J-1)
+async function upsertStAvSaleFieldFromLocal(pid, field, val) {
+  const cache = productionStAvSalesFromTable[pid] || { matin: null, aprem: null, reste_j1: null };
+  const parsed = (val === '' || val == null) ? null : (parseInt(val, 10) || 0);
+  cache[field] = parsed;
+  productionStAvSalesFromTable[pid] = cache;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('sales').upsert({
+    tenant_id: TENANT_ID, boutique_id: 'saint-avertin', product_id: pid, date: currentReapproDate,
+    matin: cache.matin, aprem: cache.aprem, reste_j1: cache.reste_j1,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id,product_id,date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
+  else { setSyncStatus('ok'); }
+}
+
 // v20.7 — Charge les commandes spéciales assignées en production à currentBoutique
 async function loadSpecialOrdersForProduction(date) {
 productionSpecialOrders = [];
@@ -4500,23 +4538,69 @@ function handleMatinSAInput(el) {
   const q = parseQty(val) || 0;
   if (q > 0) productionStAvSalesByProduct[pid] = q;
   else delete productionStAvSalesByProduct[pid];
+  // v20.18 — au Local Boul, le cache from-table contient aussi le matin
+  if (currentBoutique === 'local' && currentVue === 'prod_boul') {
+    if (!productionStAvSalesFromTable[pid]) productionStAvSalesFromTable[pid] = { matin: null, aprem: null, reste_j1: null };
+    productionStAvSalesFromTable[pid].matin = q > 0 ? q : null;
+  }
   recomputeRowTotal(el, pid);
   clearTimeout(updateTimers['matinsa_' + pid]);
   updateTimers['matinsa_' + pid] = setTimeout(function() {
-    upsertPrevis(pid, 'saint-avertin', currentReapproDate, val);
+    // À Veigné Pâtissier, Matin SA vient de previs (traiteur). Au Local Boul, on synchronise sales.
+    if (currentBoutique === 'local' && currentVue === 'prod_boul') {
+      upsertStAvSaleFieldFromLocal(pid, 'matin', val);
+    } else {
+      upsertPrevis(pid, 'saint-avertin', currentReapproDate, val);
+    }
+  }, 400);
+}
+
+// v20.18 — édition Aprem SA depuis Le Local Prod. Boulangers (sync vers sales St-Av)
+function handleApremSAFromLocal(el) {
+  const pid = el.dataset.pid;
+  const val = el.value;
+  if (!productionStAvSalesFromTable[pid]) productionStAvSalesFromTable[pid] = { matin: null, aprem: null, reste_j1: null };
+  productionStAvSalesFromTable[pid].aprem = (val === '') ? null : (parseInt(val, 10) || 0);
+  recomputeRowTotal(el, pid);
+  clearTimeout(updateTimers['aprem_' + pid]);
+  updateTimers['aprem_' + pid] = setTimeout(function() {
+    upsertStAvSaleFieldFromLocal(pid, 'aprem', val);
+  }, 400);
+}
+
+// v20.18 — édition Reste J-1 depuis Le Local Prod. Boulangers (sync vers sales St-Av)
+function handleResteJ1FromLocal(el) {
+  const pid = el.dataset.pid;
+  const val = el.value;
+  if (!productionStAvSalesFromTable[pid]) productionStAvSalesFromTable[pid] = { matin: null, aprem: null, reste_j1: null };
+  productionStAvSalesFromTable[pid].reste_j1 = (val === '') ? null : (parseInt(val, 10) || 0);
+  recomputeRowTotal(el, pid);
+  clearTimeout(updateTimers['reste_' + pid]);
+  updateTimers['reste_' + pid] = setTimeout(function() {
+    upsertStAvSaleFieldFromLocal(pid, 'reste_j1', val);
   }, 400);
 }
 
 // Helper commun : recalcule Total = Matin V + Matin SA + Spé pour une ligne
+// v20.18 — Au Local Boul, on inclut Aprem - Reste J-1 (sales St-Av). SA et marchés
+// restent dans le total mais ne changent pas pendant la saisie : feedback approximatif.
 function recomputeRowTotal(el, pid) {
   const row = el.closest('.prod-row');
   if (!row) return;
   const totalCell = row.querySelector('.cell.total');
   if (!totalCell) return;
   const mV = productionVeigneSalesByProduct[pid] || 0;
-  const mSA = productionStAvSalesByProduct[pid] || 0;
+  let mSA = productionStAvSalesByProduct[pid] || 0;
+  let aprem = 0;
+  let reste = 0;
+  if (currentBoutique === 'local' && currentVue === 'prod_boul') {
+    const t = productionStAvSalesFromTable[pid] || {};
+    mSA = t.matin || 0;
+    aprem = t.aprem || 0;
+    reste = t.reste_j1 || 0;
+  }
   const spe = productionSpecialByProduct[pid] || 0;
-  totalCell.textContent = formatQty(mV + mSA + spe);
+  totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe);
 }
 
 function renderProduction() {
@@ -4549,6 +4633,9 @@ const showMatinV = isVeignePat;
 // v20.11 — Veigné Pâtissier : colonne "Matin SA" visible pour le traiteur produit par Veigné
 // v20.16 — Le Local : "Matin SA" visible et éditable pour pain (Boulangers) et viennoiserie cuite (Touriers)
 const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
+// v20.18 — Le Local Prod. Boulangers : colonnes Aprem SA + Reste J-1 depuis sales St-Av
+const showApremSA = isLocalBoul;
+const showResteJ1 = isLocalBoul;
 const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
@@ -4558,6 +4645,8 @@ const showProdStockEcart = !isVeignePat;
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
   + (showMatinSA ? ' 0.65fr' : '')
+  + (showApremSA ? ' 0.65fr' : '')
+  + (showResteJ1 ? ' 0.65fr' : '')
   + (showVTS ? (isLocalBoul ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
   + (showSpe ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
@@ -4605,16 +4694,27 @@ const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
 // v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
 // v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
+// v20.18 — Au Local Boul, on lit sales St-Av (matin/aprem/reste_j1) au lieu de previs.
 const matinSAEligible = showMatinSA && (!isVeignePat || p.category === 'traiteur');
-const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+const stAvSale = productionStAvSalesFromTable[p.id] || {};
+let cMatinSA = 0;
+if (matinSAEligible) {
+  cMatinSA = isLocalBoul
+    ? (stAvSale.matin || 0)
+    : (productionStAvSalesByProduct[p.id] || 0);
+}
+const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
+const cReste = showResteJ1 ? (stAvSale.reste_j1 || 0) : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
+// v20.18 — Le Local Boul : Total = Matin SA + Aprem + SA + Spé - Reste J-1
 const totalReassort = cV + cT + cS;
-const total = (showMatinV ? cMatinV : 0) + cMatinSA + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
+const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
 p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV, matinSA: cMatinSA,
+aprem: cAprem, reste: cReste,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -4753,6 +4853,12 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
                        : 'Matin St-Avertin (pour le traiteur produit par Veigné)');
     headerHtml += '<span class="col-c" style="color:var(--blue)" title="' + escapeHtml(matinSATitle) + '">Matin SA</span>';
   }
+  if (showApremSA) {
+    headerHtml += '<span class="col-c" style="color:var(--orange)" title="Aprem St-Avertin">Aprem SA</span>';
+  }
+  if (showResteJ1) {
+    headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Reste J-1 St-Av (déduit du Total)">Reste J-1</span>';
+  }
   if (showVTS) {
     if (isLocalBoul) {
       // v20.17 — Boulangers Local : seul SA est pertinent (Veigné + Tours autonomes pour le pain)
@@ -4820,6 +4926,14 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     } else {
       rowHtml += '<div class="cell zero" style="color:#CCC">—</div>';
     }
+  }
+  if (showApremSA) {
+    const apremDisp = r.aprem > 0 ? formatQty(r.aprem) : '';
+    rowHtml += '<input type="text" inputmode="decimal" class="prod-input aprem-sa-input' + (r.aprem > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(apremDisp) + '" placeholder="-" oninput="handleApremSAFromLocal(this)" onfocus="this.select()" style="color:' + (r.aprem > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:700">';
+  }
+  if (showResteJ1) {
+    const resteDisp = r.reste > 0 ? formatQty(r.reste) : '';
+    rowHtml += '<input type="text" inputmode="decimal" class="prod-input reste-j1-input' + (r.reste > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(resteDisp) + '" placeholder="-" oninput="handleResteJ1FromLocal(this)" onfocus="this.select()" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:700">';
   }
   if (showVTS) {
     if (isLocalBoul) {
