@@ -5626,9 +5626,15 @@ return;
 // v20.29 : si pas d'erreur mais 0 ligne supprimée -> RLS bloque silencieusement.
 if (!deletedRows || deletedRows.length === 0) {
 setSyncStatus('error');
-if (confirm('Suppression bloquée (probablement RLS ou historique).\nLe DESACTIVER à la place (il disparaitra des ecrans mais l historique reste) ?')) {
-const { error: e2 } = await supa.from('products').update({ actif: false }).eq('id', pid);
+if (confirm('Suppression bloquée (probablement RLS Supabase ou historique).\nLe DESACTIVER à la place (il disparaitra des ecrans mais l historique reste) ?')) {
+// v20.30 : vérifier que l'UPDATE passe aussi (RLS peut bloquer UPDATE pareil)
+const { data: updatedRows, error: e2 } = await supa.from('products').update({ actif: false }).eq('id', pid).select();
 if (e2) { showToast(e2.message, 'error'); return; }
+if (!updatedRows || updatedRows.length === 0) {
+alert('Modification bloquée par Supabase (RLS).\n\nLa politique de sécurité de la table `products` empêche les UPDATE et DELETE.\n\nAction nécessaire :\nDashboard Supabase > Authentication > Policies > table products\nAjouter des policies UPDATE et DELETE pour ton rôle.');
+showToast('RLS Supabase bloque la modif', 'error');
+return;
+}
 await loadAdminProducts();
 await loadProducts();
 renderAdminProducts();
