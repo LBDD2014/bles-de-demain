@@ -4636,7 +4636,8 @@ const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
 // v20.18 — Le Local Prod. Boulangers : colonnes Aprem SA + Reste J-1 depuis sales St-Av
 const showApremSA = isLocalBoul;
 const showResteJ1 = isLocalBoul;
-const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
+// v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
+const showVTS = !isVeignePat && !isLocalBoul;
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
