@@ -1742,7 +1742,6 @@ const NAV_ITEMS = {
   ],
   'saint-avertin': [
     { id: 'ventes',           lbl: 'Ventes' },
-    { id: 'reappro_local',    lbl: 'Cmd Local' },
     { id: 'reappro_pat',      lbl: 'Cmd Veigné Pât.' },
     { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'specials',         lbl: 'Spéciales' },
@@ -3294,7 +3293,11 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const prev = prevFilled ? Number(prevRaw) : 0;
   // v20.4 fusion : Prévis éditable + défaut par jour de semaine (production_defaults)
   const supply = getProductSupply(p, currentBoutique);
-  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category));
+  // v20.22 — À St-Av, l'onglet Ventes sert de prévisionnel : Matin (= previs) est éditable
+  // pour pain et viennoiserie cuite commandés au Local.
+  const isStAvLocalEditable = currentBoutique === 'saint-avertin' && supply === 'local'
+    && (p.category === 'pains' || p.category === 'viennoiserie');
+  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvLocalEditable;
   let prevDisplay = '';
   let prevIsDefault = false;
   if (prevEditable) {
@@ -4533,26 +4536,17 @@ function handleMatinVInput(el) {
 }
 
 // v20.11 — édition directe de Matin SA depuis "À produire" (traiteur uniquement)
+// v20.22 — sync toujours vers previs (pattern cohérent : la prévis St-Av = commande au Local pour pain/viennoiserie ; ou prévis traiteur à Veigné Pâtissier)
 function handleMatinSAInput(el) {
   const pid = el.dataset.pid;
   const val = el.value;
   const q = parseQty(val) || 0;
   if (q > 0) productionStAvSalesByProduct[pid] = q;
   else delete productionStAvSalesByProduct[pid];
-  // v20.18 — au Local Boul, le cache from-table contient aussi le matin
-  if (currentBoutique === 'local' && currentVue === 'prod_boul') {
-    if (!productionStAvSalesFromTable[pid]) productionStAvSalesFromTable[pid] = { matin: null, aprem: null, reste_j1: null };
-    productionStAvSalesFromTable[pid].matin = q > 0 ? q : null;
-  }
   recomputeRowTotal(el, pid);
   clearTimeout(updateTimers['matinsa_' + pid]);
   updateTimers['matinsa_' + pid] = setTimeout(function() {
-    // À Veigné Pâtissier, Matin SA vient de previs (traiteur). Au Local Boul, on synchronise sales.
-    if (currentBoutique === 'local' && currentVue === 'prod_boul') {
-      upsertStAvSaleFieldFromLocal(pid, 'matin', val);
-    } else {
-      upsertPrevis(pid, 'saint-avertin', currentReapproDate, val);
-    }
+    upsertPrevis(pid, 'saint-avertin', currentReapproDate, val);
   }, 400);
 }
 
@@ -4583,20 +4577,18 @@ function handleResteJ1FromLocal(el) {
 }
 
 // Helper commun : recalcule Total = Matin V + Matin SA + Spé pour une ligne
-// v20.18 — Au Local Boul, on inclut Aprem - Reste J-1 (sales St-Av). SA et marchés
-// restent dans le total mais ne changent pas pendant la saisie : feedback approximatif.
+// v20.22 — Matin SA depuis previs (cohérent avec Veigné). Au Local Boul, on inclut Aprem - Reste J-1 (sales St-Av).
 function recomputeRowTotal(el, pid) {
   const row = el.closest('.prod-row');
   if (!row) return;
   const totalCell = row.querySelector('.cell.total');
   if (!totalCell) return;
   const mV = productionVeigneSalesByProduct[pid] || 0;
-  let mSA = productionStAvSalesByProduct[pid] || 0;
+  const mSA = productionStAvSalesByProduct[pid] || 0;
   let aprem = 0;
   let reste = 0;
   if (currentBoutique === 'local' && currentVue === 'prod_boul') {
     const t = productionStAvSalesFromTable[pid] || {};
-    mSA = t.matin || 0;
     aprem = t.aprem || 0;
     reste = t.reste_j1 || 0;
   }
@@ -4697,15 +4689,10 @@ const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
 // v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
 // v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
-// v20.18 — Au Local Boul, on lit sales St-Av (matin/aprem/reste_j1) au lieu de previs.
+// v20.22 — Matin SA toujours depuis previs (pattern cohérent avec Veigné). Aprem/Reste J-1 restent depuis sales.
 const matinSAEligible = showMatinSA && (!isVeignePat || p.category === 'traiteur');
 const stAvSale = productionStAvSalesFromTable[p.id] || {};
-let cMatinSA = 0;
-if (matinSAEligible) {
-  cMatinSA = isLocalBoul
-    ? (stAvSale.matin || 0)
-    : (productionStAvSalesByProduct[p.id] || 0);
-}
+const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
 const cReste = showResteJ1 ? (stAvSale.reste_j1 || 0) : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
