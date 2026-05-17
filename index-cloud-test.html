@@ -4558,7 +4558,7 @@ const showProdStockEcart = !isVeignePat;
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
   + (showMatinSA ? ' 0.65fr' : '')
-  + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '')
+  + (showVTS ? (isLocalBoul ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
   + (showSpe ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
 const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '');
@@ -4748,12 +4748,20 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
     headerHtml += '<span class="col-c" style="color:var(--green)" title="Matin Veigné (saisi par la vendeuse dans Ventes)">Matin V</span>';
   }
   if (showMatinSA) {
-    headerHtml += '<span class="col-c" style="color:var(--blue)" title="Matin St-Avertin (pour le traiteur produit par Veigné)">Matin SA</span>';
+    const matinSATitle = isLocalBoul ? 'Besoin pain saisi par la vendeuse St-Av'
+                       : (isLocalTour ? 'Besoin viennoiserie cuite saisi par la vendeuse St-Av'
+                       : 'Matin St-Avertin (pour le traiteur produit par Veigné)');
+    headerHtml += '<span class="col-c" style="color:var(--blue)" title="' + escapeHtml(matinSATitle) + '">Matin SA</span>';
   }
   if (showVTS) {
-    headerHtml += '<span class="col-c">V</span>'
-      + '<span class="col-c">T</span>'
-      + '<span class="col-c">SA</span>';
+    if (isLocalBoul) {
+      // v20.17 — Boulangers Local : seul SA est pertinent (Veigné + Tours autonomes pour le pain)
+      headerHtml += '<span class="col-c">SA</span>';
+    } else {
+      headerHtml += '<span class="col-c">V</span>'
+        + '<span class="col-c">T</span>'
+        + '<span class="col-c">SA</span>';
+    }
   }
   if (showSpe) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Commandes spéciales du jour">⭐ Spé</span>';
@@ -4814,9 +4822,14 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     }
   }
   if (showVTS) {
-    rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
-      + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
-      + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
+    if (isLocalBoul) {
+      // v20.17 — Boulangers Local : afficher uniquement SA
+      rowHtml += '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
+    } else {
+      rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
+        + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>'
+        + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
+    }
   }
   if (showSpe) {
     rowHtml += '<div class="cell ' + (r.spe > 0 ? '' : 'zero') + '" style="color:' + (r.spe > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.spe > 0 ? '700' : '400') + '">' + (r.spe > 0 ? '⭐' + formatQty(r.spe) : '0') + '</div>';
