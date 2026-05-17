@@ -3293,11 +3293,15 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const prev = prevFilled ? Number(prevRaw) : 0;
   // v20.4 fusion : Prévis éditable + défaut par jour de semaine (production_defaults)
   const supply = getProductSupply(p, currentBoutique);
-  // v20.22 — À St-Av, l'onglet Ventes sert de prévisionnel : Matin (= previs) est éditable
+  // v20.22 — À St-Av, l'onglet Ventes sert de prévisionnel : Matin (= previs) éditable
   // pour pain et viennoiserie cuite commandés au Local.
-  const isStAvLocalEditable = currentBoutique === 'saint-avertin' && supply === 'local'
-    && (p.category === 'pains' || p.category === 'viennoiserie');
-  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvLocalEditable;
+  // v20.23 — étendu : pâtisserie_petits (privé St-Av : sort du congel sur place),
+  // pâtisserie_gros + gâteaux_secs (visibles à Veigné Pâtissier pour produire si besoin).
+  const stAvEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
+  const isStAvEditable = currentBoutique === 'saint-avertin'
+    && (supply === 'local' || supply === 'veigne')
+    && stAvEditableCats.indexOf(p.category) !== -1;
+  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvEditable;
   let prevDisplay = '';
   let prevIsDefault = false;
   if (prevEditable) {
@@ -4690,7 +4694,9 @@ const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
 // v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
 // v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
 // v20.22 — Matin SA toujours depuis previs (pattern cohérent avec Veigné). Aprem/Reste J-1 restent depuis sales.
-const matinSAEligible = showMatinSA && (!isVeignePat || p.category === 'traiteur');
+// v20.23 — Veigné Pâtissier voit aussi Matin SA pour patisserie_gros + gateaux_secs (production à la demande).
+const veignePatVisibleCats = ['traiteur', 'patisserie_gros', 'gateaux_secs'];
+const matinSAEligible = showMatinSA && (!isVeignePat || veignePatVisibleCats.indexOf(p.category) !== -1);
 const stAvSale = productionStAvSalesFromTable[p.id] || {};
 const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
@@ -4910,7 +4916,9 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   if (showMatinSA) {
     // v20.11 — Matin SA éditable pour catégorie traiteur à Veigné Pâtissier
     // v20.16 — Matin SA éditable pour pain/viennoiserie au Local (catégorie déjà filtrée en amont)
-    const matinSAEditable = !isVeignePat || r.p.category === 'traiteur';
+    // v20.23 — Veigné Pâtissier édite aussi patisserie_gros + gateaux_secs (depuis St-Av)
+    const veignePatVisibleCatsR = ['traiteur', 'patisserie_gros', 'gateaux_secs'];
+    const matinSAEditable = !isVeignePat || veignePatVisibleCatsR.indexOf(r.p.category) !== -1;
     if (matinSAEditable) {
       const matinSADisp = r.matinSA > 0 ? formatQty(r.matinSA) : '';
       rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
