@@ -356,6 +356,10 @@ background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 .prod-input.matin-v-input { background: white; border-color: #D8E5DA; color: var(--green) !important; }
 .prod-input.matin-v-input.has-prod { background: #EEF7F2; border-color: var(--green); }
 .prod-input.matin-v-input:focus { background: white; border-color: var(--green); }
+/* v20.11 — Matin SA input éditable : bleu pour distinguer */
+.prod-input.matin-sa-input { background: white; border-color: #CFDDE8; color: var(--blue) !important; }
+.prod-input.matin-sa-input.has-prod { background: #EEF4FA; border-color: var(--blue); }
+.prod-input.matin-sa-input:focus { background: white; border-color: var(--blue); }
 .prod-input.just-updated { animation: flash 1s; }
 .ecart-badge {
 display: inline-block; padding: 4px 0; border-radius: 5px;
@@ -1795,6 +1799,8 @@ let productionSpecialsExpanded = false; // état déplié du bloc spéciales
 let productionReassortsExpanded = false;
 // v20.9 — Matin Veigné depuis sales (besoin saisi par la vendeuse) pour Veigné Pâtissier
 let productionVeigneSalesByProduct = {};  // { product_id: matin_qty }
+// v20.11 — Matin St-Avertin depuis previs (pour les produits traiteur produits par Veigné)
+let productionStAvSalesByProduct = {};  // { product_id: matin_qty }
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 let productionLocalData = {};
@@ -2295,6 +2301,8 @@ await loadSpecialOrdersForProduction(currentReapproDate);
 // v20.9 — charger les Matins Veigné (besoins vendeuse) pour Veigné Pâtissier
 if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
+// v20.11 — charger aussi les Matins St-Av (pour le traiteur produit à Veigné)
+await loadStAvSalesForProduction(currentReapproDate);
 }
 subscribeRealtimeProduction();
 subscribeRealtimeProductionLocal();
@@ -4205,6 +4213,18 @@ if (q > 0) productionVeigneSalesByProduct[pid] = q;
 });
 }
 
+// v20.11 — Charge les Matins de Saint-Avertin (pour les produits traiteur que
+// Veigné produit pour St-Av). Pour le pâtissier traiteur Veigné, c'est crucial
+// de voir aussi les besoins St-Av (sinon il sous-produit).
+async function loadStAvSalesForProduction(date) {
+productionStAvSalesByProduct = {};
+const data = await loadPrevisRaw('saint-avertin', date);
+Object.keys(data || {}).forEach(function(pid) {
+const q = parseQty(data[pid]) || 0;
+if (q > 0) productionStAvSalesByProduct[pid] = q;
+});
+}
+
 // v20.7 — Charge les commandes spéciales assignées en production à currentBoutique
 async function loadSpecialOrdersForProduction(date) {
 productionSpecialOrders = [];
@@ -4392,6 +4412,8 @@ await loadSpecialOrdersForProduction(currentReapproDate);
 // v20.9 — recharger les Matins Veigné pour le nouveau jour
 if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
+// v20.11 — recharger les Matins St-Av (traiteur)
+await loadStAvSalesForProduction(currentReapproDate);
 }
 renderProduction();
 }
@@ -4421,20 +4443,39 @@ function handleMatinVInput(el) {
   // MAJ cache local
   if (q > 0) productionVeigneSalesByProduct[pid] = q;
   else delete productionVeigneSalesByProduct[pid];
-  // Recalcule le Total et l'Écart de la ligne sans full re-render (perf + curseur)
-  const row = el.closest('.prod-row');
-  if (row) {
-    const totalCell = row.querySelector('.cell.total');
-    const spe = productionSpecialByProduct[pid] || 0;
-    const newTotal = q + spe;
-    if (totalCell) totalCell.textContent = formatQty(newTotal);
-    // Écart caché en mode Veigné Pâtissier, donc rien à recalculer ici
-  }
+  // Recalcule le Total de la ligne sans full re-render (perf + curseur)
+  recomputeRowTotal(el, pid);
   // Debounce upsert vers la table previs (= source du Matin Veigné)
   clearTimeout(updateTimers['matinv_' + pid]);
   updateTimers['matinv_' + pid] = setTimeout(function() {
     upsertPrevis(pid, 'veigne', currentReapproDate, val);
   }, 400);
+}
+
+// v20.11 — édition directe de Matin SA depuis "À produire" (traiteur uniquement)
+function handleMatinSAInput(el) {
+  const pid = el.dataset.pid;
+  const val = el.value;
+  const q = parseQty(val) || 0;
+  if (q > 0) productionStAvSalesByProduct[pid] = q;
+  else delete productionStAvSalesByProduct[pid];
+  recomputeRowTotal(el, pid);
+  clearTimeout(updateTimers['matinsa_' + pid]);
+  updateTimers['matinsa_' + pid] = setTimeout(function() {
+    upsertPrevis(pid, 'saint-avertin', currentReapproDate, val);
+  }, 400);
+}
+
+// Helper commun : recalcule Total = Matin V + Matin SA + Spé pour une ligne
+function recomputeRowTotal(el, pid) {
+  const row = el.closest('.prod-row');
+  if (!row) return;
+  const totalCell = row.querySelector('.cell.total');
+  if (!totalCell) return;
+  const mV = productionVeigneSalesByProduct[pid] || 0;
+  const mSA = productionStAvSalesByProduct[pid] || 0;
+  const spe = productionSpecialByProduct[pid] || 0;
+  totalCell.textContent = formatQty(mV + mSA + spe);
 }
 
 function renderProduction() {
@@ -4454,14 +4495,17 @@ const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local');
 const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne');
 // v20.9 — Veigné Pâtissier : 1 colonne "Matin V" depuis sales.matin (besoin vendeuse Veigné)
 const showMatinV = isVeignePat;
+// v20.11 — Veigné Pâtissier : colonne "Matin SA" visible pour le traiteur produit par Veigné
+const showMatinSA = isVeignePat;
 const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seulement)
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
 const showProdStockEcart = !isVeignePat;
-// Grid : Produit | [Matin V | V T SA] | [Spé] | [marches actifs] | Total | [Produit | Stock | Ecart]
+// Grid : Produit | [Matin V | Matin SA | V T SA] | [Spé] | [marches actifs] | Total | [Produit | Stock | Ecart]
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
+  + (showMatinSA ? ' 0.65fr' : '')
   + (showVTS ? ' 0.5fr 0.5fr 0.5fr' : '')
   + (showSpe ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
@@ -4507,14 +4551,16 @@ marketSum += mv;
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 // v20.9 — Matin Veigné depuis sales (besoin de la vendeuse Veigné pour le jour)
 const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
-// v20.8 + v20.9 — Veigné Pâtissier : Cmd = Matin V + Spé (réassorts en consultation séparée)
+// v20.11 — Matin St-Av : pertinent seulement pour le traiteur (Veigné produit le traiteur de St-Av)
+const cMatinSA = (showMatinSA && p.category === 'traiteur') ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+// v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
 const totalReassort = cV + cT + cS;
-const total = (showMatinV ? cMatinV : 0) + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
+const total = (showMatinV ? cMatinV : 0) + cMatinSA + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
-p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV,
+p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV, matinSA: cMatinSA,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -4645,6 +4691,9 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   if (showMatinV) {
     headerHtml += '<span class="col-c" style="color:var(--green)" title="Matin Veigné (saisi par la vendeuse dans Ventes)">Matin V</span>';
   }
+  if (showMatinSA) {
+    headerHtml += '<span class="col-c" style="color:var(--blue)" title="Matin St-Avertin (pour le traiteur produit par Veigné)">Matin SA</span>';
+  }
   if (showVTS) {
     headerHtml += '<span class="col-c">V</span>'
       + '<span class="col-c">T</span>'
@@ -4696,6 +4745,15 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
     const matinDisp = r.matinV > 0 ? formatQty(r.matinV) : '';
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-v-input' + (r.matinV > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinDisp) + '" placeholder="-" oninput="handleMatinVInput(this)" onfocus="this.select()" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:700">';
+  }
+  if (showMatinSA) {
+    // v20.11 — Matin SA : éditable seulement pour catégorie traiteur, sinon "—"
+    if (r.p.category === 'traiteur') {
+      const matinSADisp = r.matinSA > 0 ? formatQty(r.matinSA) : '';
+      rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
+    } else {
+      rowHtml += '<div class="cell zero" style="color:#CCC">—</div>';
+    }
   }
   if (showVTS) {
     rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
