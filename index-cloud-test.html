@@ -4640,7 +4640,8 @@ const showVTS = !isVeignePat;  // T/SA/V agrégés depuis reappros (Le Local seu
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
-const showProdStockEcart = !isVeignePat;
+// v20.19 — Le Local Prod. Boulangers/Touriers : même règle qu'à Veigné Pâtissier (épuré)
+const showProdStockEcart = !isVeignePat && !isLocalBoul && !isLocalTour;
 // Grid : Produit | [Matin V | Matin SA | V T SA] | [Spé] | [marches actifs] | Total | [Produit | Stock | Ecart]
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
@@ -4754,7 +4755,8 @@ let html = '<div class="date-bar">'
 + '</div>';
 
 // v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
-if (isVeignePat) {
+// v20.19 — Le Local Prod. Boulangers/Touriers : même règle (KPI simplifié)
+if (isVeignePat || isLocalBoul || isLocalTour) {
   html += '<div class="prod-kpi-bar" style="grid-template-columns:1fr">'
     + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(volumeTotal) + '</div><div class="prod-kpi-lbl">Total à produire</div></div>'
     + '</div>';
