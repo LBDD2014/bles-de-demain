@@ -1387,6 +1387,36 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
   font-family: monospace; color: var(--brown);
 }
 
+/* v21.0.2 — multi-contacts + sources par catégorie */
+.pro-contact-block {
+  background: #FAFAF6; border: 1px solid #EBE3D2; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.pro-contact-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 700; color: var(--brown-mid);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.pro-add-btn {
+  width: 100%; margin-top: 6px;
+  background: white; border: 1.5px dashed var(--gold); color: var(--gold-dark);
+  border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.pro-add-btn:hover { background: #FAF6EE; }
+.pro-add-btn:active { transform: scale(0.98); }
+
+.pro-cat-source-row {
+  display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px;
+  align-items: center; padding: 6px 0; border-bottom: 1px solid #F0EAE0;
+}
+.pro-cat-source-row:last-child { border-bottom: none; }
+.pro-cat-source-lbl {
+  font-size: 13px; color: var(--brown); font-weight: 700;
+  text-transform: none; letter-spacing: 0; margin: 0;
+}
+.pro-cat-source-sel { padding: 6px 8px; font-size: 12px; }
+
 /* v20.31 — Modal preview Import Produits */
 .import-preview-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
@@ -6097,18 +6127,27 @@ function openProForm(pid) {
   adminProsEditingId = pid;
   if (pid === 'new') {
     adminProsDraft = {
-      id: '', nom: '', contact_nom: '', contact_tel: '', contact_email: '',
+      id: '', nom: '',
+      contacts: [{ nom: '', tel: '', email: '', role: 'principal' }],
       boutique_principale: 'local', boutique_secours: '',
+      sources_par_categorie: {},
       notes: '', actif: true
     };
   } else {
     const p = adminPros.find(function(x) { return x.id === pid; });
     if (!p) { adminProsEditingId = null; renderAdminPros(); return; }
+    // v21.0.2 — contacts est jsonb array, sources_par_categorie est jsonb object
+    let contacts = [];
+    if (Array.isArray(p.contacts)) contacts = p.contacts.map(function(c) {
+      return { nom: c.nom || '', tel: c.tel || '', email: c.email || '', role: c.role || '' };
+    });
+    if (!contacts.length) contacts = [{ nom: '', tel: '', email: '', role: 'principal' }];
     adminProsDraft = {
       id: p.id, nom: p.nom || '',
-      contact_nom: p.contact_nom || '', contact_tel: p.contact_tel || '', contact_email: p.contact_email || '',
+      contacts: contacts,
       boutique_principale: p.boutique_principale || 'local',
       boutique_secours: p.boutique_secours || '',
+      sources_par_categorie: (p.sources_par_categorie && typeof p.sources_par_categorie === 'object') ? Object.assign({}, p.sources_par_categorie) : {},
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -6132,6 +6171,37 @@ function handleProActifToggle() {
   renderAdminPros();
 }
 
+// v21.0.2 — multi-contacts (équipe du pro)
+function handleProContactField(idx, field, val) {
+  if (!adminProsDraft || !adminProsDraft.contacts[idx]) return;
+  adminProsDraft.contacts[idx][field] = val;
+}
+function addProContact() {
+  if (!adminProsDraft) return;
+  adminProsDraft.contacts.push({ nom: '', tel: '', email: '', role: '' });
+  renderAdminPros();
+}
+function removeProContact(idx) {
+  if (!adminProsDraft || !adminProsDraft.contacts[idx]) return;
+  if (adminProsDraft.contacts.length === 1) {
+    // On garde au moins une ligne vide (on ne supprime pas le dernier)
+    adminProsDraft.contacts[0] = { nom: '', tel: '', email: '', role: '' };
+  } else {
+    adminProsDraft.contacts.splice(idx, 1);
+  }
+  renderAdminPros();
+}
+
+// v21.0.2 — sources par catégorie (pain ici, pâtisserie là)
+function handleProSourceCategorie(cat, val) {
+  if (!adminProsDraft) return;
+  if (!val) {
+    delete adminProsDraft.sources_par_categorie[cat];
+  } else {
+    adminProsDraft.sources_par_categorie[cat] = val;
+  }
+}
+
 async function saveProForm() {
   const d = adminProsDraft;
   if (!d) return;
@@ -6150,13 +6220,21 @@ async function saveProForm() {
     showToast('Un pro avec cet identifiant existe déjà : ' + proId + '. Change le nom.', 'error');
     return;
   }
+  // v21.0.2 — nettoie les contacts vides avant d'envoyer
+  const cleanContacts = (d.contacts || []).map(function(c) {
+    const obj = {};
+    if (c.nom && c.nom.trim())     obj.nom   = c.nom.trim();
+    if (c.tel && c.tel.trim())     obj.tel   = c.tel.trim();
+    if (c.email && c.email.trim()) obj.email = c.email.trim();
+    if (c.role && c.role.trim())   obj.role  = c.role.trim();
+    return obj;
+  }).filter(function(c) { return Object.keys(c).length > 0; });
   const row = {
     id: proId,
     tenant_id: TENANT_ID,
     nom: nom,
-    contact_nom: (d.contact_nom || '').trim() || null,
-    contact_tel:  (d.contact_tel  || '').trim() || null,
-    contact_email:(d.contact_email|| '').trim() || null,
+    contacts: cleanContacts,
+    sources_par_categorie: d.sources_par_categorie || {},
     boutique_principale: d.boutique_principale,
     boutique_secours:    d.boutique_secours || null,
     notes:               (d.notes || '').trim() || null,
@@ -6237,10 +6315,14 @@ function renderAdminPros() {
     adminPros.forEach(function(p) {
       const bp = BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale;
       const bs = p.boutique_secours ? (BOUTIQUE_NAMES[p.boutique_secours] || p.boutique_secours) : null;
+      // v21.0.2 — 1er contact pour l'aperçu + indicateur "+N" si plusieurs
+      const contacts = Array.isArray(p.contacts) ? p.contacts : [];
+      const firstContact = contacts[0] || {};
       const contactBits = [];
-      if (p.contact_nom) contactBits.push(escapeHtml(p.contact_nom));
-      if (p.contact_tel) contactBits.push(escapeHtml(p.contact_tel));
-      const contactLine = contactBits.length ? contactBits.join(' · ') : '<span style="color:#BBB">Pas de contact renseigné</span>';
+      if (firstContact.nom) contactBits.push(escapeHtml(firstContact.nom));
+      if (firstContact.tel) contactBits.push(escapeHtml(firstContact.tel));
+      const moreSuffix = contacts.length > 1 ? ' <span style="color:var(--gold-dark);font-weight:700">+' + (contacts.length - 1) + '</span>' : '';
+      const contactLine = contactBits.length ? (contactBits.join(' · ') + moreSuffix) : '<span style="color:#BBB">Pas de contact renseigné</span>';
       html += '<div class="pro-card' + (p.actif ? '' : ' inactive') + '">'
         + '<div class="pro-card-main">'
           + '<div class="pro-card-name">' + escapeHtml(p.nom) + ' <span class="pro-card-id">(' + escapeHtml(p.id) + ')</span></div>'
@@ -6265,10 +6347,12 @@ function renderProForm(mc) {
   const d = adminProsDraft;
   const isNew = (adminProsEditingId === 'new');
   const slugPreview = isNew ? makeProSlug(d.nom) : d.id;
+  // v21.0.2 — St-Av peut être source (principale en propre ou secours click & collect)
   const boutiqueOpts = [
-    ['veigne', BOUTIQUE_NAMES['veigne']],
-    ['tours',  BOUTIQUE_NAMES['tours']],
-    ['local',  BOUTIQUE_NAMES['local']]
+    ['veigne',        BOUTIQUE_NAMES['veigne']],
+    ['tours',         BOUTIQUE_NAMES['tours']],
+    ['local',         BOUTIQUE_NAMES['local']],
+    ['saint-avertin', BOUTIQUE_NAMES['saint-avertin']]
   ];
   function selOpts(current, includeAucune) {
     let h = '';
@@ -6290,17 +6374,34 @@ function renderProForm(mc) {
   html += '<div class="pro-form-section">'
     + '<h3>Identité</h3>'
     + '<label>Nom du pro *</label>'
-    + '<input type="text" class="pro-input" value="' + escapeHtml(d.nom) + '" placeholder="Café des Arts" oninput="handleProField(\'nom\', this.value); document.getElementById(\'slug-preview\').textContent = makeProSlug(this.value);">'
+    + '<input type="text" class="pro-input" value="' + escapeHtml(d.nom) + '" placeholder="Café des Arts" oninput="handleProField(\'nom\', this.value); var sp = document.getElementById(\'slug-preview\'); if (sp) sp.textContent = makeProSlug(this.value);">'
     + (isNew
       ? '<div class="pro-form-hint">Identifiant généré : <code id="slug-preview">' + escapeHtml(slugPreview) + '</code></div>'
       : '<div class="pro-form-hint">Identifiant : <code>' + escapeHtml(d.id) + '</code> (non modifiable après création)</div>')
-    + '<label>Nom du contact</label>'
-    + '<input type="text" class="pro-input" value="' + escapeHtml(d.contact_nom) + '" placeholder="Jean Dupont" oninput="handleProField(\'contact_nom\', this.value)">'
-    + '<label>Téléphone</label>'
-    + '<input type="tel" class="pro-input" value="' + escapeHtml(d.contact_tel) + '" placeholder="06 12 34 56 78" oninput="handleProField(\'contact_tel\', this.value)">'
-    + '<label>Email</label>'
-    + '<input type="email" class="pro-input" value="' + escapeHtml(d.contact_email) + '" placeholder="jean@cafe-arts.fr" oninput="handleProField(\'contact_email\', this.value)">'
   + '</div>';
+
+  // v21.0.2 — Multi-contacts (équipe du pro)
+  html += '<div class="pro-form-section">'
+    + '<h3>Contacts (équipe)</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Ajoute autant de contacts que nécessaire : gérant, comptable, cuisine, etc. Au moins un est recommandé.</div>';
+  d.contacts.forEach(function(c, idx) {
+    html += '<div class="pro-contact-block">'
+      + '<div class="pro-contact-header">'
+        + '<span>Contact ' + (idx + 1) + '</span>'
+        + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProContact(' + idx + ')" title="Retirer ce contact">🗑️</button>'
+      + '</div>'
+      + '<label>Rôle</label>'
+      + '<input type="text" class="pro-input" value="' + escapeHtml(c.role || '') + '" placeholder="principal, manager, comptable, cuisine…" oninput="handleProContactField(' + idx + ', \'role\', this.value)">'
+      + '<label>Nom</label>'
+      + '<input type="text" class="pro-input" value="' + escapeHtml(c.nom || '') + '" placeholder="Jean Dupont" oninput="handleProContactField(' + idx + ', \'nom\', this.value)">'
+      + '<label>Téléphone</label>'
+      + '<input type="tel" class="pro-input" value="' + escapeHtml(c.tel || '') + '" placeholder="06 12 34 56 78" oninput="handleProContactField(' + idx + ', \'tel\', this.value)">'
+      + '<label>Email</label>'
+      + '<input type="email" class="pro-input" value="' + escapeHtml(c.email || '') + '" placeholder="jean@cafe-arts.fr" oninput="handleProContactField(' + idx + ', \'email\', this.value)">'
+    + '</div>';
+  });
+  html += '<button class="pro-add-btn" onclick="addProContact()">+ Ajouter un contact</button>';
+  html += '</div>';
 
   html += '<div class="pro-form-section">'
     + '<h3>Boutique source</h3>'
@@ -6308,8 +6409,26 @@ function renderProForm(mc) {
     + '<select class="pro-input" onchange="handleProField(\'boutique_principale\', this.value)">' + selOpts(d.boutique_principale, false) + '</select>'
     + '<label>Boutique de secours (si principale fermée)</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_secours\', this.value)">' + selOpts(d.boutique_secours, true) + '</select>'
-    + '<div class="pro-form-hint">St-Av n\'est pas une boutique source possible (livrée par Le Local).</div>'
+    + '<div class="pro-form-hint">St-Avertin en secours = click & collect (le pro vient chercher).</div>'
   + '</div>';
+
+  // v21.0.2 — Sources par catégorie (ex: pain au Local + pâtisserie à Veigné)
+  html += '<div class="pro-form-section">'
+    + '<h3>Sources par catégorie</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Par défaut, tout vient de la boutique principale. Précise ici les exceptions (ex : pain au Local mais pâtisserie à Veigné).</div>';
+  Object.keys(CAT_LABELS).forEach(function(cat) {
+    const currentSource = d.sources_par_categorie[cat] || '';
+    const principaleLabel = BOUTIQUE_NAMES[d.boutique_principale] || d.boutique_principale;
+    let optsHtml = '<option value="">(= principale : ' + escapeHtml(principaleLabel) + ')</option>';
+    boutiqueOpts.forEach(function(o) {
+      optsHtml += '<option value="' + o[0] + '"' + (currentSource === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
+    });
+    html += '<div class="pro-cat-source-row">'
+      + '<label class="pro-cat-source-lbl">' + escapeHtml(CAT_LABELS[cat]) + '</label>'
+      + '<select class="pro-input pro-cat-source-sel" onchange="handleProSourceCategorie(\'' + cat + '\', this.value)">' + optsHtml + '</select>'
+    + '</div>';
+  });
+  html += '</div>';
 
   html += '<div class="pro-form-section">'
     + '<h3>Notes</h3>'
@@ -6325,7 +6444,7 @@ function renderProForm(mc) {
   + '</div>';
 
   html += '<div class="pro-form-section" style="opacity:0.55">'
-    + '<h3>À venir (v21.0.2)</h3>'
+    + '<h3>À venir (v21.0.3)</h3>'
     + '<div style="font-size:13px;color:var(--brown-mid)">'
       + '• Jours de livraison cochables + heure butoir + heure livraison souhaitée<br>'
       + '• Catalogue restreint (produits autorisés)<br>'
