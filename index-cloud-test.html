@@ -4998,7 +4998,15 @@ function recomputeRowTotal(el, pid) {
     reste = t.reste_j1 || 0;
   }
   const spe = productionSpecialByProduct[pid] || 0;
-  totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe);
+  // v21.0.4.4 — Inclure les pros dans le recompute (sinon le total écrase la colonne Pros après chaque édition)
+  let pros = 0;
+  const showProsCol = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne')
+    || (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue === 'prod_tour'));
+  if (showProsCol) {
+    const agg = aggregateProOrdersForProduction(currentVue);
+    pros = agg[pid] ? agg[pid].totalQty : 0;
+  }
+  totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe + pros);
 }
 
 function renderProduction() {
