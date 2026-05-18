@@ -1417,6 +1417,60 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .pro-cat-source-sel { padding: 6px 8px; font-size: 12px; }
 
+/* v21.0.3 — Jours de livraison */
+.pro-jour-row {
+  display: grid; grid-template-columns: 110px 1fr; gap: 10px;
+  align-items: center; padding: 8px 0; border-bottom: 1px solid #F0EAE0;
+}
+.pro-jour-row:last-child { border-bottom: none; }
+.pro-jour-fields {
+  display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 6px;
+  align-items: center; font-size: 11px;
+}
+.pro-jour-fields label {
+  font-size: 11px; color: var(--brown-mid); margin: 0;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.pro-jour-fields-off { color: #CCC; font-size: 13px; font-style: italic; }
+.pro-input-time { padding: 6px 8px; font-size: 13px; }
+
+/* v21.0.3 — Catalogue restreint */
+.pro-cat-prods {
+  margin-top: 10px; border: 1px solid #EEE5D2; border-radius: 8px;
+  padding: 8px 10px; background: #FAFAF6;
+}
+.pro-cat-prods-title {
+  font-family: Georgia, serif; font-size: 13px; font-weight: 700;
+  color: var(--brown); margin-bottom: 6px;
+}
+.pro-cat-prods-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.pro-prod-checkbox {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; background: white; border: 1px solid #E0D8C8;
+  border-radius: 14px; font-size: 12px; color: var(--brown);
+  cursor: pointer; user-select: none;
+}
+.pro-prod-checkbox.checked { background: #F0EAE0; border-color: var(--gold); color: var(--brown); font-weight: 700; }
+.pro-prod-checkbox input { margin: 0; }
+
+/* v21.0.3 — Prix spéciaux + panier type (lignes éditables) */
+.pro-prix-row {
+  display: grid; grid-template-columns: 1fr 90px 40px; gap: 8px;
+  align-items: center; padding: 6px 0; border-bottom: 1px solid #F5F0E5;
+}
+.pro-prix-row:last-of-type { border-bottom: none; }
+.pro-prix-info { min-width: 0; }
+.pro-prix-name { font-size: 13px; color: var(--brown); font-weight: 700; }
+.pro-prix-std  { font-size: 10px; color: var(--brown-mid); }
+.pro-input-prix { text-align: right; padding: 6px 8px; font-size: 13px; }
+
+.pro-template-row {
+  display: grid; grid-template-columns: 1fr 90px 40px; gap: 8px;
+  align-items: center; margin-bottom: 6px;
+}
+.pro-template-prod { padding: 6px 8px; font-size: 13px; }
+.pro-template-qty  { text-align: right; padding: 6px 8px; font-size: 13px; }
+
 /* v20.31 — Modal preview Import Produits */
 .import-preview-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
@@ -6131,6 +6185,11 @@ function openProForm(pid) {
       contacts: [{ nom: '', tel: '', email: '', role: 'principal' }],
       boutique_principale: 'local', boutique_secours: '',
       sources_par_categorie: {},
+      // v21.0.3 — jours, catalogue restreint, prix spéciaux, panier type
+      jours_livraison: {},     // { 'lundi': { actif, butoir, livraison }, ... }
+      catalogue_restreint: null, // null = tout autorisé ; array = liste autorisée
+      prix_speciaux: {},       // { product_id: prix }
+      template_items: [],      // [{ product_id, qty }]
       notes: '', actif: true
     };
   } else {
@@ -6148,6 +6207,11 @@ function openProForm(pid) {
       boutique_principale: p.boutique_principale || 'local',
       boutique_secours: p.boutique_secours || '',
       sources_par_categorie: (p.sources_par_categorie && typeof p.sources_par_categorie === 'object') ? Object.assign({}, p.sources_par_categorie) : {},
+      // v21.0.3
+      jours_livraison: (p.jours_livraison && typeof p.jours_livraison === 'object') ? Object.assign({}, p.jours_livraison) : {},
+      catalogue_restreint: Array.isArray(p.catalogue_restreint) ? p.catalogue_restreint.slice() : null,
+      prix_speciaux: (p.prix_speciaux && typeof p.prix_speciaux === 'object') ? Object.assign({}, p.prix_speciaux) : {},
+      template_items: Array.isArray(p.template_items) ? p.template_items.map(function(t) { return { product_id: t.product_id, qty: t.qty }; }) : [],
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -6202,6 +6266,109 @@ function handleProSourceCategorie(cat, val) {
   }
 }
 
+// v21.0.3 — Jours de livraison (lundi → dimanche)
+const PRO_JOURS = [
+  ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'],
+  ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'], ['samedi', 'Samedi'], ['dimanche', 'Dimanche']
+];
+
+function handleProJourActif(jour) {
+  if (!adminProsDraft) return;
+  const cur = adminProsDraft.jours_livraison[jour] || {};
+  if (cur.actif) {
+    delete adminProsDraft.jours_livraison[jour];
+  } else {
+    adminProsDraft.jours_livraison[jour] = { actif: true, butoir: cur.butoir || '', livraison: cur.livraison || '' };
+  }
+  renderAdminPros();
+}
+
+function handleProJourField(jour, field, val) {
+  if (!adminProsDraft) return;
+  if (!adminProsDraft.jours_livraison[jour]) adminProsDraft.jours_livraison[jour] = { actif: true, butoir: '', livraison: '' };
+  adminProsDraft.jours_livraison[jour][field] = val;
+}
+
+// v21.0.3 — Catalogue restreint (null = tout, array = liste autorisée)
+let adminProsCatalogueSearch = '';
+
+function handleProCatalogueToggle(productId) {
+  if (!adminProsDraft) return;
+  const allProds = (adminProducts || []).filter(function(p) { return p.actif; });
+  if (adminProsDraft.catalogue_restreint === null) {
+    // null = tout autorisé → décocher = passer en mode restriction avec tous sauf celui-ci
+    adminProsDraft.catalogue_restreint = allProds.map(function(p) { return p.id; }).filter(function(id) { return id !== productId; });
+  } else {
+    const idx = adminProsDraft.catalogue_restreint.indexOf(productId);
+    if (idx === -1) adminProsDraft.catalogue_restreint.push(productId);
+    else adminProsDraft.catalogue_restreint.splice(idx, 1);
+    // Si on a tout coché → revenir à null (tout autorisé)
+    if (adminProsDraft.catalogue_restreint.length === allProds.length) {
+      adminProsDraft.catalogue_restreint = null;
+    }
+  }
+  renderAdminPros();
+}
+
+function handleProCatalogueReset() {
+  if (!adminProsDraft) return;
+  adminProsDraft.catalogue_restreint = null;
+  renderAdminPros();
+}
+
+function handleProCatalogueSearch(q) {
+  adminProsCatalogueSearch = q || '';
+  renderAdminPros();
+}
+
+// v21.0.3 — Prix spéciaux ({ product_id: prix })
+function handleProPrixSpecialChange(productId, val) {
+  if (!adminProsDraft) return;
+  if (val === '' || val == null) {
+    delete adminProsDraft.prix_speciaux[productId];
+  } else {
+    const n = parseFloat(String(val).replace(',', '.'));
+    if (!isNaN(n) && n >= 0) adminProsDraft.prix_speciaux[productId] = n;
+  }
+}
+
+function handleProPrixSpecialAdd(productId) {
+  if (!adminProsDraft || !productId) return;
+  if (adminProsDraft.prix_speciaux[productId] == null) {
+    adminProsDraft.prix_speciaux[productId] = 0;
+  }
+  renderAdminPros();
+}
+
+function removeProPrixSpecial(productId) {
+  if (!adminProsDraft) return;
+  delete adminProsDraft.prix_speciaux[productId];
+  renderAdminPros();
+}
+
+// v21.0.3 — Panier type ({ product_id, qty }[])
+function handleProTemplateField(idx, field, val) {
+  if (!adminProsDraft || !adminProsDraft.template_items[idx]) return;
+  if (field === 'qty') {
+    const n = parseFloat(String(val).replace(',', '.'));
+    adminProsDraft.template_items[idx].qty = isNaN(n) ? 0 : n;
+  } else {
+    adminProsDraft.template_items[idx][field] = val;
+  }
+}
+
+function addProTemplateItem() {
+  if (!adminProsDraft) return;
+  adminProsDraft.template_items.push({ product_id: '', qty: 1 });
+  renderAdminPros();
+}
+
+function removeProTemplateItem(idx) {
+  if (!adminProsDraft) return;
+  adminProsDraft.template_items.splice(idx, 1);
+  renderAdminPros();
+}
+
 async function saveProForm() {
   const d = adminProsDraft;
   if (!d) return;
@@ -6229,16 +6396,39 @@ async function saveProForm() {
     if (c.role && c.role.trim())   obj.role  = c.role.trim();
     return obj;
   }).filter(function(c) { return Object.keys(c).length > 0; });
+  // v21.0.3 — nettoie panier type : retire les lignes sans produit ou qty <= 0
+  const cleanTemplate = (d.template_items || []).filter(function(t) {
+    return t.product_id && Number(t.qty) > 0;
+  }).map(function(t) {
+    return { product_id: t.product_id, qty: Number(t.qty) };
+  });
+  // v21.0.3 — nettoie prix spéciaux : retire les NaN, garde uniquement nombres >= 0
+  const cleanPrix = {};
+  Object.keys(d.prix_speciaux || {}).forEach(function(pid) {
+    const v = Number(d.prix_speciaux[pid]);
+    if (!isNaN(v) && v >= 0) cleanPrix[pid] = v;
+  });
+  // v21.0.3 — nettoie jours : retire ceux avec actif=false
+  const cleanJours = {};
+  Object.keys(d.jours_livraison || {}).forEach(function(j) {
+    const cfg = d.jours_livraison[j];
+    if (cfg && cfg.actif) cleanJours[j] = { actif: true, butoir: cfg.butoir || null, livraison: cfg.livraison || null };
+  });
+
   const row = {
     id: proId,
     tenant_id: TENANT_ID,
     nom: nom,
     contacts: cleanContacts,
     sources_par_categorie: d.sources_par_categorie || {},
-    boutique_principale: d.boutique_principale,
-    boutique_secours:    d.boutique_secours || null,
-    notes:               (d.notes || '').trim() || null,
-    actif:               !!d.actif
+    jours_livraison:       cleanJours,
+    catalogue_restreint:   d.catalogue_restreint, // null = tout autorisé, sinon array
+    prix_speciaux:         cleanPrix,
+    template_items:        cleanTemplate,
+    boutique_principale:   d.boutique_principale,
+    boutique_secours:      d.boutique_secours || null,
+    notes:                 (d.notes || '').trim() || null,
+    actif:                 !!d.actif
   };
   let res;
   if (isNew) {
@@ -6443,15 +6633,149 @@ function renderProForm(mc) {
     + '</div>'
   + '</div>';
 
-  html += '<div class="pro-form-section" style="opacity:0.55">'
-    + '<h3>À venir (v21.0.3)</h3>'
-    + '<div style="font-size:13px;color:var(--brown-mid)">'
-      + '• Jours de livraison cochables + heure butoir + heure livraison souhaitée<br>'
-      + '• Catalogue restreint (produits autorisés)<br>'
-      + '• Prix spéciaux par produit<br>'
-      + '• Panier type récurrent'
+  // v21.0.3 — Jours de livraison (7 jours, chaque jour = toggle + butoir + livraison)
+  html += '<div class="pro-form-section">'
+    + '<h3>Jours de livraison</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Coche les jours où le pro est livré. Butoir = jusqu\'à quand il peut passer commande. Livraison = heure cible.</div>';
+  PRO_JOURS.forEach(function(jp) {
+    const jourId = jp[0];
+    const jourLbl = jp[1];
+    const cfg = d.jours_livraison[jourId] || {};
+    const isActif = !!cfg.actif;
+    html += '<div class="pro-jour-row' + (isActif ? ' actif' : '') + '">'
+      + '<button class="toggle-btn ' + (isActif ? 'active' : '') + '" onclick="handleProJourActif(\'' + jourId + '\')">' + jourLbl + '</button>'
+      + (isActif
+        ? '<div class="pro-jour-fields">'
+          + '<label>Butoir</label>'
+          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir\', this.value)">'
+          + '<label>Livraison</label>'
+          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.livraison || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'livraison\', this.value)">'
+        + '</div>'
+        : '<div class="pro-jour-fields-off">—</div>')
+    + '</div>';
+  });
+  html += '</div>';
+
+  // v21.0.3 — Catalogue restreint (par catégorie, vide = tout autorisé)
+  const allActiveProds = (adminProducts || []).filter(function(p) { return p.actif; });
+  const allowedSet = (d.catalogue_restreint === null)
+    ? null  // null = tout autorisé
+    : new Set(d.catalogue_restreint);
+  const searchLc = (adminProsCatalogueSearch || '').toLowerCase().trim();
+  html += '<div class="pro-form-section">'
+    + '<h3>Catalogue restreint</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">'
+      + (allowedSet === null
+          ? '<strong style="color:var(--green)">Tout le catalogue actif est autorisé.</strong> Décoche des produits pour passer en mode restriction.'
+          : '<strong style="color:var(--orange)">' + allowedSet.size + ' produits autorisés</strong> sur ' + allActiveProds.length + ' actifs. '
+            + '<button onclick="handleProCatalogueReset()" style="background:none;border:none;color:var(--gold-dark);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:11px;padding:0">Tout autoriser</button>')
     + '</div>'
-  + '</div>';
+    + '<input type="search" class="pro-input" placeholder="🔍 Filtrer un produit…" value="' + escapeHtml(adminProsCatalogueSearch) + '" oninput="handleProCatalogueSearch(this.value)" style="margin-bottom:10px">';
+
+  // Group active products by category for display
+  const prodsByCat = {};
+  allActiveProds.forEach(function(p) {
+    const cat = p.category || '_autres';
+    if (!prodsByCat[cat]) prodsByCat[cat] = [];
+    prodsByCat[cat].push(p);
+  });
+  const catOrder = Object.keys(CAT_LABELS).filter(function(c) { return prodsByCat[c]; });
+  Object.keys(prodsByCat).forEach(function(c) { if (catOrder.indexOf(c) === -1) catOrder.push(c); });
+  catOrder.forEach(function(cat) {
+    const prods = prodsByCat[cat];
+    const visible = prods.filter(function(p) {
+      return !searchLc || (p.name || '').toLowerCase().indexOf(searchLc) !== -1;
+    });
+    if (!visible.length) return;
+    const catLbl = CAT_LABELS[cat] || cat;
+    html += '<div class="pro-cat-prods">'
+      + '<div class="pro-cat-prods-title">' + escapeHtml(catLbl) + ' <span style="color:var(--brown-mid);font-weight:400">(' + visible.length + ')</span></div>'
+      + '<div class="pro-cat-prods-list">';
+    visible.forEach(function(p) {
+      const allowed = (allowedSet === null) || allowedSet.has(p.id);
+      html += '<label class="pro-prod-checkbox' + (allowed ? ' checked' : '') + '">'
+        + '<input type="checkbox"' + (allowed ? ' checked' : '') + ' onchange="handleProCatalogueToggle(\'' + p.id + '\')">'
+        + '<span>' + escapeHtml(p.name) + '</span>'
+      + '</label>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  // v21.0.3 — Prix spéciaux
+  const prixKeys = Object.keys(d.prix_speciaux || {});
+  html += '<div class="pro-form-section">'
+    + '<h3>Prix spéciaux</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Override le prix de cession standard du produit pour ce pro. Vide = prix standard.</div>';
+  if (!prixKeys.length) {
+    html += '<div class="pro-form-hint" style="font-style:italic;margin-bottom:8px">Aucun prix spécial. Tous les produits utilisent leur prix de cession standard.</div>';
+  } else {
+    prixKeys.forEach(function(pid) {
+      const prod = (adminProducts || []).find(function(x) { return x.id === pid; });
+      const prodName = prod ? prod.name : pid;
+      const prixStd = prod && prod.prix_cession != null ? prod.prix_cession.toFixed(2) + '€' : '—';
+      html += '<div class="pro-prix-row">'
+        + '<div class="pro-prix-info">'
+          + '<div class="pro-prix-name">' + escapeHtml(prodName) + '</div>'
+          + '<div class="pro-prix-std">Prix standard : ' + escapeHtml(prixStd) + '</div>'
+        + '</div>'
+        + '<input type="text" inputmode="decimal" class="pro-input pro-input-prix" value="' + (d.prix_speciaux[pid] != null ? String(d.prix_speciaux[pid]) : '') + '" placeholder="€" oninput="handleProPrixSpecialChange(\'' + pid + '\', this.value)">'
+        + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProPrixSpecial(\'' + pid + '\')" title="Retirer">🗑️</button>'
+      + '</div>';
+    });
+  }
+  // Sélecteur produit à ajouter
+  const availableForPrix = (adminProducts || []).filter(function(p) { return p.actif && d.prix_speciaux[p.id] == null; });
+  if (availableForPrix.length) {
+    html += '<select class="pro-input" onchange="if(this.value){handleProPrixSpecialAdd(this.value); this.value=\'\';}" style="margin-top:6px">'
+      + '<option value="">+ Ajouter un prix spécial…</option>';
+    const grouped = {};
+    availableForPrix.forEach(function(p) {
+      const c = p.category || '_autres';
+      if (!grouped[c]) grouped[c] = [];
+      grouped[c].push(p);
+    });
+    Object.keys(grouped).forEach(function(c) {
+      html += '<optgroup label="' + escapeHtml(CAT_LABELS[c] || c) + '">';
+      grouped[c].forEach(function(p) {
+        html += '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name) + '</option>';
+      });
+      html += '</optgroup>';
+    });
+    html += '</select>';
+  }
+  html += '</div>';
+
+  // v21.0.3 — Panier type (template récurrent)
+  html += '<div class="pro-form-section">'
+    + '<h3>Panier type récurrent</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Commande type qui pourra être chargée en 1 clic pour ce pro (ex : 20 baguettes + 30 croissants). La génération auto sera v21.1.</div>';
+  if (!d.template_items.length) {
+    html += '<div class="pro-form-hint" style="font-style:italic;margin-bottom:8px">Aucun produit dans le panier type.</div>';
+  }
+  d.template_items.forEach(function(it, idx) {
+    let optsHtml = '<option value="">— Choisir un produit —</option>';
+    const groupedT = {};
+    (adminProducts || []).filter(function(p) { return p.actif; }).forEach(function(p) {
+      const c = p.category || '_autres';
+      if (!groupedT[c]) groupedT[c] = [];
+      groupedT[c].push(p);
+    });
+    Object.keys(groupedT).forEach(function(c) {
+      optsHtml += '<optgroup label="' + escapeHtml(CAT_LABELS[c] || c) + '">';
+      groupedT[c].forEach(function(p) {
+        optsHtml += '<option value="' + escapeHtml(p.id) + '"' + (it.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+      });
+      optsHtml += '</optgroup>';
+    });
+    html += '<div class="pro-template-row">'
+      + '<select class="pro-input pro-template-prod" onchange="handleProTemplateField(' + idx + ', \'product_id\', this.value)">' + optsHtml + '</select>'
+      + '<input type="text" inputmode="decimal" class="pro-input pro-template-qty" value="' + escapeHtml(String(it.qty || '')) + '" placeholder="Qté" oninput="handleProTemplateField(' + idx + ', \'qty\', this.value)">'
+      + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProTemplateItem(' + idx + ')" title="Retirer">🗑️</button>'
+    + '</div>';
+  });
+  html += '<button class="pro-add-btn" onclick="addProTemplateItem()">+ Ajouter une ligne</button>';
+  html += '</div>';
 
   html += '</div>';
   mc.innerHTML = html;
