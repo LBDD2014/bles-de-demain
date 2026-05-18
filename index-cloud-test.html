@@ -1451,7 +1451,7 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .pro-order-card {
   background: white; border: 1px solid #E5DCC8; border-radius: 12px;
-  padding: 13px 14px; display: flex; gap: 12px; align-items: center;
+  padding: 13px 14px; display: flex; gap: 12px; align-items: flex-start;
   cursor: pointer; transition: all 0.15s;
 }
 .pro-order-card:hover { border-color: var(--gold); background: #FFFCF5; }
@@ -1460,10 +1460,39 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .pro-order-main { flex: 1; min-width: 0; }
 .pro-order-name { font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: var(--brown); }
 .pro-order-meta { font-size: 12px; color: var(--brown-mid); margin-top: 2px; }
-.pro-order-arrow { color: var(--brown-mid); font-size: 22px; font-weight: 700; }
+.pro-order-arrow { color: var(--brown-mid); font-size: 22px; font-weight: 700; padding-top: 2px; }
 .pro-order-special-badge {
   font-size: 14px; vertical-align: middle;
   filter: drop-shadow(0 1px 2px rgba(206,171,82,0.5));
+}
+/* v21.0.4.2 — items dépliés dans les cartes commande */
+.pro-order-card-header {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  border-bottom: 1px solid #F0EAE0; padding-bottom: 6px; margin-bottom: 6px;
+}
+.pro-order-card-total {
+  font-size: 14px; color: var(--gold-dark); font-weight: 700;
+  white-space: nowrap;
+}
+.pro-order-items-inline { display: flex; flex-direction: column; gap: 2px; }
+.pro-order-item-inline {
+  display: grid; grid-template-columns: 30px 1fr auto; gap: 8px;
+  align-items: baseline; font-size: 13px;
+}
+.pro-order-item-qty-inline {
+  font-weight: 700; color: var(--brown); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pro-order-item-name-inline { color: var(--brown); min-width: 0; }
+.pro-order-item-prix-inline {
+  font-size: 11px; color: var(--brown-mid);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.pro-order-special-inline {
+  margin-top: 6px; padding: 6px 8px;
+  background: #FAF6EE; border-left: 3px solid var(--gold);
+  border-radius: 4px; font-size: 12px; color: var(--brown);
+  font-style: italic;
 }
 
 .pro-order-item-row {
@@ -7219,10 +7248,38 @@ function renderProOrders() {
           return s + (isNaN(p) ? 0 : p);
         }, 0);
         const hasSpecial = (o.notes || '').trim().length > 0;
+        const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+        // v21.0.4.2 — items dépliés directement dans la carte
+        let itemsHtml = '';
+        if (items.length) {
+          itemsHtml = '<div class="pro-order-items-inline">';
+          items.forEach(function(it) {
+            const prod = allProds.find(function(p) { return p.id === it.product_id; });
+            const prodName = prod ? prod.name : it.product_id;
+            const prodUnit = prod && prod.unit ? ' (' + escapeHtml(prod.unit) + ')' : '';
+            const prix = (it.prix_applique != null) ? Number(it.prix_applique).toFixed(2) + '€' : '—';
+            const sousTotal = (it.prix_applique != null && it.qty)
+              ? (Number(it.prix_applique) * Number(it.qty)).toFixed(2) + '€'
+              : '';
+            itemsHtml += '<div class="pro-order-item-inline">'
+              + '<span class="pro-order-item-qty-inline">' + escapeHtml(String(it.qty)) + '×</span>'
+              + '<span class="pro-order-item-name-inline">' + escapeHtml(prodName) + prodUnit + '</span>'
+              + '<span class="pro-order-item-prix-inline">' + prix + (sousTotal ? ' → ' + sousTotal : '') + '</span>'
+            + '</div>';
+          });
+          itemsHtml += '</div>';
+        }
+        const specialHtml = hasSpecial
+          ? '<div class="pro-order-special-inline">⭐ ' + escapeHtml(o.notes) + '</div>'
+          : '';
         html += '<div class="pro-order-card" onclick="openProOrderForm(\'' + escapeHtml(o.id) + '\')">'
           + '<div class="pro-order-main">'
-            + '<div class="pro-order-name">' + escapeHtml(proName) + (hasSpecial ? ' <span class="pro-order-special-badge" title="Demande speciale">⭐</span>' : '') + '</div>'
-            + '<div class="pro-order-meta">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + ' · ' + totalVal.toFixed(2) + ' €</div>'
+            + '<div class="pro-order-card-header">'
+              + '<div class="pro-order-name">' + escapeHtml(proName) + '</div>'
+              + '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>'
+            + '</div>'
+            + itemsHtml
+            + specialHtml
           + '</div>'
           + '<div class="pro-order-arrow">›</div>'
         + '</div>';
