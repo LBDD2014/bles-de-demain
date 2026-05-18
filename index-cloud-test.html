@@ -1428,6 +1428,14 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
   align-items: center; font-size: 11px;
 }
 .pro-input-decalage { padding: 6px 6px; font-size: 12px; }
+
+/* v21.0.3.2 — Badge "produit sur mesure pour un pro" en BackOffice */
+.prod-pros-only-badge {
+  display: inline-block; background: #FAF6EE; color: var(--gold-dark);
+  border: 1px solid var(--gold); border-radius: 10px;
+  padding: 1px 8px; font-size: 10px; font-weight: 700; margin-left: 6px;
+  text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;
+}
 .pro-jour-fields label {
   font-size: 11px; color: var(--brown-mid); margin: 0;
   text-transform: uppercase; letter-spacing: 0.4px;
@@ -2017,7 +2025,7 @@ let realtimeChannelPros = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
-let adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+let adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
 let adminEditingPid = null;
 
 // Messagerie livreur
@@ -2187,6 +2195,7 @@ async function loadProducts() {
     const { data, error } = await supa
       .from('products').select('*')
       .eq('tenant_id', TENANT_ID).eq('actif', true)
+      .is('pros_only_id', null)  // v21.0.3.2 — exclure produits sur mesure d'un pro
       .order('category', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     products = data || [];
@@ -2545,6 +2554,7 @@ subscribeRealtimeProductionLocal();
 renderProduction();
 } else if (v === 'produits') {
 await loadAdminProducts();
+await loadAdminPros();  // v21.0.3.2 — pour le select "Spécifique au pro"
 renderAdminProducts();
 } else if (v === 'catégories') {
 await loadCategorySettings();
@@ -5996,7 +6006,7 @@ renderAdminProducts();
 function toggleNewProductForm() {
 adminNewProductOpen = !adminNewProductOpen;
 if (adminNewProductOpen) {
-adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
 }
 renderAdminProducts();
 if (adminNewProductOpen) {
@@ -6023,13 +6033,14 @@ category: d.category.trim(),
 unit: d.unit ? d.unit.trim() : null,
 usage: d.usage || 'both',
 actif: true,
-supply_by_boutique: {}
+supply_by_boutique: {},
+pros_only_id: d.pros_only_id || null  // v21.0.3.2 — produit sur mesure
 };
 const { error } = await supa.from('products').insert(row);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 adminNewProductOpen = false;
-adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both' };
+adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
 await loadAdminProducts();
 await loadProducts();
 renderAdminProducts();
@@ -6126,15 +6137,20 @@ const nameEl = document.getElementById('edit-name-' + pid);
 const catEl = document.getElementById('edit-cat-' + pid);
 const unitEl = document.getElementById('edit-unit-' + pid);
 const usageEl = document.getElementById('edit-usage-' + pid);
+const prosOnlyEl = document.getElementById('edit-pros-only-' + pid);
 if (!nameEl || !catEl || !usageEl) return;
 const name = nameEl.value.trim();
 const category = catEl.value.trim();
 const unit = unitEl ? (unitEl.value.trim() || null) : null;
 const usage = usageEl.value;
+// v21.0.3.2 — pros_only_id (peut ne pas exister si form ancien — fallback safe)
+const pros_only_id = prosOnlyEl ? (prosOnlyEl.value || null) : undefined;
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
 if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
-const { error } = await supa.from('products').update({ name: name, category: category, unit: unit, usage: usage }).eq('id', pid);
+const updateFields = { name: name, category: category, unit: unit, usage: usage };
+if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
+const { error } = await supa.from('products').update(updateFields).eq('id', pid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 adminEditingPid = null;
@@ -6740,7 +6756,12 @@ function renderProForm(mc) {
   html += '</div>';
 
   // v21.0.3 — Catalogue restreint (par catégorie, vide = tout autorisé)
-  const allActiveProds = (adminProducts || []).filter(function(p) { return p.actif; });
+  // v21.0.3.2 — exclure les produits sur mesure d'autres pros (pros_only_id ≠ current)
+  const allActiveProds = (adminProducts || []).filter(function(p) {
+    if (!p.actif) return false;
+    if (p.pros_only_id && p.pros_only_id !== d.id) return false;
+    return true;
+  });
   const allowedSet = (d.catalogue_restreint === null)
     ? null  // null = tout autorisé
     : new Set(d.catalogue_restreint);
@@ -6837,36 +6858,8 @@ function renderProForm(mc) {
   }
   html += '</div>';
 
-  // v21.0.3 — Panier type (template récurrent)
-  html += '<div class="pro-form-section">'
-    + '<h3>Panier type récurrent</h3>'
-    + '<div class="pro-form-hint" style="margin-bottom:10px">Commande type qui pourra être chargée en 1 clic pour ce pro (ex : 20 baguettes + 30 croissants). La génération auto sera v21.1.</div>';
-  if (!d.template_items.length) {
-    html += '<div class="pro-form-hint" style="font-style:italic;margin-bottom:8px">Aucun produit dans le panier type.</div>';
-  }
-  d.template_items.forEach(function(it, idx) {
-    let optsHtml = '<option value="">— Choisir un produit —</option>';
-    const groupedT = {};
-    (adminProducts || []).filter(function(p) { return p.actif; }).forEach(function(p) {
-      const c = p.category || '_autres';
-      if (!groupedT[c]) groupedT[c] = [];
-      groupedT[c].push(p);
-    });
-    Object.keys(groupedT).forEach(function(c) {
-      optsHtml += '<optgroup label="' + escapeHtml(CAT_LABELS[c] || c) + '">';
-      groupedT[c].forEach(function(p) {
-        optsHtml += '<option value="' + escapeHtml(p.id) + '"' + (it.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
-      });
-      optsHtml += '</optgroup>';
-    });
-    html += '<div class="pro-template-row">'
-      + '<select class="pro-input pro-template-prod" onchange="handleProTemplateField(' + idx + ', \'product_id\', this.value)">' + optsHtml + '</select>'
-      + '<input type="text" inputmode="decimal" class="pro-input pro-template-qty" value="' + escapeHtml(String(it.qty || '')) + '" placeholder="Qté" oninput="handleProTemplateField(' + idx + ', \'qty\', this.value)">'
-      + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProTemplateItem(' + idx + ')" title="Retirer">🗑️</button>'
-    + '</div>';
-  });
-  html += '<button class="pro-add-btn" onclick="addProTemplateItem()">+ Ajouter une ligne</button>';
-  html += '</div>';
+  // v21.0.3.2 — Panier type retiré du BackOffice. Le pro le configurera lui-même dans son interface client (v21.2).
+  // La colonne template_items reste en BDD ; on persiste ce qui est déjà dedans sans le toucher.
 
   html += '</div>';
   mc.innerHTML = html;
@@ -6953,6 +6946,14 @@ html += '<div class="new-prod-form">'
 + '<option value="reappro"' + (adminNewProductDraft.usage === 'reappro' ? ' selected' : '') + '>Réappro uniquement</option>'
 + '<option value="ventes"' + (adminNewProductDraft.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
 + '</select></div>'
+// v21.0.3.2 — Spécifique au pro (produit sur mesure, invisible des vues standards)
++ '<div class="npf-row"><label class="npf-lbl">Spécifique au pro</label>'
++ '<select class="npf-input" onchange="handleNewProductField(\'pros_only_id\', this.value)">'
++ '<option value="">— Produit standard (visible partout)</option>'
++ (adminPros || []).filter(function(x) { return x.actif; }).map(function(x) {
+    return '<option value="' + escapeHtml(x.id) + '"' + (adminNewProductDraft.pros_only_id === x.id ? ' selected' : '') + '>' + escapeHtml(x.nom) + '</option>';
+  }).join('')
++ '</select></div>'
 + '<div class="npf-actions">'
 + '<button class="btn-grey" onclick="toggleNewProductForm()">Annuler</button>'
 + '<button class="btn-gold" onclick="saveNewProduct()">Creer</button>'
@@ -7038,6 +7039,14 @@ if (isEditing) {
     + '<option value="reappro"' + (p.usage === 'reappro' ? ' selected' : '') + '>Réappro uniquement</option>'
     + '<option value="ventes"' + (p.usage === 'ventes' ? ' selected' : '') + '>Ventes uniquement</option>'
     + '</select></div>'
+    // v21.0.3.2 — Spécifique au pro
+    + '<div class="npf-row"><label class="npf-lbl">Spécifique au pro</label>'
+    + '<select id="edit-pros-only-' + p.id + '" class="npf-input">'
+    + '<option value="">— Produit standard (visible partout)</option>'
+    + (adminPros || []).filter(function(x) { return x.actif || x.id === p.pros_only_id; }).map(function(x) {
+        return '<option value="' + escapeHtml(x.id) + '"' + (p.pros_only_id === x.id ? ' selected' : '') + '>' + escapeHtml(x.nom) + '</option>';
+      }).join('')
+    + '</select></div>'
     + '<div class="npf-actions">'
     + '<button class="btn-grey" onclick="cancelEditProduct()">Annuler</button>'
     + '<button class="btn-gold" onclick="saveEditProduct(\'' + p.id + '\')">Enregistrer</button>'
@@ -7046,9 +7055,16 @@ if (isEditing) {
   return;
 }
 
+// v21.0.3.2 — Badge "Spécifique au pro X" si pros_only_id rempli
+const prosOnlyPro = p.pros_only_id ? (adminPros || []).find(function(x) { return x.id === p.pros_only_id; }) : null;
+const prosOnlyBadge = prosOnlyPro
+  ? ' <span class="prod-pros-only-badge" title="Visible uniquement pour ' + escapeHtml(prosOnlyPro.nom) + '">🔒 ' + escapeHtml(prosOnlyPro.nom) + '</span>'
+  : (p.pros_only_id ? ' <span class="prod-pros-only-badge" title="Pro introuvable">🔒 pro ?</span>' : '');
 html += '<div class="' + rowCls + '">'
   + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
-  + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '') + '</div>'
+  + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '')
+  + prosOnlyBadge
+  + '</div>'
   + '<div class="admin-prix-wrap">'
   + '<input type="text" inputmode="decimal" class="admin-prix ' + prixCls + '" data-pid="' + p.id + '" value="' + escapeHtml(prixVal) + '" placeholder="-" oninput="handleProductPrixInput(this)" onfocus="this.select()">'
   + '<span class="admin-prix-eur">EUR</span>'
