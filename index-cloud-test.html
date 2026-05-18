@@ -1334,6 +1334,59 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .modal-action.cancel { background: #F0EAE0; color: var(--brown); }
 .modal-action.clear  { background: #FEF2F2; color: var(--red); border: 1px solid var(--red); }
 
+/* v21.0 — Admin Pros (liste + form) */
+.pros-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.pro-card {
+  background: white; border: 1px solid #E5DCC8; border-radius: 12px;
+  padding: 14px; display: flex; gap: 12px; align-items: center;
+}
+.pro-card.inactive { opacity: 0.55; }
+.pro-card-main { flex: 1; min-width: 0; }
+.pro-card-name { font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: var(--brown); }
+.pro-card-id { font-size: 11px; color: var(--brown-mid); font-weight: 400; font-family: monospace; }
+.pro-card-contact { font-size: 12px; color: var(--brown-mid); margin-top: 3px; }
+.pro-card-shops { font-size: 13px; color: var(--brown); margin-top: 5px; }
+.pro-card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.pro-card-btn {
+  background: #FAF6EE; border: 1px solid #E5DCC8; border-radius: 8px;
+  padding: 6px 9px; font-size: 16px; cursor: pointer; font-family: inherit;
+}
+.pro-card-btn:active { transform: scale(0.94); }
+.pro-card-btn-del:hover { background: #FEF2F2; border-color: var(--red); }
+
+.pro-form-header {
+  position: sticky; top: 0; background: var(--cream);
+  display: flex; gap: 8px; align-items: center; padding: 10px 0; z-index: 10;
+  border-bottom: 1px solid #E5DCC8; margin-bottom: 12px;
+}
+.pro-form-title {
+  flex: 1; font-family: Georgia, serif; font-size: 16px; font-weight: 700;
+  color: var(--brown); text-align: center;
+}
+.pro-form { display: flex; flex-direction: column; gap: 14px; padding-bottom: 30px; }
+.pro-form-section {
+  background: white; border: 1px solid #E5DCC8; border-radius: 12px; padding: 14px;
+}
+.pro-form-section h3 {
+  font-family: Georgia, serif; font-size: 14px; font-weight: 700;
+  color: var(--brown); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pro-form-section label {
+  display: block; font-size: 11px; color: var(--brown-mid);
+  text-transform: uppercase; letter-spacing: 0.4px; margin: 8px 0 3px;
+}
+.pro-input {
+  width: 100%; padding: 9px 11px; border: 1.5px solid #E0D8C8; border-radius: 8px;
+  font-size: 14px; font-family: inherit; color: var(--brown); background: #FAFAF6;
+  box-sizing: border-box;
+}
+.pro-input:focus { outline: none; border-color: var(--gold); background: white; }
+.pro-form-hint { font-size: 11px; color: var(--brown-mid); margin-top: 4px; }
+.pro-form-hint code {
+  background: #F0EAE0; padding: 2px 5px; border-radius: 4px;
+  font-family: monospace; color: var(--brown);
+}
+
 /* v20.31 — Modal preview Import Produits */
 .import-preview-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
@@ -1809,7 +1862,8 @@ const NAV_ITEMS = {
   'backoffice': [
     { id: 'produits', lbl: 'Produits' },
     { id: 'catégories', lbl: 'Catég.' },
-    { id: 'valorisation', lbl: 'Valo.' }
+    { id: 'valorisation', lbl: 'Valo.' },
+    { id: 'pros', lbl: 'Pros' }
   ]
 };
 
@@ -1861,6 +1915,12 @@ let marketUpcomingData = {}; // { market_id: { product_id: emmene, _date: 'YYYY-
 
 // Admin products (catalog)
 let adminProducts = []; // All products incl. inactive
+
+// v21.0 — Pros (clients professionnels)
+let adminPros = [];
+let adminProsEditingId = null;   // null = liste, 'new' = création, 'cafe_x' = édition
+let adminProsDraft = null;        // working copy pour le form
+let realtimeChannelPros = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -2328,6 +2388,7 @@ if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtime
 if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); realtimeChannelMessages = null; }
 if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
 if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
+if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     realtimeChannelPros = null; }
 currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
 messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
@@ -2398,6 +2459,11 @@ renderAdminCategories();
 } else if (v === 'valorisation') {
 await loadValorisation();
 renderValorisation();
+} else if (v === 'pros') {
+// v21.0 — Pros : CRUD client professionnel
+await loadAdminPros();
+subscribeRealtimePros();
+renderAdminPros();
 } else if (v === 'marche') {
 await loadMarketEntries(currentMarketId, currentMarketDate);
 await loadMarketDayNote(currentMarketId, currentMarketDate);
@@ -5996,6 +6062,280 @@ setSyncStatus('ok');
 categorySettings[cat] = { a_previs: newVal };
 renderAdminCategories();
 showToast('Prévis ' + (newVal ? 'active' : 'desactive') + ' pour ' + (CAT_LABELS[cat] || cat), 'sync');
+}
+
+// === v21.0 — ADMIN PROS (clients professionnels) ===
+async function loadAdminPros() {
+  const { data, error } = await supa.from('pros').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .order('nom');
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  adminPros = data || [];
+}
+
+function subscribeRealtimePros() {
+  if (realtimeChannelPros) return;
+  realtimeChannelPros = supa.channel('pros_' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pros' },
+      async function() {
+        await loadAdminPros();
+        if (currentBoutique === 'backoffice' && currentVue === 'pros' && adminProsEditingId === null) {
+          renderAdminPros();
+        }
+      }).subscribe();
+}
+
+function makeProSlug(nom) {
+  return String(nom || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .substring(0, 30);
+}
+
+function openProForm(pid) {
+  adminProsEditingId = pid;
+  if (pid === 'new') {
+    adminProsDraft = {
+      id: '', nom: '', contact_nom: '', contact_tel: '', contact_email: '',
+      boutique_principale: 'local', boutique_secours: '',
+      notes: '', actif: true
+    };
+  } else {
+    const p = adminPros.find(function(x) { return x.id === pid; });
+    if (!p) { adminProsEditingId = null; renderAdminPros(); return; }
+    adminProsDraft = {
+      id: p.id, nom: p.nom || '',
+      contact_nom: p.contact_nom || '', contact_tel: p.contact_tel || '', contact_email: p.contact_email || '',
+      boutique_principale: p.boutique_principale || 'local',
+      boutique_secours: p.boutique_secours || '',
+      notes: p.notes || '', actif: !!p.actif
+    };
+  }
+  renderAdminPros();
+}
+
+function closeProForm() {
+  adminProsEditingId = null;
+  adminProsDraft = null;
+  renderAdminPros();
+}
+
+function handleProField(field, val) {
+  if (!adminProsDraft) return;
+  adminProsDraft[field] = val;
+}
+
+function handleProActifToggle() {
+  if (!adminProsDraft) return;
+  adminProsDraft.actif = !adminProsDraft.actif;
+  renderAdminPros();
+}
+
+async function saveProForm() {
+  const d = adminProsDraft;
+  if (!d) return;
+  const nom = (d.nom || '').trim();
+  if (!nom) { showToast('Nom obligatoire', 'error'); return; }
+  if (!d.boutique_principale) { showToast('Boutique principale obligatoire', 'error'); return; }
+  if (d.boutique_secours && d.boutique_secours === d.boutique_principale) {
+    showToast('La boutique de secours doit être différente de la principale', 'error'); return;
+  }
+  setSyncStatus('syncing');
+  const isNew = (adminProsEditingId === 'new');
+  let proId = isNew ? makeProSlug(nom) : d.id;
+  if (!proId) { setSyncStatus('error'); showToast('Impossible de générer un identifiant depuis le nom', 'error'); return; }
+  if (isNew && adminPros.some(function(p) { return p.id === proId; })) {
+    setSyncStatus('error');
+    showToast('Un pro avec cet identifiant existe déjà : ' + proId + '. Change le nom.', 'error');
+    return;
+  }
+  const row = {
+    id: proId,
+    tenant_id: TENANT_ID,
+    nom: nom,
+    contact_nom: (d.contact_nom || '').trim() || null,
+    contact_tel:  (d.contact_tel  || '').trim() || null,
+    contact_email:(d.contact_email|| '').trim() || null,
+    boutique_principale: d.boutique_principale,
+    boutique_secours:    d.boutique_secours || null,
+    notes:               (d.notes || '').trim() || null,
+    actif:               !!d.actif
+  };
+  let res;
+  if (isNew) {
+    res = await supa.from('pros').insert(row).select();
+  } else {
+    res = await supa.from('pros').update(row).eq('id', proId).select();
+  }
+  if (res.error) { setSyncStatus('error'); showToast(res.error.message, 'error'); return; }
+  if (!res.data || !res.data.length) {
+    setSyncStatus('error');
+    alert('Sauvegarde bloquée par Supabase (RLS).\nVérifie les policies sur la table pros (FOR ALL TO anon).');
+    return;
+  }
+  setSyncStatus('ok');
+  await loadAdminPros();
+  closeProForm();
+  showToast(isNew ? 'Pro cree' : 'Pro modifie', 'sync');
+}
+
+async function togglePro(pid) {
+  const p = adminPros.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('pros').update({ actif: !p.actif }).eq('id', pid).select();
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  if (!data || !data.length) {
+    setSyncStatus('error');
+    alert('Modification bloquée par Supabase (RLS).');
+    return;
+  }
+  setSyncStatus('ok');
+  await loadAdminPros();
+  renderAdminPros();
+}
+
+async function deletePro(pid) {
+  const p = adminPros.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  if (!confirm('Supprimer DEFINITIVEMENT le pro "' + p.nom + '" ?\n\nATTENTION : toutes ses commandes seront aussi supprimees (cascade).')) return;
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('pros').delete().eq('id', pid).select();
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  if (!data || !data.length) {
+    setSyncStatus('error');
+    alert('Suppression bloquée (RLS Supabase ou contrainte).');
+    return;
+  }
+  setSyncStatus('ok');
+  await loadAdminPros();
+  renderAdminPros();
+  showToast('Pro supprime', 'sync');
+}
+
+function renderAdminPros() {
+  const mc = document.getElementById('main-content');
+  if (adminProsEditingId !== null) { renderProForm(mc); return; }
+
+  // Liste des pros
+  const nbActifs = adminPros.filter(function(p) { return p.actif; }).length;
+  const nbInactifs = adminPros.filter(function(p) { return !p.actif; }).length;
+
+  let html = '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafes, hotels livres par Le Local (ou autre boutique source). Configure ici nom + contact + boutiques. Les jours de livraison, catalogue restreint et tarifs spéciaux arrivent en v21.0.2.</div>';
+  html += '<div style="margin:10px 0"><button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button></div>';
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbInactifs + '</div><div class="prod-kpi-lbl">Inactifs</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + adminPros.length + '</div><div class="prod-kpi-lbl">Total</div></div>'
+    + '</div>';
+
+  if (!adminPros.length) {
+    html += '<div class="empty-state" style="margin-top:20px">Aucun pro pour l\'instant.<br>Clique sur <strong>+ Nouveau pro</strong> pour commencer.</div>';
+  } else {
+    html += '<div class="pros-list">';
+    adminPros.forEach(function(p) {
+      const bp = BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale;
+      const bs = p.boutique_secours ? (BOUTIQUE_NAMES[p.boutique_secours] || p.boutique_secours) : null;
+      const contactBits = [];
+      if (p.contact_nom) contactBits.push(escapeHtml(p.contact_nom));
+      if (p.contact_tel) contactBits.push(escapeHtml(p.contact_tel));
+      const contactLine = contactBits.length ? contactBits.join(' · ') : '<span style="color:#BBB">Pas de contact renseigné</span>';
+      html += '<div class="pro-card' + (p.actif ? '' : ' inactive') + '">'
+        + '<div class="pro-card-main">'
+          + '<div class="pro-card-name">' + escapeHtml(p.nom) + ' <span class="pro-card-id">(' + escapeHtml(p.id) + ')</span></div>'
+          + '<div class="pro-card-contact">' + contactLine + '</div>'
+          + '<div class="pro-card-shops"><strong>' + escapeHtml(bp) + '</strong>'
+            + (bs ? ' &middot; secours : ' + escapeHtml(bs) : '')
+            + '</div>'
+        + '</div>'
+        + '<div class="pro-card-actions">'
+          + '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" onclick="togglePro(\'' + p.id + '\')">' + (p.actif ? 'ON' : 'OFF') + '</button>'
+          + '<button class="pro-card-btn" onclick="openProForm(\'' + p.id + '\')" title="Editer">✏️</button>'
+          + '<button class="pro-card-btn pro-card-btn-del" onclick="deletePro(\'' + p.id + '\')" title="Supprimer">🗑️</button>'
+        + '</div>'
+      + '</div>';
+    });
+    html += '</div>';
+  }
+  mc.innerHTML = html;
+}
+
+function renderProForm(mc) {
+  const d = adminProsDraft;
+  const isNew = (adminProsEditingId === 'new');
+  const slugPreview = isNew ? makeProSlug(d.nom) : d.id;
+  const boutiqueOpts = [
+    ['veigne', BOUTIQUE_NAMES['veigne']],
+    ['tours',  BOUTIQUE_NAMES['tours']],
+    ['local',  BOUTIQUE_NAMES['local']]
+  ];
+  function selOpts(current, includeAucune) {
+    let h = '';
+    if (includeAucune) h += '<option value=""' + (current ? '' : ' selected') + '>— Aucune</option>';
+    boutiqueOpts.forEach(function(o) {
+      h += '<option value="' + o[0] + '"' + (current === o[0] ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
+    });
+    return h;
+  }
+
+  let html = '<div class="pro-form-header">'
+    + '<button class="modal-action cancel" onclick="closeProForm()">← Retour</button>'
+    + '<div class="pro-form-title">' + (isNew ? 'Nouveau pro' : escapeHtml(d.nom || d.id)) + '</div>'
+    + '<button class="btn-gold" onclick="saveProForm()">' + (isNew ? 'Créer' : 'Enregistrer') + '</button>'
+  + '</div>';
+
+  html += '<div class="pro-form">';
+
+  html += '<div class="pro-form-section">'
+    + '<h3>Identité</h3>'
+    + '<label>Nom du pro *</label>'
+    + '<input type="text" class="pro-input" value="' + escapeHtml(d.nom) + '" placeholder="Café des Arts" oninput="handleProField(\'nom\', this.value); document.getElementById(\'slug-preview\').textContent = makeProSlug(this.value);">'
+    + (isNew
+      ? '<div class="pro-form-hint">Identifiant généré : <code id="slug-preview">' + escapeHtml(slugPreview) + '</code></div>'
+      : '<div class="pro-form-hint">Identifiant : <code>' + escapeHtml(d.id) + '</code> (non modifiable après création)</div>')
+    + '<label>Nom du contact</label>'
+    + '<input type="text" class="pro-input" value="' + escapeHtml(d.contact_nom) + '" placeholder="Jean Dupont" oninput="handleProField(\'contact_nom\', this.value)">'
+    + '<label>Téléphone</label>'
+    + '<input type="tel" class="pro-input" value="' + escapeHtml(d.contact_tel) + '" placeholder="06 12 34 56 78" oninput="handleProField(\'contact_tel\', this.value)">'
+    + '<label>Email</label>'
+    + '<input type="email" class="pro-input" value="' + escapeHtml(d.contact_email) + '" placeholder="jean@cafe-arts.fr" oninput="handleProField(\'contact_email\', this.value)">'
+  + '</div>';
+
+  html += '<div class="pro-form-section">'
+    + '<h3>Boutique source</h3>'
+    + '<label>Boutique principale *</label>'
+    + '<select class="pro-input" onchange="handleProField(\'boutique_principale\', this.value)">' + selOpts(d.boutique_principale, false) + '</select>'
+    + '<label>Boutique de secours (si principale fermée)</label>'
+    + '<select class="pro-input" onchange="handleProField(\'boutique_secours\', this.value)">' + selOpts(d.boutique_secours, true) + '</select>'
+    + '<div class="pro-form-hint">St-Av n\'est pas une boutique source possible (livrée par Le Local).</div>'
+  + '</div>';
+
+  html += '<div class="pro-form-section">'
+    + '<h3>Notes</h3>'
+    + '<textarea class="pro-input" rows="3" placeholder="Infos libres : horaires, préférences, contraintes…" oninput="handleProField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea>'
+  + '</div>';
+
+  html += '<div class="pro-form-section">'
+    + '<h3>Statut</h3>'
+    + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<button class="toggle-btn ' + (d.actif ? 'active' : '') + '" onclick="handleProActifToggle()">' + (d.actif ? 'ACTIF' : 'INACTIF') + '</button>'
+      + '<span style="font-size:12px;color:var(--brown-mid)">Un pro inactif disparait des onglets de saisie mais son historique reste.</span>'
+    + '</div>'
+  + '</div>';
+
+  html += '<div class="pro-form-section" style="opacity:0.55">'
+    + '<h3>À venir (v21.0.2)</h3>'
+    + '<div style="font-size:13px;color:var(--brown-mid)">'
+      + '• Jours de livraison cochables + heure butoir + heure livraison souhaitée<br>'
+      + '• Catalogue restreint (produits autorisés)<br>'
+      + '• Prix spéciaux par produit<br>'
+      + '• Panier type récurrent'
+    + '</div>'
+  + '</div>';
+
+  html += '</div>';
+  mc.innerHTML = html;
 }
 
 function renderAdminCategories() {
