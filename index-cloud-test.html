@@ -1424,9 +1424,10 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .pro-jour-row:last-child { border-bottom: none; }
 .pro-jour-fields {
-  display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 6px;
+  display: grid; grid-template-columns: auto 1.2fr 0.8fr auto 0.8fr; gap: 6px;
   align-items: center; font-size: 11px;
 }
+.pro-input-decalage { padding: 6px 6px; font-size: 12px; }
 .pro-jour-fields label {
   font-size: 11px; color: var(--brown-mid); margin: 0;
   text-transform: uppercase; letter-spacing: 0.4px;
@@ -1442,7 +1443,15 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .pro-cat-prods-title {
   font-family: Georgia, serif; font-size: 13px; font-weight: 700;
   color: var(--brown); margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
 }
+.pro-cat-toggle-all {
+  background: white; border: 1px solid #E0D8C8; border-radius: 12px;
+  padding: 3px 9px; font-size: 11px; font-weight: 700; color: var(--gold-dark);
+  cursor: pointer; font-family: inherit; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.pro-cat-toggle-all:hover { background: #FAF6EE; border-color: var(--gold); }
+.pro-cat-toggle-all:active { transform: scale(0.95); }
 .pro-cat-prods-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .pro-prod-checkbox {
   display: inline-flex; align-items: center; gap: 5px;
@@ -6207,8 +6216,22 @@ function openProForm(pid) {
       boutique_principale: p.boutique_principale || 'local',
       boutique_secours: p.boutique_secours || '',
       sources_par_categorie: (p.sources_par_categorie && typeof p.sources_par_categorie === 'object') ? Object.assign({}, p.sources_par_categorie) : {},
-      // v21.0.3
-      jours_livraison: (p.jours_livraison && typeof p.jours_livraison === 'object') ? Object.assign({}, p.jours_livraison) : {},
+      // v21.0.3 + v21.0.3.1 — migration legacy { butoir } → { butoir_decalage, butoir_heure }
+      jours_livraison: (function() {
+        const src = (p.jours_livraison && typeof p.jours_livraison === 'object') ? p.jours_livraison : {};
+        const out = {};
+        Object.keys(src).forEach(function(j) {
+          const cfg = src[j] || {};
+          if (cfg.butoir_decalage != null || cfg.butoir_heure != null) {
+            // Déjà au nouveau format
+            out[j] = { actif: !!cfg.actif, butoir_decalage: cfg.butoir_decalage != null ? cfg.butoir_decalage : -1, butoir_heure: cfg.butoir_heure || '', livraison: cfg.livraison || '' };
+          } else {
+            // Ancien format { butoir } → on suppose "la veille" (decalage = -1)
+            out[j] = { actif: !!cfg.actif, butoir_decalage: -1, butoir_heure: cfg.butoir || '', livraison: cfg.livraison || '' };
+          }
+        });
+        return out;
+      })(),
       catalogue_restreint: Array.isArray(p.catalogue_restreint) ? p.catalogue_restreint.slice() : null,
       prix_speciaux: (p.prix_speciaux && typeof p.prix_speciaux === 'object') ? Object.assign({}, p.prix_speciaux) : {},
       template_items: Array.isArray(p.template_items) ? p.template_items.map(function(t) { return { product_id: t.product_id, qty: t.qty }; }) : [],
@@ -6272,21 +6295,40 @@ const PRO_JOURS = [
   ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'], ['samedi', 'Samedi'], ['dimanche', 'Dimanche']
 ];
 
+// v21.0.3.1 — Décalage butoir : 0 (matin même), -1 (veille), -2 (avant-veille)
+const PRO_BUTOIR_DECALAGES = [
+  [0,  'Matin même'],
+  [-1, 'La veille'],
+  [-2, '48h avant (avant-veille)'],
+  [-3, '72h avant']
+];
+
 function handleProJourActif(jour) {
   if (!adminProsDraft) return;
   const cur = adminProsDraft.jours_livraison[jour] || {};
   if (cur.actif) {
     delete adminProsDraft.jours_livraison[jour];
   } else {
-    adminProsDraft.jours_livraison[jour] = { actif: true, butoir: cur.butoir || '', livraison: cur.livraison || '' };
+    adminProsDraft.jours_livraison[jour] = {
+      actif: true,
+      butoir_decalage: (cur.butoir_decalage != null ? cur.butoir_decalage : -1),
+      butoir_heure: cur.butoir_heure || cur.butoir || '',
+      livraison: cur.livraison || ''
+    };
   }
   renderAdminPros();
 }
 
 function handleProJourField(jour, field, val) {
   if (!adminProsDraft) return;
-  if (!adminProsDraft.jours_livraison[jour]) adminProsDraft.jours_livraison[jour] = { actif: true, butoir: '', livraison: '' };
-  adminProsDraft.jours_livraison[jour][field] = val;
+  if (!adminProsDraft.jours_livraison[jour]) {
+    adminProsDraft.jours_livraison[jour] = { actif: true, butoir_decalage: -1, butoir_heure: '', livraison: '' };
+  }
+  if (field === 'butoir_decalage') {
+    adminProsDraft.jours_livraison[jour][field] = parseInt(val, 10);
+  } else {
+    adminProsDraft.jours_livraison[jour][field] = val;
+  }
 }
 
 // v21.0.3 — Catalogue restreint (null = tout, array = liste autorisée)
@@ -6313,6 +6355,34 @@ function handleProCatalogueToggle(productId) {
 function handleProCatalogueReset() {
   if (!adminProsDraft) return;
   adminProsDraft.catalogue_restreint = null;
+  renderAdminPros();
+}
+
+// v21.0.3.1 — Toggle Tout/Rien sur une catégorie complète
+function handleProCatalogueCategoryToggle(cat) {
+  if (!adminProsDraft) return;
+  const allProds = (adminProducts || []).filter(function(p) { return p.actif; });
+  const prodsInCat = allProds.filter(function(p) { return (p.category || '_autres') === cat; });
+  if (!prodsInCat.length) return;
+  // État courant : tous coches ?
+  let cur = adminProsDraft.catalogue_restreint;
+  const allAllowed = (cur === null) ? allProds.map(function(p) { return p.id; }) : cur;
+  const allInCatAllowed = prodsInCat.every(function(p) { return allAllowed.indexOf(p.id) !== -1; });
+  if (cur === null) {
+    // null = tout autorisé. Décocher toute la catégorie passe en mode restriction.
+    cur = allProds.map(function(p) { return p.id; });
+  }
+  const catIds = prodsInCat.map(function(p) { return p.id; });
+  if (allInCatAllowed) {
+    // Tout coché → on décoche toute la catégorie
+    cur = cur.filter(function(id) { return catIds.indexOf(id) === -1; });
+  } else {
+    // Sinon (partiel ou rien) → on coche tout
+    catIds.forEach(function(id) { if (cur.indexOf(id) === -1) cur.push(id); });
+  }
+  // Si on a tout coché → revient à null (tout autorisé)
+  if (cur.length === allProds.length) cur = null;
+  adminProsDraft.catalogue_restreint = cur;
   renderAdminPros();
 }
 
@@ -6408,11 +6478,18 @@ async function saveProForm() {
     const v = Number(d.prix_speciaux[pid]);
     if (!isNaN(v) && v >= 0) cleanPrix[pid] = v;
   });
-  // v21.0.3 — nettoie jours : retire ceux avec actif=false
+  // v21.0.3 + v21.0.3.1 — nettoie jours : retire inactifs, persiste butoir_decalage + butoir_heure
   const cleanJours = {};
   Object.keys(d.jours_livraison || {}).forEach(function(j) {
     const cfg = d.jours_livraison[j];
-    if (cfg && cfg.actif) cleanJours[j] = { actif: true, butoir: cfg.butoir || null, livraison: cfg.livraison || null };
+    if (cfg && cfg.actif) {
+      cleanJours[j] = {
+        actif: true,
+        butoir_decalage: (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1),
+        butoir_heure: cfg.butoir_heure || null,
+        livraison: cfg.livraison || null
+      };
+    }
   });
 
   const row = {
@@ -6642,12 +6719,18 @@ function renderProForm(mc) {
     const jourLbl = jp[1];
     const cfg = d.jours_livraison[jourId] || {};
     const isActif = !!cfg.actif;
+    const curDec = (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1);
+    let decOpts = '';
+    PRO_BUTOIR_DECALAGES.forEach(function(opt) {
+      decOpts += '<option value="' + opt[0] + '"' + (curDec === opt[0] ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
+    });
     html += '<div class="pro-jour-row' + (isActif ? ' actif' : '') + '">'
       + '<button class="toggle-btn ' + (isActif ? 'active' : '') + '" onclick="handleProJourActif(\'' + jourId + '\')">' + jourLbl + '</button>'
       + (isActif
         ? '<div class="pro-jour-fields">'
           + '<label>Butoir</label>'
-          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir\', this.value)">'
+          + '<select class="pro-input pro-input-decalage" onchange="handleProJourField(\'' + jourId + '\', \'butoir_decalage\', this.value)">' + decOpts + '</select>'
+          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir_heure || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir_heure\', this.value)">'
           + '<label>Livraison</label>'
           + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.livraison || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'livraison\', this.value)">'
         + '</div>'
@@ -6688,8 +6771,16 @@ function renderProForm(mc) {
     });
     if (!visible.length) return;
     const catLbl = CAT_LABELS[cat] || cat;
+    // v21.0.3.1 — état Tout/Rien de la catégorie (sur les produits visibles ou tous)
+    const catIdsAll = prods.map(function(p) { return p.id; });
+    const allInCatAllowed = (allowedSet === null) ? true : catIdsAll.every(function(id) { return allowedSet.has(id); });
+    const noneInCatAllowed = (allowedSet === null) ? false : catIdsAll.every(function(id) { return !allowedSet.has(id); });
+    const toggleLbl = allInCatAllowed ? 'Tout décocher' : (noneInCatAllowed ? 'Tout cocher' : 'Tout cocher');
     html += '<div class="pro-cat-prods">'
-      + '<div class="pro-cat-prods-title">' + escapeHtml(catLbl) + ' <span style="color:var(--brown-mid);font-weight:400">(' + visible.length + ')</span></div>'
+      + '<div class="pro-cat-prods-title">'
+        + '<span>' + escapeHtml(catLbl) + ' <span style="color:var(--brown-mid);font-weight:400">(' + visible.length + ')</span></span>'
+        + '<button class="pro-cat-toggle-all" onclick="handleProCatalogueCategoryToggle(\'' + cat + '\')">' + toggleLbl + '</button>'
+      + '</div>'
       + '<div class="pro-cat-prods-list">';
     visible.forEach(function(p) {
       const allowed = (allowedSet === null) || allowedSet.has(p.id);
