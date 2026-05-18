@@ -1495,6 +1495,48 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
   font-style: italic;
 }
 
+/* v21.0.4.3 — Cellule Pros dans vue Production (cliquable pour détail) */
+.cell-pros { cursor: default; }
+.cell-pros.has {
+  cursor: pointer; color: var(--blue); font-weight: 700;
+  background: rgba(44,95,138,0.08); border-radius: 6px;
+  text-align: center; transition: background 0.15s;
+}
+.cell-pros.has:hover { background: rgba(44,95,138,0.18); }
+.cell-pros.has:active { transform: scale(0.95); }
+
+/* v21.0.4.3 — Modal détail "qui commande quoi" */
+.pros-detail-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.pros-detail-modal {
+  background: white; border-radius: 14px; padding: 18px;
+  max-width: 420px; width: 100%; max-height: 75vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.pros-detail-title {
+  font-family: Georgia, serif; font-size: 16px; font-weight: 700;
+  color: var(--brown); margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+}
+.pros-detail-total {
+  font-size: 14px; font-weight: 700; color: var(--blue);
+  white-space: nowrap;
+}
+.pros-detail-list {
+  flex: 1; overflow-y: auto;
+  border: 1px solid #E5DCC8; border-radius: 8px; padding: 4px;
+}
+.pros-detail-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 7px 10px; border-bottom: 1px solid #F5F0E5; font-size: 13px;
+}
+.pros-detail-row:last-child { border-bottom: none; }
+.pros-detail-qty { font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; }
+.pros-detail-actions { display: flex; gap: 8px; margin-top: 14px; }
+
 .pro-order-item-row {
   display: grid; grid-template-columns: 1fr 70px 90px 36px; gap: 6px;
   align-items: center; margin-bottom: 6px;
@@ -2116,6 +2158,10 @@ let proOrderFilterPeriod = 'week';    // today | tomorrow | week
 let editingProOrderId = null;         // null = liste, 'new' = création, uuid = édition
 let proOrderDraft = null;             // working copy form
 let realtimeChannelProOrders = null;
+
+// v21.0.4.3 — Pro_orders pour la vue Production (chargés indépendamment, filtrés date+boutique)
+let productionProOrdersData = [];     // pro_orders avec items pour la date currentReapproDate
+let realtimeChannelProOrdersProduction = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -2586,6 +2632,7 @@ if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); real
 if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
 if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     realtimeChannelPros = null; }
 if (realtimeChannelProOrders){ supa.removeChannel(realtimeChannelProOrders); realtimeChannelProOrders = null; }
+if (realtimeChannelProOrdersProduction) { supa.removeChannel(realtimeChannelProOrdersProduction); realtimeChannelProOrdersProduction = null; }
 currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
 messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
@@ -2644,6 +2691,12 @@ await loadStAvSalesForProduction(currentReapproDate);
 // v20.18 — sales St-Av complètes (matin/aprem/reste_j1) pour Prod. Boulangers
 await loadStAvSalesFromTable(currentReapproDate);
 }
+// v21.0.4.3 — Charger les commandes pros du jour pour cette boutique
+// Aussi adminPros + adminProducts pour les noms / catégories
+if (!adminPros.length) await loadAdminPros();
+if (!adminProducts.length) await loadAdminProducts();
+await loadProOrdersForProduction(currentBoutique, currentReapproDate);
+subscribeRealtimeProOrdersProduction(currentBoutique);
 subscribeRealtimeProduction();
 subscribeRealtimeProductionLocal();
 renderProduction();
@@ -4989,14 +5042,18 @@ const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
 // v20.19 — Le Local Prod. Boulangers/Touriers : même règle qu'à Veigné Pâtissier (épuré)
 const showProdStockEcart = !isVeignePat && !isLocalBoul && !isLocalTour;
-// Grid : Produit | [Matin V | Matin SA | V T SA] | [Spé] | [marches actifs] | Total | [Produit | Stock | Ecart]
+// v21.0.4.3 — Pros : besoins des commandes pros du jour
+const showProsCol = isVeignePat || isLocalBoul || isLocalTour;
+const proAgg = showProsCol ? aggregateProOrdersForProduction(currentVue) : {};
+// Grid : Produit | [Matin V | Matin SA | V T SA] | [Spé] | [Pros] | [marches actifs] | Total | [Produit | Stock | Ecart]
 const fixedColsBefore = '1.3fr'
   + (showMatinV ? ' 0.65fr' : '')
   + (showMatinSA ? ' 0.65fr' : '')
   + (showApremSA ? ' 0.65fr' : '')
   + (showResteJ1 ? ' 0.65fr' : '')
   + (showVTS ? (isLocalBoul ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
-  + (showSpe ? ' 0.55fr' : '');
+  + (showSpe ? ' 0.55fr' : '')
+  + (showProsCol ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
 const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '');
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
@@ -5050,16 +5107,19 @@ const stAvSale = productionStAvSalesFromTable[p.id] || {};
 const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
 const cReste = showResteJ1 ? (stAvSale.reste_j1 || 0) : 0;
+// v21.0.4.3 — Pros : qty cumulée des commandes pros du jour pour ce produit (filtre par vue)
+const cPros = showProsCol && proAgg[p.id] ? proAgg[p.id].totalQty : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
 // v20.18 — Le Local Boul : Total = Matin SA + Aprem + SA + Spé - Reste J-1
+// v21.0.4.3 — Total inclut désormais les besoins pros
 const totalReassort = cV + cT + cS;
-const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe;
+const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe + cPros;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
 p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV, matinSA: cMatinSA,
-aprem: cAprem, reste: cReste,
+aprem: cAprem, reste: cReste, pros: cPros,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -5218,6 +5278,9 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   if (showSpe) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Commandes spéciales du jour">⭐ Spé</span>';
   }
+  if (showProsCol) {
+    headerHtml += '<span class="col-c" style="color:var(--blue)" title="Commandes pros du jour — clique sur un chiffre pour voir le détail">💼 Pros</span>';
+  }
   activeMarketsForGrid.forEach(function(mid) {
   const dateBadge = marketUpcomingData[mid]._date
   ? '<span class="market-header-badge">' + formatMarketDayLabel(marketUpcomingData[mid]._date) + '</span>'
@@ -5295,6 +5358,14 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   }
   if (showSpe) {
     rowHtml += '<div class="cell ' + (r.spe > 0 ? '' : 'zero') + '" style="color:' + (r.spe > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.spe > 0 ? '700' : '400') + '">' + (r.spe > 0 ? '⭐' + formatQty(r.spe) : '0') + '</div>';
+  }
+  // v21.0.4.3 — cellule Pros cliquable pour ouvrir le détail
+  if (showProsCol) {
+    if (r.pros > 0) {
+      rowHtml += '<div class="cell cell-pros has" onclick="openProsDetailModal(\'' + r.p.id + '\')" title="Cliquer pour voir le détail">💼 ' + formatQty(r.pros) + '</div>';
+    } else {
+      rowHtml += '<div class="cell zero">0</div>';
+    }
   }
   activeMarketsForGrid.forEach(function(mid) {
   const v = r.markets[mid] || 0;
@@ -7187,6 +7258,103 @@ async function cancelProOrder(orderId) {
 function handleProOrderFilterPeriod(p) {
   proOrderFilterPeriod = p;
   renderProOrders();
+}
+
+// v21.0.4.3 — Charge les pro_orders + items pour la vue Production
+async function loadProOrdersForProduction(boutique, dateISO) {
+  // Pour Veigné = pro_orders boutique_source=veigne ; pour Le Local = local ; pour Tours = tours
+  const { data, error } = await supa
+    .from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('boutique_source', boutique)
+    .eq('date_livraison', dateISO)
+    .neq('statut', 'annule');
+  if (error) { productionProOrdersData = []; return; }
+  productionProOrdersData = data || [];
+}
+
+// v21.0.4.3 — Realtime sur pro_orders pour rafraichir la vue Production en temps réel
+function subscribeRealtimeProOrdersProduction(boutique) {
+  if (realtimeChannelProOrdersProduction) return;
+  realtimeChannelProOrdersProduction = supa.channel('pro_orders_prod_' + TENANT_ID + '_' + boutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_orders' },
+      async function() {
+        await loadProOrdersForProduction(boutique, currentReapproDate);
+        if (currentBoutique === boutique && (currentVue === 'production' || currentVue === 'prod_boul' || currentVue === 'prod_tour')) {
+          renderProduction();
+        }
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_order_items' },
+      async function() {
+        await loadProOrdersForProduction(boutique, currentReapproDate);
+        if (currentBoutique === boutique && (currentVue === 'production' || currentVue === 'prod_boul' || currentVue === 'prod_tour')) {
+          renderProduction();
+        }
+      })
+    .subscribe();
+}
+
+// v21.0.4.3 — Agrégation pour la vue Production : { product_id: { totalQty, byPro: [...] } }
+// Pour Le Local Prod. Boulangers : filtre items pains
+// Pour Le Local Prod. Touriers : filtre items viennoiserie + brioches_special
+// Pour Veigné Pâtissier : tous les items
+function aggregateProOrdersForProduction(vue) {
+  const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+  const prodById = {};
+  allProds.forEach(function(p) { prodById[p.id] = p; });
+
+  const result = {}; // product_id -> { totalQty, byPro: { pro_id: qty } }
+  productionProOrdersData.forEach(function(o) {
+    (o.pro_order_items || []).forEach(function(it) {
+      const prod = prodById[it.product_id];
+      if (!prod) return;
+      // Filtre par vue (catégorie produit)
+      if (vue === 'prod_boul' && prod.category !== 'pains') return;
+      if (vue === 'prod_tour' && prod.category !== 'viennoiserie' && prod.category !== 'brioches_special') return;
+      if (!result[it.product_id]) result[it.product_id] = { totalQty: 0, byPro: {} };
+      const qty = Number(it.qty) || 0;
+      result[it.product_id].totalQty += qty;
+      if (!result[it.product_id].byPro[o.pro_id]) result[it.product_id].byPro[o.pro_id] = 0;
+      result[it.product_id].byPro[o.pro_id] += qty;
+    });
+  });
+  return result;
+}
+
+// v21.0.4.3 — Modal popover : détail "qui commande quoi" pour un produit
+function openProsDetailModal(productId) {
+  const agg = aggregateProOrdersForProduction(currentVue);
+  const entry = agg[productId];
+  if (!entry) return;
+  const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+  const prod = allProds.find(function(p) { return p.id === productId; });
+  const prodName = prod ? prod.name : productId;
+  closeProsDetailModal();
+  let html = '<div class="pros-detail-overlay" onclick="if(event.target===this)closeProsDetailModal()">';
+  html += '<div class="pros-detail-modal">';
+  html += '<div class="pros-detail-title">' + escapeHtml(prodName) + ' <span class="pros-detail-total">' + entry.totalQty + ' au total</span></div>';
+  html += '<div class="pros-detail-list">';
+  const lines = Object.keys(entry.byPro).map(function(proId) {
+    const pro = adminPros.find(function(x) { return x.id === proId; });
+    return { name: pro ? pro.nom : proId, qty: entry.byPro[proId] };
+  });
+  lines.sort(function(a, b) { return b.qty - a.qty; });
+  lines.forEach(function(l) {
+    html += '<div class="pros-detail-row"><span>' + escapeHtml(l.name) + '</span><span class="pros-detail-qty">' + l.qty + '</span></div>';
+  });
+  html += '</div>';
+  html += '<div class="pros-detail-actions"><button class="modal-action cancel" onclick="closeProsDetailModal()">Fermer</button></div>';
+  html += '</div></div>';
+  const div = document.createElement('div');
+  div.id = 'pros-detail-host';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function closeProsDetailModal() {
+  const host = document.getElementById('pros-detail-host');
+  if (host) host.remove();
 }
 
 function _proOrderInPeriod(o) {
