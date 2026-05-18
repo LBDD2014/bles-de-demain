@@ -1429,6 +1429,61 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .pro-input-decalage { padding: 6px 6px; font-size: 12px; }
 
+/* v21.0.4 — Commandes pros (liste + form de saisie) */
+.pro-period-filter {
+  display: inline-flex; gap: 4px; background: #FAF6EE;
+  border-radius: 14px; padding: 3px;
+}
+.pro-period-btn {
+  background: transparent; border: none; border-radius: 12px;
+  padding: 6px 13px; font-size: 12px; font-weight: 700;
+  color: var(--brown-mid); cursor: pointer; font-family: inherit;
+}
+.pro-period-btn.active { background: var(--gold); color: white; }
+.pro-period-btn:not(.active):hover { background: rgba(206,171,82,0.15); }
+
+.pro-orders-list { display: flex; flex-direction: column; gap: 18px; margin-top: 10px; }
+.pro-orders-date-group {}
+.pro-orders-date {
+  font-family: Georgia, serif; font-size: 13px; font-weight: 700;
+  color: var(--gold-dark); text-transform: uppercase; letter-spacing: 0.6px;
+  margin-bottom: 6px; padding-left: 6px;
+}
+.pro-order-card {
+  background: white; border: 1px solid #E5DCC8; border-radius: 12px;
+  padding: 13px 14px; display: flex; gap: 12px; align-items: center;
+  cursor: pointer; transition: all 0.15s;
+}
+.pro-order-card:hover { border-color: var(--gold); background: #FFFCF5; }
+.pro-order-card:active { transform: scale(0.99); }
+.pro-order-card + .pro-order-card { margin-top: 6px; }
+.pro-order-main { flex: 1; min-width: 0; }
+.pro-order-name { font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: var(--brown); }
+.pro-order-meta { font-size: 12px; color: var(--brown-mid); margin-top: 2px; }
+.pro-order-arrow { color: var(--brown-mid); font-size: 22px; font-weight: 700; }
+.pro-order-special-badge {
+  font-size: 14px; vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(206,171,82,0.5));
+}
+
+.pro-order-item-row {
+  display: grid; grid-template-columns: 1fr 70px 90px 36px; gap: 6px;
+  align-items: center; margin-bottom: 6px;
+}
+.pro-order-item-prod { padding: 7px 8px; font-size: 13px; }
+.pro-order-item-qty  { padding: 7px 8px; font-size: 13px; text-align: right; }
+.pro-order-item-prix {
+  font-size: 12px; color: var(--brown-mid); text-align: right;
+  font-weight: 700;
+}
+.pro-order-item-soustotal { font-size: 11px; color: var(--gold-dark); font-weight: 400; }
+.pro-order-total {
+  text-align: right; padding: 10px; margin-top: 6px;
+  background: #FAF6EE; border-radius: 8px;
+  font-size: 14px; color: var(--brown);
+}
+.pro-order-total strong { font-size: 17px; color: var(--gold-dark); }
+
 /* v21.0.3.2 — Badge "produit sur mesure pour un pro" en BackOffice */
 .prod-pros-only-badge {
   display: inline-block; background: #FAF6EE; color: var(--gold-dark);
@@ -1923,6 +1978,7 @@ const NAV_ITEMS = {
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
     { id: 'specials',     lbl: 'Spéciales' },
     { id: 'production',   lbl: 'À produire' },
+    { id: 'pros_orders',  lbl: 'Pros' },
     { id: 'recap',        lbl: 'Récap' },
     { id: 'messages',     lbl: 'Messages' }
   ],
@@ -1931,6 +1987,7 @@ const NAV_ITEMS = {
     { id: 'reappro',      lbl: 'Cmd Local' },
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
     { id: 'specials',     lbl: 'Spéciales' },
+    { id: 'pros_orders',  lbl: 'Pros' },
     { id: 'recap',        lbl: 'Récap' },
     { id: 'messages',     lbl: 'Messages' }
   ],
@@ -1958,6 +2015,7 @@ const NAV_ITEMS = {
     { id: 'stock_tour',     lbl: 'Stock Tourier' },
     { id: 'stock_boul_pro', lbl: 'Stock Boul. Pro' },
     { id: 'specials',       lbl: 'Spéciales' },
+    { id: 'pros_orders',    lbl: 'Pros' },
     { id: 'messages',       lbl: 'Messages' }
   ],
   'backoffice': [
@@ -2022,6 +2080,13 @@ let adminPros = [];
 let adminProsEditingId = null;   // null = liste, 'new' = création, 'cafe_x' = édition
 let adminProsDraft = null;        // working copy pour le form
 let realtimeChannelPros = null;
+
+// v21.0.4 — Commandes pros (saisie côté boutique : Veigné, Tours, Le Local)
+let proOrdersData = [];               // commandes visibles depuis la boutique courante (avec items en jointure)
+let proOrderFilterPeriod = 'week';    // today | tomorrow | week
+let editingProOrderId = null;         // null = liste, 'new' = création, uuid = édition
+let proOrderDraft = null;             // working copy form
+let realtimeChannelProOrders = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -2491,6 +2556,7 @@ if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); real
 if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
 if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
 if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     realtimeChannelPros = null; }
+if (realtimeChannelProOrders){ supa.removeChannel(realtimeChannelProOrders); realtimeChannelProOrders = null; }
 currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
 messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
@@ -2567,6 +2633,13 @@ renderValorisation();
 await loadAdminPros();
 subscribeRealtimePros();
 renderAdminPros();
+} else if (v === 'pros_orders') {
+// v21.0.4 — Saisie commande pros par boutique (Veigné, Tours, Le Local)
+await loadAdminPros();              // pour le dropdown choix du pro
+await loadAdminProducts();          // pour avoir tous les products (incl. pros_only)
+await loadProOrders(currentBoutique);
+subscribeRealtimeProOrders(currentBoutique);
+renderProOrders();
 } else if (v === 'marche') {
 await loadMarketEntries(currentMarketId, currentMarketDate);
 await loadMarketDayNote(currentMarketId, currentMarketDate);
@@ -6860,6 +6933,426 @@ function renderProForm(mc) {
 
   // v21.0.3.2 — Panier type retiré du BackOffice. Le pro le configurera lui-même dans son interface client (v21.2).
   // La colonne template_items reste en BDD ; on persiste ce qui est déjà dedans sans le toucher.
+
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
+// === v21.0.4 — COMMANDES PROS (saisie côté boutique) ===
+
+async function loadProOrders(boutique) {
+  // On charge les commandes avec leurs items via select imbriqué Supabase
+  const { data, error } = await supa
+    .from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('boutique_source', boutique)
+    .order('date_livraison', { ascending: true });
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+  proOrdersData = data || [];
+}
+
+function subscribeRealtimeProOrders(boutique) {
+  if (realtimeChannelProOrders) return;
+  realtimeChannelProOrders = supa.channel('pro_orders_' + TENANT_ID + '_' + boutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_orders' },
+      async function() {
+        await loadProOrders(boutique);
+        if (currentBoutique === boutique && currentVue === 'pros_orders' && editingProOrderId === null) {
+          renderProOrders();
+        }
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_order_items' },
+      async function() {
+        await loadProOrders(boutique);
+        if (currentBoutique === boutique && currentVue === 'pros_orders' && editingProOrderId === null) {
+          renderProOrders();
+        }
+      })
+    .subscribe();
+}
+
+// v21.0.4 — Prix appliqué = prix spécial du pro si configuré, sinon prix_cession
+function getProAppliedPrice(pro, productId) {
+  if (pro && pro.prix_speciaux && pro.prix_speciaux[productId] != null) return Number(pro.prix_speciaux[productId]);
+  const all = (adminProducts && adminProducts.length) ? adminProducts : products;
+  const prod = all.find(function(p) { return p.id === productId; });
+  return (prod && prod.prix_cession != null) ? Number(prod.prix_cession) : null;
+}
+
+// v21.0.4 — Catalogue visible pour ce pro : actifs + (standards OU pros_only de ce pro) + catalogue restreint
+function getProAvailableProducts(pro) {
+  if (!pro) return [];
+  const all = (adminProducts && adminProducts.length) ? adminProducts : products;
+  return all.filter(function(p) {
+    if (!p.actif) return false;
+    if (p.pros_only_id && p.pros_only_id !== pro.id) return false;
+    if (Array.isArray(pro.catalogue_restreint) && pro.catalogue_restreint.length > 0) {
+      if (pro.catalogue_restreint.indexOf(p.id) === -1) return false;
+    }
+    return true;
+  });
+}
+
+function openProOrderForm(orderId) {
+  editingProOrderId = orderId;
+  if (orderId === 'new') {
+    // Date par défaut = demain
+    const tmw = new Date();
+    tmw.setDate(tmw.getDate() + 1);
+    const tmwISO = tmw.toISOString().substring(0, 10);
+    proOrderDraft = {
+      id: null,
+      pro_id: '',
+      date_livraison: tmwISO,
+      boutique_source: currentBoutique,
+      statut: 'confirme',
+      notes: '',
+      items: []
+    };
+  } else {
+    const o = proOrdersData.find(function(x) { return x.id === orderId; });
+    if (!o) { editingProOrderId = null; renderProOrders(); return; }
+    proOrderDraft = {
+      id: o.id,
+      pro_id: o.pro_id,
+      date_livraison: o.date_livraison,
+      boutique_source: o.boutique_source,
+      statut: o.statut || 'confirme',
+      notes: o.notes || '',
+      items: (o.pro_order_items || []).map(function(it) {
+        return { id: it.id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique };
+      })
+    };
+  }
+  renderProOrders();
+}
+
+function closeProOrderForm() {
+  editingProOrderId = null;
+  proOrderDraft = null;
+  renderProOrders();
+}
+
+function handleProOrderField(field, val) {
+  if (!proOrderDraft) return;
+  proOrderDraft[field] = val;
+  // Quand on change le pro : auto-définir boutique_source = boutique_principale du pro
+  if (field === 'pro_id') {
+    const pro = adminPros.find(function(p) { return p.id === val; });
+    if (pro) proOrderDraft.boutique_source = pro.boutique_principale || currentBoutique;
+    // Et recalculer les prix_applique des items existants
+    proOrderDraft.items.forEach(function(it) {
+      if (it.product_id) it.prix_applique = getProAppliedPrice(pro, it.product_id);
+    });
+  }
+  renderProOrders();
+}
+
+function handleProOrderItemField(idx, field, val) {
+  if (!proOrderDraft || !proOrderDraft.items[idx]) return;
+  if (field === 'qty') {
+    const n = parseFloat(String(val).replace(',', '.'));
+    proOrderDraft.items[idx].qty = isNaN(n) ? 0 : n;
+  } else if (field === 'product_id') {
+    proOrderDraft.items[idx].product_id = val;
+    // Recalculer le prix
+    const pro = adminPros.find(function(p) { return p.id === proOrderDraft.pro_id; });
+    proOrderDraft.items[idx].prix_applique = val ? getProAppliedPrice(pro, val) : null;
+    renderProOrders();
+  } else {
+    proOrderDraft.items[idx][field] = val;
+  }
+}
+
+function addProOrderItem() {
+  if (!proOrderDraft) return;
+  proOrderDraft.items.push({ id: null, product_id: '', qty: 1, prix_applique: null });
+  renderProOrders();
+}
+
+function removeProOrderItem(idx) {
+  if (!proOrderDraft) return;
+  proOrderDraft.items.splice(idx, 1);
+  renderProOrders();
+}
+
+async function saveProOrder() {
+  const d = proOrderDraft;
+  if (!d) return;
+  if (!d.pro_id) { showToast('Choisis un pro', 'error'); return; }
+  if (!d.date_livraison) { showToast('Date de livraison obligatoire', 'error'); return; }
+  if (!d.boutique_source) { showToast('Boutique source obligatoire', 'error'); return; }
+  const validItems = d.items.filter(function(it) { return it.product_id && Number(it.qty) > 0; });
+  if (!validItems.length && !((d.notes || '').trim())) {
+    showToast('Ajoute au moins 1 produit ou une demande spéciale', 'error'); return;
+  }
+  setSyncStatus('syncing');
+  const isNew = (editingProOrderId === 'new');
+  const orderRow = {
+    tenant_id: TENANT_ID,
+    pro_id: d.pro_id,
+    date_livraison: d.date_livraison,
+    boutique_source: d.boutique_source,
+    statut: d.statut || 'confirme',
+    notes: (d.notes || '').trim() || null,
+    created_by: currentBoutique
+  };
+  let orderId = d.id;
+  if (isNew) {
+    const res = await supa.from('pro_orders').insert(orderRow).select();
+    if (res.error) { setSyncStatus('error'); showToast(res.error.message, 'error'); return; }
+    if (!res.data || !res.data.length) {
+      setSyncStatus('error');
+      alert('Création bloquée par Supabase (RLS). Vérifie les policies sur pro_orders.');
+      return;
+    }
+    orderId = res.data[0].id;
+  } else {
+    const res = await supa.from('pro_orders').update(orderRow).eq('id', orderId).select();
+    if (res.error) { setSyncStatus('error'); showToast(res.error.message, 'error'); return; }
+    if (!res.data || !res.data.length) {
+      setSyncStatus('error');
+      alert('Modif bloquée par Supabase (RLS). Vérifie les policies sur pro_orders.');
+      return;
+    }
+    // Strategy : full-replace items. DELETE old, INSERT new.
+    const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
+    if (del.error) { setSyncStatus('error'); showToast('Erreur suppression items : ' + del.error.message, 'error'); return; }
+  }
+  // INSERT items
+  if (validItems.length) {
+    const itemsRows = validItems.map(function(it) {
+      return {
+        pro_order_id: orderId,
+        product_id: it.product_id,
+        qty: Number(it.qty),
+        prix_applique: it.prix_applique != null ? Number(it.prix_applique) : null
+      };
+    });
+    const insItems = await supa.from('pro_order_items').insert(itemsRows);
+    if (insItems.error) { setSyncStatus('error'); showToast('Erreur ajout items : ' + insItems.error.message, 'error'); return; }
+  }
+  setSyncStatus('ok');
+  await loadProOrders(currentBoutique);
+  closeProOrderForm();
+  showToast(isNew ? 'Commande creee' : 'Commande modifiee', 'sync');
+}
+
+async function cancelProOrder(orderId) {
+  if (!confirm('Annuler cette commande ?\n\nElle restera en historique avec statut "annule" mais ne sera plus traitee en production.')) return;
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', orderId).select();
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  if (!data || !data.length) {
+    setSyncStatus('error');
+    alert('Annulation bloquée par Supabase (RLS).');
+    return;
+  }
+  setSyncStatus('ok');
+  await loadProOrders(currentBoutique);
+  renderProOrders();
+  showToast('Commande annulee', 'sync');
+}
+
+function handleProOrderFilterPeriod(p) {
+  proOrderFilterPeriod = p;
+  renderProOrders();
+}
+
+function _proOrderInPeriod(o) {
+  const todayISOval = todayISO();
+  const tmw = new Date(); tmw.setDate(tmw.getDate() + 1);
+  const tmwISO = tmw.toISOString().substring(0, 10);
+  const sun = new Date(); sun.setDate(sun.getDate() + (7 - sun.getDay()));
+  const sunISO = sun.toISOString().substring(0, 10);
+  if (proOrderFilterPeriod === 'today')    return o.date_livraison === todayISOval;
+  if (proOrderFilterPeriod === 'tomorrow') return o.date_livraison === tmwISO;
+  // 'week' : aujourd'hui jusqu'à dimanche
+  return o.date_livraison >= todayISOval && o.date_livraison <= sunISO;
+}
+
+function renderProOrders() {
+  const mc = document.getElementById('main-content');
+  if (editingProOrderId !== null) { renderProOrderForm(mc); return; }
+
+  // Liste des commandes filtrées par période
+  const visible = proOrdersData.filter(function(o) {
+    return o.statut !== 'annule' && _proOrderInPeriod(o);
+  });
+  const nbItems = visible.reduce(function(s, o) { return s + ((o.pro_order_items || []).length); }, 0);
+
+  let html = '<div class="info-banner"><strong>Commandes Pros</strong><br>Saisis les commandes des restos, cafés et hôtels que tu livres depuis cette boutique. Les commandes sont synchronisees en temps reel.</div>';
+  html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + '<button class="btn-gold" onclick="openProOrderForm(\'new\')">+ Nouvelle commande</button>'
+    + '<div class="pro-period-filter">'
+      + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'today' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'today\')">Aujourd\'hui</button>'
+      + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'tomorrow' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'tomorrow\')">Demain</button>'
+      + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'week' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'week\')">Semaine</button>'
+    + '</div>'
+  + '</div>';
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + visible.length + '</div><div class="prod-kpi-lbl">Commandes</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + nbItems + '</div><div class="prod-kpi-lbl">Lignes produit</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--orange)">' + adminPros.filter(function(p) { return p.actif; }).length + '</div><div class="prod-kpi-lbl">Pros actifs</div></div>'
+  + '</div>';
+
+  if (!visible.length) {
+    html += '<div class="empty-state" style="margin-top:20px">Aucune commande pro sur cette periode.<br>Clique sur <strong>+ Nouvelle commande</strong> pour commencer.</div>';
+  } else {
+    html += '<div class="pro-orders-list">';
+    // Regroupé par date
+    const byDate = {};
+    visible.forEach(function(o) {
+      if (!byDate[o.date_livraison]) byDate[o.date_livraison] = [];
+      byDate[o.date_livraison].push(o);
+    });
+    Object.keys(byDate).sort().forEach(function(date) {
+      html += '<div class="pro-orders-date-group">';
+      html += '<div class="pro-orders-date">' + escapeHtml(formatProOrderDate(date)) + '</div>';
+      byDate[date].forEach(function(o) {
+        const pro = adminPros.find(function(p) { return p.id === o.pro_id; });
+        const proName = pro ? pro.nom : o.pro_id;
+        const items = o.pro_order_items || [];
+        const totalVal = items.reduce(function(s, it) {
+          const p = (it.prix_applique != null ? Number(it.prix_applique) : 0) * Number(it.qty || 0);
+          return s + (isNaN(p) ? 0 : p);
+        }, 0);
+        const hasSpecial = (o.notes || '').trim().length > 0;
+        html += '<div class="pro-order-card" onclick="openProOrderForm(\'' + escapeHtml(o.id) + '\')">'
+          + '<div class="pro-order-main">'
+            + '<div class="pro-order-name">' + escapeHtml(proName) + (hasSpecial ? ' <span class="pro-order-special-badge" title="Demande speciale">⭐</span>' : '') + '</div>'
+            + '<div class="pro-order-meta">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + ' · ' + totalVal.toFixed(2) + ' €</div>'
+          + '</div>'
+          + '<div class="pro-order-arrow">›</div>'
+        + '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  mc.innerHTML = html;
+}
+
+function formatProOrderDate(iso) {
+  const d = new Date(iso + 'T12:00');
+  const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  return jours[d.getDay()] + ' ' + d.getDate() + ' ' + mois[d.getMonth()];
+}
+
+function renderProOrderForm(mc) {
+  const d = proOrderDraft;
+  const isNew = (editingProOrderId === 'new');
+  const pro = adminPros.find(function(p) { return p.id === d.pro_id; });
+  const available = pro ? getProAvailableProducts(pro) : [];
+
+  let proOpts = '<option value="">— Choisir un pro —</option>';
+  adminPros.filter(function(p) { return p.actif; }).forEach(function(p) {
+    proOpts += '<option value="' + escapeHtml(p.id) + '"' + (d.pro_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.nom) + '</option>';
+  });
+
+  const boutiqueOpts = [
+    ['veigne', BOUTIQUE_NAMES['veigne']],
+    ['tours',  BOUTIQUE_NAMES['tours']],
+    ['local',  BOUTIQUE_NAMES['local']],
+    ['saint-avertin', BOUTIQUE_NAMES['saint-avertin']]
+  ];
+  let boutiqueOptsHtml = '';
+  boutiqueOpts.forEach(function(b) {
+    boutiqueOptsHtml += '<option value="' + b[0] + '"' + (d.boutique_source === b[0] ? ' selected' : '') + '>' + escapeHtml(b[1]) + '</option>';
+  });
+
+  // Total
+  const totalVal = (d.items || []).reduce(function(s, it) {
+    const p = (it.prix_applique != null ? Number(it.prix_applique) : 0) * Number(it.qty || 0);
+    return s + (isNaN(p) ? 0 : p);
+  }, 0);
+
+  let html = '<div class="pro-form-header">'
+    + '<button class="modal-action cancel" onclick="closeProOrderForm()">← Retour</button>'
+    + '<div class="pro-form-title">' + (isNew ? 'Nouvelle commande pro' : (pro ? escapeHtml(pro.nom) : 'Commande pro')) + '</div>'
+    + '<button class="btn-gold" onclick="saveProOrder()">' + (isNew ? 'Créer' : 'Enregistrer') + '</button>'
+  + '</div>';
+
+  html += '<div class="pro-form">';
+
+  // Section pro + date + boutique
+  html += '<div class="pro-form-section">'
+    + '<h3>Client + livraison</h3>'
+    + '<label>Pro *</label>'
+    + '<select class="pro-input" onchange="handleProOrderField(\'pro_id\', this.value)">' + proOpts + '</select>'
+    + '<label>Date de livraison *</label>'
+    + '<input type="date" class="pro-input" value="' + escapeHtml(d.date_livraison) + '" oninput="handleProOrderField(\'date_livraison\', this.value)">'
+    + '<label>Boutique source *</label>'
+    + '<select class="pro-input" onchange="handleProOrderField(\'boutique_source\', this.value)">' + boutiqueOptsHtml + '</select>'
+    + '<div class="pro-form-hint">Par défaut = boutique principale du pro. Modifie si dépannage.</div>'
+  + '</div>';
+
+  // Section items
+  html += '<div class="pro-form-section">'
+    + '<h3>Produits commandés</h3>';
+  if (!pro) {
+    html += '<div class="pro-form-hint" style="font-style:italic">Choisis d\'abord un pro pour voir son catalogue.</div>';
+  } else {
+    if (!d.items.length) {
+      html += '<div class="pro-form-hint" style="font-style:italic;margin-bottom:8px">Aucun produit. Ajoute une ligne ci-dessous.</div>';
+    }
+    // Préparer options groupées par catégorie
+    let prodOptsGrouped = '';
+    const grouped = {};
+    available.forEach(function(p) {
+      const c = p.category || '_autres';
+      if (!grouped[c]) grouped[c] = [];
+      grouped[c].push(p);
+    });
+    const catOrder = Object.keys(CAT_LABELS).filter(function(c) { return grouped[c]; });
+    Object.keys(grouped).forEach(function(c) { if (catOrder.indexOf(c) === -1) catOrder.push(c); });
+    function buildProdOpts(selected) {
+      let opts = '<option value="">— Choisir un produit —</option>';
+      catOrder.forEach(function(c) {
+        opts += '<optgroup label="' + escapeHtml(CAT_LABELS[c] || c) + '">';
+        grouped[c].forEach(function(p) {
+          opts += '<option value="' + escapeHtml(p.id) + '"' + (selected === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+        });
+        opts += '</optgroup>';
+      });
+      return opts;
+    }
+    d.items.forEach(function(it, idx) {
+      const prixDisp = (it.prix_applique != null) ? Number(it.prix_applique).toFixed(2) + ' €' : '—';
+      const sousTotal = (it.prix_applique != null && it.qty)
+        ? (Number(it.prix_applique) * Number(it.qty)).toFixed(2) + ' €'
+        : '';
+      html += '<div class="pro-order-item-row">'
+        + '<select class="pro-input pro-order-item-prod" onchange="handleProOrderItemField(' + idx + ', \'product_id\', this.value)">' + buildProdOpts(it.product_id) + '</select>'
+        + '<input type="text" inputmode="decimal" class="pro-input pro-order-item-qty" value="' + escapeHtml(String(it.qty || '')) + '" placeholder="Qté" oninput="handleProOrderItemField(' + idx + ', \'qty\', this.value)">'
+        + '<div class="pro-order-item-prix">' + prixDisp + (sousTotal ? '<div class="pro-order-item-soustotal">' + sousTotal + '</div>' : '') + '</div>'
+        + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProOrderItem(' + idx + ')" title="Retirer">🗑️</button>'
+      + '</div>';
+    });
+    html += '<button class="pro-add-btn" onclick="addProOrderItem()">+ Ajouter un produit</button>';
+    if (totalVal > 0) {
+      html += '<div class="pro-order-total">Total commande : <strong>' + totalVal.toFixed(2) + ' €</strong></div>';
+    }
+  }
+  html += '</div>';
+
+  // Section demande spéciale (commande exceptionnelle / hors catalogue)
+  html += '<div class="pro-form-section">'
+    + '<h3>⭐ Demande spéciale / Hors catalogue</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:8px">Pour les produits non catalogués : rouleau de feuilletage, mini burgers, etc. L\'équipe production verra ce champ.</div>'
+    + '<textarea class="pro-input" rows="3" placeholder="Ex: 2 rouleaux de feuilletage + 6 mini burgers" oninput="handleProOrderField(\'notes\', this.value)">' + escapeHtml(d.notes || '') + '</textarea>'
+  + '</div>';
+
+  // Section actions secondaires (annuler la commande)
+  if (!isNew && d.statut !== 'annule') {
+    html += '<div class="pro-form-section" style="background:#FEF2F2;border-color:#F5C5C5">'
+      + '<h3 style="color:var(--red)">Annuler la commande</h3>'
+      + '<div class="pro-form-hint" style="margin-bottom:8px">La commande passe en statut "annule" et ne sera plus produite. L\'historique reste.</div>'
+      + '<button class="modal-action clear" onclick="cancelProOrder(\'' + d.id + '\')" style="width:100%">Annuler cette commande</button>'
+    + '</div>';
+  }
 
   html += '</div>';
   mc.innerHTML = html;
