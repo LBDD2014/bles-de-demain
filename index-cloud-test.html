@@ -1334,6 +1334,44 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .modal-action.cancel { background: #F0EAE0; color: var(--brown); }
 .modal-action.clear  { background: #FEF2F2; color: var(--red); border: 1px solid var(--red); }
 
+/* v20.31 — Modal preview Import Produits */
+.import-preview-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.import-preview-modal {
+  background: white; border-radius: 14px; padding: 18px;
+  max-width: 560px; width: 100%; max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.import-preview-title {
+  font-family: Georgia, serif; font-size: 17px; font-weight: 700;
+  color: var(--brown); margin-bottom: 12px;
+}
+.import-preview-kpis {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px;
+}
+.import-kpi {
+  background: #FAF6EE; border-radius: 8px; padding: 10px 4px; text-align: center;
+}
+.import-kpi-val { font-size: 22px; font-weight: 700; line-height: 1; }
+.import-kpi-lbl { font-size: 10px; color: var(--brown-mid); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.import-section { margin-top: 10px; }
+.import-section-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.import-list {
+  flex: 1; overflow-y: auto; max-height: 180px; border: 1px solid #E5DCC8;
+  border-radius: 8px; padding: 6px;
+}
+.import-row { font-size: 12px; padding: 4px 6px; border-bottom: 1px solid #F5F0E5; color: var(--brown); }
+.import-row:last-child { border-bottom: none; }
+.import-row-err { color: var(--red); background: #FEF2F2; border-radius: 4px; margin: 2px 0; padding: 5px 8px; }
+.import-preview-actions {
+  display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #EEE5D2;
+}
+
 .loading { text-align: center; padding: 40px 20px; color: var(--brown-mid); font-size: 13px; }
 .error-box {
 background: #FEF2F2; border: 2px solid var(--red); border-radius: 12px;
@@ -5375,6 +5413,245 @@ if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
 adminProducts = data || [];
 }
 
+// v20.31 — Import .xlsx Produits BackOffice (preview + upsert)
+let pendingImportDiff = null;
+
+function triggerImportProducts() {
+  const input = document.getElementById('import-products-xlsx-input');
+  if (input) input.click();
+}
+
+async function handleImportProductsFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { showToast('Lib XLSX non chargée', 'error'); input.value = ''; return; }
+  setSyncStatus('syncing');
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    if (!wb.SheetNames || wb.SheetNames.indexOf('Produits') === -1) {
+      setSyncStatus('error');
+      showToast('Feuille "Produits" introuvable', 'error');
+      input.value = ''; return;
+    }
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Produits'], { defval: '' });
+    if (!adminProducts.length) await loadAdminProducts();
+    const diff = buildImportDiff(rows);
+    setSyncStatus('ok');
+    pendingImportDiff = diff;
+    openImportPreviewModal(diff);
+  } catch (e) {
+    setSyncStatus('error');
+    showToast('Erreur lecture xlsx: ' + e.message, 'error');
+  }
+  input.value = '';
+}
+
+function _impNumEq(a, b) {
+  const na = (a == null || a === '') ? null : Number(a);
+  const nb = (b == null || b === '') ? null : Number(b);
+  if (na === null && nb === null) return true;
+  if (na === null || nb === null) return false;
+  return Math.abs(na - nb) < 0.001;
+}
+function _impSupplyEq(a, b) {
+  const ks = ['veigne','tours','saint-avertin','local'];
+  for (let i = 0; i < ks.length; i++) {
+    if ((a[ks[i]] || '') !== (b[ks[i]] || '')) return false;
+  }
+  return true;
+}
+function _impNum(v) {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return isNaN(n) ? undefined : n;
+}
+function _impBoolOuiNon(v) {
+  if (v === '' || v == null) return undefined;
+  const s = String(v).trim().toUpperCase();
+  if (s === 'OUI' || s === 'YES' || s === 'TRUE' || s === '1') return true;
+  if (s === 'NON' || s === 'NO' || s === 'FALSE' || s === '0') return false;
+  return undefined;
+}
+function _impSupply(v) {
+  if (v === '' || v == null) return '';
+  const s = String(v).trim().toLowerCase();
+  if (s === '') return '';
+  if (['on_site','local','veigne','none'].indexOf(s) !== -1) return s;
+  return undefined;
+}
+
+function buildImportDiff(rows) {
+  const creates = [], updates = [], errors = [], unchanged = [];
+  if (!rows.length) {
+    return { creates, updates, errors: [{ row: 0, reason: 'Fichier vide ou feuille Produits sans données' }], unchanged };
+  }
+  const requiredCols = ['id','name','category','actif'];
+  const firstRow = rows[0];
+  const missingCols = requiredCols.filter(function(c) { return !(c in firstRow); });
+  if (missingCols.length) {
+    return { creates, updates, errors: [{ row: 0, reason: 'Colonnes obligatoires manquantes : ' + missingCols.join(', ') }], unchanged };
+  }
+  const byId = {};
+  adminProducts.forEach(function(p) { byId[p.id] = p; });
+
+  rows.forEach(function(r, idx) {
+    const rowNum = idx + 2; // ligne 1 = header dans Excel
+    const id = String(r.id || '').trim();
+    const name = String(r.name || '').trim();
+    const category = String(r.category || '').trim();
+    if (!id) { errors.push({ row: rowNum, reason: 'id vide' }); return; }
+    if (!name) { errors.push({ row: rowNum, reason: 'name vide (id=' + id + ')' }); return; }
+    if (!category) { errors.push({ row: rowNum, reason: 'category vide (id=' + id + ')' }); return; }
+    const actif = _impBoolOuiNon(r.actif);
+    if (actif === undefined) { errors.push({ row: rowNum, reason: 'actif doit être OUI ou NON (id=' + id + ')' }); return; }
+    const prix = _impNum(r.prix_cession);
+    if (prix === undefined) { errors.push({ row: rowNum, reason: 'prix_cession invalide (id=' + id + ')' }); return; }
+    const pces = _impNum(r.pces_per_caisse);
+    if (pces === undefined) { errors.push({ row: rowNum, reason: 'pces_per_caisse invalide (id=' + id + ')' }); return; }
+    const seuil = _impNum(r.seuil_stock);
+    if (seuil === undefined) { errors.push({ row: rowNum, reason: 'seuil_stock invalide (id=' + id + ')' }); return; }
+    const sv = _impSupply(r.supply_veigne);
+    const st = _impSupply(r.supply_tours);
+    const ssa = _impSupply(r.supply_saint_avertin);
+    const sl = _impSupply(r.supply_local);
+    if (sv === undefined) { errors.push({ row: rowNum, reason: 'supply_veigne invalide (id=' + id + ') — attendu on_site/local/veigne/none/vide' }); return; }
+    if (st === undefined) { errors.push({ row: rowNum, reason: 'supply_tours invalide (id=' + id + ')' }); return; }
+    if (ssa === undefined) { errors.push({ row: rowNum, reason: 'supply_saint_avertin invalide (id=' + id + ')' }); return; }
+    if (sl === undefined) { errors.push({ row: rowNum, reason: 'supply_local invalide (id=' + id + ')' }); return; }
+    const supply = {};
+    if (sv) supply.veigne = sv;
+    if (st) supply.tours = st;
+    if (ssa) supply['saint-avertin'] = ssa;
+    if (sl) supply.local = sl;
+
+    const cleanRow = {
+      tenant_id: TENANT_ID,
+      id: id,
+      name: name,
+      category: category,
+      actif: actif,
+      unit: String(r.unit || '').trim() || null,
+      usage: String(r.usage || '').trim() || 'reappro',
+      prix_cession: prix,
+      pces_per_caisse: pces,
+      seuil_stock: seuil,
+      supply_by_boutique: supply
+    };
+
+    const existing = byId[id];
+    if (!existing) {
+      creates.push({ row: rowNum, id: id, name: name, data: cleanRow });
+    } else {
+      const changes = [];
+      if ((existing.name || '') !== cleanRow.name) changes.push('name');
+      if ((existing.category || '') !== cleanRow.category) changes.push('category');
+      if (Boolean(existing.actif) !== cleanRow.actif) changes.push('actif');
+      if ((existing.unit || null) !== cleanRow.unit) changes.push('unit');
+      if ((existing.usage || 'reappro') !== cleanRow.usage) changes.push('usage');
+      if (!_impNumEq(existing.prix_cession, cleanRow.prix_cession)) changes.push('prix_cession');
+      if (!_impNumEq(existing.pces_per_caisse, cleanRow.pces_per_caisse)) changes.push('pces_per_caisse');
+      if (!_impNumEq(existing.seuil_stock, cleanRow.seuil_stock)) changes.push('seuil_stock');
+      const existingSupply = existing.supply_by_boutique
+        ? (typeof existing.supply_by_boutique === 'string' ? JSON.parse(existing.supply_by_boutique) : existing.supply_by_boutique)
+        : {};
+      if (!_impSupplyEq(existingSupply, supply)) changes.push('supply');
+      if (!changes.length) {
+        unchanged.push({ row: rowNum, id: id, name: name });
+      } else {
+        updates.push({ row: rowNum, id: id, name: name, changes: changes, data: cleanRow });
+      }
+    }
+  });
+
+  return { creates: creates, updates: updates, errors: errors, unchanged: unchanged };
+}
+
+function openImportPreviewModal(diff) {
+  closeImportPreviewModal();
+  const total = diff.creates.length + diff.updates.length;
+  let html = '<div class="import-preview-overlay" onclick="if(event.target===this)closeImportPreviewModal()">';
+  html += '<div class="import-preview-modal">';
+  html += '<div class="import-preview-title">📥 Aperçu import produits</div>';
+
+  html += '<div class="import-preview-kpis">';
+  html += '<div class="import-kpi"><div class="import-kpi-val" style="color:var(--green)">' + diff.creates.length + '</div><div class="import-kpi-lbl">Créations</div></div>';
+  html += '<div class="import-kpi"><div class="import-kpi-val" style="color:var(--blue)">' + diff.updates.length + '</div><div class="import-kpi-lbl">Modifs</div></div>';
+  html += '<div class="import-kpi"><div class="import-kpi-val" style="color:var(--brown-mid)">' + diff.unchanged.length + '</div><div class="import-kpi-lbl">Inchangés</div></div>';
+  html += '<div class="import-kpi"><div class="import-kpi-val" style="color:var(--red)">' + diff.errors.length + '</div><div class="import-kpi-lbl">Erreurs</div></div>';
+  html += '</div>';
+
+  if (diff.errors.length) {
+    html += '<div class="import-section"><div class="import-section-title" style="color:var(--red)">⚠️ Erreurs (lignes ignorées)</div>';
+    html += '<div class="import-list">';
+    diff.errors.forEach(function(e) {
+      html += '<div class="import-row import-row-err">Ligne ' + e.row + ' : ' + escapeHtml(e.reason) + '</div>';
+    });
+    html += '</div></div>';
+  }
+  if (diff.creates.length) {
+    html += '<div class="import-section"><div class="import-section-title" style="color:var(--green)">+ Créations</div>';
+    html += '<div class="import-list">';
+    diff.creates.forEach(function(c) {
+      html += '<div class="import-row">+ <strong>' + escapeHtml(c.id) + '</strong> — ' + escapeHtml(c.name) + '</div>';
+    });
+    html += '</div></div>';
+  }
+  if (diff.updates.length) {
+    html += '<div class="import-section"><div class="import-section-title" style="color:var(--blue)">✏️ Modifications</div>';
+    html += '<div class="import-list">';
+    diff.updates.forEach(function(u) {
+      html += '<div class="import-row">✏️ <strong>' + escapeHtml(u.id) + '</strong> — ' + escapeHtml(u.name) + ' <span style="color:var(--brown-mid);font-size:11px">(' + u.changes.join(', ') + ')</span></div>';
+    });
+    html += '</div></div>';
+  }
+
+  html += '<div class="import-preview-actions">';
+  html += '<button class="modal-action cancel" onclick="closeImportPreviewModal()">Annuler</button>';
+  if (total > 0) {
+    html += '<button class="btn-gold" style="flex:1" onclick="confirmImportProducts()">Confirmer ' + total + ' opération' + (total > 1 ? 's' : '') + '</button>';
+  }
+  html += '</div>';
+
+  html += '</div></div>';
+
+  const div = document.createElement('div');
+  div.id = 'import-preview-host';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function closeImportPreviewModal() {
+  const host = document.getElementById('import-preview-host');
+  if (host) host.remove();
+}
+
+async function confirmImportProducts() {
+  if (!pendingImportDiff) return;
+  const diff = pendingImportDiff;
+  const rowsToUpsert = diff.creates.concat(diff.updates).map(function(x) { return x.data; });
+  if (!rowsToUpsert.length) { closeImportPreviewModal(); return; }
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('products').upsert(rowsToUpsert, { onConflict: 'id' }).select();
+  if (error) {
+    setSyncStatus('error');
+    showToast('Erreur import: ' + error.message, 'error');
+    return;
+  }
+  if (!data || data.length !== rowsToUpsert.length) {
+    setSyncStatus('error');
+    alert('Import partiel ou bloqué par Supabase.\nAttendu : ' + rowsToUpsert.length + ' lignes\nAppliqué : ' + (data ? data.length : 0) + ' lignes\n\nVérifie les policies RLS sur products (UPDATE + INSERT).');
+    return;
+  }
+  setSyncStatus('ok');
+  closeImportPreviewModal();
+  pendingImportDiff = null;
+  await loadAdminProducts();
+  await loadProducts();
+  renderAdminProducts();
+  showToast('Import OK : ' + diff.creates.length + ' créés, ' + diff.updates.length + ' modifiés', 'sync');
+}
+
 // v20.24 — Export BackOffice complet en .xlsx (3 onglets : Produits / Catégories / Valorisation)
 async function exportBackOfficeToXlsx() {
   if (typeof XLSX === 'undefined') { showToast('Lib XLSX non chargée', 'error'); return; }
@@ -5764,7 +6041,11 @@ const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length
 const nbSansPrix = adminProducts.filter(function(p) { return p.actif && (p.prix_cession == null); }).length;
 
 let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Ajoute, edite, duplique ou supprime. Le toggle Actif/Inactif masque sans supprimer. Le X supprime definitivement (impossible si historique).</div>';
-html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
+html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">';
+html += '<button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel</button>';
+html += '<button class="btn-gold" onclick="triggerImportProducts()">📥 Import Produits</button>';
+html += '<input type="file" id="import-products-xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="handleImportProductsFile(this)">';
+html += '</div>';
 
 html += '<div class="prod-kpi-bar">'
 
