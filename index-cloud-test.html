@@ -4667,9 +4667,10 @@ function recomputeRowTotal(el, pid) {
   const mSA = productionStAvSalesByProduct[pid] || 0;
   let aprem = 0;
   let reste = 0;
-  if (currentBoutique === 'local' && currentVue === 'prod_boul') {
+  if (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue === 'prod_tour')) {
     const t = productionStAvSalesFromTable[pid] || {};
-    aprem = t.aprem || 0;
+    // v20.32 — Aprem reste exclusif Prod. Boulangers ; Reste J-1 aussi à Prod. Touriers
+    if (currentVue === 'prod_boul') aprem = t.aprem || 0;
     reste = t.reste_j1 || 0;
   }
   const spe = productionSpecialByProduct[pid] || 0;
@@ -4708,7 +4709,8 @@ const showMatinV = isVeignePat;
 const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
 // v20.18 — Le Local Prod. Boulangers : colonnes Aprem SA + Reste J-1 depuis sales St-Av
 const showApremSA = isLocalBoul;
-const showResteJ1 = isLocalBoul;
+// v20.32 — Reste J-1 aussi à Prod. Touriers (tartes fines, cookies, etc. qui se gardent J+1)
+const showResteJ1 = isLocalBoul || isLocalTour;
 // v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
 const showVTS = !isVeignePat && !isLocalBoul;
 const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
