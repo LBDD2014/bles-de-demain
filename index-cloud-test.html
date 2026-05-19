@@ -2162,6 +2162,15 @@ let realtimeChannelProOrders = null;
 // v21.0.4.3 — Pro_orders pour la vue Production (chargés indépendamment, filtrés date+boutique)
 let productionProOrdersData = [];     // pro_orders avec items pour la date currentReapproDate
 let realtimeChannelProOrdersProduction = null;
+
+// v21.0.5 — Récap par pro (historique facturation, BackOffice → Pros → onglet Récap)
+let adminProsView = 'list';           // 'list' | 'recap'
+let recapProSelected = '';            // pro_id sélectionné dans le récap
+let recapProPreset = 'this_month';    // this_month | last_month | custom
+let recapProCustomStart = '';         // date début si custom (YYYY-MM-DD)
+let recapProCustomEnd = '';           // date fin si custom (YYYY-MM-DD)
+let recapProOrders = [];              // pro_orders chargés (avec items) pour le pro × période
+let recapProLoading = false;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -6759,12 +6768,15 @@ async function deletePro(pid) {
 function renderAdminPros() {
   const mc = document.getElementById('main-content');
   if (adminProsEditingId !== null) { renderProForm(mc); return; }
+  // v21.0.5 — Dispatcher vers la vue Récap si demandée
+  if (adminProsView === 'recap') { renderProsRecap(mc); return; }
 
   // Liste des pros
   const nbActifs = adminPros.filter(function(p) { return p.actif; }).length;
   const nbInactifs = adminPros.filter(function(p) { return !p.actif; }).length;
 
-  let html = '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafes, hotels livres par Le Local (ou autre boutique source). Configure ici nom + contact + boutiques. Les jours de livraison, catalogue restreint et tarifs spéciaux arrivent en v21.0.2.</div>';
+  let html = renderProsViewToggle('list');
+  html += '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafes, hotels livres par Le Local (ou autre boutique source). Configure ici nom + contact + boutiques. Les jours de livraison, catalogue restreint et tarifs spéciaux arrivent en v21.0.2.</div>';
   html += '<div style="margin:10px 0"><button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button></div>';
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
@@ -7044,6 +7056,300 @@ function renderProForm(mc) {
 
   html += '</div>';
   mc.innerHTML = html;
+}
+
+// === v21.0.5 — RÉCAP PAR PRO (historique facturation) ===
+
+function renderProsViewToggle(active) {
+  return '<div class="tour-switch" style="margin-top:6px;margin-bottom:10px">'
+    + '<button class="tour-btn' + (active === 'list' ? ' active' : '') + '" onclick="setAdminProsView(\'list\')">📋 Liste</button>'
+    + '<button class="tour-btn' + (active === 'recap' ? ' active' : '') + '" onclick="setAdminProsView(\'recap\')">📊 Récap</button>'
+  + '</div>';
+}
+
+async function setAdminProsView(view) {
+  adminProsView = view;
+  if (view === 'recap') {
+    if (!adminProducts.length) await loadAdminProducts();
+    // Initialiser les dates custom avec le mois en cours si vides (utile si l'utilisateur switch sur "Personnalisé")
+    if (!recapProCustomStart || !recapProCustomEnd) {
+      const p = computeRecapPeriodFromPreset('this_month');
+      recapProCustomStart = p.start;
+      recapProCustomEnd = p.end;
+    }
+    if (recapProSelected) await loadRecapProOrders();
+  }
+  renderAdminPros();
+}
+
+async function setRecapProSelected(id) {
+  recapProSelected = id;
+  if (id) {
+    await loadRecapProOrders();
+  } else {
+    recapProOrders = [];
+  }
+  renderAdminPros();
+}
+
+async function setRecapProPreset(preset) {
+  recapProPreset = preset;
+  if (preset !== 'custom') {
+    const p = computeRecapPeriodFromPreset(preset);
+    recapProCustomStart = p.start;
+    recapProCustomEnd = p.end;
+  }
+  if (recapProSelected) await loadRecapProOrders();
+  renderAdminPros();
+}
+
+async function setRecapProCustomDate(field, val) {
+  if (field === 'start') recapProCustomStart = val;
+  else recapProCustomEnd = val;
+  recapProPreset = 'custom';
+  if (recapProSelected && recapProCustomStart && recapProCustomEnd) {
+    await loadRecapProOrders();
+  }
+  renderAdminPros();
+}
+
+function computeRecapPeriodFromPreset(preset) {
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth(); // 0-indexed
+  if (preset === 'last_month') {
+    month -= 1;
+    if (month < 0) { month = 11; year -= 1; }
+  }
+  const fmt = function(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  };
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0); // jour 0 du mois suivant = dernier jour du mois
+  return { start: fmt(start), end: fmt(end) };
+}
+
+function computeRecapPeriod() {
+  if (recapProPreset === 'custom') {
+    return { start: recapProCustomStart, end: recapProCustomEnd };
+  }
+  return computeRecapPeriodFromPreset(recapProPreset);
+}
+
+async function loadRecapProOrders() {
+  if (!recapProSelected) { recapProOrders = []; return; }
+  const period = computeRecapPeriod();
+  if (!period.start || !period.end) { recapProOrders = []; return; }
+  recapProLoading = true;
+  renderAdminPros();
+  const { data, error } = await supa
+    .from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('pro_id', recapProSelected)
+    .neq('statut', 'annule')
+    .gte('date_livraison', period.start)
+    .lte('date_livraison', period.end)
+    .order('date_livraison', { ascending: true });
+  recapProLoading = false;
+  if (error) {
+    showToast('Erreur récap: ' + error.message, 'error');
+    recapProOrders = [];
+    return;
+  }
+  recapProOrders = data || [];
+}
+
+function renderProsRecap(mc) {
+  let html = renderProsViewToggle('recap');
+  html += '<div class="info-banner"><strong>Récap par pro</strong><br>Choisis un pro et une période pour voir son historique de commandes. Export CSV disponible pour la compta.</div>';
+
+  // Bloc sélecteurs (pro + période)
+  const actifs = adminPros.filter(function(p) { return p.actif; });
+  const inactifs = adminPros.filter(function(p) { return !p.actif; });
+  html += '<div class="pro-form-section">'
+    + '<label>Pro</label>'
+    + '<select class="pro-input" onchange="setRecapProSelected(this.value)">'
+      + '<option value="">— Choisir un pro —</option>';
+  if (actifs.length) {
+    html += '<optgroup label="Actifs">';
+    actifs.forEach(function(p) {
+      html += '<option value="' + escapeHtml(p.id) + '"' + (p.id === recapProSelected ? ' selected' : '') + '>' + escapeHtml(p.nom) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+  if (inactifs.length) {
+    html += '<optgroup label="Inactifs">';
+    inactifs.forEach(function(p) {
+      html += '<option value="' + escapeHtml(p.id) + '"' + (p.id === recapProSelected ? ' selected' : '') + '>' + escapeHtml(p.nom) + ' (inactif)</option>';
+    });
+    html += '</optgroup>';
+  }
+  html += '</select>';
+
+  if (recapProSelected) {
+    const period = computeRecapPeriod();
+    html += '<label style="margin-top:14px">Période</label>'
+      + '<div class="tour-switch" style="margin-bottom:8px">'
+        + '<button class="tour-btn' + (recapProPreset === 'this_month' ? ' active' : '') + '" onclick="setRecapProPreset(\'this_month\')">Mois en cours</button>'
+        + '<button class="tour-btn' + (recapProPreset === 'last_month' ? ' active' : '') + '" onclick="setRecapProPreset(\'last_month\')">Mois précédent</button>'
+        + '<button class="tour-btn' + (recapProPreset === 'custom' ? ' active' : '') + '" onclick="setRecapProPreset(\'custom\')">Personnalisé</button>'
+      + '</div>';
+    if (recapProPreset === 'custom') {
+      html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+        + '<input type="date" class="pro-input" style="flex:1" value="' + escapeHtml(recapProCustomStart || '') + '" onchange="setRecapProCustomDate(\'start\', this.value)">'
+        + '<span style="color:var(--brown-mid);font-weight:700">→</span>'
+        + '<input type="date" class="pro-input" style="flex:1" value="' + escapeHtml(recapProCustomEnd || '') + '" onchange="setRecapProCustomDate(\'end\', this.value)">'
+      + '</div>';
+    } else if (period.start && period.end) {
+      html += '<div class="pro-form-hint" style="margin-bottom:8px">Du <strong>' + formatDateFr(period.start) + '</strong> au <strong>' + formatDateFr(period.end) + '</strong></div>';
+    }
+  }
+  html += '</div>'; // .pro-form-section
+
+  if (!recapProSelected) {
+    html += '<div class="empty-state" style="margin-top:14px">Choisis un pro pour voir son historique.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  if (recapProLoading) {
+    html += '<div class="empty-state" style="margin-top:14px">Chargement…</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  const productsMap = {};
+  (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+
+  if (!recapProOrders.length) {
+    html += '<div class="empty-state" style="margin-top:14px">Aucune commande sur la période.</div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // Total période + nb items
+  let totalPeriode = 0;
+  let nbItems = 0;
+  recapProOrders.forEach(function(o) {
+    (o.pro_order_items || []).forEach(function(it) {
+      totalPeriode += Number(it.qty || 0) * Number(it.prix_applique || 0);
+      nbItems += 1;
+    });
+  });
+
+  html += '<div class="prod-kpi-bar" style="margin-top:14px">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + recapProOrders.length + '</div><div class="prod-kpi-lbl">Commandes</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbItems + '</div><div class="prod-kpi-lbl">Lignes</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + fmtEUR(totalPeriode) + '</div><div class="prod-kpi-lbl">Total</div></div>'
+    + '</div>';
+
+  html += '<div style="margin:10px 0;text-align:right">'
+    + '<button class="btn-gold" onclick="exportRecapProCSV()">📥 Export CSV</button>'
+  + '</div>';
+
+  // Tableau commandes
+  html += '<div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">';
+  recapProOrders.forEach(function(o) {
+    const items = o.pro_order_items || [];
+    let totalOrder = 0;
+    items.forEach(function(it) { totalOrder += Number(it.qty || 0) * Number(it.prix_applique || 0); });
+    const boutiqueLbl = BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source;
+    const statutLbl = ({ brouillon: 'Brouillon', confirme: 'Confirmée', livre: 'Livrée' })[o.statut] || o.statut;
+    const statutColor = ({ brouillon: 'var(--brown-mid)', confirme: 'var(--blue)', livre: 'var(--green)' })[o.statut] || 'var(--brown-mid)';
+
+    html += '<div style="margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #F5F0E8">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;flex-wrap:wrap;gap:6px">'
+        + '<div><strong style="color:var(--brown)">' + formatDateFr(o.date_livraison) + '</strong>'
+          + ' <span style="color:#999;font-size:11px">· ' + escapeHtml(boutiqueLbl) + '</span>'
+          + ' <span style="color:' + statutColor + ';font-size:11px;font-weight:700"> · ' + statutLbl + '</span>'
+        + '</div>'
+        + '<div style="font-weight:800;color:var(--gold-dark)">' + fmtEUR(totalOrder) + '</div>'
+      + '</div>';
+
+    if (o.notes) {
+      html += '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:6px 10px;margin:6px 0;font-size:12px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>';
+    }
+
+    if (items.length) {
+      html += '<table class="recap-table" style="margin-top:6px">'
+        + '<thead><tr><th>Produit</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead>'
+        + '<tbody>';
+      items.forEach(function(it) {
+        const prod = productsMap[it.product_id];
+        const name = prod ? prod.name : it.product_id;
+        const qty = Number(it.qty || 0);
+        const pu = Number(it.prix_applique || 0);
+        const sub = qty * pu;
+        html += '<tr>'
+          + '<td>' + escapeHtml(name) + '</td>'
+          + '<td>' + (qty % 1 === 0 ? qty : qty.toFixed(2).replace('.', ',')) + '</td>'
+          + '<td>' + fmtEUR(pu) + '</td>'
+          + '<td><strong>' + fmtEUR(sub) + '</strong></td>'
+        + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+
+    html += '</div>';
+  });
+  html += '</div>';
+
+  mc.innerHTML = html;
+}
+
+function fmtEUR(n) {
+  return Number(n || 0).toFixed(2).replace('.', ',') + ' €';
+}
+
+function exportRecapProCSV() {
+  if (!recapProSelected || !recapProOrders.length) return;
+  const pro = adminPros.find(function(p) { return p.id === recapProSelected; });
+  const productsMap = {};
+  (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+
+  const period = computeRecapPeriod();
+  const proNom = pro ? pro.nom : recapProSelected;
+
+  // CSV format français : BOM UTF-8 + séparateur ; (Excel FR utilise , comme décimal)
+  let csv = '﻿';
+  csv += 'Date;Pro;Boutique source;Statut;Produit;Qté;Prix unitaire;Total ligne;Notes commande\n';
+  recapProOrders.forEach(function(o) {
+    const items = o.pro_order_items || [];
+    const boutiqueLbl = BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source;
+    const statutLbl = ({ brouillon: 'Brouillon', confirme: 'Confirmée', livre: 'Livrée' })[o.statut] || o.statut;
+    const notes = (o.notes || '').replace(/[\r\n;]/g, ' ');
+    items.forEach(function(it) {
+      const prod = productsMap[it.product_id];
+      const name = prod ? prod.name : it.product_id;
+      const qty = Number(it.qty || 0);
+      const pu = Number(it.prix_applique || 0);
+      const sub = qty * pu;
+      csv += [
+        o.date_livraison,
+        '"' + proNom.replace(/"/g, '""') + '"',
+        boutiqueLbl,
+        statutLbl,
+        '"' + name.replace(/"/g, '""') + '"',
+        String(qty).replace('.', ','),
+        pu.toFixed(2).replace('.', ','),
+        sub.toFixed(2).replace('.', ','),
+        '"' + notes.replace(/"/g, '""') + '"'
+      ].join(';') + '\n';
+    });
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = 'recap-pro-' + recapProSelected + '-' + period.start + '_' + period.end + '.csv';
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  showToast('CSV téléchargé : ' + fname, 'sync');
 }
 
 // === v21.0.4 — COMMANDES PROS (saisie côté boutique) ===
