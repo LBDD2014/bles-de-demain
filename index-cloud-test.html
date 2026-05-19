@@ -3443,24 +3443,31 @@ const pv = val.previs == null ? '' : String(val.previs);
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv !== '' ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" data-field="previs" value="' + escapeHtml(pv) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
 } else {
 const a = val.avoir || '', c = val.commander || '';
-html += '<input type="text" inputmode="decimal" class="qty-input ' + (a ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="avoir" value="' + escapeHtml(a) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
-if (pceC && pceC > 0) {
-// Menu deroulant caisse/pces
-const opts = caisseOptions(pceC);
-html += '<select class="qty-input cmd caisse-select ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" onchange="handleReapproInput(this)">';
-opts.forEach(function(o) {
-const selected = (String(c) === o.val) ? ' selected' : '';
-html += '<option value="' + escapeHtml(o.val) + '"' + selected + '>' + escapeHtml(o.lbl) + '</option>';
-});
-// Si valeur courante n est pas un multiple de caisse, ajouter option custom
-const exists = opts.some(function(o) { return o.val === String(c); });
-if (c && !exists) {
-html += '<option value="' + escapeHtml(c) + '" selected>' + escapeHtml(c) + ' pces</option>';
+// v20.35 — Helper inline pour rendre soit select caisse (si pces_per_caisse), soit input
+// Placeholders explicites "J'ai" / "À cmd" pour rester lisible même sans le header de colonnes
+function renderReapproField(field, currentVal, placeholder, isCmd) {
+  const cls = 'qty-input ' + (isCmd ? 'cmd ' : '') + (currentVal ? 'has-value' : '');
+  if (pceC && pceC > 0) {
+    // Mode caisse : select avec multiples de caisse + option custom si valeur hors liste
+    const opts = caisseOptions(pceC).map(function(o) { return { val: o.val, lbl: o.lbl }; });
+    opts[0].lbl = placeholder; // override "-" par "J'ai" / "À cmd"
+    let h = '<select class="' + cls + ' caisse-select" data-pid="' + p.id + '" data-field="' + field + '" onchange="handleReapproInput(this)">';
+    opts.forEach(function(o) {
+      const selected = (String(currentVal) === o.val) ? ' selected' : '';
+      h += '<option value="' + escapeHtml(o.val) + '"' + selected + '>' + escapeHtml(o.lbl) + '</option>';
+    });
+    const exists = opts.some(function(o) { return o.val === String(currentVal); });
+    if (currentVal && !exists) {
+      h += '<option value="' + escapeHtml(String(currentVal)) + '" selected>' + escapeHtml(String(currentVal)) + ' pces</option>';
+    }
+    h += '</select>';
+    return h;
+  }
+  // Mode libre : input texte
+  return '<input type="text" inputmode="decimal" class="' + cls + '" data-pid="' + p.id + '" data-field="' + field + '" value="' + escapeHtml(currentVal) + '" placeholder="' + escapeHtml(placeholder) + '" oninput="handleReapproInput(this)" onfocus="this.select()">';
 }
-html += '</select>';
-} else {
-html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (c ? 'has-value' : '') + '" data-pid="' + p.id + '" data-field="commander" value="' + escapeHtml(c) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
-}
+html += renderReapproField('avoir', a, "J'ai", false);
+html += renderReapproField('commander', c, 'À cmd', true);
 }
 html += '</div>';
 return html;
