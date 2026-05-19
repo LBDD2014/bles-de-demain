@@ -2176,6 +2176,10 @@ let recapProLoading = false;
 let recapWeekStart = '';              // YYYY-MM-DD du lundi de la semaine affichée (init au 1er passage)
 let recapWeekOrders = [];             // pro_orders chargés (avec items) pour la semaine
 let recapWeekLoading = false;
+
+// v21.0.7 — Vue livreur : commandes pros à livrer du jour (toutes boutiques source)
+let livreurProOrders = [];            // pro_orders à livrer/livrés du jour
+let realtimeChannelLivreurProOrders = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -2685,6 +2689,11 @@ renderRecap();
 } else if (v === 'livraison' || v === 'tournee') {
 await loadDeliveries(currentDate);
 subscribeRealtimeDeliveries();
+// v21.0.7 — Charger aussi les commandes pros à livrer du jour
+if (!adminPros.length) await loadAdminPros();
+if (!adminProducts.length) await loadAdminProducts();
+await loadLivreurProOrders(currentDate);
+subscribeRealtimeLivreurProOrders();
 renderLivraison();
 } else if (v === 'production' || v === 'prod_boul' || v === 'prod_tour') {
 // v20.15 : Le Local split en prod_boul (pains) / prod_tour (viennoiserie+brioches)
@@ -4272,6 +4281,7 @@ const d = new Date(currentDate + 'T12:00');
 d.setDate(d.getDate() + delta);
 currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 await loadDeliveries(currentDate);
+await loadLivreurProOrders(currentDate);
 renderLivraison();
 }
 
@@ -4419,6 +4429,8 @@ html += '<div class="tour-switch">'
 // v20.1 : En mode livreur, valider les reappros produit par produit
 if (isLivreurMode) {
 html += await renderLivreurValidations();
+// v21.0.7 : section commandes pros à livrer (sous les réappros)
+html += renderLivreurProOrdersSection();
 }
 
 if (totalStops > 0) {
@@ -4534,6 +4546,142 @@ html += '<div class="section-header section-header-reappro">'
   });
 
 return html;
+}
+
+// === v21.0.7 — Vue livreur : commandes pros à livrer du jour ===
+
+async function loadLivreurProOrders(date) {
+  const { data, error } = await supa
+    .from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('date_livraison', date)
+    .neq('statut', 'annule')
+    .order('boutique_source', { ascending: true });
+  if (error) { showToast('Erreur pros livreur: ' + error.message, 'error'); livreurProOrders = []; return; }
+  livreurProOrders = data || [];
+}
+
+function subscribeRealtimeLivreurProOrders() {
+  if (realtimeChannelLivreurProOrders) return;
+  realtimeChannelLivreurProOrders = supa.channel('livreur_pro_orders_' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_orders' },
+      async function() {
+        await loadLivreurProOrders(currentDate);
+        if (isLivreurMode && (currentVue === 'livraison' || currentVue === 'tournee')) {
+          renderLivraison();
+        }
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_order_items' },
+      async function() {
+        await loadLivreurProOrders(currentDate);
+        if (isLivreurMode && (currentVue === 'livraison' || currentVue === 'tournee')) {
+          renderLivraison();
+        }
+      })
+    .subscribe();
+}
+
+async function markProOrderDelivered(orderId, currentStatus) {
+  const newStatus = currentStatus === 'livre' ? 'confirme' : 'livre';
+  setSyncStatus('syncing');
+  const { error } = await supa.from('pro_orders').update({ statut: newStatus }).eq('id', orderId);
+  if (error) { setSyncStatus('error'); showToast('Erreur statut: ' + error.message, 'error'); return; }
+  setSyncStatus('ok');
+  // Optimistic local update (realtime suit, mais évite le flicker)
+  const o = livreurProOrders.find(function(x) { return x.id === orderId; });
+  if (o) o.statut = newStatus;
+  renderLivraison();
+}
+
+function renderLivreurProOrdersSection() {
+  if (!livreurProOrders.length) return '';
+
+  const prosMap = {};
+  adminPros.forEach(function(p) { prosMap[p.id] = p; });
+  const productsMap = {};
+  (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+
+  // Groupe par boutique source
+  const sourceOrder = ['local', 'veigne', 'tours', 'saint-avertin'];
+  const bySource = {};
+  livreurProOrders.forEach(function(o) {
+    const b = o.boutique_source || '?';
+    if (!bySource[b]) bySource[b] = [];
+    bySource[b].push(o);
+  });
+
+  const aLivrer = livreurProOrders.filter(function(o) { return o.statut !== 'livre'; }).length;
+  const livres = livreurProOrders.filter(function(o) { return o.statut === 'livre'; }).length;
+
+  let html = '<div class="info-banner" style="border-left-color:var(--gold);margin-top:14px"><strong>💼 Commandes Pros</strong> · ' + aLivrer + ' à livrer / ' + livres + ' livrée' + (livres > 1 ? 's' : '') + '</div>';
+
+  const sortedSources = Object.keys(bySource).sort(function(a, b) {
+    const ai = sourceOrder.indexOf(a), bi = sourceOrder.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  sortedSources.forEach(function(b) {
+    const lbl = BOUTIQUE_NAMES[b] || b;
+    const orders = bySource[b];
+    const nbALivrer = orders.filter(function(o) { return o.statut !== 'livre'; }).length;
+    html += '<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">'
+      + '<div style="font-family:Georgia,serif;font-weight:700;color:var(--brown);margin-bottom:8px">📦 Récupérer à <span style="color:var(--gold-dark)">' + escapeHtml(lbl) + '</span>'
+      + ' <span style="color:#999;font-size:11px;font-weight:500">· ' + nbALivrer + ' à livrer</span></div>';
+
+    // Trier : à livrer en premier, livrées ensuite
+    orders.sort(function(a, b) {
+      const aDone = (a.statut === 'livre') ? 1 : 0;
+      const bDone = (b.statut === 'livre') ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      const ap = prosMap[a.pro_id], bp = prosMap[b.pro_id];
+      return (ap ? ap.nom : a.pro_id).localeCompare(bp ? bp.nom : b.pro_id);
+    });
+
+    orders.forEach(function(o) {
+      const pro = prosMap[o.pro_id];
+      const proNom = pro ? pro.nom : o.pro_id;
+      const firstContact = (pro && Array.isArray(pro.contacts) && pro.contacts[0]) || {};
+      const contactBits = [];
+      if (firstContact.nom) contactBits.push(escapeHtml(firstContact.nom));
+      if (firstContact.tel) contactBits.push('<a href="tel:' + escapeHtml(firstContact.tel) + '" style="color:var(--blue);text-decoration:none">📞 ' + escapeHtml(firstContact.tel) + '</a>');
+      const contactInfo = contactBits.join(' · ');
+      const items = o.pro_order_items || [];
+      let totalOrder = 0;
+      items.forEach(function(it) { totalOrder += Number(it.qty || 0) * Number(it.prix_applique || 0); });
+      const isDelivered = (o.statut === 'livre');
+
+      html += '<div style="border:1px solid ' + (isDelivered ? '#D5E7DA' : '#F5F0E8') + ';background:' + (isDelivered ? '#F5F8F2' : 'white') + ';border-radius:10px;padding:10px;margin-bottom:8px' + (isDelivered ? ';opacity:0.75' : '') + '">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+          + '<div style="flex:1;min-width:0">'
+            + '<div style="font-weight:700;color:var(--brown);font-size:14px">' + escapeHtml(proNom) + (isDelivered ? ' <span style="color:var(--green);font-size:11px">✓ Livrée</span>' : '') + '</div>'
+            + (contactInfo ? '<div style="color:var(--brown-mid);font-size:11px;margin-top:2px">' + contactInfo + '</div>' : '')
+            + '<div style="color:#888;font-size:11px;margin-top:2px">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + ' · <strong style="color:var(--brown)">' + fmtEUR(totalOrder) + '</strong></div>'
+            + (o.notes ? '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:4px 8px;margin-top:4px;font-size:11px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>' : '')
+          + '</div>'
+          + '<button class="livreur-check ' + (isDelivered ? 'checked' : '') + '" onclick="markProOrderDelivered(\'' + o.id + '\', \'' + o.statut + '\')" title="' + (isDelivered ? 'Annuler la livraison' : 'Marquer livrée') + '">✓</button>'
+        + '</div>';
+
+      if (items.length) {
+        html += '<table class="recap-table" style="margin-top:6px;font-size:11px">'
+          + '<thead><tr><th>Produit</th><th>Qté</th></tr></thead><tbody>';
+        items.forEach(function(it) {
+          const prod = productsMap[it.product_id];
+          const name = prod ? prod.name : it.product_id;
+          const qty = Number(it.qty || 0);
+          const qtyStr = (qty % 1 === 0) ? String(qty) : qty.toFixed(2).replace('.', ',');
+          html += '<tr><td>' + escapeHtml(name) + '</td><td><strong>' + qtyStr + '</strong></td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  return html;
 }
 
 async function toggleLivre(rid, wasLivre) {
