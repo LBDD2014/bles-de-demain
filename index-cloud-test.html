@@ -1238,6 +1238,8 @@ background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 .qty-input:focus { outline: none; border-color: var(--gold); background: white; }
 .qty-input.has-value { background: #FFFCF2; border-color: var(--gold); color: var(--gold-dark); }
 .qty-input.has-value.cmd { background: #FBF0D5; }
+/* v20.36 — Select caisse sans valeur : grisé comme un placeholder, pour uniformiser avec les inputs */
+.qty-input.caisse-select:not(.has-value) { color: #999; font-weight: 400; }
 .qty-input.just-updated { animation: flash 1s; }
 @keyframes flash {
 0%, 100% { background: #FFFCF2; }
