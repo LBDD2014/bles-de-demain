@@ -2249,6 +2249,19 @@ function formatConditioning(p) {
   return u + ' de ' + q;
 }
 
+// v20.34 — Cible "doit avoir" par boutique pour un produit (Number ou null)
+function getCibleForProduct(p, boutique) {
+  if (!p || !p.doit_avoir_par_boutique) return null;
+  const dab = (typeof p.doit_avoir_par_boutique === 'string')
+    ? JSON.parse(p.doit_avoir_par_boutique)
+    : p.doit_avoir_par_boutique;
+  if (!dab || typeof dab !== 'object') return null;
+  const v = dab[boutique];
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
 function mondayOfWeek(iso) {
   const d = new Date(iso + 'T12:00');
   const day = d.getDay();
@@ -3394,7 +3407,7 @@ let html = '<div class="section reappro-section">'
   if (type === 'previs') {
   html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">À produire/plaquer</span></div>';
   } else {
-  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">Stock</span><span class="col-lbl cmd">À commander</span></div>';
+  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J\'ai</span><span class="col-lbl cmd">À commander</span></div>';
   }
 
 cats.forEach(function(cat) {
@@ -3416,7 +3429,14 @@ const hasFill = (type === 'previs')
 let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '">';
 // v20.33 — Conditionnement à côté du unit
 const condTxt = formatConditioning(p);
-const unitLine = escapeHtml(p.unit || '') + (condTxt ? (p.unit ? ' · ' : '') + escapeHtml(condTxt) : '');
+// v20.34 — Cible "doit avoir" pour la boutique courante (affichée si renseignée)
+const cible = getCibleForProduct(p, currentBoutique);
+const cibleTxt = cible != null ? 'Cible: ' + cible : '';
+const unitParts = [];
+if (p.unit) unitParts.push(escapeHtml(p.unit));
+if (condTxt) unitParts.push(escapeHtml(condTxt));
+if (cibleTxt) unitParts.push('<span style="color:var(--gold-dark);font-weight:600">' + cibleTxt + '</span>');
+const unitLine = unitParts.join(' · ');
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLine + '</div></div>';
 if (type === 'previs') {
 const pv = val.previs == null ? '' : String(val.previs);
@@ -3455,6 +3475,38 @@ if (field !== 'previs' && reapprosData[pid].sent_at) {
 reapprosData[pid].sent_at = null;
 }
 el.classList.toggle('has-value', !!val);
+// v20.34 — Auto-pré-remplissage "à commander" quand on saisit "j'ai"
+// (seulement si commander était vide et cible définie pour cette boutique)
+if (field === 'avoir') {
+  const p = products.find(function(x) { return x.id === pid; });
+  const cible = getCibleForProduct(p, currentBoutique);
+  const cmdCurrent = reapprosData[pid].commander;
+  if (cible != null && cible > 0 && (cmdCurrent == null || cmdCurrent === '')) {
+    const aValN = parseFloat(String(val).replace(',', '.'));
+    const aVal = isNaN(aValN) ? 0 : aValN;
+    const aCmd = Math.max(0, cible - aVal);
+    const aCmdStr = String(aCmd);
+    reapprosData[pid].commander = aCmdStr;
+    // Update DOM input/select "À commander" sans full re-render
+    const cmdEl = document.querySelector('[data-pid="' + pid + '"][data-field="commander"]');
+    if (cmdEl) {
+      if (cmdEl.tagName === 'SELECT') {
+        // Caisse-mode : ajoute une option custom si la valeur n'existe pas
+        const exists = Array.from(cmdEl.options).some(function(o) { return o.value === aCmdStr; });
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = aCmdStr;
+          opt.textContent = aCmdStr + ' pces';
+          cmdEl.appendChild(opt);
+        }
+        cmdEl.value = aCmdStr;
+      } else {
+        cmdEl.value = aCmdStr;
+      }
+      cmdEl.classList.toggle('has-value', aCmd > 0);
+    }
+  }
+}
 // v20.2 — feedback vert sur ligne saisie
 const row = el.closest('.produit-row');
 if (row) {
@@ -6519,13 +6571,24 @@ if (condQtyEl) {
 if (condUnitEl && condUnitEl.value && conditioning_qty != null) {
   conditioning_unit = condUnitEl.value;
 }
+// v20.34 — Cibles "doit avoir" par boutique (jsonb)
+const doit_avoir_par_boutique = {};
+['veigne', 'tours', 'saint-avertin', 'local'].forEach(function(b) {
+  const el = document.getElementById('edit-cible-' + b + '-' + pid);
+  if (!el) return;
+  const v = el.value.trim();
+  if (v === '') return;
+  const n = parseInt(v, 10);
+  if (!isNaN(n) && n >= 0 && n <= 10000) doit_avoir_par_boutique[b] = n;
+});
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
 if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
 const updateFields = {
   name: name, category: category, unit: unit, usage: usage,
   conditioning_unit: conditioning_unit, // v20.33
-  conditioning_qty: conditioning_qty    // v20.33
+  conditioning_qty: conditioning_qty,   // v20.33
+  doit_avoir_par_boutique: doit_avoir_par_boutique  // v20.34
 };
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
@@ -8474,6 +8537,28 @@ if (isEditing) {
       }).join('')
     + '</select>'
     + '<input id="edit-cond-qty-' + p.id + '" type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(p.conditioning_qty == null ? '' : String(p.conditioning_qty)) + '" placeholder="qty">'
+    + '</div></div>'
+    // v20.34 — Cibles de stock par boutique (doit avoir)
+    + '<div class="npf-row"><label class="npf-lbl">Cibles "doit avoir"</label>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1">'
+    + (function() {
+        const dab = p.doit_avoir_par_boutique
+          ? (typeof p.doit_avoir_par_boutique === 'string' ? JSON.parse(p.doit_avoir_par_boutique) : p.doit_avoir_par_boutique)
+          : {};
+        const boutiques = [
+          ['veigne', 'Veigné'],
+          ['tours', 'Tours'],
+          ['saint-avertin', 'St-Av'],
+          ['local', 'Le Local']
+        ];
+        return boutiques.map(function(b) {
+          const v = dab[b[0]] != null ? String(dab[b[0]]) : '';
+          return '<div style="display:flex;align-items:center;gap:4px">'
+            + '<span style="font-size:11px;color:var(--brown-mid);min-width:50px">' + b[1] + '</span>'
+            + '<input id="edit-cible-' + b[0] + '-' + p.id + '" type="number" min="0" max="10000" class="npf-input" style="flex:1" value="' + escapeHtml(v) + '" placeholder="—">'
+            + '</div>';
+        }).join('');
+      })()
     + '</div></div>'
     + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
     + '<select id="edit-usage-' + p.id + '" class="npf-input">'
