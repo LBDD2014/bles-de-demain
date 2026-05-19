@@ -2183,7 +2183,7 @@ let realtimeChannelLivreurProOrders = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
-let adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
+let adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '', conditioning_unit: '', conditioning_qty: '' };
 let adminEditingPid = null;
 
 // Messagerie livreur
@@ -2236,6 +2236,17 @@ function serviceDateISO() {
 function formatDateFr(iso) {
   const d = new Date(iso + 'T12:00');
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+// v20.33 — Format conditionnement pour affichage à côté du nom produit
+// Ex: caisse=70 → "caisse de 70" ; kg=5 → "5 kg" ; piece=12 → "12 pièces" ; vide → ""
+function formatConditioning(p) {
+  if (!p || !p.conditioning_unit || p.conditioning_qty == null) return '';
+  const u = p.conditioning_unit;
+  const q = p.conditioning_qty;
+  if (u === 'kg' || u === 'L') return q + ' ' + u;
+  if (u === 'piece') return q + ' pièce' + (q > 1 ? 's' : '');
+  return u + ' de ' + q;
 }
 
 function mondayOfWeek(iso) {
@@ -3403,7 +3414,10 @@ const hasFill = (type === 'previs')
   ? (val.previs != null && val.previs !== '')
   : ((val.commander != null && val.commander !== '') || (val.avoir != null && val.avoir !== ''));
 let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '">';
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
+// v20.33 — Conditionnement à côté du unit
+const condTxt = formatConditioning(p);
+const unitLine = escapeHtml(p.unit || '') + (condTxt ? (p.unit ? ' · ' : '') + escapeHtml(condTxt) : '');
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLine + '</div></div>';
 if (type === 'previs') {
 const pv = val.previs == null ? '' : String(val.previs);
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv !== '' ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" data-field="previs" value="' + escapeHtml(pv) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
@@ -3759,7 +3773,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
     prevCell = '<div class="v-prev-ro" title="Quantité commandée (externe)">' + (prevDisplay ? '<span class="ro-arrow">↳</span> ' + escapeHtml(prevDisplay) : '<span style="color:#bbb">-</span>') + '</div>';
   }
   html += '<div class="ventes-row v201">'
-+ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
++ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + (formatConditioning(p) ? (p.unit ? ' · ' : '') + formatConditioning(p) : '') + '</div></div>'
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
@@ -6349,7 +6363,7 @@ renderAdminProducts();
 function toggleNewProductForm() {
 adminNewProductOpen = !adminNewProductOpen;
 if (adminNewProductOpen) {
-adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
+adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '', conditioning_unit: '', conditioning_qty: '' };
 }
 renderAdminProducts();
 if (adminNewProductOpen) {
@@ -6369,6 +6383,10 @@ const d = adminNewProductDraft;
 if (!d.name || !d.name.trim()) { showToast('Nom obligatoire', 'error'); return; }
 if (!d.category || !d.category.trim()) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
+// v20.33 — Conditionnement : qty parsée en int 1-200, null si vide/invalide
+const condQty = d.conditioning_qty === '' || d.conditioning_qty == null ? null : parseInt(d.conditioning_qty, 10);
+const condQtyClean = (condQty != null && !isNaN(condQty) && condQty >= 1 && condQty <= 200) ? condQty : null;
+const condUnit = d.conditioning_unit && condQtyClean != null ? d.conditioning_unit : null; // unit utile seulement si qty valide
 const row = {
 tenant_id: TENANT_ID,
 name: d.name.trim(),
@@ -6377,13 +6395,15 @@ unit: d.unit ? d.unit.trim() : null,
 usage: d.usage || 'both',
 actif: true,
 supply_by_boutique: {},
-pros_only_id: d.pros_only_id || null  // v21.0.3.2 — produit sur mesure
+pros_only_id: d.pros_only_id || null,  // v21.0.3.2 — produit sur mesure
+conditioning_unit: condUnit,           // v20.33
+conditioning_qty: condQtyClean         // v20.33
 };
 const { error } = await supa.from('products').insert(row);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 adminNewProductOpen = false;
-adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '' };
+adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '', conditioning_unit: '', conditioning_qty: '' };
 await loadAdminProducts();
 await loadProducts();
 renderAdminProducts();
@@ -6481,6 +6501,8 @@ const catEl = document.getElementById('edit-cat-' + pid);
 const unitEl = document.getElementById('edit-unit-' + pid);
 const usageEl = document.getElementById('edit-usage-' + pid);
 const prosOnlyEl = document.getElementById('edit-pros-only-' + pid);
+const condUnitEl = document.getElementById('edit-cond-unit-' + pid);
+const condQtyEl = document.getElementById('edit-cond-qty-' + pid);
 if (!nameEl || !catEl || !usageEl) return;
 const name = nameEl.value.trim();
 const category = catEl.value.trim();
@@ -6488,10 +6510,23 @@ const unit = unitEl ? (unitEl.value.trim() || null) : null;
 const usage = usageEl.value;
 // v21.0.3.2 — pros_only_id (peut ne pas exister si form ancien — fallback safe)
 const pros_only_id = prosOnlyEl ? (prosOnlyEl.value || null) : undefined;
+// v20.33 — Conditionnement
+let conditioning_unit = null, conditioning_qty = null;
+if (condQtyEl) {
+  const q = parseInt(condQtyEl.value, 10);
+  if (!isNaN(q) && q >= 1 && q <= 200) conditioning_qty = q;
+}
+if (condUnitEl && condUnitEl.value && conditioning_qty != null) {
+  conditioning_unit = condUnitEl.value;
+}
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
 if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
-const updateFields = { name: name, category: category, unit: unit, usage: usage };
+const updateFields = {
+  name: name, category: category, unit: unit, usage: usage,
+  conditioning_unit: conditioning_unit, // v20.33
+  conditioning_qty: conditioning_qty    // v20.33
+};
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
@@ -8325,6 +8360,17 @@ html += '<div class="new-prod-form">'
 + '<option value="">- Choisir -</option>' + catOptions + '</select></div>'
 + '<div class="npf-row"><label class="npf-lbl">Unite</label>'
 + '<input type="text" class="npf-input" value="' + escapeHtml(adminNewProductDraft.unit) + '" oninput="handleNewProductField(\'unit\', this.value)" placeholder="ex : 400g, piece, kg..."></div>'
+// v20.33 — Conditionnement (sac/caisse/seau/carton/piece/kg/L + qty 1-200)
++ '<div class="npf-row"><label class="npf-lbl">Conditionnement</label>'
++ '<div style="display:flex;gap:6px;flex:1">'
++ '<select class="npf-input" style="flex:1" onchange="handleNewProductField(\'conditioning_unit\', this.value)">'
++ '<option value="">— Aucun</option>'
++ ['sac','caisse','seau','carton','piece','kg','L'].map(function(u) {
+    return '<option value="' + u + '"' + (adminNewProductDraft.conditioning_unit === u ? ' selected' : '') + '>' + u + '</option>';
+  }).join('')
++ '</select>'
++ '<input type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(String(adminNewProductDraft.conditioning_qty || '')) + '" placeholder="qty" oninput="handleNewProductField(\'conditioning_qty\', this.value)">'
++ '</div></div>'
 + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
 + '<select class="npf-input" onchange="handleNewProductField(\'usage\', this.value)">'
 + '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
@@ -8418,6 +8464,17 @@ if (isEditing) {
     + '<div class="npf-row"><label class="npf-lbl">Catégorie *</label>'
     + '<select id="edit-cat-' + p.id + '" class="npf-input"><option value="">- Choisir -</option>' + catOptions + '</select></div>'
     + '<div class="npf-row"><label class="npf-lbl">Unite</label><input id="edit-unit-' + p.id + '" type="text" class="npf-input" value="' + escapeHtml(p.unit || '') + '"></div>'
+    // v20.33 — Conditionnement
+    + '<div class="npf-row"><label class="npf-lbl">Conditionnement</label>'
+    + '<div style="display:flex;gap:6px;flex:1">'
+    + '<select id="edit-cond-unit-' + p.id + '" class="npf-input" style="flex:1">'
+    + '<option value="">— Aucun</option>'
+    + ['sac','caisse','seau','carton','piece','kg','L'].map(function(u) {
+        return '<option value="' + u + '"' + ((p.conditioning_unit || '') === u ? ' selected' : '') + '>' + u + '</option>';
+      }).join('')
+    + '</select>'
+    + '<input id="edit-cond-qty-' + p.id + '" type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(p.conditioning_qty == null ? '' : String(p.conditioning_qty)) + '" placeholder="qty">'
+    + '</div></div>'
     + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
     + '<select id="edit-usage-' + p.id + '" class="npf-input">'
     + '<option value="both"' + ((p.usage || 'both') === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
@@ -8445,9 +8502,12 @@ const prosOnlyPro = p.pros_only_id ? (adminPros || []).find(function(x) { return
 const prosOnlyBadge = prosOnlyPro
   ? ' <span class="prod-pros-only-badge" title="Visible uniquement pour ' + escapeHtml(prosOnlyPro.nom) + '">🔒 ' + escapeHtml(prosOnlyPro.nom) + '</span>'
   : (p.pros_only_id ? ' <span class="prod-pros-only-badge" title="Pro introuvable">🔒 pro ?</span>' : '');
+// v20.33 — Affichage conditionnement à côté du nom
+const condTxt = formatConditioning(p);
 html += '<div class="' + rowCls + '">'
   + '<div><span class="prod-name">' + escapeHtml(p.name) + '</span>'
   + (p.unit ? ' <span class="prod-unit">(' + escapeHtml(p.unit) + ')</span>' : '')
+  + (condTxt ? ' <span class="prod-unit" style="color:var(--blue);font-weight:600">[' + escapeHtml(condTxt) + ']</span>' : '')
   + prosOnlyBadge
   + '</div>'
   + '<div class="admin-prix-wrap">'
@@ -9093,7 +9153,10 @@ const displayValue = filled ? pv : (defaultQty != null ? String(defaultQty) : ''
 const isDefault = !filled && defaultQty != null;
 const inputClasses = 'qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '');
 html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>';
+// v20.33 — Conditionnement
+const condTxtPrv = formatConditioning(p);
+const unitLinePrv = escapeHtml(p.unit || '') + (condTxtPrv ? (p.unit ? ' · ' : '') + escapeHtml(condTxtPrv) : '');
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLinePrv + '</div></div>';
 html += '<div class="previs-j1">' + (j1v > 0 ? j1v : '<span style="color:#bbb">-</span>') + '</div>';
 html += '<div class="prev-input-wrap">';
 html += '<input type="text" inputmode="decimal" class="' + inputClasses + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';

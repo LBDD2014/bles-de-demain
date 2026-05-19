@@ -148,7 +148,5 @@ Si pause survient : dashboard Supabase → "Resume project" (30s à 2min).
 
 ## Bugs / TODOs connus
 
-1. **Bug "NaN"** affiché en haut de plusieurs vues (et "NaNNaN..." dans Ventes).
-   Probablement formatage de date courante qui retourne NaN. À investiguer.
-2. **Évolution BackOffice : unités de conditionnement** (sac/caisse/seau/carton/pièce/kg/L + qté 1-200). Périmètre exact à finaliser.
-3. **v21 — module Pros** : Le Local livre restos/cafés/hôtels via livreur. Tarification, fréquence, facturation à définir.
+1. **Évolution BackOffice : unités de conditionnement** (sac/caisse/seau/carton/pièce/kg/L + qté 1-200). Périmètre exact à finaliser.
+2. **v21 — module Pros** : MVP v21.0 complet en prod (2026-05-19). Paliers suivants v21.1 (génération auto récurrent), v21.2 (magic link client pro), v21.3 (facturation Menlog).
