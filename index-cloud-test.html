@@ -2182,6 +2182,11 @@ let recapWeekLoading = false;
 // v21.0.7 — Vue livreur : commandes pros à livrer du jour (toutes boutiques source)
 let livreurProOrders = [];            // pro_orders à livrer/livrés du jour
 let realtimeChannelLivreurProOrders = null;
+
+// v21.2 — Stock congelé Boulangers (Stock Boul. Pro)
+let proStockData = {};                // { product_id: qty } pour les produits suivis
+let proStockMovementsToday = [];      // mouvements du jour pour l'historique
+let realtimeChannelProStock = null;
 let adminHideInactive = false;
 let adminCatFilter = 'all';
 let adminNewProductOpen = false;
@@ -2831,7 +2836,11 @@ if (v === 'reappro_pat' && currentBoutique === 'tours') {
 await loadStockData();
 renderStock();
 } else if (v === 'stock_boul_pro') {
-// v20.15 : placeholder, à configurer après v21 Pros
+// v21.2 — Stock congelé Boulangers
+if (!adminProducts.length) await loadAdminProducts();
+await loadProStock();
+await loadProStockMovementsToday();
+subscribeRealtimeProStock();
 renderStockBoulangerPro();
 }
 }
@@ -4668,10 +4677,34 @@ async function markProOrderDelivered(orderId, currentStatus) {
   setSyncStatus('syncing');
   const { error } = await supa.from('pro_orders').update({ statut: newStatus }).eq('id', orderId);
   if (error) { setSyncStatus('error'); showToast('Erreur statut: ' + error.message, 'error'); return; }
+
+  // v21.2 — Auto-décrément / réincrément du stock pro pour les items suivis
+  // Nécessite d'avoir adminProducts + proStockData chargés
+  const order = livreurProOrders.find(function(x) { return x.id === orderId; });
+  if (order && Array.isArray(order.pro_order_items)) {
+    // S'assurer que proStockData est chargé (cache local utilisé par applyProStockMovement)
+    if (!Object.keys(proStockData).length) await loadProStock();
+    const allProducts = (adminProducts && adminProducts.length) ? adminProducts : products;
+    for (let i = 0; i < order.pro_order_items.length; i++) {
+      const it = order.pro_order_items[i];
+      if (!it.product_id) continue;
+      const prod = allProducts.find(function(p) { return p.id === it.product_id; });
+      if (!prod || !prod.suivi_stock_pro) continue; // seul les produits suivis génèrent un mouvement
+      const qty = Number(it.qty) || 0;
+      if (qty <= 0) continue;
+      if (newStatus === 'livre') {
+        // Sortie de stock
+        await applyProStockMovement(it.product_id, -qty, 'delivery', orderId);
+      } else {
+        // Annulation : restaurer
+        await applyProStockMovement(it.product_id, +qty, 'delivery_cancel', orderId);
+      }
+    }
+  }
+
   setSyncStatus('ok');
   // Optimistic local update (realtime suit, mais évite le flicker)
-  const o = livreurProOrders.find(function(x) { return x.id === orderId; });
-  if (o) o.statut = newStatus;
+  if (order) order.statut = newStatus;
   renderLivraison();
 }
 
@@ -6602,6 +6635,9 @@ const doit_avoir_par_boutique = {};
   const n = parseInt(v, 10);
   if (!isNaN(n) && n >= 0 && n <= 10000) doit_avoir_par_boutique[b] = n;
 });
+// v21.2 — Suivi stock pro (checkbox)
+const suiviStockEl = document.getElementById('edit-suivi-stock-' + pid);
+const suivi_stock_pro = suiviStockEl ? !!suiviStockEl.checked : undefined;
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
 if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
@@ -6612,6 +6648,7 @@ const updateFields = {
   doit_avoir_par_boutique: doit_avoir_par_boutique  // v20.34
 };
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
+if (suivi_stock_pro !== undefined) updateFields.suivi_stock_pro = suivi_stock_pro;
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
@@ -9170,6 +9207,12 @@ if (isEditing) {
         return '<option value="' + escapeHtml(x.id) + '"' + (p.pros_only_id === x.id ? ' selected' : '') + '>' + escapeHtml(x.nom) + '</option>';
       }).join('')
     + '</select></div>'
+    // v21.2 — Suivi stock pro (apparaît dans Stock Boul. Pro + auto-décrément à la livraison)
+    + '<div class="npf-row"><label class="npf-lbl">Suivi stock pro</label>'
+    + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">'
+    + '<input type="checkbox" id="edit-suivi-stock-' + p.id + '"' + (p.suivi_stock_pro ? ' checked' : '') + ' style="width:20px;height:20px">'
+    + '<span style="font-size:12px;color:var(--brown-mid)">Apparaît dans <strong>Stock Boul. Pro</strong> au Local + auto-décrément quand une commande pro est livrée</span>'
+    + '</label></div>'
     + '<div class="npf-actions">'
     + '<button class="btn-grey" onclick="cancelEditProduct()">Annuler</button>'
     + '<button class="btn-gold" onclick="saveEditProduct(\'' + p.id + '\')">Enregistrer</button>'
@@ -9572,14 +9615,176 @@ showToast('+' + qty + ' en stock', 'sync');
 }
 
 // v20.15 — placeholder en attendant le module Pros (v21)
+// === v21.2 — Stock congelé Boulangers (Stock Boul. Pro) ===
+
+async function loadProStock() {
+  const { data, error } = await supa
+    .from('pro_stock').select('*')
+    .eq('tenant_id', TENANT_ID);
+  if (error) { showToast('Erreur stock pro: ' + error.message, 'error'); return; }
+  proStockData = {};
+  (data || []).forEach(function(r) {
+    proStockData[r.product_id] = Number(r.qty) || 0;
+  });
+}
+
+async function loadProStockMovementsToday() {
+  const today = todayISO();
+  const { data, error } = await supa
+    .from('pro_stock_movements').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .gte('created_at', today + 'T00:00:00')
+    .order('created_at', { ascending: false });
+  if (error) { showToast('Erreur mouvements: ' + error.message, 'error'); proStockMovementsToday = []; return; }
+  proStockMovementsToday = data || [];
+}
+
+function subscribeRealtimeProStock() {
+  if (realtimeChannelProStock) return;
+  realtimeChannelProStock = supa.channel('pro_stock_' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_stock' },
+      async function() {
+        await loadProStock();
+        if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_stock_movements' },
+      async function() {
+        await loadProStockMovementsToday();
+        if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+      })
+    .subscribe();
+}
+
+// Helper réutilisé par la production (Stock Boul. Pro) ET la livraison
+// (markProOrderDelivered v21.0.7 modifié v21.2)
+async function applyProStockMovement(productId, qtyDelta, reason, refId) {
+  const currentQty = proStockData[productId] != null ? Number(proStockData[productId]) : 0;
+  const newQty = currentQty + qtyDelta;
+  // 1) Log mouvement
+  const { error: err1 } = await supa.from('pro_stock_movements').insert({
+    tenant_id: TENANT_ID,
+    product_id: productId,
+    qty_delta: qtyDelta,
+    reason: reason,
+    ref_id: refId || null,
+    created_by: DEVICE_ID
+  });
+  if (err1) { showToast('Mouvement: ' + err1.message, 'error'); return false; }
+  // 2) Upsert stock
+  const { error: err2 } = await supa.from('pro_stock').upsert({
+    tenant_id: TENANT_ID,
+    product_id: productId,
+    qty: newQty,
+    updated_at: new Date().toISOString(),
+    updated_by: DEVICE_ID
+  }, { onConflict: 'tenant_id,product_id' });
+  if (err2) { showToast('Stock: ' + err2.message, 'error'); return false; }
+  // Cache local
+  proStockData[productId] = newQty;
+  return true;
+}
+
+async function addProStockProduction(productId) {
+  const inp = document.getElementById('prod-stock-input-' + productId);
+  if (!inp) return;
+  const val = parseInt(inp.value, 10);
+  if (isNaN(val) || val <= 0) { showToast('Quantité invalide', 'error'); return; }
+  setSyncStatus('syncing');
+  const ok = await applyProStockMovement(productId, val, 'production', null);
+  if (!ok) { setSyncStatus('error'); return; }
+  setSyncStatus('ok');
+  inp.value = '';
+  await loadProStockMovementsToday();
+  renderStockBoulangerPro();
+  showToast('+' + val + ' ajouté au stock', 'sync');
+}
+
 function renderStockBoulangerPro() {
-const mc = document.getElementById('main-content');
-mc.innerHTML = '<div class="info-banner" style="border-left-color:var(--gold)">'
-  + '<strong>Stock Boulanger Pro</strong><br>'
-  + 'Stock du pain produit pour les clients professionnels (v21 Pros).<br><br>'
-  + '<em>À configurer après la mise en place du module Pros.</em>'
-  + '</div>'
-  + '<div class="empty-state">Aucun stock pro suivi pour le moment.</div>';
+  const mc = document.getElementById('main-content');
+  const suiviProducts = (adminProducts || []).filter(function(p) { return p.suivi_stock_pro && p.actif; });
+
+  let html = '<div class="info-banner" style="border-left-color:var(--gold)">'
+    + '<strong>Stock Boulanger Pro</strong><br>'
+    + 'Stock congelé des produits pour les commandes pros. Saisie production quotidienne par les boulangers ; <strong>auto-décrément à la livraison</strong> d\'une commande pro.<br>'
+    + '<em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → éditer → coche <strong>« Suivi stock pro »</strong>.</em>'
+    + '</div>';
+
+  if (!suiviProducts.length) {
+    html += '<div class="empty-state">Aucun produit configuré en suivi stock pro.<br><span style="font-size:12px;color:var(--brown-mid)">Va dans BackOffice et coche "Suivi stock pro" sur les produits concernés.</span></div>';
+    mc.innerHTML = html;
+    return;
+  }
+
+  // KPIs
+  let totalStock = 0, totalNeg = 0;
+  suiviProducts.forEach(function(p) {
+    const q = proStockData[p.id] || 0;
+    totalStock += q;
+    if (q < 0) totalNeg++;
+  });
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + suiviProducts.length + '</div><div class="prod-kpi-lbl">Produits</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + totalStock + '</div><div class="prod-kpi-lbl">Total stock</div></div>'
+    + (totalNeg > 0 ? '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--red)">' + totalNeg + '</div><div class="prod-kpi-lbl">En rupture</div></div>' : '')
+    + '</div>';
+
+  // Trier par stock croissant (les pénuries en haut)
+  suiviProducts.sort(function(a, b) {
+    const qa = proStockData[a.id] || 0;
+    const qb = proStockData[b.id] || 0;
+    if (qa !== qb) return qa - qb;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Tableau produits
+  html += '<div style="background:white;border-radius:14px;padding:14px;margin-top:10px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">';
+  html += '<div style="font-family:Georgia,serif;font-weight:700;color:var(--brown);margin-bottom:10px">📦 Stock par produit</div>';
+  html += '<div class="col-header" style="grid-template-columns:1fr 70px 95px 80px;background:#F5F0E5;padding:6px 10px;border-radius:8px;font-size:10px;font-weight:700;color:var(--brown-mid);text-transform:uppercase;display:grid;gap:6px;align-items:center;margin-bottom:6px">'
+    + '<span>Produit</span><span style="text-align:center">Stock</span><span style="text-align:center">+ Prod.</span><span></span></div>';
+  suiviProducts.forEach(function(p) {
+    const qty = proStockData[p.id] || 0;
+    const qtyColor = qty < 0 ? 'var(--red)' : (qty === 0 ? 'var(--orange)' : 'var(--green)');
+    const condTxt = formatConditioning(p);
+    html += '<div style="display:grid;grid-template-columns:1fr 70px 95px 80px;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid #F5F0E8">';
+    html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>'
+      + (condTxt ? '<div class="produit-unit">' + escapeHtml(condTxt) + '</div>' : '')
+      + '</div>';
+    html += '<div style="text-align:center;font-family:Georgia,serif;font-size:18px;font-weight:800;color:' + qtyColor + '">' + qty + '</div>';
+    html += '<input id="prod-stock-input-' + escapeHtml(p.id) + '" type="number" inputmode="numeric" min="1" step="1" class="qty-input" placeholder="+qty" style="padding:6px;font-size:14px" onkeydown="if(event.key===\'Enter\')addProStockProduction(\'' + escapeHtml(p.id).replace(/'/g, "\\'") + '\')">';
+    html += '<button class="btn-gold-sm" style="padding:8px" onclick="addProStockProduction(\'' + escapeHtml(p.id).replace(/'/g, "\\'") + '\')">✓ Ajouter</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Historique du jour
+  if (proStockMovementsToday.length) {
+    const productsMap = {};
+    (adminProducts || []).forEach(function(p) { productsMap[p.id] = p; });
+    html += '<div style="background:white;border-radius:14px;padding:14px;margin-top:10px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">';
+    html += '<div style="font-family:Georgia,serif;font-weight:700;color:var(--brown);margin-bottom:10px">📜 Mouvements du jour <span style="font-weight:400;color:var(--brown-mid);font-size:12px">(' + proStockMovementsToday.length + ')</span></div>';
+    proStockMovementsToday.forEach(function(m) {
+      const prod = productsMap[m.product_id];
+      const prodName = prod ? prod.name : m.product_id;
+      const delta = Number(m.qty_delta);
+      const isPos = delta > 0;
+      const reasonLbl = ({
+        production: 'Production',
+        delivery: 'Livraison',
+        delivery_cancel: 'Annulation livraison',
+        correction: 'Correction'
+      })[m.reason] || m.reason;
+      const t = new Date(m.created_at);
+      const timeStr = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F5F0E8;gap:8px">';
+      html += '<div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--brown)"><strong>' + escapeHtml(prodName) + '</strong></div>';
+      html += '<div style="font-size:11px;color:var(--brown-mid)">' + timeStr + ' · ' + escapeHtml(reasonLbl) + '</div></div>';
+      html += '<div style="font-family:Georgia,serif;font-weight:800;font-size:16px;color:' + (isPos ? 'var(--green)' : 'var(--red)') + '">' + (isPos ? '+' : '') + delta + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  mc.innerHTML = html;
 }
 
 function renderStockReceiptModal() {
