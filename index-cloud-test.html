@@ -8390,6 +8390,120 @@ html += '<div><span class="prod-name">' + escapeHtml(label) + '</span>'
   mc.innerHTML = html;
   }
 
+// === v20.37 — Détection de doublons produit ===
+
+// Normalise un nom : accents/casse/espaces ignorés pour comparaison
+function normalizeProductName(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip diacritics (combining marks)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// Groupe les produits par nom normalisé, retourne les groupes de ≥ 2
+function computeDoublons() {
+  const groups = {};
+  adminProducts.forEach(function(p) {
+    const k = normalizeProductName(p.name);
+    if (!k) return;
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(p);
+  });
+  return Object.keys(groups)
+    .filter(function(k) { return groups[k].length >= 2; })
+    .sort()
+    .map(function(k) { return { key: k, products: groups[k] }; });
+}
+
+function openDoublonsModal() {
+  const groups = computeDoublons();
+  // Remove old modal if exists (utile pour refresh après désactivation)
+  const old = document.getElementById('doublons-modal');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'doublons-modal';
+  overlay.className = 'modal-overlay show';
+  overlay.style.zIndex = '1000';
+  overlay.onclick = function(e) { if (e.target === overlay) closeDoublonsModal(); };
+
+  let inner = '<div class="modal" style="max-width:560px;width:100%;max-height:85vh;overflow-y:auto">';
+  inner += '<div class="modal-title">🔍 Doublons potentiels</div>';
+
+  if (!groups.length) {
+    inner += '<div class="modal-sub" style="color:var(--green);font-weight:600">✓ Aucun doublon détecté.</div>';
+  } else {
+    const totalProducts = groups.reduce(function(s, g) { return s + g.products.length; }, 0);
+    inner += '<div class="modal-sub">' + groups.length + ' groupe' + (groups.length > 1 ? 's' : '') + ' détecté' + (groups.length > 1 ? 's' : '') + ' (' + totalProducts + ' produits, accents/casse ignorés)</div>';
+
+    groups.forEach(function(g) {
+      inner += '<div style="margin-bottom:14px;padding:10px;background:#FAF6EE;border-radius:8px">';
+      inner += '<div style="font-weight:700;color:var(--brown);margin-bottom:8px">' + escapeHtml(g.products[0].name) + ' <span style="color:var(--brown-mid);font-weight:400;font-size:12px">(' + g.products.length + ' versions)</span></div>';
+
+      g.products.forEach(function(p) {
+        const condTxt = formatConditioning(p);
+        const prixTxt = p.prix_cession != null ? Number(p.prix_cession).toFixed(2).replace('.', ',') + ' €' : '—';
+        const catLbl = CAT_LABELS[p.category] || p.category || '?';
+        const statutColor = p.actif ? 'var(--green)' : 'var(--brown-mid)';
+        const statutLbl = p.actif ? 'Actif' : 'Inactif';
+        const idEsc = String(p.id).replace(/'/g, "\\'");
+        inner += '<div style="background:white;border:1px solid #E5DCC8;border-radius:8px;padding:8px;margin-bottom:6px">';
+        inner += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
+        inner += '<div style="flex:1;min-width:0">';
+        inner += '<div style="font-size:12px;color:var(--brown)"><strong>' + escapeHtml(p.name) + '</strong>';
+        inner += ' <span style="color:' + statutColor + ';font-size:11px;font-weight:700"> · ' + statutLbl + '</span></div>';
+        inner += '<div style="font-size:11px;color:var(--brown-mid);margin-top:2px">';
+        const bits = [escapeHtml(catLbl)];
+        if (p.unit) bits.push(escapeHtml(p.unit));
+        if (condTxt) bits.push(escapeHtml(condTxt));
+        bits.push(escapeHtml(prixTxt));
+        inner += bits.join(' · ');
+        inner += '</div>';
+        inner += '<div style="font-size:10px;color:#999;font-family:monospace;margin-top:2px">id: ' + escapeHtml(p.id) + '</div>';
+        inner += '</div>';
+        inner += '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">';
+        inner += '<button class="act-btn act-edit" style="font-size:11px;padding:6px 10px" onclick="editFromDoublons(\'' + idEsc + '\')">&#9998; Éditer</button>';
+        inner += '<button class="toggle-btn ' + (p.actif ? 'active' : '') + '" style="font-size:11px;padding:6px 10px" onclick="toggleDoublonActif(\'' + idEsc + '\', ' + p.actif + ')">' + (p.actif ? 'ON' : 'OFF') + '</button>';
+        inner += '</div>';
+        inner += '</div></div>';
+      });
+      inner += '</div>';
+    });
+  }
+
+  inner += '<div class="modal-actions" style="margin-top:10px"><button class="modal-action cancel" onclick="closeDoublonsModal()">Fermer</button></div>';
+  inner += '</div>';
+
+  overlay.innerHTML = inner;
+  document.body.appendChild(overlay);
+}
+
+function closeDoublonsModal() {
+  const m = document.getElementById('doublons-modal');
+  if (m) m.remove();
+}
+
+async function toggleDoublonActif(pid, currentActif) {
+  const newVal = !currentActif;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ actif: newVal }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadAdminProducts();
+  await loadProducts();
+  // Refresh modal in place pour refléter le nouveau statut
+  openDoublonsModal();
+  // Rerender la liste BackOffice en arrière-plan
+  renderAdminProducts();
+  showToast(newVal ? 'Produit réactivé' : 'Produit désactivé', 'sync');
+}
+
+function editFromDoublons(pid) {
+  closeDoublonsModal();
+  startEditProduct(pid);
+}
+
 function renderAdminProducts() {
 const mc = document.getElementById('main-content');
 
@@ -8405,6 +8519,8 @@ let html = '<div class="info-banner"><strong>Catalogue produits</strong><br>Ajou
 html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">';
 html += '<button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel</button>';
 html += '<button class="btn-gold" onclick="triggerImportProducts()">📥 Import Produits</button>';
+// v20.37 — Détection de doublons
+html += '<button class="btn-gold" onclick="openDoublonsModal()">🔍 Détecter doublons</button>';
 html += '<input type="file" id="import-products-xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="handleImportProductsFile(this)">';
 html += '</div>';
 
