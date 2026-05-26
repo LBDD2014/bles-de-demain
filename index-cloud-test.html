@@ -3153,7 +3153,9 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
 byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); }).forEach(function(r) {
 html += '<div class="produit-row" style="grid-template-columns:1fr 100px">';
-html += '<div><div class="produit-name">' + escapeHtml(r.p.name) + '</div></div>';
+// v20.38 — Conditionnement sous le nom
+const condTxtTr = formatConditioning(r.p);
+html += '<div><div class="produit-name">' + escapeHtml(r.p.name) + '</div>' + (condTxtTr ? '<div class="produit-unit">' + escapeHtml(condTxtTr) + '</div>' : '') + '</div>';
 html += '<div class="traiteur-total"><strong>' + r.qty + '</strong></div>';
 html += '</div>';
 });
@@ -3173,7 +3175,9 @@ prevPids.forEach(function(pid) {
 const p = products.find(function(x) { return x.id === pid; });
 if (!p) return;
 html += '<div class="produit-row" style="grid-template-columns:1fr 100px">';
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+// v20.38 — Conditionnement sous le nom
+const condTxtPSa = formatConditioning(p);
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtPSa ? '<div class="produit-unit">' + escapeHtml(condTxtPSa) + '</div>' : '') + '</div>';
 html += '<div class="traiteur-total"><strong>' + productionSAData.previs_sa[pid] + '</strong></div>';
 html += '</div>';
 });
@@ -4612,7 +4616,9 @@ html += '<div class="section-header section-header-reappro">'
   const livreDisplay = livreeQty != null ? livreeQty : cmdQty;
   const isPartial = livreeQty != null && livreeQty < cmdQty;
   html += '<div class="livreur-row' + (isLivre ? ' validated' : '') + (isPartial ? ' partial' : '') + '">';
-  html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">Cmd : ' + cmdQty + '</div></div>';
+  // v20.38 — Conditionnement après le Cmd : X
+  const condTxtLv = formatConditioning(p);
+  html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">Cmd : ' + cmdQty + (condTxtLv ? ' · ' + escapeHtml(condTxtLv) : '') + '</div></div>';
   html += '<input type="number" inputmode="numeric" min="0" class="qty-input livreur-qty" data-rid="' + r.id + '" placeholder="' + cmdQty + '" value="' + (livreeQty != null ? livreeQty : '') + '" onchange="updateLivreeQty(this)">';
   html += '<button class="livreur-check ' + (isLivre ? 'checked' : '') + '" onclick="toggleLivre(\'' + r.id + '\', ' + isLivre + ')">✓</button>';
   html += '</div>';
@@ -5563,8 +5569,11 @@ const prodCls = r.produitRaw ? 'has-prod' : '';
 const stockCls = r.stockRaw ? 'has-stock' : '';
 let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + '">'
 
+// v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
-+ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>';
++ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
++ (formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
++ '</div>';
   if (showMatinV) {
     // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
     const matinDisp = r.matinV > 0 ? formatQty(r.matinV) : '';
@@ -5953,8 +5962,11 @@ const clsCt = r.commandeTranRaw    ? 'has-commande_tranchee' : '';
 const clsP  = r.pertesRaw          ? 'has-pertes' : '';
 html += '<div class="market-row">'
 
+// v20.38 — Conditionnement à côté du nom (Marché)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
-+ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '') + '</div>'
++ (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
++ (formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
++ '</div>'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsM  + '" data-pid="' + r.p.id + '" data-field="marche"            value="' + escapeHtml(r.marcheRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsC  + '" data-pid="' + r.p.id + '" data-field="commande"          value="' + escapeHtml(r.commandeRaw     || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsCt + '" data-pid="' + r.p.id + '" data-field="commande_tranchee" value="' + escapeHtml(r.commandeTranRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
@@ -9030,7 +9042,9 @@ else alertCls = 'stock-green';
 let ecartCls = '';
 if (Math.abs(ecart) > Math.max(theo * 0.1, 1)) ecartCls = 'stock-red';
 html += '<div class="produit-row stock-row ' + alertCls + '">';
-html += '<div><div class="produit-name">' + escapeHtml(e.product.name) + '</div></div>';
+// v20.38 — Conditionnement sous le nom (Stock Local)
+const condTxtSt = formatConditioning(e.product);
+html += '<div><div class="produit-name">' + escapeHtml(e.product.name) + '</div>' + (condTxtSt ? '<div class="produit-unit">' + escapeHtml(condTxtSt) + '</div>' : '') + '</div>';
 html += '<div class="stock-cell">' + theo + '</div>';
 html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input stock-real-inp" data-pid="' + e.product.id + '" placeholder="' + real + '" onchange="saveStockReal(this)"></div>';
 html += '<div class="stock-cell ' + ecartCls + '">' + (ecart > 0 ? '+' : '') + ecart + '</div>';
@@ -9464,7 +9478,9 @@ const psaDisplay = psaFilled ? psa : (defSA != null ? String(defSA) : '');
 const pvIsDefault = !pvFilled && defVeigne != null;
 const psaIsDefault = !psaFilled && defSA != null;
 html += '<div class="traiteur-row">';
-html += '<div class="produit-name">' + escapeHtml(p.name) + '</div>';
+// v20.38 — Conditionnement sous le nom (Prévis Traiteur Veigné)
+const condTxtTrV = formatConditioning(p);
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtTrV ? '<div class="produit-unit">' + escapeHtml(condTxtTrV) + '</div>' : '') + '</div>';
 html += '<input type="text" inputmode="decimal" class="qty-input ' + (pvFilled ? 'has-value' : '') + (pvIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" value="' + escapeHtml(pvDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
 html += '<div class="traiteur-j1">' + (j1vN > 0 ? j1vN : '-') + '</div>';
 html += '<input type="text" inputmode="decimal" class="qty-input ' + (psaFilled ? 'has-value' : '') + (psaIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" value="' + escapeHtml(psaDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
@@ -9492,7 +9508,9 @@ const displayValue = pvFilled ? pv : (defTours != null ? String(defTours) : '');
 const isDefault = !pvFilled && defTours != null;
 const filled = pvFilled;
 html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+// v20.38 — Conditionnement sous le nom (Prévis Traiteur Tours)
+const condTxtTrT = formatConditioning(p);
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtTrT ? '<div class="produit-unit">' + escapeHtml(condTxtTrT) + '</div>' : '') + '</div>';
 html += '<div class="previs-j1">' + (j1vN > 0 ? j1vN : '<span style="color:#bbb">-</span>') + '</div>';
 html += '<div class="prev-input-wrap">';
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="tours" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
@@ -9541,7 +9559,9 @@ const defSA = getDefaultQty('saint-avertin', p.id, currentPrevisDate);
 const displayValue = pvFilled ? pv : (defSA != null ? String(defSA) : '');
 const isDefault = !pvFilled && defSA != null;
 html += '<div class="produit-row' + (pvFilled ? ' row-filled' : '') + '">';
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div></div>';
+// v20.38 — Conditionnement sous le nom (Prévis Traiteur St-Av)
+const condTxtTrSa = formatConditioning(p);
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtTrSa ? '<div class="produit-unit">' + escapeHtml(condTxtTrSa) + '</div>' : '') + '</div>';
 html += '<div class="prev-input-wrap" style="grid-column:2/-1">';
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pvFilled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisTraiteurSAInput(this)" onfocus="this.select()">';
 html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'saint-avertin\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
