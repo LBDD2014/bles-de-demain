@@ -7048,7 +7048,9 @@ let proInterfaceOrders = [];           // ses commandes (passé 30j + à venir)
 let proInterfaceProducts = [];         // catalogue dispo pour ce pro
 
 async function initProInterface(token) {
-  // Cacher les éléments app standard
+  // Cacher les éléments app standard (splash + app principal)
+  const splashEl = document.getElementById('splash');
+  if (splashEl) splashEl.style.display = 'none';
   const appEl = document.getElementById('app');
   if (appEl) appEl.style.display = 'none';
 
