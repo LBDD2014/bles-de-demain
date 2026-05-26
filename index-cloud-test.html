@@ -7051,7 +7051,10 @@ function renderAdminPros() {
 
   let html = renderProsViewToggle('list');
   html += '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafes, hotels livres par Le Local (ou autre boutique source). Configure ici nom + contact + boutiques. Les jours de livraison, catalogue restreint et tarifs spéciaux arrivent en v21.0.2.</div>';
-  html += '<div style="margin:10px 0"><button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button></div>';
+  html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button>'
+    + '<button class="btn-gold" onclick="openGenerateRecurringModal()">🔄 Générer commandes récurrentes</button>'
+    + '</div>';
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbInactifs + '</div><div class="prod-kpi-lbl">Inactifs</div></div>'
@@ -7325,8 +7328,55 @@ function renderProForm(mc) {
   }
   html += '</div>';
 
-  // v21.0.3.2 — Panier type retiré du BackOffice. Le pro le configurera lui-même dans son interface client (v21.2).
-  // La colonne template_items reste en BDD ; on persiste ce qui est déjà dedans sans le toucher.
+  // v21.1 — Panier type (récurrent) : réactivé pour la génération auto des commandes
+  // (avant v21.0.3.2 retirait l'UI ; maintenant utilisé par "Générer commandes récurrentes")
+  html += '<div class="pro-form-section">'
+    + '<h3>Panier type (récurrent)</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Liste de produits + quantités qui seront utilisés par <strong>"🔄 Générer commandes récurrentes"</strong> pour pré-remplir les commandes des jours de livraison configurés. Laisse vide si tu préfères que ça reprenne la dernière commande du même jour de la semaine.</div>';
+
+  // Catalogue dispo pour ce pro : actifs + (standards ou pros_only de ce pro) + catalogue restreint
+  const tmplCatalogue = (adminProducts || []).filter(function(p) {
+    if (!p.actif) return false;
+    if (p.pros_only_id && d.id && p.pros_only_id !== d.id) return false;
+    if (Array.isArray(d.catalogue_restreint) && d.catalogue_restreint.length > 0) {
+      if (d.catalogue_restreint.indexOf(p.id) === -1) return false;
+    }
+    return true;
+  });
+
+  if (!d.template_items || !d.template_items.length) {
+    html += '<div class="pro-form-hint" style="font-style:italic;margin-bottom:8px">Aucun produit dans le panier type. Ajoute en-dessous pour configurer la commande récurrente.</div>';
+  } else {
+    d.template_items.forEach(function(item, idx) {
+      html += '<div class="pro-prix-row">'
+        + '<select class="pro-input" style="flex:1" onchange="handleProTemplateField(' + idx + ', \'product_id\', this.value); renderAdminPros();">';
+      html += '<option value="">— Choisir un produit —</option>';
+      const grouped = {};
+      tmplCatalogue.forEach(function(p) {
+        const c = p.category || '_autres';
+        if (!grouped[c]) grouped[c] = [];
+        grouped[c].push(p);
+      });
+      Object.keys(grouped).forEach(function(c) {
+        html += '<optgroup label="' + escapeHtml(CAT_LABELS[c] || c) + '">';
+        grouped[c].forEach(function(p) {
+          html += '<option value="' + escapeHtml(p.id) + '"' + (item.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+        });
+        html += '</optgroup>';
+      });
+      // Si product_id n'existe plus dans le catalogue (catalogue restreint changé), l'ajouter en option pour ne pas le perdre
+      if (item.product_id && !tmplCatalogue.some(function(p) { return p.id === item.product_id; })) {
+        const lostProd = (adminProducts || []).find(function(p) { return p.id === item.product_id; });
+        html += '<option value="' + escapeHtml(item.product_id) + '" selected>' + escapeHtml((lostProd ? lostProd.name : item.product_id) + ' (hors catalogue)') + '</option>';
+      }
+      html += '</select>'
+        + '<input type="number" min="1" step="1" class="pro-input" style="width:75px;text-align:center" value="' + escapeHtml(String(item.qty || '')) + '" placeholder="qty" oninput="handleProTemplateField(' + idx + ', \'qty\', this.value)">'
+        + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProTemplateItem(' + idx + ')" title="Retirer">🗑️</button>'
+      + '</div>';
+    });
+  }
+  html += '<button class="pro-add-btn" onclick="addProTemplateItem()">+ Ajouter un produit au panier</button>';
+  html += '</div>';
 
   html += '</div>';
   mc.innerHTML = html;
@@ -7822,6 +7872,252 @@ function renderProsWeek(mc) {
   html += '</div>';
 
   mc.innerHTML = html;
+}
+
+// === v21.1 — Génération auto des commandes pros récurrentes ===
+// Source : pros.template_items si configuré, sinon dernière commande du même DOW (lookback 30j)
+// Déclencheur : bouton manuel "🔄 Générer commandes récurrentes" dans BackOffice → Pros
+// Crée les commandes en statut "brouillon" → Phil/équipe valide avant envoi
+
+const DOW_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+function getDOWNameForISO(iso) {
+  const d = new Date(iso + 'T12:00');
+  return DOW_NAMES[d.getDay()];
+}
+
+async function openGenerateRecurringModal() {
+  if (!adminProducts.length) await loadAdminProducts();
+  if (!adminPros.length) await loadAdminPros();
+
+  // Fenêtre par défaut : de demain à demain+6 (= 7 jours)
+  const todayD = new Date();
+  todayD.setDate(todayD.getDate() + 1);
+  const defaultStart = todayD.getFullYear() + '-' + String(todayD.getMonth()+1).padStart(2,'0') + '-' + String(todayD.getDate()).padStart(2,'0');
+
+  // State local sur l'overlay (data-attrs)
+  const old = document.getElementById('generate-recurring-modal');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'generate-recurring-modal';
+  overlay.className = 'modal-overlay show';
+  overlay.style.zIndex = '1000';
+  overlay.onclick = function(e) { if (e.target === overlay) closeGenerateRecurringModal(); };
+  overlay.dataset.start = defaultStart;
+  overlay.dataset.days = '7';
+  // Placeholder de chargement pendant la première requête Supabase
+  overlay.innerHTML = '<div class="modal" style="max-width:640px"><div class="modal-title">🔄 Générer commandes récurrentes</div><div class="modal-sub">Chargement…</div></div>';
+  document.body.appendChild(overlay);
+
+  await refreshGenerateRecurringModal();
+}
+
+async function refreshGenerateRecurringModal() {
+  const overlay = document.getElementById('generate-recurring-modal');
+  if (!overlay) return;
+  const startISO = overlay.dataset.start;
+  const days = parseInt(overlay.dataset.days, 10) || 7;
+
+  // Charger les commandes existantes dans la fenêtre + un lookback de 30j pour le fallback
+  const lookback = 30;
+  const lookbackD = new Date(startISO + 'T12:00');
+  lookbackD.setDate(lookbackD.getDate() - lookback);
+  const lookbackISO = lookbackD.getFullYear() + '-' + String(lookbackD.getMonth()+1).padStart(2,'0') + '-' + String(lookbackD.getDate()).padStart(2,'0');
+  const endD = new Date(startISO + 'T12:00');
+  endD.setDate(endD.getDate() + days - 1);
+  const endISO = endD.getFullYear() + '-' + String(endD.getMonth()+1).padStart(2,'0') + '-' + String(endD.getDate()).padStart(2,'0');
+
+  const { data: existingData, error } = await supa
+    .from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .gte('date_livraison', lookbackISO)
+    .lte('date_livraison', endISO)
+    .neq('statut', 'annule');
+  if (error) { showToast('Erreur chargement: ' + error.message, 'error'); return; }
+  const existing = existingData || [];
+
+  // Construire le plan de génération
+  const plan = [];  // [{ pro, dateISO, items, source }]
+  const activePros = adminPros.filter(function(p) { return p.actif; });
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(startISO + 'T12:00');
+    d.setDate(d.getDate() + i);
+    const dateISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    const dow = DOW_NAMES[d.getDay()];
+
+    activePros.forEach(function(pro) {
+      // Le jour est-il dans jours_livraison de ce pro ?
+      const jours = pro.jours_livraison || {};
+      if (!jours[dow] || !jours[dow].actif) return;
+
+      // Existe déjà ?
+      if (existing.some(function(o) { return o.pro_id === pro.id && o.date_livraison === dateISO; })) return;
+
+      // Source 1 : template_items
+      let items = null;
+      let source = '';
+      if (Array.isArray(pro.template_items) && pro.template_items.length > 0) {
+        items = pro.template_items.filter(function(t) { return t.product_id && Number(t.qty) > 0; }).map(function(t) {
+          return { product_id: t.product_id, qty: Number(t.qty) };
+        });
+        source = 'template';
+      }
+      // Source 2 (fallback) : dernière commande même DOW dans le lookback
+      if (!items || !items.length) {
+        const sameDowOrders = existing
+          .filter(function(o) {
+            if (o.pro_id !== pro.id) return false;
+            if (o.date_livraison >= dateISO) return false; // strictement passé
+            return getDOWNameForISO(o.date_livraison) === dow;
+          })
+          .sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
+        if (sameDowOrders.length > 0) {
+          const ref = sameDowOrders[0];
+          const refItems = (ref.pro_order_items || []).filter(function(it) { return it.product_id && Number(it.qty) > 0; });
+          if (refItems.length) {
+            items = refItems.map(function(it) {
+              return { product_id: it.product_id, qty: Number(it.qty) };
+            });
+            source = 'lastorder:' + ref.date_livraison;
+          }
+        }
+      }
+
+      if (!items || !items.length) return; // ni template ni historique → skip
+
+      plan.push({ pro: pro, dateISO: dateISO, dow: dow, items: items, source: source });
+    });
+  }
+
+  // Construire HTML modal
+  let inner = '<div class="modal" style="max-width:640px;width:100%;max-height:88vh;overflow-y:auto">';
+  inner += '<div class="modal-title">🔄 Générer commandes récurrentes</div>';
+  inner += '<div class="modal-sub">Crée des commandes pros en statut <strong>brouillon</strong> selon les jours de livraison configurés. Source : panier type si défini, sinon dernière commande du même jour de la semaine.</div>';
+
+  // Sélecteurs date/jours
+  inner += '<div style="display:flex;gap:10px;align-items:end;margin-bottom:10px">';
+  inner += '<div style="flex:1"><label style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase">Date de début</label>';
+  inner += '<input type="date" id="gen-start-date" value="' + escapeHtml(startISO) + '" onchange="updateGenerateModalState(\'start\', this.value)" style="width:100%;padding:8px;border:1px solid var(--gold);border-radius:6px"></div>';
+  inner += '<div style="width:120px"><label style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase">Nb jours</label>';
+  inner += '<input type="number" id="gen-days" min="1" max="30" value="' + escapeHtml(String(days)) + '" onchange="updateGenerateModalState(\'days\', this.value)" style="width:100%;padding:8px;border:1px solid var(--gold);border-radius:6px;text-align:center"></div>';
+  inner += '</div>';
+
+  // KPIs
+  const nbTemplate = plan.filter(function(p) { return p.source === 'template'; }).length;
+  const nbLast = plan.filter(function(p) { return p.source && p.source.indexOf('lastorder') === 0; }).length;
+  inner += '<div class="prod-kpi-bar" style="margin-bottom:10px">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + plan.length + '</div><div class="prod-kpi-lbl">À créer</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + nbTemplate + '</div><div class="prod-kpi-lbl">Depuis panier</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--brown-mid)">' + nbLast + '</div><div class="prod-kpi-lbl">Depuis historique</div></div>'
+    + '</div>';
+
+  if (!plan.length) {
+    inner += '<div class="empty-state" style="background:#FAF6EE;border-radius:8px;padding:14px">'
+      + 'Rien à créer sur cette fenêtre.<br>'
+      + '<span style="font-size:11px;color:var(--brown-mid)">Causes possibles : aucun pro actif, jours_livraison vide, commandes déjà créées, ni panier type ni historique pour ce DOW.</span>'
+      + '</div>';
+  } else {
+    inner += '<div style="max-height:50vh;overflow-y:auto;border:1px solid #E5DCC8;border-radius:8px">';
+    // Trier par date puis pro
+    plan.sort(function(a, b) {
+      if (a.dateISO !== b.dateISO) return a.dateISO.localeCompare(b.dateISO);
+      return a.pro.nom.localeCompare(b.pro.nom);
+    });
+    plan.forEach(function(item, idx) {
+      const srcLbl = item.source === 'template' ? '<span style="color:var(--blue)">panier</span>' : '<span style="color:var(--brown-mid)">hist. ' + escapeHtml(item.source.replace('lastorder:', '')) + '</span>';
+      const productsMap = {};
+      (adminProducts || []).forEach(function(p) { productsMap[p.id] = p; });
+      const itemsLbl = item.items.map(function(it) {
+        const prod = productsMap[it.product_id];
+        return (prod ? prod.name : it.product_id) + ' × ' + it.qty;
+      }).join(', ');
+      inner += '<div style="padding:8px;border-bottom:1px solid #F5F0E8;background:white">';
+      inner += '<div style="display:flex;gap:8px;align-items:flex-start">';
+      inner += '<input type="checkbox" id="gen-chk-' + idx + '" checked style="margin-top:3px;flex-shrink:0;width:18px;height:18px">';
+      inner += '<div style="flex:1;min-width:0">';
+      inner += '<div style="font-size:12px"><strong style="color:var(--brown)">' + escapeHtml(formatDateFr(item.dateISO)) + '</strong>';
+      inner += ' · ' + escapeHtml(item.pro.nom);
+      inner += ' · ' + srcLbl + '</div>';
+      inner += '<div style="font-size:11px;color:var(--brown-mid);margin-top:2px">' + escapeHtml(itemsLbl) + '</div>';
+      inner += '</div></div></div>';
+    });
+    inner += '</div>';
+  }
+
+  inner += '<div class="modal-actions" style="margin-top:12px">';
+  inner += '<button class="modal-action cancel" onclick="closeGenerateRecurringModal()">Annuler</button>';
+  if (plan.length) {
+    inner += '<button class="modal-action" style="background:var(--gold);color:white" onclick="applyGenerateRecurring()">Générer (' + plan.length + ')</button>';
+  }
+  inner += '</div>';
+  inner += '</div>';
+
+  overlay.innerHTML = inner;
+  // Stocker le plan sur l'overlay pour applyGenerateRecurring
+  overlay._plan = plan;
+}
+
+async function updateGenerateModalState(field, val) {
+  const overlay = document.getElementById('generate-recurring-modal');
+  if (!overlay) return;
+  if (field === 'start') overlay.dataset.start = val;
+  else if (field === 'days') overlay.dataset.days = val;
+  await refreshGenerateRecurringModal();
+}
+
+function closeGenerateRecurringModal() {
+  const m = document.getElementById('generate-recurring-modal');
+  if (m) m.remove();
+}
+
+async function applyGenerateRecurring() {
+  const overlay = document.getElementById('generate-recurring-modal');
+  if (!overlay || !overlay._plan) return;
+  const plan = overlay._plan;
+  const toCreate = plan.filter(function(_, idx) {
+    const chk = document.getElementById('gen-chk-' + idx);
+    return chk && chk.checked;
+  });
+  if (!toCreate.length) { showToast('Rien à créer', 'error'); return; }
+
+  if (!confirm('Créer ' + toCreate.length + ' commande(s) pro en statut "brouillon" ?')) return;
+
+  setSyncStatus('syncing');
+  let ok = 0, ko = 0;
+  for (let i = 0; i < toCreate.length; i++) {
+    const item = toCreate[i];
+    // 1) Insérer le pro_order
+    const orderRow = {
+      tenant_id: TENANT_ID,
+      pro_id: item.pro.id,
+      date_livraison: item.dateISO,
+      boutique_source: item.pro.boutique_principale || 'local',
+      statut: 'brouillon',
+      notes: 'Généré auto (' + (item.source === 'template' ? 'panier type' : 'historique ' + item.source.replace('lastorder:', '')) + ')',
+      created_by: 'v21.1 auto'
+    };
+    const { data: orderRes, error: oErr } = await supa.from('pro_orders').insert(orderRow).select();
+    if (oErr || !orderRes || !orderRes.length) { ko++; console.error('Création order échec:', oErr); continue; }
+    const orderId = orderRes[0].id;
+    // 2) Insérer les items avec prix appliqué
+    const itemsRows = item.items.map(function(it) {
+      return {
+        pro_order_id: orderId,
+        product_id: it.product_id,
+        qty: it.qty,
+        prix_applique: getProAppliedPrice(item.pro, it.product_id)
+      };
+    });
+    const { error: iErr } = await supa.from('pro_order_items').insert(itemsRows);
+    if (iErr) { ko++; console.error('Items échec:', iErr); continue; }
+    ok++;
+  }
+  setSyncStatus(ko > 0 ? 'error' : 'ok');
+  closeGenerateRecurringModal();
+  showToast(ok + ' commande(s) créée(s)' + (ko > 0 ? ', ' + ko + ' échec(s)' : ''), ko > 0 ? 'error' : 'sync');
 }
 
 // === v21.0.4 — COMMANDES PROS (saisie côté boutique) ===
