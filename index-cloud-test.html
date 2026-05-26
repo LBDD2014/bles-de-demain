@@ -2379,7 +2379,13 @@ function applyProductFilter() {
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = DEVICE_ID;
-  loadProducts();
+  // v21.3.0 — Détection magic link interface pro (URL ?pro_token=...)
+  const _proToken = new URLSearchParams(window.location.search).get('pro_token');
+  if (_proToken) {
+    initProInterface(_proToken);
+  } else {
+    loadProducts();
+  }
   // v20.26 — subscribeRealtimeProducts est appelé après init dans loadProducts
 } catch (err) { showInitError(err); }
 
@@ -6770,6 +6776,7 @@ function openProForm(pid) {
       catalogue_restreint: Array.isArray(p.catalogue_restreint) ? p.catalogue_restreint.slice() : null,
       prix_speciaux: (p.prix_speciaux && typeof p.prix_speciaux === 'object') ? Object.assign({}, p.prix_speciaux) : {},
       template_items: Array.isArray(p.template_items) ? p.template_items.map(function(t) { return { product_id: t.product_id, qty: t.qty }; }) : [],
+      magic_token: p.magic_token || null,  // v21.3.0
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -6972,6 +6979,258 @@ function removeProTemplateItem(idx) {
   if (!adminProsDraft) return;
   adminProsDraft.template_items.splice(idx, 1);
   renderAdminPros();
+}
+
+// v21.3.0 — Magic link interface pro : génération / révocation / copie
+function _generateMagicTokenString() {
+  // 24 bytes random → 48 hex chars : largement suffisant pour secret
+  const buf = new Uint8Array(24);
+  if (window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(buf);
+  } else {
+    // fallback (Safari ancien) — moins sécurisé mais marche
+    for (let i = 0; i < buf.length; i++) buf[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(buf).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+async function generateProMagicLink(proId, isRenew) {
+  if (isRenew && !confirm('Renouveler le magic link ?\n\nL\'ancienne URL ne marchera plus. Tu devras renvoyer la nouvelle au pro.')) return;
+  setSyncStatus('syncing');
+  const newToken = _generateMagicTokenString();
+  const { error } = await supa.from('pros').update({ magic_token: newToken }).eq('id', proId);
+  if (error) { setSyncStatus('error'); showToast('Erreur: ' + error.message, 'error'); return; }
+  setSyncStatus('ok');
+  // Mettre à jour le draft + le cache adminPros (pour le re-render immédiat)
+  if (adminProsDraft && adminProsDraft.id === proId) adminProsDraft.magic_token = newToken;
+  const pInCache = adminPros.find(function(p) { return p.id === proId; });
+  if (pInCache) pInCache.magic_token = newToken;
+  renderAdminPros();
+  showToast(isRenew ? 'Magic link renouvelé' : 'Magic link généré', 'sync');
+}
+
+async function revokeProMagicLink(proId) {
+  if (!confirm('Révoquer le magic link ?\n\nL\'URL existante ne marchera plus. Le pro ne pourra plus saisir ses commandes via son lien.')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('pros').update({ magic_token: null }).eq('id', proId);
+  if (error) { setSyncStatus('error'); showToast('Erreur: ' + error.message, 'error'); return; }
+  setSyncStatus('ok');
+  if (adminProsDraft && adminProsDraft.id === proId) adminProsDraft.magic_token = null;
+  const pInCache = adminPros.find(function(p) { return p.id === proId; });
+  if (pInCache) pInCache.magic_token = null;
+  renderAdminPros();
+  showToast('Magic link révoqué', 'sync');
+}
+
+function copyMagicLink(url) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      showToast('URL copiée dans le presse-papier', 'sync');
+    }, function() {
+      showToast('Copie échouée — copie manuellement', 'error');
+    });
+  } else {
+    // Fallback : sélectionne dans un textarea temporaire
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast('URL copiée', 'sync'); }
+    catch (e) { showToast('Copie échouée — copie manuellement', 'error'); }
+    document.body.removeChild(ta);
+  }
+}
+
+// === v21.3.0 — Interface pro (magic link) : vue dédiée pour le client pro ===
+
+let proInterfacePro = null;            // pro identifié via le token
+let proInterfaceOrders = [];           // ses commandes (passé 30j + à venir)
+let proInterfaceProducts = [];         // catalogue dispo pour ce pro
+
+async function initProInterface(token) {
+  // Cacher les éléments app standard
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.style.display = 'none';
+
+  // Container plein écran dédié
+  let proEl = document.getElementById('pro-interface');
+  if (!proEl) {
+    proEl = document.createElement('div');
+    proEl.id = 'pro-interface';
+    proEl.style.cssText = 'min-height:100vh;background:var(--cream);font-family:inherit';
+    document.body.appendChild(proEl);
+  }
+  proEl.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--brown-mid)">Chargement…</div>';
+
+  // Lookup pro via le token
+  const { data, error } = await supa
+    .from('pros').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .eq('magic_token', token)
+    .maybeSingle();
+
+  if (error || !data) {
+    proEl.innerHTML = '<div style="padding:40px 20px;max-width:480px;margin:0 auto;text-align:center">'
+      + '<div style="font-family:Georgia,serif;font-size:22px;color:var(--brown);margin-bottom:10px">🥖 Les Blés de Demain</div>'
+      + '<div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(61,43,31,0.08);margin-top:20px">'
+      + '<div style="color:var(--red);font-weight:700;margin-bottom:8px">Lien invalide ou expiré</div>'
+      + '<div style="color:var(--brown-mid);font-size:13px">Contacte ta boulangerie pour obtenir un nouveau lien.</div>'
+      + '</div></div>';
+    return;
+  }
+
+  if (!data.actif) {
+    proEl.innerHTML = '<div style="padding:40px 20px;max-width:480px;margin:0 auto;text-align:center">'
+      + '<div style="font-family:Georgia,serif;font-size:22px;color:var(--brown);margin-bottom:10px">🥖 Les Blés de Demain</div>'
+      + '<div style="background:white;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(61,43,31,0.08);margin-top:20px">'
+      + '<div style="color:var(--orange);font-weight:700;margin-bottom:8px">Compte temporairement inactif</div>'
+      + '<div style="color:var(--brown-mid);font-size:13px">Contacte ta boulangerie pour réactiver l\'accès.</div>'
+      + '</div></div>';
+    return;
+  }
+
+  proInterfacePro = data;
+  // Charger en parallèle les produits + commandes
+  await Promise.all([
+    loadProInterfaceProducts(),
+    loadProInterfaceOrders()
+  ]);
+  renderProInterface();
+}
+
+async function loadProInterfaceProducts() {
+  // Charger les produits du catalogue dispo pour ce pro
+  // (= actifs + standards/pros_only de ce pro + dans catalogue_restreint si défini)
+  const { data, error } = await supa.from('products').select('*')
+    .eq('tenant_id', TENANT_ID).eq('actif', true);
+  if (error) { proInterfaceProducts = []; return; }
+  const all = data || [];
+  const pro = proInterfacePro;
+  proInterfaceProducts = all.filter(function(p) {
+    if (p.pros_only_id && p.pros_only_id !== pro.id) return false;
+    if (Array.isArray(pro.catalogue_restreint) && pro.catalogue_restreint.length > 0) {
+      if (pro.catalogue_restreint.indexOf(p.id) === -1) return false;
+    }
+    return true;
+  });
+}
+
+async function loadProInterfaceOrders() {
+  const pro = proInterfacePro;
+  // Fenêtre : 30 derniers jours + 30 prochains jours
+  const today = todayISO();
+  const past = addDays(today, -30);
+  const future = addDays(today, 30);
+  const { data, error } = await supa.from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('pro_id', pro.id)
+    .gte('date_livraison', past)
+    .lte('date_livraison', future)
+    .neq('statut', 'annule')
+    .order('date_livraison', { ascending: false });
+  if (error) { proInterfaceOrders = []; return; }
+  proInterfaceOrders = data || [];
+}
+
+function renderProInterface() {
+  const proEl = document.getElementById('pro-interface');
+  if (!proEl) return;
+  const pro = proInterfacePro;
+  const productsMap = {};
+  proInterfaceProducts.forEach(function(p) { productsMap[p.id] = p; });
+
+  const today = todayISO();
+  const upcoming = proInterfaceOrders.filter(function(o) { return o.date_livraison >= today; })
+    .sort(function(a, b) { return a.date_livraison.localeCompare(b.date_livraison); });
+  const past = proInterfaceOrders.filter(function(o) { return o.date_livraison < today; })
+    .sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
+
+  let html = '<div style="max-width:560px;margin:0 auto;padding:20px 14px">';
+
+  // Header
+  html += '<div style="text-align:center;margin-bottom:18px">'
+    + '<div style="font-family:Georgia,serif;font-size:22px;color:var(--brown)">🥖 Les Blés de Demain</div>'
+    + '<div style="font-size:13px;color:var(--brown-mid);margin-top:4px">Espace pro · <strong>' + escapeHtml(pro.nom) + '</strong></div>'
+    + '</div>';
+
+  // Info banner
+  html += '<div class="info-banner" style="margin-bottom:14px"><strong>Bienvenue ' + escapeHtml(pro.nom) + ' 👋</strong><br>'
+    + 'Voici tes commandes en cours et passées. La saisie depuis ton téléphone arrive bientôt.<br>'
+    + '<em style="font-size:11px">En attendant, ton boulanger continue à saisir tes commandes pour toi.</em>'
+    + '</div>';
+
+  // Section "À venir"
+  html += '<div style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:var(--brown);margin:14px 0 8px">📋 Commandes à venir (' + upcoming.length + ')</div>';
+  if (!upcoming.length) {
+    html += '<div class="empty-state">Aucune commande à venir pour l\'instant.</div>';
+  } else {
+    html += renderProInterfaceOrdersList(upcoming, productsMap, pro);
+  }
+
+  // Section "Historique"
+  html += '<div style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:var(--brown);margin:18px 0 8px">📜 Historique (30 derniers jours)</div>';
+  if (!past.length) {
+    html += '<div class="empty-state">Aucune commande passée sur les 30 derniers jours.</div>';
+  } else {
+    html += renderProInterfaceOrdersList(past, productsMap, pro);
+  }
+
+  // Footer
+  html += '<div style="text-align:center;color:var(--brown-mid);font-size:11px;margin-top:30px;padding-top:14px;border-top:1px solid #E5DCC8">'
+    + 'Pour toute question : contacte ta boulangerie<br>'
+    + '<a href="https://lbdd2014.github.io/bles-de-demain/" style="color:var(--gold-dark);text-decoration:none">Les Blés de Demain</a>'
+    + '</div>';
+
+  html += '</div>';
+
+  proEl.innerHTML = html;
+}
+
+function renderProInterfaceOrdersList(orders, productsMap, pro) {
+  let html = '';
+  orders.forEach(function(o) {
+    const items = o.pro_order_items || [];
+    let total = 0;
+    items.forEach(function(it) {
+      total += Number(it.qty || 0) * Number(it.prix_applique || 0);
+    });
+    const boutiqueLbl = BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source;
+    const statutLbl = ({ brouillon: 'Brouillon', confirme: 'Confirmée', livre: 'Livrée' })[o.statut] || o.statut;
+    const statutColor = ({ brouillon: 'var(--brown-mid)', confirme: 'var(--blue)', livre: 'var(--green)' })[o.statut] || 'var(--brown-mid)';
+    html += '<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;flex-wrap:wrap;gap:6px">'
+        + '<div><strong style="color:var(--brown);font-size:14px">' + escapeHtml(formatDateFr(o.date_livraison)) + '</strong>'
+          + ' <span style="color:#999;font-size:11px">· ' + escapeHtml(boutiqueLbl) + '</span>'
+          + ' <span style="color:' + statutColor + ';font-size:11px;font-weight:700"> · ' + statutLbl + '</span>'
+        + '</div>'
+        + '<div style="font-weight:800;color:var(--gold-dark)">' + (total > 0 ? total.toFixed(2).replace('.', ',') + ' €' : '—') + '</div>'
+      + '</div>';
+    if (o.notes) {
+      html += '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:6px 10px;margin:6px 0;font-size:12px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>';
+    }
+    if (items.length) {
+      html += '<table class="recap-table" style="margin-top:6px;font-size:12px">'
+        + '<thead><tr><th style="text-align:left">Produit</th><th>Qté</th><th>PU</th><th>Total</th></tr></thead><tbody>';
+      items.forEach(function(it) {
+        const prod = productsMap[it.product_id];
+        const name = prod ? prod.name : it.product_id;
+        const qty = Number(it.qty || 0);
+        const pu = Number(it.prix_applique || 0);
+        const sub = qty * pu;
+        const qtyStr = (qty % 1 === 0) ? String(qty) : qty.toFixed(2).replace('.', ',');
+        html += '<tr>'
+          + '<td style="text-align:left">' + escapeHtml(name) + '</td>'
+          + '<td>' + qtyStr + '</td>'
+          + '<td>' + (pu > 0 ? pu.toFixed(2).replace('.', ',') + ' €' : '—') + '</td>'
+          + '<td><strong>' + (sub > 0 ? sub.toFixed(2).replace('.', ',') + ' €' : '—') + '</strong></td>'
+        + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+  });
+  return html;
 }
 
 async function saveProForm() {
@@ -7434,6 +7693,36 @@ function renderProForm(mc) {
   }
   html += '<button class="pro-add-btn" onclick="addProTemplateItem()">+ Ajouter un produit au panier</button>';
   html += '</div>';
+
+  // v21.3.0 — Magic link interface pro
+  // Permet au pro de saisir ses commandes lui-même via une URL secrète
+  if (!isNew) {
+    const token = d.magic_token || null;
+    const baseUrl = window.location.origin + window.location.pathname;
+    const fullUrl = token ? (baseUrl + '?pro_token=' + token) : '';
+    html += '<div class="pro-form-section">'
+      + '<h3>Magic link (interface pro)</h3>'
+      + '<div class="pro-form-hint" style="margin-bottom:10px">Lien secret à partager au pro. Il pourra saisir ses commandes lui-même depuis son téléphone, sans login. Si compromis, régénère pour révoquer l\'ancien.</div>';
+    if (token) {
+      html += '<div style="background:#FAF6EE;border-radius:8px;padding:10px;margin-bottom:8px;word-break:break-all">'
+        + '<div style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase;margin-bottom:4px">URL active</div>'
+        + '<div style="font-family:monospace;font-size:11px;color:var(--brown)">' + escapeHtml(fullUrl) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + '<button class="btn-gold-sm" onclick="copyMagicLink(\'' + escapeHtml(fullUrl).replace(/'/g, "\\\'") + '\')">📋 Copier</button>'
+        + '<button class="btn-gold-sm" onclick="generateProMagicLink(\'' + escapeHtml(d.id) + '\', true)">🔄 Renouveler</button>'
+        + '<button class="btn-gold-sm" style="background:#FEF2F2;color:var(--red);border:1px solid var(--red)" onclick="revokeProMagicLink(\'' + escapeHtml(d.id) + '\')">🚫 Révoquer</button>'
+        + '</div>';
+    } else {
+      html += '<button class="btn-gold" onclick="generateProMagicLink(\'' + escapeHtml(d.id) + '\', false)">🔗 Générer magic link</button>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="pro-form-section">'
+      + '<h3>Magic link (interface pro)</h3>'
+      + '<div class="pro-form-hint" style="font-style:italic">Enregistre d\'abord le pro puis reviens l\'éditer pour générer un magic link.</div>'
+      + '</div>';
+  }
 
   html += '</div>';
   mc.innerHTML = html;
