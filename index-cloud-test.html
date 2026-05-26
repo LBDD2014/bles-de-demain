@@ -5309,6 +5309,22 @@ if (isLocalBoul) {
 const activeMarkets = MARKET_IDS.filter(function(mid) {
 return marketUpcomingData[mid] && marketUpcomingData[mid]._products && Object.keys(marketUpcomingData[mid]._products).length > 0;
 });
+// v20.41 — Le Local (Prod. Boulangers + Touriers) : forcer l'affichage de la
+// colonne Marché les jours de marché (vendredi → Amboise, samedi → Beaujardin)
+// même si aucune qty n'est encore saisie côté Marché. La colonne affichera 0
+// si vide, ce qui rappelle aux boulangers que le marché est ce jour-là.
+if (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue === 'prod_tour')) {
+  const _curDow = new Date(currentReapproDate + 'T12:00').getDay();
+  MARKET_IDS.forEach(function(mid) {
+    if (MARKET_DAY_OF_WEEK[mid] === _curDow && activeMarkets.indexOf(mid) === -1) {
+      activeMarkets.push(mid);
+      // Init structure vide pour éviter des undefined dans le rendu
+      if (!marketUpcomingData[mid]) {
+        marketUpcomingData[mid] = { _date: currentReapproDate, _products: {} };
+      }
+    }
+  });
+}
 
 // v20.7 — colonne Spé pour les boutiques avec spéciales (Veigné/Local)
 const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local');
