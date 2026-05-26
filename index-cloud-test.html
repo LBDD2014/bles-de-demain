@@ -8968,7 +8968,12 @@ const mc = document.getElementById('main-content');
 
 let filtered = adminProducts.slice();
 if (adminHideInactive) filtered = filtered.filter(function(p) { return p.actif; });
-if (adminCatFilter !== 'all') filtered = filtered.filter(function(p) { return p.category === adminCatFilter; });
+// v21.1.1 — Filtre virtuel "Spécifiques pro" : isole les produits avec pros_only_id rempli
+if (adminCatFilter === '_pros_only') {
+  filtered = filtered.filter(function(p) { return p.pros_only_id != null && p.pros_only_id !== ''; });
+} else if (adminCatFilter !== 'all') {
+  filtered = filtered.filter(function(p) { return p.category === adminCatFilter; });
+}
 
 const nbActifs = adminProducts.filter(function(p) { return p.actif; }).length;
 const nbInactifs = adminProducts.filter(function(p) { return !p.actif; }).length;
@@ -9050,6 +9055,11 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 });
 html += '<div class="recap-toggle" style="flex-wrap:wrap">';
 html += '<button class="recap-toggle-btn ' + (adminCatFilter === 'all' ? 'active' : '') + '" onclick="setAdminCatFilter(\'all\')" style="flex:0 0 auto;padding:6px 12px">Toutes</button>';
+// v21.1.1 — Filtre virtuel "Spécifiques pro"
+const nbProsOnly = adminProducts.filter(function(p) { return p.pros_only_id != null && p.pros_only_id !== ''; }).length;
+if (nbProsOnly > 0) {
+  html += '<button class="recap-toggle-btn ' + (adminCatFilter === '_pros_only' ? 'active' : '') + '" onclick="setAdminCatFilter(\'_pros_only\')" style="flex:0 0 auto;padding:6px 12px">🔒 Spécifiques pro (' + nbProsOnly + ')</button>';
+}
 catsPresent.forEach(function(c) {
 html += '<button class="recap-toggle-btn ' + (adminCatFilter === c ? 'active' : '') + '" onclick="setAdminCatFilter(\'' + c + '\')" style="flex:0 0 auto;padding:6px 12px">' + escapeHtml(CAT_LABELS[c] || c) + '</button>';
 });
