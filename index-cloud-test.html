@@ -3041,6 +3041,44 @@ renderReapproByContext();
 showToast('Valeurs reprises de ' + label, 'sync');
 }
 
+// v20.44 — Ventes : reprendre les quantités Matin d'hier / de la semaine dernière (évite de retaper)
+function isVentesPrevisEditable(p) {
+  const supply = getProductSupply(p, currentBoutique);
+  const stAvEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
+  const isStAvEditable = currentBoutique === 'saint-avertin'
+    && (supply === 'local' || supply === 'veigne')
+    && stAvEditableCats.indexOf(p.category) !== -1;
+  return (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvEditable;
+}
+
+async function ventesCopyMatinFrom(offsetDays, label) {
+  if (!VENTES_BOUTIQUES.includes(currentBoutique)) return;
+  const srcDate = addDays(currentDate, -offsetDays);
+  const srcPrevis = await loadPrevisRaw(currentBoutique, srcDate);
+  const rows = [];
+  getProductsForVentes().forEach(function(p) {
+    if (!isVentesPrevisEditable(p)) return;
+    const v = srcPrevis[p.id];
+    if (v != null && v !== '' && Number(v) > 0) {
+      rows.push({
+        tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: p.id,
+        service_date: currentDate, qty: parseQty(v),
+        updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+      });
+    }
+  });
+  if (!rows.length) { showToast('Aucune quantité Matin à reprendre pour ' + label + ' (' + srcDate + ')', 'error'); return; }
+  if (!confirm('Reprendre les ' + rows.length + ' quantités Matin de ' + label + ' ?\n(ça remplace ce qui est déjà saisi en Matin)')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('previs').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  showToast('Matin repris de ' + label, 'sync');
+  renderVentes();
+}
+function ventesCopyYesterday() { return ventesCopyMatinFrom(1, 'hier'); }
+function ventesCopyLastWeek() { return ventesCopyMatinFrom(7, 'la semaine dernière'); }
+
 function subscribeRealtimeReappro(b) {
 if (realtimeChannelReappro) supa.removeChannel(realtimeChannelReappro);
 realtimeChannelReappro = supa.channel('reappros_' + b)
@@ -3784,6 +3822,8 @@ let html = '<div class="ventes-day-bar">'
 const dayAlreadyClosed = Object.values(salesData).some(function(d) { return d && d.day_closed === true; });
 html += '<div class="ventes-actions-bar">'
 
++ '<button class="btn-gold" onclick="ventesCopyYesterday()">↩️ Comme hier</button>'
++ '<button class="btn-gold" onclick="ventesCopyLastWeek()">📅 Comme la semaine dernière</button>'
 + '<button class="btn-gold" onclick="importJ1Zero()">✓ Importer (J1=0 tous)</button>'
 + '<button class="btn-gold btn-validate-day' + (dayAlreadyClosed ? ' is-closed' : '') + '" onclick="validateDay()">'
 + (dayAlreadyClosed ? '🔒 Journée validée — re-valider' : '✓ Valider la journée')
