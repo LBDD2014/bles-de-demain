@@ -3415,6 +3415,9 @@ if (isPain) {
 }
 
 const prods = products.filter(function(p) {
+// v20.50 — écran de commande = uniquement les produits réappro (jamais la liste vente magasin)
+const u = p.usage || 'reappro';
+if (u !== 'reappro' && u !== 'both') return false;
 if (wantedCats.indexOf(p.category) === -1) return false;
 const sup = getProductSupply(p, boutiqueForSupply);
 if (sup == null) return false;
