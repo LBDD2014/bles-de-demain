@@ -5459,7 +5459,15 @@ let allProducts;
 if (isLocalBoul) {
   allProducts = products.filter(function(p) { return p.category === 'pains'; });
 } else if (isLocalTour) {
-  allProducts = products.filter(function(p) { return p.category === 'viennoiserie' || p.category === 'brioches_special'; });
+  allProducts = products.filter(function(p) {
+    if (p.category === 'viennoiserie' || p.category === 'brioches_special') return true;
+    // v20.46 — Pâtisseries fabriquées au Local (Vigneronnes, tartelettes, cannelés…) à la suite,
+    // alimentées par la prévision St-Av. Critère : pâtisserie/gâteaux secs · source St-Av = local · version vente.
+    if ((p.category === 'patisserie_petits' || p.category === 'patisserie_gros' || p.category === 'gateaux_secs')
+        && getProductSupply(p, 'saint-avertin') === 'local'
+        && (p.usage === 'ventes' || p.usage === 'both')) return true;
+    return false;
+  });
 } else {
   allProducts = products.slice();
 }
