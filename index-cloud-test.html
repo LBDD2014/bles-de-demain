@@ -4953,16 +4953,9 @@ async function deductVeignePatStock(r) {
     .eq('tenant_id', TENANT_ID).eq('product_id', r.product_id);
   const st = stRows && stRows[0];
   if (!st) return;
-  const pieces = parseQty(r.qty_livree != null ? r.qty_livree : r.commander);
-  if (!pieces || pieces <= 0) return;
-  let dec;
-  if (st.stock_unit === 'piece') {
-    dec = pieces;
-  } else {
-    // caisse / grille : il faut le nb de pièces par unité ; sinon on saute (ex : grille pas encore renseignée)
-    if (!st.unit_pieces || st.unit_pieces <= 0) return;
-    dec = pieces / st.unit_pieces;
-  }
+  // Décompte 1 pour 1 : qty_livree est déjà dans l'unité du produit (grille = caisse, ou pièce)
+  const dec = parseQty(r.qty_livree != null ? r.qty_livree : r.commander);
+  if (!dec || dec <= 0) return;
   const newStock = (Number(st.stock) || 0) - dec;
   await supa.from('veigne_pat_stock')
     .update({ stock: newStock, updated_at: new Date().toISOString(), updated_by: DEVICE_ID })
