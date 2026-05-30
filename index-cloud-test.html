@@ -3237,6 +3237,9 @@ function renderReappro() {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
 const prodsForBoutique = products.filter(function(p) {
+// v20.43 — écran de commande/réappro = uniquement les produits réappro (jamais la liste vente magasin)
+const u = p.usage || 'reappro';
+if (u !== 'reappro' && u !== 'both') return false;
 if (getProductSupply(p, currentBoutique) == null) return false;
 const s = getProductSupply(p, currentBoutique);
 // Exclusions v20 : les produits qui ont leur propre ecran Prévis / Traiteur
