@@ -2051,6 +2051,7 @@ const NAV_ITEMS = {
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
     { id: 'specials',     lbl: 'Spéciales' },
     { id: 'production',   lbl: 'À produire' },
+    { id: 'stock_pat',    lbl: 'Stock Pât.' },
     { id: 'pros_orders',  lbl: 'Pros' },
     { id: 'recap',        lbl: 'Récap' },
     { id: 'messages',     lbl: 'Messages' }
@@ -2101,6 +2102,7 @@ const NAV_ITEMS = {
 
 let supa, currentBoutique = null, currentVue = 'reappro';
 let products = [], reapprosData = {}, salesData = {};
+let veignePatStockData = {}; // v20.47 — stock pâtisserie Veigné { product_id: {stock, mini, maxi, stock_unit, unit_pieces} }
 let realtimeChannelReappro = null, realtimeChannelSales = null;
 let updateTimers = {}, currentDate = todayISO();
 let rupturePid = null;
@@ -2856,6 +2858,10 @@ await loadProStock();
 await loadProStockMovements();
 subscribeRealtimeProStock();
 renderStockBoulangerPro();
+} else if (v === 'stock_pat') {
+// v20.47 — Stock pâtisserie Veigné
+await loadVeignePatStock();
+renderStockVeignePat();
 }
 }
 
@@ -4924,11 +4930,160 @@ if (wasAlreadyLivre) return;
 // Charger la ligne pour savoir quel produit et quelle qte
 const { data: r } = await supa.from('reappros').select('*').eq('id', rid).single();
 if (!r) return;
+// v20.47 — décompte du stock pâtisserie Veigné (produits fournis par Veigné vers Tours/St-Av)
+await deductVeignePatStock(r);
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p) return;
 if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
 // La deduction se fait automatiquement dans le calcul du stock Local (loadStockData prend déjà qty_livree en compte)
 // Rien a faire ici : le stock recalculera au prochain affichage.
+}
+
+// === v20.47 — STOCK PÂTISSERIE VEIGNÉ (caisses / pièces / grilles) ===
+
+// Décompte du stock Veigné quand le livreur valide une livraison fournie par Veigné
+async function deductVeignePatStock(r) {
+  if (!r || !r.product_id) return;
+  const p = products.find(function(x) { return x.id === r.product_id; });
+  if (!p) return;
+  // Seulement les livraisons effectivement fournies par Veigné (Tours/St-Av)
+  if (getProductSupply(p, r.boutique_id) !== 'veigne') return;
+  // Charger la ligne de stock (lecture fraîche : le livreur n'a pas forcément le cache)
+  const { data: stRows } = await supa.from('veigne_pat_stock').select('*')
+    .eq('tenant_id', TENANT_ID).eq('product_id', r.product_id);
+  const st = stRows && stRows[0];
+  if (!st) return;
+  const pieces = parseQty(r.qty_livree != null ? r.qty_livree : r.commander);
+  if (!pieces || pieces <= 0) return;
+  let dec;
+  if (st.stock_unit === 'piece') {
+    dec = pieces;
+  } else {
+    // caisse / grille : il faut le nb de pièces par unité ; sinon on saute (ex : grille pas encore renseignée)
+    if (!st.unit_pieces || st.unit_pieces <= 0) return;
+    dec = pieces / st.unit_pieces;
+  }
+  const newStock = (Number(st.stock) || 0) - dec;
+  await supa.from('veigne_pat_stock')
+    .update({ stock: newStock, updated_at: new Date().toISOString(), updated_by: DEVICE_ID })
+    .eq('tenant_id', TENANT_ID).eq('product_id', r.product_id);
+  if (veignePatStockData[r.product_id]) veignePatStockData[r.product_id].stock = newStock;
+}
+
+async function loadVeignePatStock() {
+  const { data, error } = await supa.from('veigne_pat_stock').select('*').eq('tenant_id', TENANT_ID);
+  veignePatStockData = {};
+  if (error) { showToast('Erreur stock pât. : ' + error.message, 'error'); return; }
+  (data || []).forEach(function(r) { veignePatStockData[r.product_id] = r; });
+}
+
+function veignePatUnitLabel(st) {
+  if (st.stock_unit === 'caisse') return 'caisse' + (st.unit_pieces ? ' de ' + st.unit_pieces : '');
+  if (st.stock_unit === 'grille') return 'grille' + (st.unit_pieces ? ' de ' + st.unit_pieces : ' (nb à renseigner)');
+  return 'pièce';
+}
+
+function renderStockVeignePat() {
+  const mc = document.getElementById('main-content');
+  let html = '<div class="info-banner"><strong>Stock Pâtisserie Veigné</strong><br>'
+    + 'Saisis l\'<strong>Entrée</strong> (ce que tu mets au stock aujourd\'hui) → ça s\'ajoute au Stock. '
+    + 'Le Stock se décompte tout seul quand le livreur livre Tours / St-Avertin. '
+    + 'Alerte 🔴 sous le Mini, 🟠 au-dessus du Maxi.</div>';
+
+  const entries = Object.keys(veignePatStockData).map(function(pid) {
+    return { st: veignePatStockData[pid], p: products.find(function(x) { return x.id === pid; }) };
+  }).filter(function(e) { return e.p; });
+
+  if (!entries.length) { html += '<div class="empty-state">Aucun produit suivi.</div>'; mc.innerHTML = html; return; }
+
+  const byCat = {};
+  entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
+  const CATORDER = ['patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'gateaux_secs'];
+  const cats = Object.keys(byCat).sort(function(a, b) {
+    const ia = CATORDER.indexOf(a), ib = CATORDER.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  html += '<div class="section reappro-section">';
+  html += '<div class="col-header stock-col-header">'
+    + '<span class="col-lbl">Produit</span>'
+    + '<span class="col-lbl cmd">Entrée</span>'
+    + '<span class="col-lbl">Stock</span>'
+    + '<span class="col-lbl">Mini</span>'
+    + '<span class="col-lbl">Maxi</span>'
+    + '</div>';
+
+  cats.forEach(function(cat) {
+    const list = byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); });
+    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
+    list.forEach(function(e) {
+      const st = e.st;
+      const stock = Number(st.stock) || 0;
+      const mini = st.mini, maxi = st.maxi;
+      let alertCls = '';
+      if (mini != null && stock < Number(mini)) alertCls = 'stock-red';
+      else if (maxi != null && stock > Number(maxi)) alertCls = 'stock-orange';
+      else if (mini != null || maxi != null) alertCls = 'stock-green';
+      const editPen = (st.stock_unit !== 'piece')
+        ? ' <a href="#" onclick="editVeignePatUnitPieces(\'' + e.p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️</a>' : '';
+      html += '<div class="produit-row stock-row ' + alertCls + '">';
+      html += '<div><div class="produit-name">' + escapeHtml(e.p.name) + '</div>'
+        + '<div class="produit-unit">' + escapeHtml(veignePatUnitLabel(st)) + editPen + '</div></div>';
+      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" data-pid="' + e.p.id + '" placeholder="+" onchange="addVeignePatEntree(this)"></div>';
+      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" style="font-weight:700" value="' + stock + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'stock\', this.value)"></div>';
+      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" placeholder="-" value="' + (mini != null ? mini : '') + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'mini\', this.value)"></div>';
+      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" placeholder="-" value="' + (maxi != null ? maxi : '') + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'maxi\', this.value)"></div>';
+      html += '</div>';
+    });
+  });
+
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
+async function saveVeignePatField(pid, field, val) {
+  const st = veignePatStockData[pid];
+  if (!st) return;
+  let v;
+  if (field === 'unit_pieces') v = (String(val).trim() === '' ? null : (parseInt(val, 10) || null));
+  else v = (String(val).trim() === '' ? null : parseQty(val));
+  setSyncStatus('syncing');
+  const upd = { updated_at: new Date().toISOString(), updated_by: DEVICE_ID };
+  upd[field] = v;
+  const { error } = await supa.from('veigne_pat_stock').update(upd)
+    .eq('tenant_id', TENANT_ID).eq('product_id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  st[field] = v;
+  renderStockVeignePat();
+}
+
+async function addVeignePatEntree(el) {
+  const pid = el.dataset.pid;
+  const add = parseQty(el.value);
+  el.value = '';
+  if (!add) return;
+  const st = veignePatStockData[pid];
+  if (!st) return;
+  const newStock = (Number(st.stock) || 0) + add;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('veigne_pat_stock')
+    .update({ stock: newStock, updated_at: new Date().toISOString(), updated_by: DEVICE_ID })
+    .eq('tenant_id', TENANT_ID).eq('product_id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  st.stock = newStock;
+  renderStockVeignePat();
+}
+
+function editVeignePatUnitPieces(pid) {
+  const st = veignePatStockData[pid];
+  if (!st) return;
+  const p = products.find(function(x) { return x.id === pid; }) || {};
+  const cur = st.unit_pieces != null ? st.unit_pieces : '';
+  const val = prompt('Nombre de pièces par ' + st.stock_unit + ' pour « ' + (p.name || pid) + ' » :', cur);
+  if (val === null) return;
+  saveVeignePatField(pid, 'unit_pieces', val);
 }
 
 // === MODAL RUPTURE ===
