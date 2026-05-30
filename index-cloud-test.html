@@ -3322,6 +3322,7 @@ let html = '<div class="date-bar">'
 + '</div>';
 
 html += renderProductFilter();
+html += manageProductsButtonHtml();
 
 if (autoCopyLastWeekDate) {
 html += '<div class="info-banner" style="background:#FFF8E7;border-left:3px solid var(--gold)">'
@@ -3435,6 +3436,8 @@ let html = '<div class="date-bar">'
 + '</div>'
 + '<button class="date-nav" onclick="changeReapproDate(1)">→</button>'
 + '</div>';
+
+html += manageProductsButtonHtml();
 
 if (!prods.length) {
 html += '<div class="empty-state">Aucun produit.<br>Vérifie en BackOffice que ' + emptyHint + ' sont bien configurés avec <em>supply St-Av = ' + supplierLabel + '</em>.</div>';
@@ -3838,6 +3841,8 @@ html += '<div class="ventes-actions-bar">'
 + (dayAlreadyClosed ? '🔒 Journée validée — re-valider' : '✓ Valider la journée')
 + '</button>'
 + '</div>';
+
+html += manageProductsButtonHtml();
 
 if (!presentCats.length) {
 html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.</div>';
@@ -5191,6 +5196,152 @@ async function applyVeignePatPrepared(rows) {
   }
   setSyncStatus('ok');
   showToast('Réassort préparé · stock décompté', 'sync');
+}
+
+// === v20.51 — Gérer les produits depuis les écrans (rodage) : ajouter / désactiver ===
+const MANAGE_PRODUCTS_ON_SCREEN = true; // passer à false une fois rodés → gestion en BackOffice uniquement
+let manageAddDraft = { name: '', category: '', usage: 'both', unit: '' };
+let manageSearchTerm = '';
+let manageCtx = { usage: 'both', boutique: null, supply: null };
+
+function manageProductsButtonHtml() {
+  if (!MANAGE_PRODUCTS_ON_SCREEN) return '';
+  return '<div style="text-align:right;margin:4px 14px 10px"><button class="btn-gold-sm" onclick="openManageProductsModal()">⚙️ Gérer les produits</button></div>';
+}
+
+function manageSetField(f, v) { manageAddDraft[f] = v; }
+
+// Contexte selon l'écran : pré-règle usage + supply du nouveau produit pour qu'il apparaisse là où on l'ajoute
+function manageProductsCtx() {
+  const v = currentVue, b = currentBoutique;
+  if (v === 'ventes') return { usage: 'ventes', boutique: b, supply: null };
+  if (v === 'reappro_pat') {
+    if (b === 'veigne') return { usage: 'reappro', boutique: 'veigne', supply: 'on_site' };
+    return { usage: 'reappro', boutique: b, supply: 'veigne' };
+  }
+  if (v === 'reappro' || v === 'reappro_local' || v === 'reappro_pain' || v === 'reappro_vienn') {
+    return { usage: 'reappro', boutique: b, supply: 'local' };
+  }
+  return { usage: 'both', boutique: b, supply: null };
+}
+
+function openManageProductsModal() {
+  manageCtx = manageProductsCtx();
+  manageAddDraft = { name: '', category: '', usage: manageCtx.usage, unit: '' };
+  manageSearchTerm = '';
+  let el = document.getElementById('manage-products-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'manage-products-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.classList.add('show');
+  renderManageProductsModal();
+}
+
+function closeManageProductsModal() {
+  const el = document.getElementById('manage-products-modal');
+  if (el) el.classList.remove('show');
+}
+
+function manageProductsListHtml() {
+  const term = manageSearchTerm.trim().toLowerCase();
+  const list = products.filter(function(p) {
+    if (p.pros_only_id) return false;
+    return !term || (p.name || '').toLowerCase().indexOf(term) !== -1;
+  }).slice().sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+  if (!list.length) return '<div style="color:var(--brown-mid);font-style:italic;padding:8px">Aucun produit.</div>';
+  let h = '';
+  list.forEach(function(p) {
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid #F5F0E8">'
+      + '<div style="min-width:0"><div style="font-weight:600;color:var(--brown);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(p.name) + '</div>'
+      + '<div style="font-size:11px;color:var(--brown-mid)">' + escapeHtml(CAT_LABELS[p.category] || p.category || '') + '</div></div>'
+      + '<button onclick="manageDeactivateProduct(\'' + p.id + '\')" style="flex:0 0 auto;padding:7px 11px;background:#FEF2F2;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer">🚫</button>'
+      + '</div>';
+  });
+  return h;
+}
+
+function renderManageProductsModal() {
+  const el = document.getElementById('manage-products-modal');
+  if (!el) return;
+  const catOptions = Object.keys(CAT_LABELS).map(function(c) {
+    return '<option value="' + c + '"' + (manageAddDraft.category === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c]) + '</option>';
+  }).join('');
+  const UNITS = ['pièce', 'grille', 'caisse', 'sac', 'seau', 'carton', 'kg', 'L'];
+  const unitOptions = UNITS.map(function(u) {
+    return '<option value="' + u + '"' + (manageAddDraft.unit === u ? ' selected' : '') + '>' + u + '</option>';
+  }).join('');
+  let h = '<div class="modal" style="max-width:460px;max-height:86vh;display:flex;flex-direction:column;text-align:left">';
+  h += '<div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">⚙️ Gérer les produits'
+    + '<button onclick="closeManageProductsModal()" style="background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--brown-mid)">✕</button></div>';
+  h += '<div style="background:#FBF7EF;border:1px solid var(--gold);border-radius:10px;padding:10px;margin:10px 0">'
+    + '<div style="font-weight:700;color:var(--brown);margin-bottom:8px">➕ Ajouter un produit</div>'
+    + '<input type="text" placeholder="Nom du produit" value="' + escapeHtml(manageAddDraft.name) + '" oninput="manageSetField(\'name\', this.value)" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:8px;margin-bottom:6px;font-size:14px;box-sizing:border-box">'
+    + '<div style="display:flex;gap:6px;margin-bottom:6px">'
+    + '<select onchange="manageSetField(\'category\', this.value)" style="flex:1;padding:9px;border:1px solid #E0D8C8;border-radius:8px;font-size:13px;background:white"><option value="">— Catégorie —</option>' + catOptions + '</select>'
+    + '<select onchange="manageSetField(\'unit\', this.value)" style="width:120px;padding:9px;border:1px solid #E0D8C8;border-radius:8px;font-size:13px;background:white"><option value="">— Unité —</option>' + unitOptions + '</select>'
+    + '</div>'
+    + '<select onchange="manageSetField(\'usage\', this.value)" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:8px;font-size:13px;background:white;margin-bottom:8px;box-sizing:border-box">'
+    + '<option value="both"' + (manageAddDraft.usage === 'both' ? ' selected' : '') + '>Réappro + Vente</option>'
+    + '<option value="reappro"' + (manageAddDraft.usage === 'reappro' ? ' selected' : '') + '>Réappro uniquement</option>'
+    + '<option value="ventes"' + (manageAddDraft.usage === 'ventes' ? ' selected' : '') + '>Vente uniquement</option>'
+    + '</select>'
+    + '<button class="btn-gold" style="width:100%" onclick="manageAddProduct()">➕ Créer</button>'
+    + '</div>';
+  h += '<div style="font-weight:700;color:var(--brown);margin:4px 0 6px">🚫 Désactiver <span style="font-weight:400;font-size:11px;color:var(--brown-mid)">(retire des écrans · réversible)</span></div>'
+    + '<input type="text" placeholder="🔎 rechercher…" value="' + escapeHtml(manageSearchTerm) + '" oninput="manageSearchProducts(this.value)" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:8px;margin-bottom:6px;font-size:14px;box-sizing:border-box">'
+    + '<div id="manage-prod-list" style="overflow-y:auto;flex:1;min-height:120px">' + manageProductsListHtml() + '</div>';
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+function manageSearchProducts(v) {
+  manageSearchTerm = v;
+  const listEl = document.getElementById('manage-prod-list');
+  if (listEl) listEl.innerHTML = manageProductsListHtml();
+}
+
+async function manageAddProduct() {
+  const d = manageAddDraft;
+  if (!d.name.trim()) { showToast('Nom obligatoire', 'error'); return; }
+  if (!d.category) { showToast('Choisis une catégorie', 'error'); return; }
+  let supply = {};
+  if (manageCtx.supply && manageCtx.boutique) supply[manageCtx.boutique] = manageCtx.supply;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').insert({
+    tenant_id: TENANT_ID,
+    name: d.name.trim(),
+    category: d.category,
+    unit: d.unit || null,
+    usage: d.usage || 'both',
+    actif: true,
+    supply_by_boutique: supply
+  });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  showToast('Produit créé : ' + d.name.trim(), 'sync');
+  manageAddDraft = { name: '', category: '', usage: manageCtx.usage, unit: '' };
+  await loadProducts();
+  renderManageProductsModal();
+  rerenderOperationalView();
+}
+
+async function manageDeactivateProduct(pid) {
+  const p = products.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  if (!confirm('Désactiver « ' + p.name + ' » ?\nIl disparaît des écrans (réversible en BackOffice).')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ actif: false }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  showToast('Produit désactivé', 'sync');
+  await loadProducts();
+  renderManageProductsModal();
+  rerenderOperationalView();
+}
+
+function rerenderOperationalView() {
+  const v = currentVue;
+  if (v === 'ventes') renderVentes();
+  else if (v === 'reappro' || v === 'reappro_pat') renderReapproByContext();
+  else if (v === 'reappro_pain' || v === 'reappro_vienn' || v === 'reappro_local') renderReapproSA(v);
 }
 
 // === MODAL RUPTURE ===
