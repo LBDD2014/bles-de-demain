@@ -3904,7 +3904,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
     prevCell = '<div class="v-prev-ro" title="Quantité commandée (externe)">' + (prevDisplay ? '<span class="ro-arrow">↳</span> ' + escapeHtml(prevDisplay) : '<span style="color:#bbb">-</span>') + '</div>';
   }
   html += '<div class="ventes-row v201">'
-+ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + (formatConditioning(p) ? (p.unit ? ' · ' : '') + formatConditioning(p) : '') + '</div></div>'
++ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
