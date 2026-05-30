@@ -5055,19 +5055,19 @@ function renderStockVeignePat() {
       const st = e.st;
       const stock = Number(st.stock) || 0;
       const mini = st.mini, maxi = st.maxi;
-      let alertCls = '';
-      if (mini != null && stock < Number(mini)) alertCls = 'stock-red';
-      else if (maxi != null && stock > Number(maxi)) alertCls = 'stock-orange';
-      else if (mini != null || maxi != null) alertCls = 'stock-green';
+      let alertCls = '', dot = '';
+      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
+      else if (maxi != null && stock > Number(maxi)) { alertCls = 'stock-orange'; dot = '🟠 '; }
+      else if (mini != null || maxi != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       const editPen = (st.stock_unit !== 'piece')
         ? ' <a href="#" onclick="editVeignePatUnitPieces(\'' + e.p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️</a>' : '';
       html += '<div class="produit-row stock-row ' + alertCls + '">';
-      html += '<div><div class="produit-name">' + escapeHtml(e.p.name) + '</div>'
+      html += '<div><div class="produit-name">' + dot + escapeHtml(e.p.name) + '</div>'
         + '<div class="produit-unit">' + escapeHtml(veignePatUnitLabel(st)) + editPen + '</div></div>';
-      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" data-pid="' + e.p.id + '" placeholder="+" onchange="addVeignePatEntree(this)"></div>';
-      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" style="font-weight:700" value="' + stock + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'stock\', this.value)"></div>';
-      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" placeholder="-" value="' + (mini != null ? mini : '') + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'mini\', this.value)"></div>';
-      html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input" placeholder="-" value="' + (maxi != null ? maxi : '') + '" onchange="saveVeignePatField(\'' + e.p.id + '\', \'maxi\', this.value)"></div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'maxi\', this)">' + veignePatQtyOptions(maxi) + '</select></div>';
       html += '</div>';
     });
   });
@@ -5093,11 +5093,41 @@ async function saveVeignePatField(pid, field, val) {
   renderStockVeignePat();
 }
 
-async function addVeignePatEntree(el) {
-  const pid = el.dataset.pid;
-  const add = parseQty(el.value);
-  el.value = '';
-  if (!add) return;
+// v20.49 — options de menu déroulant 0..30 + valeur hors-plage + "Autre…"
+function veignePatQtyOptions(cur) {
+  const c = (cur == null || cur === '') ? null : Number(cur);
+  let o = '<option value="">—</option>';
+  for (let i = 0; i <= 30; i++) o += '<option value="' + i + '"' + (c === i ? ' selected' : '') + '>' + i + '</option>';
+  if (c != null && (c < 0 || c > 30 || !Number.isInteger(c))) o += '<option value="' + c + '" selected>' + c + '</option>';
+  o += '<option value="__custom__">✏️ Autre…</option>';
+  return o;
+}
+
+// Sélection d'une valeur (Stock / Mini / Maxi) via menu déroulant
+function veignePatSelectField(pid, field, el) {
+  let val = el.value;
+  if (val === '__custom__') {
+    const v = prompt('Valeur pour ' + field + ' :', '');
+    if (v === null) { renderStockVeignePat(); return; }
+    val = v;
+  }
+  saveVeignePatField(pid, field, val);
+}
+
+// Entrée du jour via menu déroulant → ajoute au stock
+function veignePatSelectEntree(pid, el) {
+  let val = el.value;
+  if (val === '__custom__') {
+    const v = prompt('Combien produit aujourd\'hui (à ajouter au stock) ?', '');
+    if (v === null) { renderStockVeignePat(); return; }
+    val = v;
+  }
+  addVeignePatEntreeVal(pid, val);
+}
+
+async function addVeignePatEntreeVal(pid, val) {
+  const add = parseQty(val);
+  if (!add) { renderStockVeignePat(); return; }
   const st = veignePatStockData[pid];
   if (!st) return;
   const newStock = (Number(st.stock) || 0) + add;
