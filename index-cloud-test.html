@@ -4077,7 +4077,9 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 const METEO_COORDS = {
   'veigne':        { lat: 47.286, lon: 0.747 },
   'tours':         { lat: 47.394, lon: 0.689 },
-  'saint-avertin': { lat: 47.358, lon: 0.726 }
+  'saint-avertin': { lat: 47.358, lon: 0.726 },
+  'amboise':       { lat: 47.413, lon: 0.982 },  // marché Amboise (vendredi)
+  'beaujardin':    { lat: 47.376, lon: 0.686 }   // marché Beaujardin, Tours (samedi)
 };
 function meteoIcon(code) {
   if (code === 0) return '☀️';
@@ -6762,6 +6764,8 @@ let html = '<div class="date-bar">'
 + '<button class="date-nav" onclick="changeMarketDate(1)">→</button>'
 + '</div>';
 
+html += '<div id="meteo-bar-ventes" class="mto-strip"><span class="mto-load">Météo…</span></div>';
+
 html += '<div class="prod-kpi-bar">'
 
 + '<div class="prod-kpi"><div class="prod-kpi-val">' + formatQty(totalCharger) + '</div><div class="prod-kpi-lbl">A charger</div></div>'
@@ -6796,6 +6800,7 @@ html += '<div class="prod-empty">'
   : 'Aucun produit dans la base.')
 + '</div>';
   mc.innerHTML = html;
+  renderMeteoBar(currentMarketId);
   return;
   }
 
@@ -6847,6 +6852,7 @@ html += '<div class="market-row">'
 
 html += '</div>';
 mc.innerHTML = html;
+renderMeteoBar(currentMarketId);
 }
 
 // === MARCHES - Anticipation pour Le Local ===
