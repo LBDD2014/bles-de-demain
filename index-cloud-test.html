@@ -173,7 +173,12 @@ padding-bottom: env(safe-area-inset-bottom, 0px);
 .bnav-item {
 flex: 1; padding: 10px 3px 8px; cursor: pointer; border: none; background: transparent;
 display: flex; flex-direction: column; align-items: center; gap: 3px;
-font-family: inherit; min-width: 0;
+font-family: inherit; min-width: 0; touch-action: none; user-select: none;
+transition: transform .12s, opacity .12s;
+}
+.bnav-item.bnav-dragging {
+opacity: 0.85; transform: scale(1.12); background: rgba(206,171,82,0.18);
+border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }
 .bnav-item .lbl {
 font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.45);
@@ -2708,10 +2713,85 @@ document.getElementById('app').style.display = 'none';
 }
 
 function renderNav() {
-const items = NAV_ITEMS[currentBoutique] || [];
+const items = orderedNavItems(currentBoutique);
 document.getElementById('bottom-nav').innerHTML = items.map(function(it) {
-return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" onclick="setVue(\'' + it.id + '\')"><span class="lbl">' + it.lbl + '</span></button>';
+return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" data-vue="' + it.id + '"><span class="lbl">' + escapeHtml(it.lbl) + '</span></button>';
 }).join('');
+initNavDragOnce();
+}
+
+// v20.53 — ordre des onglets mémorisé par appareil (localStorage), réorganisable par appui long
+function orderedNavItems(boutique) {
+const base = NAV_ITEMS[boutique] || [];
+let saved = [];
+try { saved = JSON.parse(localStorage.getItem('navOrder_' + boutique) || '[]'); } catch (e) {}
+if (!Array.isArray(saved) || !saved.length) return base;
+const byId = {}; base.forEach(function(it) { byId[it.id] = it; });
+const out = [];
+saved.forEach(function(id) { if (byId[id]) { out.push(byId[id]); delete byId[id]; } });
+base.forEach(function(it) { if (byId[it.id]) out.push(it); }); // nouveaux onglets ajoutés à la fin
+return out;
+}
+
+function saveNavOrder(boutique, ids) {
+try { localStorage.setItem('navOrder_' + boutique, JSON.stringify(ids)); } catch (e) {}
+}
+
+let _navDragInit = false;
+function initNavDragOnce() {
+if (_navDragInit) return;
+const nav = document.getElementById('bottom-nav');
+if (!nav) return;
+_navDragInit = true;
+let pressTimer = null, dragging = false, dragEl = null, startX = 0, startY = 0, moved = false;
+function clearPress() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
+
+nav.addEventListener('pointerdown', function(e) {
+  const item = e.target.closest('.bnav-item');
+  if (!item) return;
+  dragEl = item; startX = e.clientX; startY = e.clientY; moved = false; dragging = false;
+  try { nav.setPointerCapture(e.pointerId); } catch (er) {}
+  pressTimer = setTimeout(function() {
+    dragging = true;
+    item.classList.add('bnav-dragging');
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (er) {}
+  }, 450);
+});
+
+nav.addEventListener('pointermove', function(e) {
+  if (!dragEl) return;
+  if (!dragging) {
+    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) { moved = true; clearPress(); }
+    return;
+  }
+  e.preventDefault();
+  const items = Array.prototype.slice.call(nav.querySelectorAll('.bnav-item'));
+  let target = null;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] === dragEl) continue;
+    const r = items[i].getBoundingClientRect();
+    if (e.clientX < r.left + r.width / 2) { target = items[i]; break; }
+  }
+  if (target) { if (dragEl.nextSibling !== target) nav.insertBefore(dragEl, target); }
+  else if (dragEl !== nav.lastElementChild) nav.appendChild(dragEl);
+});
+
+function endPress(e) {
+  clearPress();
+  if (!dragEl) return;
+  if (dragging) {
+    dragEl.classList.remove('bnav-dragging');
+    const ids = Array.prototype.slice.call(nav.querySelectorAll('.bnav-item')).map(function(it) { return it.dataset.vue; });
+    saveNavOrder(currentBoutique, ids);
+    renderNav();
+  } else if (!moved) {
+    const v = dragEl.dataset.vue;
+    if (v) setVue(v);
+  }
+  dragEl = null; dragging = false; moved = false;
+}
+nav.addEventListener('pointerup', endPress);
+nav.addEventListener('pointercancel', endPress);
 }
 
 async function setVue(v) {
