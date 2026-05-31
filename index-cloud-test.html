@@ -1865,6 +1865,18 @@ font-family: inherit;
 outline: none; border-color: var(--gold); background: white;
 }
 .add-stop-form textarea { resize: none; min-height: 60px; }
+
+/* Météo Ventes (v20.56) — bande indicative 7 jours */
+.mto-strip { display:flex; gap:7px; overflow-x:auto; padding:8px 10px; margin:8px 0;
+  background:#FCF8EE; border:1px solid #ECE3D2; border-radius:12px; -webkit-overflow-scrolling:touch; }
+.mto-strip .mto-load { color:var(--grey-light); font-size:13px; padding:4px; }
+.mto-day { flex:0 0 auto; width:70px; text-align:center; padding:4px 2px; border-radius:9px; }
+.mto-day.today { background:#FBF3DE; box-shadow:0 1px 4px rgba(139,105,20,.2); }
+.mto-day .mto-d { font-size:11px; color:var(--grey-light); text-transform:capitalize; }
+.mto-day .mto-i { font-size:22px; line-height:1.1; margin:2px 0; }
+.mto-day .mto-t { font-size:13px; font-weight:700; color:var(--brown-mid); }
+.mto-day .mto-s { font-size:10px; font-weight:700; margin-top:2px; }
+.mto-s.up { color:var(--green); } .mto-s.down { color:var(--red); } .mto-s.flat { color:var(--grey-light); }
 </style>
 
 </head>
@@ -3946,6 +3958,7 @@ let html = '<div class="ventes-day-bar">'
 + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
 + '<button class="ventes-day-btn" onclick="changeDate(1)">></button>'
 + '</div>';
+html += '<div id="meteo-bar-ventes" class="mto-strip"><span class="mto-load">Météo…</span></div>';
   html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prévision (depuis l onglet Prévis) / Aprem / Reste J-1 / J-2 / Perte. <strong>Reste J-1</strong> = gardé pour demain · <strong>J-2</strong> = gardé un 2e jour · <strong>Perte</strong> = jeté. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un prévis (rien ne reste).</div>';
 
 // v20.5 — est-ce que la journée a déjà été validée (au moins une row day_closed=true) ?
@@ -3965,6 +3978,7 @@ html += manageProductsButtonHtml();
 if (!presentCats.length) {
 html += '<div class="empty-state">Aucun produit Ventes en base pour le moment.</div>';
 mc.innerHTML = html;
+renderMeteoBar(currentBoutique);
 return;
 }
 
@@ -4054,7 +4068,69 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   html += '</div>';
   });
   mc.innerHTML = html;
+  renderMeteoBar(currentBoutique);
   }
+
+// ── Météo Ventes (v20.56) ──────────────────────────────────────────────
+// Source : Open-Meteo (gratuit, sans clé). Indicatif niveau 1 : aide à viser
+// les quantités. Caché 1×/jour par boutique pour ne pas spammer d'appels.
+const METEO_COORDS = {
+  'veigne':        { lat: 47.286, lon: 0.747 },
+  'tours':         { lat: 47.394, lon: 0.689 },
+  'saint-avertin': { lat: 47.358, lon: 0.726 }
+};
+function meteoIcon(code) {
+  if (code === 0) return '☀️';
+  if (code <= 2)  return '⛅';
+  if (code === 3) return '☁️';
+  if (code >= 45 && code <= 48) return '🌫️';
+  if (code >= 51 && code <= 67) return '🌦️';
+  if (code >= 71 && code <= 77) return '🌨️';
+  if (code >= 80 && code <= 82) return '🌧️';
+  if (code >= 95) return '⛈️';
+  return '🌥️';
+}
+// suggestion simple : beau & doux = + produire, pluie/orage = − produire
+function meteoSuggest(code, tmax) {
+  const pluie = (code >= 51 && code <= 67) || (code >= 80 && code <= 99);
+  if (pluie) return { cls: 'down', txt: '− produire' };
+  if (code <= 1 && tmax >= 20) return { cls: 'up', txt: '+ produire' };
+  return { cls: 'flat', txt: '= normal' };
+}
+async function renderMeteoBar(boutique) {
+  const el = document.getElementById('meteo-bar-ventes');
+  if (!el) return;
+  const c = METEO_COORDS[boutique];
+  if (!c) { el.style.display = 'none'; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const ck = 'meteo_' + boutique + '_' + today;
+  let data = null;
+  try { const cached = localStorage.getItem(ck); if (cached) data = JSON.parse(cached); } catch (e) {}
+  if (!data) {
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon
+        + '&daily=weather_code,temperature_2m_max&timezone=Europe%2FParis&forecast_days=7';
+      const r = await fetch(url);
+      const j = await r.json();
+      data = { days: j.daily.time, codes: j.daily.weather_code, tmax: j.daily.temperature_2m_max };
+      try { localStorage.setItem(ck, JSON.stringify(data)); } catch (e) {}
+    } catch (e) { el.style.display = 'none'; return; }
+  }
+  const JJ = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+  let html = '';
+  data.days.forEach(function(d, i) {
+    const dt = new Date(d + 'T12:00:00');
+    const isToday = d === today;
+    const sug = meteoSuggest(data.codes[i], data.tmax[i]);
+    html += '<div class="mto-day' + (isToday ? ' today' : '') + '">'
+      + '<div class="mto-d">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</div>'
+      + '<div class="mto-i">' + meteoIcon(data.codes[i]) + '</div>'
+      + '<div class="mto-t">' + Math.round(data.tmax[i]) + '°</div>'
+      + '<div class="mto-s ' + sug.cls + '">' + sug.txt + '</div>'
+      + '</div>';
+  });
+  el.innerHTML = html;
+}
 
 // v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
 // v20.5 : gate sur day_closed — Vendu n'apparaît qu'après "Valider la journée"
