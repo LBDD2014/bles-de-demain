@@ -2102,7 +2102,8 @@ const NAV_ITEMS = {
     { id: 'produits', lbl: 'Produits' },
     { id: 'catégories', lbl: 'Catég.' },
     { id: 'valorisation', lbl: 'Valo.' },
-    { id: 'pros', lbl: 'Pros' }
+    { id: 'pros', lbl: 'Pros' },
+    { id: 'acces', lbl: 'Accès' }
   ]
 };
 
@@ -2665,7 +2666,32 @@ async function enterBackOffice() {
 await enterBoutique('backoffice');
 }
 
+// v20.54 — codes d'accès par boutique (modifiables en BackOffice)
+let boutiqueCodes = {}, boutiqueCodesLoaded = false;
+async function loadBoutiqueCodes() {
+  const { data, error } = await supa.from('boutique_codes').select('*').eq('tenant_id', TENANT_ID);
+  boutiqueCodes = {};
+  if (!error) (data || []).forEach(function(r) { boutiqueCodes[r.boutique_id] = r.code; });
+  boutiqueCodesLoaded = true;
+}
+
 async function enterBoutique(b) {
+// Verrou par boutique (marchés libres). L'appareil se souvient de sa boutique.
+if (b !== 'amboise' && b !== 'beaujardin') {
+  if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
+  let remembered = null; try { remembered = localStorage.getItem('boutiqueUnlocked'); } catch (e) {}
+  if (remembered !== b) {
+    const need = boutiqueCodes[b];
+    if (need) { // si aucun code configuré, on ne bloque pas (sécurité anti-lockout)
+      const entered = prompt('Code d\'accès — ' + (BOUTIQUE_NAMES[b] || b) + ' :');
+      if (entered === null) return;
+      const master = boutiqueCodes['master'] || '2412';
+      const val = String(entered).trim();
+      if (val !== need && val !== master) { alert('Code incorrect.'); return; }
+      try { localStorage.setItem('boutiqueUnlocked', b); } catch (e) {}
+    }
+  }
+}
 currentBoutique = b;
 isLivreurMode = (b === 'livreur');
 isLocalMode = (b === 'local');
@@ -2869,6 +2895,9 @@ renderValorisation();
 await loadAdminPros();
 subscribeRealtimePros();
 renderAdminPros();
+} else if (v === 'acces') {
+await loadBoutiqueCodes();
+renderAccessCodes();
 } else if (v === 'pros_orders') {
 // v21.0.4 — Saisie commande pros par boutique (Veigné, Tours, Le Local)
 await loadAdminPros();              // pour le dropdown choix du pro
@@ -8449,6 +8478,41 @@ async function deletePro(pid) {
   await loadAdminPros();
   renderAdminPros();
   showToast('Pro supprime', 'sync');
+}
+
+// v20.54 — BackOffice : voir / modifier les codes d'accès par boutique
+function renderAccessCodes() {
+  const mc = document.getElementById('main-content');
+  const rows = [
+    ['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin'],
+    ['local', 'Le Local'], ['livreur', 'Livreur'], ['master', '🔑 Code maître (ouvre tout)']
+  ];
+  let h = '<div class="info-banner"><strong>Codes d\'accès par boutique</strong><br>'
+    + 'Code à taper pour entrer dans une boutique. L\'appareil se souvient ensuite de sa boutique (pas de code à re-taper). '
+    + 'Le code maître ouvre toutes les boutiques. Les marchés restent libres.</div>';
+  h += '<div class="section reappro-section" style="padding:6px 14px">';
+  rows.forEach(function(r) {
+    const cur = boutiqueCodes[r[0]] || '';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F5F0E8">'
+      + '<div class="produit-name">' + escapeHtml(r[1]) + '</div>'
+      + '<input type="text" inputmode="numeric" maxlength="8" value="' + escapeHtml(cur) + '" data-code-bid="' + r[0] + '" placeholder="—" style="width:120px;padding:9px;border:1px solid var(--gold);border-radius:8px;font-size:17px;text-align:center;font-weight:700" onchange="saveAccessCode(this)">'
+      + '</div>';
+  });
+  h += '</div>';
+  mc.innerHTML = h;
+}
+
+async function saveAccessCode(el) {
+  const bid = el.dataset.codeBid;
+  const code = String(el.value).trim();
+  if (!code) { showToast('Code vide', 'error'); el.value = boutiqueCodes[bid] || ''; return; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('boutique_codes')
+    .upsert({ tenant_id: TENANT_ID, boutique_id: bid, code: code }, { onConflict: 'tenant_id,boutique_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  boutiqueCodes[bid] = code;
+  showToast('Code mis à jour', 'sync');
 }
 
 function renderAdminPros() {
