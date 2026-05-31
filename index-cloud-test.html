@@ -2061,6 +2061,7 @@ const NAV_ITEMS = {
     { id: 'reappro',      lbl: 'Cmd Local' },
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
     { id: 'specials',     lbl: 'Spéciales' },
+    { id: 'production',   lbl: 'À produire' },
     { id: 'pros_orders',  lbl: 'Pros' },
     { id: 'recap',        lbl: 'Récap' },
     { id: 'messages',     lbl: 'Messages' }
@@ -2746,12 +2747,15 @@ productionSupplierMode = (currentBoutique === 'veigne') ? 'veigne' : 'local';
 await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
-if (currentBoutique === 'veigne' || currentBoutique === 'local') {
+if (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
 if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
 await loadStAvSalesForProduction(currentReapproDate);
+}
+if (currentBoutique === 'tours') {
+await loadToursSalesForProduction(currentReapproDate);
 }
 // v20.15 : pour Le Local, on a besoin des ventes St-Av (pain + viennoiserie cuite éditables)
 if (currentBoutique === 'local') {
@@ -5412,6 +5416,17 @@ if (q > 0) productionVeigneSalesByProduct[pid] = q;
 });
 }
 
+// v20.52 — Prévision (Matin) de Tours pour l'onglet "À produire" Tours
+let productionToursSalesByProduct = {};
+async function loadToursSalesForProduction(date) {
+productionToursSalesByProduct = {};
+const data = await loadPrevisRaw('tours', date);
+Object.keys(data || {}).forEach(function(pid) {
+const q = parseQty(data[pid]) || 0;
+if (q > 0) productionToursSalesByProduct[pid] = q;
+});
+}
+
 // v20.11 — Charge les Matins de Saint-Avertin (pour les produits traiteur que
 // Veigné produit pour St-Av). Pour le pâtissier traiteur Veigné, c'est crucial
 // de voir aussi les besoins St-Av (sinon il sous-produit).
@@ -5868,8 +5883,18 @@ const isToday = (currentReapproDate === serviceDateISO());
 // v20.15 — Le Local split en 2 équipes (Boulangers / Touriers)
 const isLocalBoul = (currentBoutique === 'local' && currentVue === 'prod_boul');
 const isLocalTour = (currentBoutique === 'local' && currentVue === 'prod_tour');
+// v20.52 — Tours : onglet "À produire" (pains + viennoiserie cuite + traiteur fabriqués sur place)
+const isToursProd = (currentBoutique === 'tours' && currentVue === 'production');
 let allProducts;
-if (isLocalBoul) {
+if (isToursProd) {
+  // Réutilise la liste Ventes de Tours (cohérent avec la prévision Matin), limitée aux familles produites sur place
+  const toursCats = ['pains', 'viennoiserie', 'brioches_special', 'traiteur'];
+  allProducts = getProductsForVentes().filter(function(p) {
+    if (toursCats.indexOf(p.category) === -1) return false;
+    if (p.boutique_restriction && p.boutique_restriction !== 'tours') return false;
+    return true;
+  });
+} else if (isLocalBoul) {
   allProducts = products.filter(function(p) { return p.category === 'pains'; });
 } else if (isLocalTour) {
   allProducts = products.filter(function(p) {
@@ -5907,11 +5932,12 @@ if (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue ===
 }
 
 // v20.7 — colonne Spé pour les boutiques avec spéciales (Veigné/Local)
-const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local');
+const showSpe = (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours');
 // v20.8 — Veigné Pâtissier : focus Spéciales, V/T/SA + marchés en consultation seulement
 const isVeignePat = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne');
 // v20.9 — Veigné Pâtissier : 1 colonne "Matin V" depuis sales.matin (besoin vendeuse Veigné)
-const showMatinV = isVeignePat;
+// v20.52 — Tours : colonne Matin (prévision Tours)
+const showMatinV = isVeignePat || isToursProd;
 // v20.11 — Veigné Pâtissier : colonne "Matin SA" visible pour le traiteur produit par Veigné
 // v20.16 — Le Local : "Matin SA" visible et éditable pour pain (Boulangers) et viennoiserie cuite (Touriers)
 const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
@@ -5920,14 +5946,14 @@ const showApremSA = isLocalBoul;
 // v20.32 — Reste J-1 aussi à Prod. Touriers (tartes fines, cookies, etc. qui se gardent J+1)
 const showResteJ1 = isLocalBoul || isLocalTour;
 // v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
-const showVTS = !isVeignePat && !isLocalBoul;
-const activeMarketsForGrid = isVeignePat ? [] : activeMarkets;
+const showVTS = !isVeignePat && !isLocalBoul && !isToursProd;
+const activeMarketsForGrid = (isVeignePat || isToursProd) ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
 // v20.19 — Le Local Prod. Boulangers/Touriers : même règle qu'à Veigné Pâtissier (épuré)
-const showProdStockEcart = !isVeignePat && !isLocalBoul && !isLocalTour;
+const showProdStockEcart = !isVeignePat && !isLocalBoul && !isLocalTour && !isToursProd;
 // v21.0.4.3 — Pros : besoins des commandes pros du jour
-const showProsCol = isVeignePat || isLocalBoul || isLocalTour;
+const showProsCol = isVeignePat || isLocalBoul || isLocalTour || isToursProd;
 const proAgg = showProsCol ? aggregateProOrdersForProduction(currentVue) : {};
 // Grid : Produit | [Matin V | Matin SA | V T SA] | [Spé] | [Pros] | [marches actifs] | Total | [Produit | Stock | Ecart]
 const fixedColsBefore = '1.3fr'
@@ -5980,7 +6006,7 @@ marketSum += mv;
 // v20.7 — Commandes spéciales du jour pour ce produit (somme des items)
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 // v20.9 — Matin Veigné depuis sales (besoin de la vendeuse Veigné pour le jour)
-const cMatinV = showMatinV ? (productionVeigneSalesByProduct[p.id] || 0) : 0;
+const cMatinV = showMatinV ? ((isToursProd ? productionToursSalesByProduct[p.id] : productionVeigneSalesByProduct[p.id]) || 0) : 0;
 // v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
 // v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
 // v20.22 — Matin SA toujours depuis previs (pattern cohérent avec Veigné). Aprem/Reste J-1 restent depuis sales.
@@ -5997,7 +6023,7 @@ const cPros = showProsCol && proAgg[p.id] ? proAgg[p.id].totalQty : 0;
 // v20.18 — Le Local Boul : Total = Matin SA + Aprem + SA + Spé - Reste J-1
 // v21.0.4.3 — Total inclut désormais les besoins pros
 const totalReassort = cV + cT + cS;
-const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + (isVeignePat ? 0 : marketSum) + cSpe + cPros;
+const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + ((isVeignePat || isToursProd) ? 0 : marketSum) + cSpe + cPros;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
@@ -6140,7 +6166,7 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
 
 + '<span>Produit</span>';
   if (showMatinV) {
-    headerHtml += '<span class="col-c" style="color:var(--green)" title="Matin Veigné (saisi par la vendeuse dans Ventes)">Matin V</span>';
+    headerHtml += '<span class="col-c" style="color:var(--green)" title="' + (isToursProd ? 'Prévision Tours (saisie dans Ventes)' : 'Matin Veigné (saisi par la vendeuse dans Ventes)') + '">' + (isToursProd ? 'Prévis' : 'Matin V') + '</span>';
   }
   if (showMatinSA) {
     const matinSATitle = isLocalBoul ? 'Besoin pain saisi par la vendeuse St-Av'
