@@ -1877,6 +1877,11 @@ outline: none; border-color: var(--gold); background: white;
 .mto-day .mto-t { font-size:13px; font-weight:700; color:var(--brown-mid); }
 .mto-day .mto-s { font-size:10px; font-weight:700; margin-top:2px; }
 .mto-s.up { color:var(--green); } .mto-s.down { color:var(--red); } .mto-s.flat { color:var(--grey-light); }
+
+/* Jour férié (v20.58) */
+.ferie-bar { background:#FBF3DE; border:1px solid var(--gold); border-radius:10px;
+  padding:9px 12px; margin:8px 0; font-size:14px; color:var(--brown); }
+.ferie-bar.ferme { background:#F7E4E4; border-color:var(--red); color:var(--red); }
 </style>
 
 </head>
@@ -3959,6 +3964,7 @@ let html = '<div class="ventes-day-bar">'
 + '<button class="ventes-day-btn" onclick="changeDate(1)">></button>'
 + '</div>';
 html += '<div id="meteo-bar-ventes" class="mto-strip"><span class="mto-load">Météo…</span></div>';
+html += ferieBannerHtml(currentBoutique, currentDate);
   html += '<div class="info-banner"><strong>Saisie ventes</strong><br>Prévision (depuis l onglet Prévis) / Aprem / Reste J-1 / J-2 / Perte. <strong>Reste J-1</strong> = gardé pour demain · <strong>J-2</strong> = gardé un 2e jour · <strong>Perte</strong> = jeté. Bouton <strong>Importer</strong> = J1=0 sur tous les produits avec un prévis (rien ne reste).</div>';
 
 // v20.5 — est-ce que la journée a déjà été validée (au moins une row day_closed=true) ?
@@ -4132,6 +4138,62 @@ async function renderMeteoBar(boutique) {
       + '</div>';
   });
   el.innerHTML = html;
+}
+
+// ── Jours fériés FR + ouverture boutique (v20.58, brique A) ─────────────
+function _localISO(dt) {
+  const y = dt.getFullYear(), m = String(dt.getMonth() + 1).padStart(2, '0'),
+        d = String(dt.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+// Dimanche de Pâques (algorithme de Meeus/Gauss)
+function _paques(an) {
+  const a = an % 19, b = Math.floor(an / 100), c = an % 100, d = Math.floor(b / 4),
+        e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+        h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+        l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+        mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(an, mois - 1, jour);
+}
+function joursFeriesFR(an) {
+  const f = {};
+  const fixe = (mo, da, nom) => { f[_localISO(new Date(an, mo - 1, da))] = nom; };
+  fixe(1, 1, 'Jour de l’An');   fixe(5, 1, 'Fête du Travail');
+  fixe(5, 8, 'Victoire 1945');       fixe(7, 14, 'Fête Nationale');
+  fixe(8, 15, 'Assomption');         fixe(11, 1, 'Toussaint');
+  fixe(11, 11, 'Armistice');         fixe(12, 25, 'Noël');
+  const p = _paques(an), off = (n, nom) => {
+    const d = new Date(p); d.setDate(p.getDate() + n); f[_localISO(d)] = nom;
+  };
+  off(1, 'Lundi de Pâques');  off(39, 'Ascension');  off(50, 'Lundi de Pentecôte');
+  return f;
+}
+const _feriesCache = {};
+function estFerie(iso) {
+  const an = parseInt(iso.slice(0, 4), 10);
+  if (!_feriesCache[an]) _feriesCache[an] = joursFeriesFR(an);
+  return _feriesCache[an][iso] || null;
+}
+// Statut d'ouverture d'une boutique à une date donnée (règles métier Phil)
+function boutiqueOuverte(boutique, iso) {
+  const nom = estFerie(iso);
+  if (!nom) return { ferie: false, ouvert: true, matin: false, nom: null, raison: '' };
+  if (iso.slice(5) === '01-01')
+    return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé — toutes les boutiques le 1er janvier' };
+  const dow = new Date(iso + 'T12:00').getDay(); // 0=dim, 1=lundi
+  if (boutique === 'tours')
+    return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Tours fermé les jours fériés (pas de livraison pros)' };
+  if (boutique === 'saint-avertin' && dow === 1)
+    return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé (lundi)' };
+  return { ferie: true, ouvert: true, matin: true, nom: nom, raison: 'Ouvert le matin · quantités comme un dimanche' };
+}
+function ferieBannerHtml(boutique, iso) {
+  const st = boutiqueOuverte(boutique, iso);
+  if (!st.ferie) return '';
+  const ferme = !st.ouvert;
+  return '<div class="ferie-bar' + (ferme ? ' ferme' : '') + '">'
+    + (ferme ? '🔒' : '🎌') + ' <strong>' + escapeHtml(st.nom) + '</strong> — '
+    + escapeHtml(st.raison) + '</div>';
 }
 
 // v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
