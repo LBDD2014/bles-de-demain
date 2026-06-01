@@ -5597,7 +5597,8 @@ async function manageAddProduct() {
   let supply = {};
   if (manageCtx.supply && manageCtx.boutique) supply[manageCtx.boutique] = manageCtx.supply;
   setSyncStatus('syncing');
-  const { error } = await supa.from('products').insert({
+  const { data: ins, error } = await supa.from('products').insert({
+    id: genProductId(d.name),
     tenant_id: TENANT_ID,
     name: d.name.trim(),
     category: d.category,
@@ -5605,8 +5606,9 @@ async function manageAddProduct() {
     usage: d.usage || 'both',
     actif: true,
     supply_by_boutique: supply
-  });
+  }).select();
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  if (!ins || !ins.length) { setSyncStatus('error'); showToast('Création bloquée par Supabase (RLS ?)', 'error'); return; }
   setSyncStatus('ok');
   showToast('Produit créé : ' + d.name.trim(), 'sync');
   manageAddDraft = { name: '', category: '', usage: manageCtx.usage, unit: '' };
