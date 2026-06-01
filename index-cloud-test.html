@@ -7417,6 +7417,13 @@ function handleNewProductField(field, val) {
 adminNewProductDraft[field] = val;
 }
 
+// v20.68 — génère un id TEXT unique à partir du nom (la table products.id n'a pas de défaut)
+function genProductId(name) {
+  const slug = (name || 'prod').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24);
+  return (slug || 'prod') + '_' + Date.now().toString(36).slice(-4) + Math.floor(Math.random() * 1296).toString(36);
+}
 async function saveNewProduct() {
 const d = adminNewProductDraft;
 if (!d.name || !d.name.trim()) { showToast('Nom obligatoire', 'error'); return; }
@@ -7427,6 +7434,7 @@ const condQty = d.conditioning_qty === '' || d.conditioning_qty == null ? null :
 const condQtyClean = (condQty != null && !isNaN(condQty) && condQty >= 1 && condQty <= 200) ? condQty : null;
 const condUnit = d.conditioning_unit && condQtyClean != null ? d.conditioning_unit : null; // unit utile seulement si qty valide
 const row = {
+id: genProductId(d.name),
 tenant_id: TENANT_ID,
 name: d.name.trim(),
 category: d.category.trim(),
@@ -7438,8 +7446,9 @@ pros_only_id: d.pros_only_id || null,  // v21.0.3.2 — produit sur mesure
 conditioning_unit: condUnit,           // v20.33
 conditioning_qty: condQtyClean         // v20.33
 };
-const { error } = await supa.from('products').insert(row);
+const { data: ins, error } = await supa.from('products').insert(row).select();
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+if (!ins || !ins.length) { setSyncStatus('error'); showToast('Création bloquée par Supabase (RLS ?)', 'error'); return; }
 setSyncStatus('ok');
 adminNewProductOpen = false;
 adminNewProductDraft = { name: '', category: '', unit: '', usage: 'both', pros_only_id: '', conditioning_unit: '', conditioning_qty: '' };
@@ -7505,6 +7514,7 @@ const p = adminProducts.find(function(x) { return x.id === pid; });
 if (!p) return;
 setSyncStatus('syncing');
 const row = {
+id: genProductId(p.name + '_copie'),
 tenant_id: TENANT_ID,
 name: p.name + ' (copie)',
 category: p.category,
@@ -7515,8 +7525,9 @@ prix_cession: p.prix_cession,
 pces_per_caisse: p.pces_per_caisse,
 supply_by_boutique: p.supply_by_boutique || {}
 };
-const { error } = await supa.from('products').insert(row);
+const { data: ins, error } = await supa.from('products').insert(row).select();
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+if (!ins || !ins.length) { setSyncStatus('error'); showToast('Duplication bloquée par Supabase (RLS ?)', 'error'); return; }
 setSyncStatus('ok');
 await loadAdminProducts();
 await loadProducts();
