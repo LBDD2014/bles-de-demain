@@ -3184,11 +3184,13 @@ showToast('Valeurs reprises de ' + label, 'sync');
 // v20.44 — Ventes : reprendre les quantités Matin d'hier / de la semaine dernière (évite de retaper)
 function isVentesPrevisEditable(p) {
   const supply = getProductSupply(p, currentBoutique);
-  const stAvEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
-  const isStAvEditable = currentBoutique === 'saint-avertin'
-    && (supply === 'local' || supply === 'veigne')
-    && stAvEditableCats.indexOf(p.category) !== -1;
-  return (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvEditable;
+  // v20.65 — autonomie boutiques : le Matin/prévis est aussi éditable pour les produits
+  // REÇUS EN RÉAPPRO (local/veigne) dans TOUTES les boutiques de vente (Veigné/Tours/St-Av),
+  // plus seulement St-Avertin. Catégories vendables concernées :
+  const reapproEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
+  const isReapproEditable = (supply === 'local' || supply === 'veigne')
+    && reapproEditableCats.indexOf(p.category) !== -1;
+  return (supply === 'on_site' && categoryHasPrevis(p.category)) || isReapproEditable;
 }
 
 async function ventesCopyMatinFrom(offsetDays, label) {
