@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LBDD — Fabrication & Bio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --brown-mid:#6B4226;
+    --green:#4A7C59; --red:#B83232; --orange:#D4701A; --blue:#2C5F8A; --white:#fff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Georgia,serif;background:var(--cream);color:var(--grey-dark);padding-bottom:70px}
+  h1,h2,h3{font-family:"Playfair Display",Georgia,serif}
+  header{background:var(--grey-dark);color:var(--cream);padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  header .logo{font-family:"Playfair Display",Georgia,serif;font-size:20px;font-weight:700}
+  header .logo .e{color:var(--gold)}
+  header .sub{font-size:11px;opacity:.7}
+  #sync{font-size:11px;opacity:.8}
+
+  nav.tabs{display:flex;background:var(--grey);position:sticky;top:0;z-index:10;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  nav.tabs button{flex:1 0 auto;background:none;border:none;color:var(--cream);padding:13px 14px;font-size:13.5px;font-family:Georgia,serif;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;opacity:.65}
+  nav.tabs button.active{opacity:1;border-bottom-color:var(--gold);background:rgba(206,171,82,.12)}
+
+  .page{display:none;padding:16px;max-width:780px;margin:0 auto}
+  .page.active{display:block}
+  .card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(46,48,68,.08);border:1px solid #ECE3D2}
+  .card h2{margin:0 0 4px;font-size:18px;color:var(--brown)}
+  .hint{font-size:12.5px;color:var(--grey-light);margin:0 0 12px}
+
+  label{display:block;font-size:12.5px;color:var(--grey);margin:10px 0 4px;font-weight:bold}
+  input,select,textarea{width:100%;padding:11px;border:1.5px solid #DcCfb4;border-radius:9px;font-size:16px;font-family:Georgia,serif;background:#FCFAF4;color:var(--grey-dark)}
+  textarea{min-height:90px;resize:vertical}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  .btn{display:inline-block;background:var(--gold);color:#3a2c10;border:none;padding:12px 18px;border-radius:10px;font-size:15px;font-weight:bold;font-family:Georgia,serif;cursor:pointer}
+  .btn.dark{background:var(--grey-dark);color:var(--cream)}
+  .btn.ghost{background:transparent;border:1.5px solid var(--gold);color:var(--gold-dark)}
+  .btn.sm{padding:7px 11px;font-size:13px}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .ico-btn{background:#F4ECDb;border:none;border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer}
+
+  .item{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #F0E8D6}
+  .item:last-child{border-bottom:none}
+  .item .meta{flex:1}.item .t{font-size:15.5px}.item .s{font-size:12px;color:var(--grey-light)}
+  .leaf{display:inline-block;background:var(--green);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:6px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;padding:9px;border:1.5px solid var(--gold);background:#fff;color:var(--gold-dark);border-radius:8px;font-family:Georgia,serif;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--gold);color:#3a2c10;font-weight:bold}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:9px 6px;text-align:right;border-bottom:1px solid #EEE6D6}
+  th{background:#F4ECDb;color:var(--brown);font-size:11px;text-transform:uppercase}
+  td:first-child,th:first-child{text-align:left}
+  .ok{color:var(--green);font-weight:bold}.bad{color:var(--red);font-weight:bold}.warn{color:var(--orange);font-weight:bold}
+
+  .pesee{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px solid #F0E8D6}
+  .pesee .chk{width:28px;height:28px;border-radius:7px;border:2px solid var(--gold);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;background:#fff;cursor:pointer}
+  .pesee.done .chk{background:var(--green);border-color:var(--green)}
+  .pesee .nom{flex:1}.pesee.done .nom{text-decoration:line-through;opacity:.5}
+  .pesee .q{font-weight:bold;font-family:"Playfair Display",Georgia,serif;color:var(--brown-mid)}
+  .procede{background:#FBF6EA;border-left:4px solid var(--gold);border-radius:8px;padding:12px;margin-top:14px;font-size:13.5px;line-height:1.55;white-space:pre-line}
+
+  /* modale */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:flex-start;justify-content:center;padding:20px;overflow:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:520px}
+  .modal h3{margin:0 0 10px;color:var(--brown)}
+  .lg-line{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .lg-line select{flex:2}.lg-line input{flex:1}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--grey-dark);color:#fff;padding:10px 18px;border-radius:20px;font-size:13.5px;opacity:0;transition:.2s;z-index:99;pointer-events:none}
+  #toast.show{opacity:1}
+
+  @media print{
+    nav.tabs,header,.btn-row,.print-hide{display:none!important}
+    .page{display:none!important}body{background:#fff;padding:0}
+    body:not(.mode-etiq) #fab{display:block!important}
+    body.mode-etiq .page{display:none!important}
+    body.mode-etiq #etiq{display:block!important}
+    @page{margin:6mm}
+  }
+  #etiq{display:none}
+  .etq{border:2px solid #000;border-radius:6px;padding:9px 11px;width:62mm}
+  .etq .tt{font-family:"Playfair Display",Georgia,serif;font-size:15px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:4px;margin-bottom:6px}
+  .etq .ln{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio</div></div>
+  <div id="sync">connexion…</div>
+</header>
+<nav class="tabs">
+  <button class="active" onclick="show('fab',this)">🍞 Fiche de fab</button>
+  <button onclick="show('rec',this)">📖 Recettes</button>
+  <button onclick="show('liv',this)">📦 Livraisons</button>
+  <button onclick="show('bil',this)">📊 Bilan bio</button>
+  <button onclick="show('ges',this)">⚙️ Gérer</button>
+</nav>
+
+<!-- FICHE DE FAB -->
+<section id="fab" class="page active">
+  <div class="card print-hide">
+    <h2>Production du jour</h2>
+    <p class="hint">Choisis un pain et ta quantité → les pesées se calculent.</p>
+    <div class="row">
+      <div><label>Pain</label><select id="fabProd" onchange="fabCalc()"></select></div>
+      <div><label>Quantité</label><input type="number" id="fabQte" value="0" oninput="fabCalc()"></div>
+    </div>
+    <label>Site</label><div class="seg" id="fabSite"></div>
+    <label>Affichage</label>
+    <div class="seg" id="fabUnit">
+      <button class="on" onclick="fabSetUnit('auto',this)">Auto</button>
+      <button onclick="fabSetUnit('kg',this)">kg</button>
+      <button onclick="fabSetUnit('g',this)">grammes</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn dark" onclick="printFiche()">🖨️ Fiche</button>
+      <button class="btn" onclick="printEtiq()">🏷️ Étiquette (reste)</button>
+      <button class="btn ghost" onclick="fabReset()">↺ Coches</button>
+    </div>
+  </div>
+  <div class="card" id="fabCard">
+    <h2 id="fabTitre">—</h2><p class="hint" id="fabSub"></p>
+    <div id="fabList"></div>
+    <div class="procede" id="fabProc" style="display:none"></div>
+  </div>
+</section>
+
+<!-- RECETTES -->
+<section id="rec" class="page">
+  <div class="card">
+    <h2>Recettes</h2>
+    <p class="hint">Choisis un produit, compose sa recette, enregistre. Modifiable à tout moment.</p>
+    <label>Produit</label><select id="recProd" onchange="recLoad()"></select>
+    <div id="recEditor" style="display:none">
+      <div class="row">
+        <div><label>Unité de base</label>
+          <select id="recUnite"><option value="kg de farine">kg de farine</option><option value="kg de pâte">kg de pâte</option><option value="pièce">pièce</option><option value="bac">bac</option></select></div>
+        <div><label>Quantité de référence</label><input type="number" id="recRef" value="10" title="ex: la recette donnée pour 10 kg de farine"></div>
+      </div>
+      <label>Ingrédients (pour la quantité de référence)</label>
+      <div id="recLignes"></div>
+      <button class="btn ghost sm" onclick="recAddLigne()">+ Ajouter un ingrédient</button>
+      <label>Procédé (imprimé sur la fiche)</label>
+      <textarea id="recProc" placeholder="Pétrissage, pointage, division, cuisson…"></textarea>
+      <div class="btn-row"><button class="btn" onclick="recSave()">✓ Enregistrer la recette</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVRAISONS -->
+<section id="liv" class="page">
+  <div class="card">
+    <h2>Enregistrer une livraison</h2>
+    <p class="hint">À chaque réception de farine bio : lot + n° de bon.</p>
+    <div class="row">
+      <div><label>Ingrédient</label><select id="livIng"></select></div>
+      <div><label>Quantité (kg)</label><input type="number" id="livQte" value=""></div>
+    </div>
+    <div class="row">
+      <div><label>N° de lot</label><input type="text" id="livLot" placeholder="ex L-2026-..."></div>
+      <div><label>N° de bon</label><input type="text" id="livBon" placeholder="ex BL-..."></div>
+    </div>
+    <div class="row">
+      <div><label>Site de réception</label><select id="livSite"></select></div>
+      <div><label>Date</label><input type="date" id="livDate"></div>
+    </div>
+    <label>Note (optionnel)</label><input type="text" id="livNote" placeholder="">
+    <div class="btn-row"><button class="btn" onclick="livSave()">✓ Enregistrer</button></div>
+  </div>
+  <div class="card"><h2>Dernières livraisons</h2><div id="livList"></div></div>
+</section>
+
+<!-- BILAN -->
+<section id="bil" class="page">
+  <div class="card">
+    <h2>Bilan matière bio</h2>
+    <p class="hint">Reçu + dispatch − consommé = stock théorique, par farine bio × site.</p>
+    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Stock théo.</th></tr></thead><tbody></tbody></table></div>
+    <div class="btn-row"><button class="btn ghost sm" onclick="bilLoad()">↻ Rafraîchir</button></div>
+  </div>
+</section>
+
+<!-- GESTION -->
+<section id="ges" class="page">
+  <div class="card">
+    <div class="seg" id="gesSeg">
+      <button class="on" onclick="gesTab('ing',this)">Ingrédients</button>
+      <button onclick="gesTab('prod',this)">Produits</button>
+      <button onclick="gesTab('four',this)">Fournisseurs</button>
+    </div>
+    <div id="gesBody" style="margin-top:12px"></div>
+    <div class="btn-row"><button class="btn" id="gesAdd" onclick="gesOpenAdd()">+ Ajouter</button></div>
+  </div>
+</section>
+
+<!-- MODALE GENERIQUE -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div id="etiq"></div>
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://utavpdhphdztvrmzyeeo.supabase.co';
+const SUPABASE_KEY='sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
+const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const SITES=[['local','Le Local'],['veigne','Veigné'],['tours','Tours'],['saint-avertin','Saint-Avertin']];
+let fournisseurs=[],ingredients=[],produits=[];
+let gesCur='ing', fabUnitMode='auto', fabSite='local', fabChecked={};
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
+function setSync(s){document.getElementById('sync').textContent=s;}
+function show(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');window.scrollTo(0,0);if(id==='bil')bilLoad();if(id==='liv')livRenderList();}
+function ingNom(id){const i=ingredients.find(x=>x.id===id);return i?i.nom:id;}
+function prodNom(id){const p=produits.find(x=>x.id===id);return p?p.nom:id;}
+
+async function loadAll(){
+  setSync('chargement…');
+  const [f,i,p]=await Promise.all([
+    supa.from('fab_fournisseurs').select('*').order('nom'),
+    supa.from('fab_ingredients').select('*').order('nom'),
+    supa.from('fab_produits').select('*').order('nom')
+  ]);
+  if(f.error||i.error||p.error){setSync('⚠️ erreur');toast('Erreur de connexion Supabase');console.error(f.error||i.error||p.error);return;}
+  fournisseurs=f.data||[];ingredients=i.data||[];produits=p.data||[];
+  setSync('🟢 connecté');
+  fillSelectors();gesRender();
+  fabCalc();
+}
+function fillSelectors(){
+  const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
+  document.getElementById('fabProd').innerHTML=opt(produits,'id','nom');
+  document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
+  document.getElementById('livIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
+  document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
+  document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
+  document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
+}
+
+/* ---------- GESTION ---------- */
+function gesTab(t,btn){gesCur=t;[...document.getElementById('gesSeg').children].forEach(c=>c.className='');btn.className='on';gesRender();}
+function gesRender(){
+  const body=document.getElementById('gesBody');let arr,html='';
+  if(gesCur==='ing'){
+    arr=ingredients;
+    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+'</div><div class="s">'+x.categorie+(x.fournisseur_id?' · '+(fournisseurs.find(f=>f.id===x.fournisseur_id)||{}).nom:'')+' · '+x.unite+'</div></div><button class="ico-btn" onclick="gesEdit(\'ing\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'ing\',\''+x.id+'\')">🗑</button></div>').join('');
+  }else if(gesCur==='prod'){
+    arr=produits;
+    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+'</div><div class="s">'+x.categorie+'</div></div><button class="ico-btn" onclick="gesEdit(\'prod\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'prod\',\''+x.id+'\')">🗑</button></div>').join('');
+  }else{
+    arr=fournisseurs;
+    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+'</div></div><button class="ico-btn" onclick="gesEdit(\'four\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'four\',\''+x.id+'\')">🗑</button></div>').join('');
+  }
+  body.innerHTML=html||'<div class="hint">Rien pour l\'instant.</div>';
+}
+const CATS=['farine','levain','eau','sel','levure','sucre','beurre','oeuf','graine','epice','autre'];
+const PCATS=['pain','viennoiserie','brioches_special','patisserie_petits','patisserie_gros','gateaux_secs','traiteur'];
+function closeModal(){document.getElementById('modalBg').classList.remove('show');}
+function gesOpenAdd(){gesForm(gesCur,null);}
+function gesEdit(t,id){const arr=t==='ing'?ingredients:t==='prod'?produits:fournisseurs;gesForm(t,arr.find(x=>x.id===id));}
+function gesForm(t,obj){
+  const m=document.getElementById('modal');const isNew=!obj;obj=obj||{};
+  let h='<h3>'+(isNew?'Ajouter':'Modifier')+'</h3>';
+  if(!isNew) h+='<div class="hint">id: '+obj.id+'</div>';
+  if(isNew) h+='<label>Identifiant court (sans espace, ex ing_sucre)</label><input id="m_id" value="">';
+  h+='<label>Nom</label><input id="m_nom" value="'+(obj.nom||'')+'">';
+  if(t==='ing'){
+    h+='<label>Catégorie</label><select id="m_cat">'+CATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
+    h+='<label>Fournisseur</label><select id="m_four"><option value="">—</option>'+fournisseurs.map(f=>'<option value="'+f.id+'" '+(obj.fournisseur_id===f.id?'selected':'')+'>'+f.nom+'</option>').join('')+'</select>';
+    h+='<label>Unité</label><select id="m_unite">'+['kg','g','L','piece'].map(u=>'<option '+(obj.unite===u?'selected':'')+'>'+u+'</option>').join('')+'</select>';
+    h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
+  }else if(t==='prod'){
+    h+='<label>Catégorie</label><select id="m_cat">'+PCATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
+    h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
+  }
+  h+='<div class="btn-row"><button class="btn" onclick="gesSave(\''+t+'\','+(isNew?'true':'false')+',\''+(obj.id||'')+'\')">Enregistrer</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
+  m.innerHTML=h;document.getElementById('modalBg').classList.add('show');
+}
+async function gesSave(t,isNew,id){
+  const v=x=>{const e=document.getElementById(x);return e?e.value:null;};
+  const chk=x=>{const e=document.getElementById(x);return e?e.checked:false;};
+  let table,row;
+  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio')};}
+  else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
+  else{table='fab_fournisseurs';row={nom:v('m_nom')};}
+  if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
+  setSync('enregistrement…');
+  const q=isNew?await supa.from(table).insert(row):await supa.from(table).update(row).eq('id',id);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  closeModal();await loadAll();toast('Enregistré ✓');
+}
+async function gesDel(t,id){
+  if(!confirm('Supprimer ?'))return;
+  const table=t==='ing'?'fab_ingredients':t==='prod'?'fab_produits':'fab_fournisseurs';
+  const q=await supa.from(table).delete().eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  await loadAll();toast('Supprimé');
+}
+
+/* ---------- RECETTES ---------- */
+let recLignesData=[]; // {ingredient_id, quantite}
+async function recLoad(){
+  const pid=document.getElementById('recProd').value;
+  const ed=document.getElementById('recEditor');
+  if(!pid){ed.style.display='none';return;}
+  ed.style.display='block';
+  setSync('chargement recette…');
+  const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('produit_id',pid).eq('actif',true).maybeSingle();
+  setSync('🟢 connecté');
+  if(r.data){
+    document.getElementById('recUnite').value=r.data.unite_base||'kg de farine';
+    document.getElementById('recRef').value=r.data.rendement_base||10;
+    document.getElementById('recProc').value=r.data.procede||'';
+    recLignesData=(r.data.fab_recette_lignes||[]).map(l=>({ingredient_id:l.ingredient_id,quantite:l.quantite}));
+  }else{
+    document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recProc').value='';
+    recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
+  }
+  recRenderLignes();
+}
+function recRenderLignes(){
+  document.getElementById('recLignes').innerHTML=recLignesData.map((l,k)=>
+    '<div class="lg-line"><select onchange="recLignesData['+k+'].ingredient_id=this.value">'+
+    ingredients.map(i=>'<option value="'+i.id+'" '+(l.ingredient_id===i.id?'selected':'')+'>'+i.nom+(i.bio?' (bio)':'')+'</option>').join('')+
+    '</select><input type="number" step="0.001" value="'+l.quantite+'" oninput="recLignesData['+k+'].quantite=parseFloat(this.value)||0" placeholder="kg"><button class="ico-btn" onclick="recDelLigne('+k+')">🗑</button></div>'
+  ).join('');
+}
+function recAddLigne(){recLignesData.push({ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0});recRenderLignes();}
+function recDelLigne(k){recLignesData.splice(k,1);recRenderLignes();}
+async function recSave(){
+  const pid=document.getElementById('recProd').value;if(!pid)return;
+  const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,procede:document.getElementById('recProc').value||null};
+  const lignes=recLignesData.filter(l=>l.ingredient_id&&l.quantite>0);
+  if(!lignes.length){toast('Ajoute au moins un ingrédient');return;}
+  setSync('enregistrement recette…');
+  // recette active existante ?
+  let r=await supa.from('fab_recettes').select('id').eq('produit_id',pid).eq('actif',true).maybeSingle();
+  let recId;
+  if(r.data){recId=r.data.id;await supa.from('fab_recettes').update(fields).eq('id',recId);await supa.from('fab_recette_lignes').delete().eq('recette_id',recId);}
+  else{const ins=await supa.from('fab_recettes').insert(Object.assign({produit_id:pid,version:1,actif:true},fields)).select('id').single();if(ins.error){toast(ins.error.message);return;}recId=ins.data.id;}
+  const rows=lignes.map(l=>({recette_id:recId,ingredient_id:l.ingredient_id,quantite:l.quantite,unite:'kg'}));
+  const q=await supa.from('fab_recette_lignes').insert(rows);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Recette enregistrée ✓');fabCalc();
+}
+
+/* ---------- FICHE DE FAB ---------- */
+let fabRecette=null;
+function fabSetSite(s,btn){fabSite=s;[...document.getElementById('fabSite').children].forEach(c=>c.className='');btn.className='on';}
+function fabSetUnit(m,btn){fabUnitMode=m;[...document.getElementById('fabUnit').children].forEach(c=>c.className='');btn.className='on';fabRender();}
+function fabReset(){fabChecked={};fabRender();}
+function fmt(x){if(fabUnitMode==='g')return Math.round(x*1000).toLocaleString('fr-FR')+' g';if(fabUnitMode==='kg')return (Math.round(x*1000)/1000).toLocaleString('fr-FR')+' kg';return x<1?Math.round(x*1000).toLocaleString('fr-FR')+' g':(Math.round(x*100)/100).toLocaleString('fr-FR')+' kg';}
+async function fabCalc(){
+  const pid=document.getElementById('fabProd').value;if(!pid){document.getElementById('fabList').innerHTML='';return;}
+  const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('produit_id',pid).eq('actif',true).maybeSingle();
+  fabRecette=r.data||null;fabRender();
+}
+function fabRender(){
+  const pid=document.getElementById('fabProd').value;const qte=parseFloat(document.getElementById('fabQte').value)||0;
+  document.getElementById('fabTitre').textContent=prodNom(pid);
+  if(!fabRecette||!fabRecette.fab_recette_lignes||!fabRecette.fab_recette_lignes.length){
+    document.getElementById('fabSub').textContent='Pas encore de recette — crée-la dans l\'onglet Recettes.';
+    document.getElementById('fabList').innerHTML='';document.getElementById('fabProc').style.display='none';return;
+  }
+  const ref=fabRecette.rendement_base||1;const f=qte/ref;
+  document.getElementById('fabSub').textContent='Pour '+qte+' '+(fabRecette.unite_base||'')+' · '+(SITES.find(s=>s[0]===fabSite)||['','?'])[1];
+  let html='',tot=0;
+  fabRecette.fab_recette_lignes.forEach((l,k)=>{
+    const q=l.quantite*f;tot+=q;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};
+    const done=fabChecked[k]?' done':'';
+    html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+(ing.nom||l.ingredient_id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
+  });
+  html+='<div class="pesee" style="border-top:2px dashed #D9C9a4"><div class="chk" style="border:none;background:none"></div><div class="nom"><b>Total pâte</b></div><div class="q">'+fmt(tot)+'</div></div>';
+  document.getElementById('fabList').innerHTML=html;
+  const proc=document.getElementById('fabProc');
+  if(fabRecette.procede){proc.style.display='block';proc.textContent=fabRecette.procede;}else proc.style.display='none';
+}
+function fabTog(k){fabChecked[k]=!fabChecked[k];const e=document.getElementById('pz_'+k);if(e)e.classList.toggle('done');}
+function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
+function printEtiq(){
+  if(!fabRecette)return;const qte=parseFloat(document.getElementById('fabQte').value)||0;const ref=fabRecette.rendement_base||1;const f=qte/ref;
+  let lines='',reste=false;
+  fabRecette.fab_recette_lignes.forEach((l,k)=>{if(!fabChecked[k]){reste=true;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};lines+='<div class="ln"><span>'+(ing.nom||'')+'</span><b>'+fmt(l.quantite*f)+'</b></div>';}});
+  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(document.getElementById('fabProd').value)+' — '+qte+' '+(fabRecette.unite_base||'')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
+  document.body.classList.add('mode-etiq');window.print();
+}
+window.addEventListener('afterprint',()=>document.body.classList.remove('mode-etiq'));
+
+/* ---------- LIVRAISONS ---------- */
+async function livSave(){
+  const row={ingredient_id:document.getElementById('livIng').value,quantite_kg:parseFloat(document.getElementById('livQte').value)||0,
+    numero_lot:document.getElementById('livLot').value||null,numero_bon:document.getElementById('livBon').value||null,
+    site:document.getElementById('livSite').value,date_livraison:document.getElementById('livDate').value,
+    note:document.getElementById('livNote').value||null,
+    fournisseur_id:(ingredients.find(i=>i.id===document.getElementById('livIng').value)||{}).fournisseur_id||null};
+  if(!row.quantite_kg){toast('Mets une quantité');return;}
+  setSync('enregistrement…');
+  const q=await supa.from('fab_livraisons').insert(row);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Livraison enregistrée ✓');
+  document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
+  livRenderList();
+}
+async function livRenderList(){
+  const q=await supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false}).limit(15);
+  const box=document.getElementById('livList');
+  if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div></div>').join('')||'<div class="hint">Aucune livraison.</div>';
+}
+
+/* ---------- BILAN ---------- */
+async function bilLoad(){
+  const q=await supa.from('fab_bilan_matiere').select('*').order('ingredient');
+  const tb=document.querySelector('#bilTable tbody');
+  if(q.error){tb.innerHTML='<tr><td colspan="7">'+q.error.message+'</td></tr>';return;}
+  if(!q.data.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey-light)">Aucun mouvement pour l\'instant (saisis des livraisons et de la production).</td></tr>';return;}
+  tb.innerHTML=q.data.map(r=>{const st=r.stock_theorique_kg;const cls=st<0?'bad':(st<5?'warn':'ok');
+    return '<tr><td>'+r.ingredient+'</td><td>'+(SITES.find(s=>s[0]===r.site)||['',r.site])[1]+'</td><td>'+r.recu_kg+'</td><td>'+r.dispatch_entrant_kg+'</td><td>'+r.dispatch_sortant_kg+'</td><td>'+r.consomme_kg+'</td><td class="'+cls+'">'+(Math.round(st*100)/100)+'</td></tr>';}).join('');
+}
+
+loadAll();
+</script>
+</body>
+</html>
