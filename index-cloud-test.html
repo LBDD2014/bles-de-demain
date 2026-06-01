@@ -3215,6 +3215,11 @@ async function ventesCopyMatinFrom(offsetDays, label) {
 }
 function ventesCopyYesterday() { return ventesCopyMatinFrom(1, 'hier'); }
 function ventesCopyLastWeek() { return ventesCopyMatinFrom(7, 'la semaine dernière'); }
+// v20.59 — jour férié : reprendre les quantités du dernier dimanche
+function ventesCopyLastSunday() {
+  const dow = new Date(currentDate + 'T12:00').getDay(); // 0 = dimanche
+  return ventesCopyMatinFrom(dow === 0 ? 7 : dow, 'dimanche dernier');
+}
 
 function subscribeRealtimeReappro(b) {
 if (realtimeChannelReappro) supa.removeChannel(realtimeChannelReappro);
@@ -3973,6 +3978,7 @@ html += '<div class="ventes-actions-bar">'
 
 + '<button class="btn-gold" onclick="ventesCopyYesterday()">↩️ Comme hier</button>'
 + '<button class="btn-gold" onclick="ventesCopyLastWeek()">📅 Comme la semaine dernière</button>'
++ ((function(){ var s = boutiqueOuverte(currentBoutique, currentDate); return (s.ferie && s.ouvert) ? '<button class="btn-gold" onclick="ventesCopyLastSunday()">🎌 Comme dimanche dernier</button>' : ''; })())
 + '<button class="btn-gold" onclick="importJ1Zero()">✓ Importer (J1=0 tous)</button>'
 + '<button class="btn-gold btn-validate-day' + (dayAlreadyClosed ? ' is-closed' : '') + '" onclick="validateDay()">'
 + (dayAlreadyClosed ? '🔒 Journée validée — re-valider' : '✓ Valider la journée')
