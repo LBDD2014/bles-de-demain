@@ -3187,7 +3187,8 @@ function isVentesPrevisEditable(p) {
   // REÇUS EN RÉAPPRO (local/veigne) dans TOUTES les boutiques de vente (Veigné/Tours/St-Av),
   // plus seulement St-Avertin. Catégories vendables concernées :
   const reapproEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
-  const isReapproEditable = (supply === 'local' || supply === 'veigne')
+  // v20.70 — catégories vendables : Matin saisissable quelle que soit l'origine (y compris non réglée)
+  const isReapproEditable = (supply === 'local' || supply === 'veigne' || supply === 'none' || !supply)
     && reapproEditableCats.indexOf(p.category) !== -1;
   return (supply === 'on_site' && categoryHasPrevis(p.category)) || isReapproEditable;
 }
