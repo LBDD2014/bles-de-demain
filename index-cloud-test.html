@@ -12050,18 +12050,23 @@ mc.innerHTML = html;
 
 // === COMMANDES SPECIALES v19 ===
 
-function getProductionShopForProduct(productId, originShop) {
+function getProductionShopForProduct(productId, originShop, dateISO) {
 // Determine qui produit/honore la commande SPECIALE pour ce produit.
 // v20.63 — règles métier par catégorie (indépendantes du réappro/supply) :
 //  - grosses pâtisseries : production dédiée à Veigné (toujours)
 //  - petites pâtisseries : honorées depuis le réappro de la boutique d'origine
+//    EXCEPTION v20.64 : St-Avertin le MARDI (fermée le lundi, pas de réappro frais) → Veigné
 //  - viennoiserie / brioches : cuites sur place à Veigné/Tours ; St-Avertin (cold) = Local
 //  - autres (pains, traiteur…) : logique d'approvisionnement (supply) inchangée
 const p = products.find(function(x) { return x.id === productId; });
 if (!p) return originShop; // fallback
 const cat = p.category;
 if (cat === 'patisserie_gros') return 'veigne';
-if (cat === 'patisserie_petits') return originShop;
+if (cat === 'patisserie_petits') {
+  if (originShop === 'saint-avertin' && dateISO &&
+      new Date(dateISO + 'T12:00').getDay() === 2) return 'veigne'; // mardi
+  return originShop;
+}
 if (cat === 'viennoiserie' || cat === 'brioches_special') {
   return (originShop === 'veigne' || originShop === 'tours') ? originShop : 'local';
 }
@@ -12078,7 +12083,7 @@ function computeOrderProductionShop(draft) {
 const counts = {};
 (draft.items || []).forEach(function(it) {
 if (!it.product_id) return;
-const ps = getProductionShopForProduct(it.product_id, draft.origin_shop);
+const ps = getProductionShopForProduct(it.product_id, draft.origin_shop, draft.pickup_date);
 counts[ps] = (counts[ps] || 0) + 1;
 });
 const keys = Object.keys(counts);
@@ -12123,7 +12128,7 @@ return (it.product_id || (it.product_name_custom && it.product_name_custom.trim(
 if (!cleanItems.length) { showToast('Au moins 1 produit', 'error'); return; }
 
 setSyncStatus('syncing');
-const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: cleanItems });
+const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: cleanItems, pickup_date: d.pickup_date });
 const nowISO = new Date().toISOString();
 const orderRow = {
 tenant_id: TENANT_ID,
