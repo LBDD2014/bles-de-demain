@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LBDD — Créer un produit (maquette v2)</title>
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --brown-mid:#6B4226;
+    --green:#4A7C59; --red:#B83232; --orange:#D4701A; --blue:#2C5F8A; --white:#fff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Georgia,serif;background:var(--cream);color:var(--grey-dark);padding-bottom:60px}
+  h1,h2,h3{font-family:"Playfair Display",Georgia,serif}
+  .demo-banner{background:var(--orange);color:#fff;text-align:center;font-size:13px;padding:6px 10px}
+  header{background:var(--grey-dark);color:var(--cream);padding:16px 18px}
+  header .logo{font-family:"Playfair Display",Georgia,serif;font-size:21px;font-weight:700}
+  header .logo .e{color:var(--gold)}
+  header .sub{font-size:12px;opacity:.7;margin-top:2px}
+
+  .wrap{max-width:720px;margin:0 auto;padding:18px}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;
+       box-shadow:0 2px 10px rgba(46,48,68,.08);border:1px solid #ECE3D2}
+  .card h2{margin:0 0 4px;font-size:19px;color:var(--brown)}
+  .card .hint{font-size:13px;color:var(--grey-light);margin:0 0 14px}
+  .apply-card{background:#FBF6EA;border:1px solid var(--gold-light)}
+
+  label{display:block;font-size:13px;color:var(--grey);margin:12px 0 5px;font-weight:bold}
+  input[type=text],select,input[type=date]{width:100%;padding:12px;border:1.5px solid #DcCfb4;border-radius:10px;
+       font-size:16px;font-family:Georgia,serif;background:#FCFAF4;color:var(--grey-dark)}
+  .row{display:flex;gap:12px}.row>*{flex:1}
+
+  .lieu{padding:14px 0;border-bottom:1px solid #F0E8D6}
+  .lieu:last-child{border-bottom:none}
+  .lieu-name{font-size:16px;font-weight:bold;color:var(--brown);margin-bottom:8px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:10px 14px;border:1.5px solid #DcCfb4;background:#fff;color:var(--grey-light);
+       border-radius:22px;font-family:Georgia,serif;font-size:13.5px;cursor:pointer}
+  .chip.on{font-weight:bold}
+  .chip.on.c-vendu{background:#E4F0E7;border-color:var(--green);color:var(--green)}
+  .chip.on.c-reap{background:#E7F0FA;border-color:var(--blue);color:var(--blue)}
+  .chip.on.c-cuit{background:#FBF3DE;border-color:var(--gold-dark);color:var(--gold-dark)}
+  .src{display:none;margin-top:9px;align-items:center;gap:8px;font-size:13px;color:var(--grey)}
+  .src.show{display:flex}
+  .seg-src{display:flex;gap:6px}
+  .seg-src button{padding:7px 14px;border:1.5px solid var(--blue);background:#fff;color:var(--blue);
+       border-radius:8px;font-family:Georgia,serif;font-size:13px;cursor:pointer}
+  .seg-src button.on{background:var(--blue);color:#fff;font-weight:bold}
+
+  .btn{display:block;width:100%;background:var(--gold);color:#3a2c10;border:none;padding:15px;border-radius:12px;
+       font-size:16px;font-weight:bold;font-family:Georgia,serif;cursor:pointer;box-shadow:0 2px 6px rgba(139,105,20,.25)}
+  .btn-apply{background:var(--grey-dark);color:var(--cream);margin-top:12px;padding:12px}
+  .note{background:#FBF6EA;border-left:4px solid var(--gold);border-radius:8px;padding:11px 13px;
+       font-size:13px;line-height:1.5;margin-top:12px}
+  .recap{font-size:13px}
+  .recap-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #E5DCC8}
+  .recap-row:last-child{border-bottom:none}
+  .recap-row .v{font-weight:bold;text-align:right}
+  .switch{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .switch input{width:auto}
+</style>
+</head>
+<body>
+<div class="demo-banner">🎨 Maquette v2 — cases cumulables + « appliquer à toutes ». Rien n'est enregistré.</div>
+<header>
+  <div class="logo">Les Bl<span class="e">é</span>s de Demain</div>
+  <div class="sub">BackOffice · Créer / modifier un produit</div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Le produit</h2>
+    <label>Nom</label>
+    <input type="text" id="nom" value="Viennoiserie du week-end">
+    <div class="row">
+      <div><label>Catégorie</label>
+        <select><option>Pains</option><option selected>Viennoiserie</option><option>Brioches</option>
+        <option>Petits gâteaux</option><option>Gros gâteaux</option><option>Gâteaux secs</option><option>Traiteur</option></select></div>
+      <div><label>Unité</label><select><option selected>pièce</option><option>caisse</option><option>kg</option></select></div>
+    </div>
+    <div class="switch">
+      <input type="checkbox" id="ephem" onchange="document.getElementById('ed').style.display=this.checked?'block':'none'">
+      <label for="ephem" style="margin:0">Produit éphémère <span style="font-weight:400;color:var(--grey-light)">(disparaît après une date)</span></label>
+    </div>
+    <div id="ed" style="display:none"><label>Jusqu'au</label><input type="date" value="2026-07-01"></div>
+  </div>
+
+  <!-- Appliquer à toutes -->
+  <div class="card apply-card">
+    <h2>⚡ Appliquer à toutes les boutiques</h2>
+    <p class="hint">Règle le cas général ici, applique, puis ajuste les exceptions plus bas.</p>
+    <div class="chips" id="allChips"></div>
+    <div class="src" id="src_ALL">depuis :<div class="seg-src" id="seg_ALL"></div></div>
+    <button class="btn btn-apply" onclick="applyAll()">↧ Appliquer ces réglages à toutes les boutiques</button>
+  </div>
+
+  <!-- Par lieu -->
+  <div class="card">
+    <h2>Origine par lieu</h2>
+    <p class="hint">Coche ce qui s'applique — les options se cumulent (ex. reçu en réappro <em>et</em> cuit sur place).</p>
+    <div id="lieux"></div>
+    <div class="note">🚐 <strong>Les marchés (Amboise, Beaujardin) suivent Le Local</strong> — rien à régler ici.</div>
+  </div>
+
+  <div class="card">
+    <h2>Récapitulatif</h2>
+    <div class="recap" id="recap"></div>
+  </div>
+
+  <button class="btn">✓ Enregistrer le produit</button>
+</div>
+
+<script>
+const LIEUX = [
+  {id:'veigne', nom:'Veigné'}, {id:'tours', nom:'Tours'},
+  {id:'saint-avertin', nom:'Saint-Avertin'}, {id:'local', nom:'Le Local'}
+];
+// état pré-rempli = viennoiserie : reçue surgelée du Local + cuite sur place (sauf St-Av qui reçoit cuit)
+const state = {
+  'veigne':        {vendu:true, reappro:true, src:'local', cuit:true},
+  'tours':         {vendu:true, reappro:true, src:'local', cuit:true},
+  'saint-avertin': {vendu:true, reappro:true, src:'local', cuit:false},
+  'local':         {vendu:false,reappro:false,src:'local', cuit:true}
+};
+const allState = {vendu:true, reappro:true, src:'local', cuit:true};
+
+function chipsHtml(s, scope){
+  function c(key, cls, lbl){ return '<button class="chip '+(s[key]?'on '+cls:'')+'" onclick="tog(\''+scope+'\',\''+key+'\')">'+lbl+'</button>'; }
+  return c('vendu','c-vendu','🛒 Vendu ici') + c('reappro','c-reap','🚚 Réappro') + c('cuit','c-cuit','🔥 Cuit / sorti sur place');
+}
+function srcHtml(s, scope){
+  return '<button class="'+(s.src==='local'?'on':'')+'" onclick="setSrc(\''+scope+'\',\'local\')">Le Local</button>'
+       + '<button class="'+(s.src==='veigne'?'on':'')+'" onclick="setSrc(\''+scope+'\',\'veigne\')">Veigné</button>'
+       + '<button class="'+(s.src==='tours'?'on':'')+'" onclick="setSrc(\''+scope+'\',\'tours\')">Tours</button>';
+}
+function render(){
+  // bloc "toutes"
+  document.getElementById('allChips').innerHTML = chipsHtml(allState,'ALL');
+  document.getElementById('seg_ALL').innerHTML = srcHtml(allState,'ALL');
+  document.getElementById('src_ALL').className = 'src' + (allState.reappro?' show':'');
+  // par lieu
+  document.getElementById('lieux').innerHTML = LIEUX.map(function(l){
+    const s = state[l.id];
+    return '<div class="lieu"><div class="lieu-name">'+l.nom+'</div>'
+      + '<div class="chips">'+chipsHtml(s,l.id)+'</div>'
+      + '<div class="src'+(s.reappro?' show':'')+'">depuis :<div class="seg-src">'+srcHtml(s,l.id)+'</div></div>'
+      + '</div>';
+  }).join('');
+  renderRecap();
+}
+function tog(scope,key){ const s = scope==='ALL'?allState:state[scope]; s[key]=!s[key]; render(); }
+function setSrc(scope,src){ const s = scope==='ALL'?allState:state[scope]; s.src=src; render(); }
+function applyAll(){
+  LIEUX.forEach(function(l){ state[l.id] = {vendu:allState.vendu, reappro:allState.reappro, src:allState.src, cuit:allState.cuit}; });
+  render();
+}
+function summarize(s){
+  if(!s.vendu && !s.reappro && !s.cuit) return '<span style="color:var(--grey-light)">— non concerné</span>';
+  const parts=[];
+  if(s.vendu) parts.push('<span style="color:var(--green)">vendu</span>');
+  if(s.reappro){ const SRC={local:'Local',veigne:'Veigné',tours:'Tours'}; parts.push('<span style="color:var(--blue)">réappro '+SRC[s.src]+'</span>'); }
+  if(s.cuit) parts.push('<span style="color:var(--gold-dark)">cuit sur place</span>');
+  return parts.join(' · ');
+}
+function renderRecap(){
+  document.getElementById('recap').innerHTML = LIEUX.map(function(l){
+    return '<div class="recap-row"><span>'+l.nom+'</span><span class="v">'+summarize(state[l.id])+'</span></div>';
+  }).join('');
+}
+render();
+</script>
+</body>
+</html>
