@@ -4025,15 +4025,9 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const prev = prevFilled ? Number(prevRaw) : 0;
   // v20.4 fusion : Prévis éditable + défaut par jour de semaine (production_defaults)
   const supply = getProductSupply(p, currentBoutique);
-  // v20.22 — À St-Av, l'onglet Ventes sert de prévisionnel : Matin (= previs) éditable
-  // pour pain et viennoiserie cuite commandés au Local.
-  // v20.23 — étendu : pâtisserie_petits (privé St-Av : sort du congel sur place),
-  // pâtisserie_gros + gâteaux_secs (visibles à Veigné Pâtissier pour produire si besoin).
-  const stAvEditableCats = ['pains', 'viennoiserie', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs'];
-  const isStAvEditable = currentBoutique === 'saint-avertin'
-    && (supply === 'local' || supply === 'veigne')
-    && stAvEditableCats.indexOf(p.category) !== -1;
-  const prevEditable = (supply === 'on_site' && categoryHasPrevis(p.category)) || isStAvEditable;
+  // v20.66 — utilise la fonction unique isVentesPrevisEditable (fini la logique dupliquée
+  // qui ignorait Veigné/Tours pour les produits reçus en réappro).
+  const prevEditable = isVentesPrevisEditable(p);
   let prevDisplay = '';
   let prevIsDefault = false;
   if (prevEditable) {
