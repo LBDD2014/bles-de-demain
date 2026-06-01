@@ -113,7 +113,7 @@
     </div>
     <label>Site</label><div class="seg" id="fabSite"></div>
     <label>💧 Hydratation du moment <span style="font-weight:400;color:var(--grey-light)">(le bassinage s'ajuste tout seul)</span></label>
-    <div style="display:flex;align-items:center;gap:8px"><input type="number" id="fabHydra" style="max-width:130px" oninput="fabRender()"><span style="font-size:18px;color:var(--brown-mid)">%</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><select id="fabHydra" style="max-width:140px" onchange="fabRender()"></select></div>
     <label>Affichage</label>
     <div class="seg" id="fabUnit">
       <button class="on" onclick="fabSetUnit('auto',this)">Auto</button>
@@ -246,6 +246,8 @@ function fillSelectors(){
   document.getElementById('livIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
+  let hy='';for(let p=60;p<=110;p++)hy+='<option value="'+p+'">'+p+' %</option>';
+  document.getElementById('fabHydra').innerHTML=hy;document.getElementById('fabHydra').value=90;
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
 }
 
@@ -367,7 +369,7 @@ async function fabCalc(){
   const pid=document.getElementById('fabProd').value;if(!pid){document.getElementById('fabList').innerHTML='';return;}
   const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('produit_id',pid).eq('actif',true).maybeSingle();
   fabRecette=r.data||null;
-  if(fabRecette&&fabRecette.hydratation_pct!=null)document.getElementById('fabHydra').value=fabRecette.hydratation_pct;
+  if(fabRecette&&fabRecette.hydratation_pct!=null)document.getElementById('fabHydra').value=Math.round(fabRecette.hydratation_pct);
   fabRender();
 }
 function fabRender(){
