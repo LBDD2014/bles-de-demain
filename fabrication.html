@@ -112,6 +112,8 @@
       </select></div>
     </div>
     <label>Site</label><div class="seg" id="fabSite"></div>
+    <label>💧 Hydratation du moment <span style="font-weight:400;color:var(--grey-light)">(le bassinage s'ajuste tout seul)</span></label>
+    <div style="display:flex;align-items:center;gap:8px"><input type="number" id="fabHydra" style="max-width:130px" oninput="fabRender()"><span style="font-size:18px;color:var(--brown-mid)">%</span></div>
     <label>Affichage</label>
     <div class="seg" id="fabUnit">
       <button class="on" onclick="fabSetUnit('auto',this)">Auto</button>
@@ -144,6 +146,9 @@
           <select id="recUnite"><option value="kg de farine">kg de farine</option><option value="kg de pâte">kg de pâte</option><option value="pièce">pièce</option><option value="bac">bac</option></select></div>
         <div><label>Quantité de référence</label><input type="number" id="recRef" value="10" title="ex: la recette donnée pour 10 kg de farine"></div>
       </div>
+      <label>💧 Hydratation par défaut (%) <span style="font-weight:400;color:var(--grey-light)">(la ligne « Eau » = coulage fixe ; le bassinage s'ajuste au %)</span></label>
+      <input type="number" id="recHydra" placeholder="ex 94">
+      <div class="hint" style="margin-top:4px">Ajoute une ligne <strong>Eau</strong> = ton eau de coulage (fixe). Le bassinage est calculé tout seul sur la fiche.</div>
       <label>Ingrédients (pour la quantité de référence)</label>
       <div id="recLignes"></div>
       <button class="btn ghost sm" onclick="recAddLigne()">+ Ajouter un ingrédient</button>
@@ -317,10 +322,11 @@ async function recLoad(){
   if(r.data){
     document.getElementById('recUnite').value=r.data.unite_base||'kg de farine';
     document.getElementById('recRef').value=r.data.rendement_base||10;
+    document.getElementById('recHydra').value=r.data.hydratation_pct!=null?r.data.hydratation_pct:'';
     document.getElementById('recProc').value=r.data.procede||'';
     recLignesData=(r.data.fab_recette_lignes||[]).map(l=>({ingredient_id:l.ingredient_id,quantite:l.quantite}));
   }else{
-    document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recProc').value='';
+    document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recHydra').value='';document.getElementById('recProc').value='';
     recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
   }
   recRenderLignes();
@@ -336,7 +342,7 @@ function recAddLigne(){recLignesData.push({ingredient_id:ingredients[0]?ingredie
 function recDelLigne(k){recLignesData.splice(k,1);recRenderLignes();}
 async function recSave(){
   const pid=document.getElementById('recProd').value;if(!pid)return;
-  const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,procede:document.getElementById('recProc').value||null};
+  const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,hydratation_pct:parseFloat(document.getElementById('recHydra').value)||null,procede:document.getElementById('recProc').value||null};
   const lignes=recLignesData.filter(l=>l.ingredient_id&&l.quantite>0);
   if(!lignes.length){toast('Ajoute au moins un ingrédient');return;}
   setSync('enregistrement recette…');
@@ -360,7 +366,9 @@ function fmt(x){if(fabUnitMode==='g')return Math.round(x*1000).toLocaleString('f
 async function fabCalc(){
   const pid=document.getElementById('fabProd').value;if(!pid){document.getElementById('fabList').innerHTML='';return;}
   const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('produit_id',pid).eq('actif',true).maybeSingle();
-  fabRecette=r.data||null;fabRender();
+  fabRecette=r.data||null;
+  if(fabRecette&&fabRecette.hydratation_pct!=null)document.getElementById('fabHydra').value=fabRecette.hydratation_pct;
+  fabRender();
 }
 function fabRender(){
   const pid=document.getElementById('fabProd').value;const qte=parseFloat(document.getElementById('fabQte').value)||0;
@@ -370,13 +378,22 @@ function fabRender(){
     document.getElementById('fabList').innerHTML='';document.getElementById('fabProc').style.display='none';return;
   }
   const ref=fabRecette.rendement_base||1;const f=qte/ref;
-  document.getElementById('fabSub').textContent='Pour '+qte+' '+(fabRecette.unite_base||'')+' · '+(SITES.find(s=>s[0]===fabSite)||['','?'])[1];
-  let html='',tot=0;
+  const hydra=parseFloat(document.getElementById('fabHydra').value);
+  document.getElementById('fabSub').textContent='Pour '+qte+' '+(fabRecette.unite_base||'')+' · '+(SITES.find(s=>s[0]===fabSite)||['','?'])[1]+(isNaN(hydra)?'':' · hydratation '+hydra+'%');
+  let html='',tot=0,coulagePerKg=null;
   fabRecette.fab_recette_lignes.forEach((l,k)=>{
     const q=l.quantite*f;tot+=q;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};
+    let nom=ing.nom||l.ingredient_id;
+    if(l.ingredient_id==='ing_eau'){nom='Eau de coulage';coulagePerKg=l.quantite;}
     const done=fabChecked[k]?' done':'';
-    html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+(ing.nom||l.ingredient_id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
+    html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+nom+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
   });
+  // Eau de bassinage calculée à partir de l'hydratation du moment (coulage fixe)
+  if(coulagePerKg!==null && !isNaN(hydra)){
+    let bass=(hydra/100 - coulagePerKg)*f; if(bass<0)bass=0; tot+=bass;
+    const done=fabChecked['bass']?' done':'';
+    html+='<div class="pesee'+done+'" id="pz_bass"><div class="chk" onclick="fabTog(\'bass\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(ajustée à '+hydra+'%)</span></div><div class="q">'+fmt(bass)+'</div></div>';
+  }
   html+='<div class="pesee" style="border-top:2px dashed #D9C9a4"><div class="chk" style="border:none;background:none"></div><div class="nom"><b>Total pâte</b></div><div class="q">'+fmt(tot)+'</div></div>';
   document.getElementById('fabList').innerHTML=html;
   const proc=document.getElementById('fabProc');
