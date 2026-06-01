@@ -1882,6 +1882,9 @@ outline: none; border-color: var(--gold); background: white;
 .ferie-bar { background:#FBF3DE; border:1px solid var(--gold); border-radius:10px;
   padding:9px 12px; margin:8px 0; font-size:14px; color:var(--brown); }
 .ferie-bar.ferme { background:#F7E4E4; border-color:var(--red); color:var(--red); }
+/* Commande spéciale en lecture seule (À produire pour une autre boutique) — v20.62 */
+.sp-card.sp-readonly { cursor: default; }
+.sp-ro-badge { font-size:11px; color:var(--grey-light); background:#EEE8DC; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 </style>
 
 </head>
@@ -12404,8 +12407,11 @@ const summary = (o.items || []).map(function(it) {
 const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
 return (parseQty(it.qty) || 1) + 'x ' + name;
 }).join(' + ');
-let html = '<div class="sp-card status-' + o.status + '" onclick="openEditSpecialOrder(\'' + o.id + '\')">';
+// v20.62 — commande d'une autre boutique (À produire) = lecture seule : pas d'édition du contenu
+const editAttr = isMine ? ' onclick="openEditSpecialOrder(\'' + o.id + '\')"' : '';
+let html = '<div class="sp-card status-' + o.status + (isMine ? '' : ' sp-readonly') + '"' + editAttr + '>';
 html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
+if (!isMine) html += '<span class="sp-ro-badge">👁 lecture seule</span>';
 if (o.pickup_time) html += '<span class="sp-card-time">🕔 ' + escapeHtml(o.pickup_time) + '</span>';
 html += '</div>';
 html += '<div class="sp-card-body">' + escapeHtml(summary) + '</div>';
