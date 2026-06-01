@@ -4201,6 +4201,26 @@ function ferieBannerHtml(boutique, iso) {
     + (ferme ? '🔒' : '🎌') + ' <strong>' + escapeHtml(st.nom) + '</strong> — '
     + escapeHtml(st.raison) + '</div>';
 }
+// Brique C — prochain férié où la boutique sera FERMÉE, dans les N prochains jours
+function prochainFerieFerme(boutique, dansNbJours) {
+  const auj = new Date(); auj.setHours(12, 0, 0, 0);
+  for (let i = 0; i <= dansNbJours; i++) {
+    const d = new Date(auj); d.setDate(auj.getDate() + i);
+    const iso = _localISO(d);
+    const st = boutiqueOuverte(boutique, iso);
+    if (st.ferie && !st.ouvert) return { iso: iso, nom: st.nom, dans: i };
+  }
+  return null;
+}
+// Rappel "prévenir les pros" X jours avant un férié où la boutique est fermée
+function ferieRappelProsHtml(boutique) {
+  const p = prochainFerieFerme(boutique, 5);
+  if (!p) return '';
+  const quand = p.dans === 0 ? "aujourd'hui" : (p.dans === 1 ? 'demain' : 'dans ' + p.dans + ' jours');
+  return '<div class="ferie-bar ferme">⚠️ <strong>' + escapeHtml(BOUTIQUE_NAMES[boutique] || boutique)
+    + ' fermé ' + quand + '</strong> (' + escapeHtml(p.nom) + ', ' + escapeHtml(formatDateFr(p.iso))
+    + ') — pense à prévenir les pros pour qu’ils anticipent leur commande.</div>';
+}
 
 // v20.1 : nouveau calcul Vendu base sur Prévis au lieu de Matin
 // v20.5 : gate sur day_closed — Vendu n'apparaît qu'après "Valider la journée"
@@ -10153,6 +10173,7 @@ function renderProOrders() {
   const nbItems = visible.reduce(function(s, o) { return s + ((o.pro_order_items || []).length); }, 0);
 
   let html = '<div class="info-banner"><strong>Commandes Pros</strong><br>Saisis les commandes des restos, cafés et hôtels que tu livres depuis cette boutique. Les commandes sont synchronisees en temps reel.</div>';
+  if (currentBoutique === 'tours') html += ferieRappelProsHtml('tours');
   html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
     + '<button class="btn-gold" onclick="openProOrderForm(\'new\')">+ Nouvelle commande</button>'
     + '<div class="pro-period-filter">'
