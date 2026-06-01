@@ -107,7 +107,9 @@
     <p class="hint">Choisis un pain et ta quantité → les pesées se calculent.</p>
     <div class="row">
       <div><label>Pain</label><select id="fabProd" onchange="fabCalc()"></select></div>
-      <div><label>Quantité</label><input type="number" id="fabQte" value="0" oninput="fabCalc()"></div>
+      <div><label>Quantité</label><select id="fabQte" onchange="fabCalc()">
+        <option>5</option><option selected>10</option><option>15</option><option>20</option><option>25</option><option>30</option><option>35</option><option>40</option><option>45</option><option>50</option><option>55</option><option>60</option><option>65</option><option>70</option><option>75</option>
+      </select></div>
     </div>
     <label>Site</label><div class="seg" id="fabSite"></div>
     <label>Affichage</label>
