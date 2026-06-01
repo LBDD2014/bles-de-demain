@@ -12051,9 +12051,20 @@ mc.innerHTML = html;
 // === COMMANDES SPECIALES v19 ===
 
 function getProductionShopForProduct(productId, originShop) {
-// Determine qui produit la commande pour ce produit
+// Determine qui produit/honore la commande SPECIALE pour ce produit.
+// v20.63 — règles métier par catégorie (indépendantes du réappro/supply) :
+//  - grosses pâtisseries : production dédiée à Veigné (toujours)
+//  - petites pâtisseries : honorées depuis le réappro de la boutique d'origine
+//  - viennoiserie / brioches : cuites sur place à Veigné/Tours ; St-Avertin (cold) = Local
+//  - autres (pains, traiteur…) : logique d'approvisionnement (supply) inchangée
 const p = products.find(function(x) { return x.id === productId; });
 if (!p) return originShop; // fallback
+const cat = p.category;
+if (cat === 'patisserie_gros') return 'veigne';
+if (cat === 'patisserie_petits') return originShop;
+if (cat === 'viennoiserie' || cat === 'brioches_special') {
+  return (originShop === 'veigne' || originShop === 'tours') ? originShop : 'local';
+}
 const supply = getProductSupply(p, originShop);
 if (!supply || supply === 'on_site') return originShop;
 if (supply === 'local') return 'local';
