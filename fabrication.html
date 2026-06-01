@@ -118,6 +118,7 @@
       <button onclick="fabSetUnit('kg',this)">kg</button>
       <button onclick="fabSetUnit('g',this)">grammes</button>
     </div>
+    <div class="btn-row"><button class="btn" style="background:var(--green);color:#fff;flex:1" onclick="fabSaveProd()">✓ Enregistrer la production du jour</button></div>
     <div class="btn-row">
       <button class="btn dark" onclick="printFiche()">🖨️ Fiche</button>
       <button class="btn" onclick="printEtiq()">🏷️ Étiquette (reste)</button>
@@ -382,6 +383,17 @@ function fabRender(){
   if(fabRecette.procede){proc.style.display='block';proc.textContent=fabRecette.procede;}else proc.style.display='none';
 }
 function fabTog(k){fabChecked[k]=!fabChecked[k];const e=document.getElementById('pz_'+k);if(e)e.classList.toggle('done');}
+async function fabSaveProd(){
+  const pid=document.getElementById('fabProd').value;
+  if(!fabRecette||!fabRecette.id){toast('Crée d\'abord la recette de ce produit');return;}
+  const qte=parseFloat(document.getElementById('fabQte').value)||0;
+  if(!qte){toast('Choisis une quantité');return;}
+  const today=new Date().toISOString().slice(0,10);
+  setSync('enregistrement production…');
+  const q=await supa.from('fab_production').insert({produit_id:pid,recette_id:fabRecette.id,site:fabSite,date_prod:today,quantite:qte});
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Production enregistrée ✓ — bilan à jour');
+}
 function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
 function printEtiq(){
   if(!fabRecette)return;const qte=parseFloat(document.getElementById('fabQte').value)||0;const ref=fabRecette.rendement_base||1;const f=qte/ref;
