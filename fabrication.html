@@ -157,14 +157,16 @@
 <section id="liv" class="page">
   <div class="card">
     <h2>Enregistrer une livraison</h2>
-    <p class="hint">À chaque réception de farine bio : lot + n° de bon.</p>
+    <p class="hint">📷 Photographie le bon, indique la farine et la quantité — c'est tout.</p>
+    <label>📷 Photo du bon de livraison <span style="font-weight:400;color:var(--grey-light)">(l'essentiel : lot, date, fournisseur y figurent)</span></label>
+    <input type="file" id="livPhoto" accept="image/*" capture="environment">
     <div class="row">
-      <div><label>Ingrédient</label><select id="livIng"></select></div>
+      <div><label>Farine</label><select id="livIng"></select></div>
       <div><label>Quantité (kg)</label><input type="number" id="livQte" value=""></div>
     </div>
     <div class="row">
-      <div><label>N° de lot</label><input type="text" id="livLot" placeholder="ex L-2026-..."></div>
-      <div><label>N° de bon</label><input type="text" id="livBon" placeholder="ex BL-..."></div>
+      <div><label>N° de lot <span style="font-weight:400;color:var(--grey-light)">(optionnel)</span></label><input type="text" id="livLot" placeholder="sur la photo"></div>
+      <div><label>N° de bon <span style="font-weight:400;color:var(--grey-light)">(optionnel)</span></label><input type="text" id="livBon" placeholder="sur la photo"></div>
     </div>
     <div class="row">
       <div><label>Site de réception</label><select id="livSite"></select></div>
@@ -398,18 +400,29 @@ async function livSave(){
     note:document.getElementById('livNote').value||null,
     fournisseur_id:(ingredients.find(i=>i.id===document.getElementById('livIng').value)||{}).fournisseur_id||null};
   if(!row.quantite_kg){toast('Mets une quantité');return;}
+  // upload photo si présente
+  const fi=document.getElementById('livPhoto');
+  if(fi&&fi.files&&fi.files[0]){
+    setSync('envoi de la photo…');
+    const f=fi.files[0];const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+    const path='bon_'+Date.now()+'.'+ext;
+    const up=await supa.storage.from('bons-bio').upload(path,f,{upsert:false});
+    if(up.error){setSync('⚠️');toast('Photo : '+up.error.message);return;}
+    row.photo_url=supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
+  }
   setSync('enregistrement…');
   const q=await supa.from('fab_livraisons').insert(row);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   setSync('🟢 connecté');toast('Livraison enregistrée ✓');
   document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
+  if(fi)fi.value='';
   livRenderList();
 }
 async function livRenderList(){
   const q=await supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false}).limit(15);
   const box=document.getElementById('livList');
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
-  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div></div>').join('')||'<div class="hint">Aucune livraison.</div>';
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'</div>').join('')||'<div class="hint">Aucune livraison.</div>';
 }
 
 /* ---------- BILAN ---------- */
