@@ -223,7 +223,7 @@ let recettesMap={}, pdDay={}; // recettes actives par produit + pains cochés du
 let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}; // planning semaine
 let pdMelange={}; // melangePid -> nb bacs (du jour)
 // Pâtes de base qui ont des mélanges : produit de base -> ingrédient "pâte de X"
-const BASE_PATE={'pr_tradition':'ing_pate_tradition'};
+const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_essentiel'};
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
@@ -483,7 +483,13 @@ function pdMelangeSection(basePid){
   if(needed>0){const reste=produced-needed,ok=reste>=-0.001;
     summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · '+petLabel+' : '+r2(produced)+' kg → '+(ok?'reste <b>'+r2(reste)+' kg</b> ✅':'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
     const aKeys=Object.keys(add);
-    if(aKeys.length){let al='';aKeys.forEach(id=>{const ing=ingredients.find(x=>x.id===id)||{};al+='<div class="pesee" style="padding:4px 0"><div class="nom" style="font-size:13px">'+(ing.nom||id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(add[id])+'</div></div>';});
+    if(aKeys.length){
+      const soak=aKeys.filter(id=>id==='ing_eau'||id.indexOf('ing_graines')===0);
+      const other=aKeys.filter(id=>!(id==='ing_eau'||id.indexOf('ing_graines')===0));
+      let al='';
+      if(soak.length){const parts=soak.map(id=>{const ing=ingredients.find(x=>x.id===id)||{};return fmt(add[id])+' '+(ing.nom||id)+(ing.bio?' (bio)':'');}).join(' + ');
+        al+='<div class="pesee" style="padding:5px 0"><div class="nom" style="font-size:13px">🫧 <b>À faire tremper</b></div><div class="q" style="font-size:12px;text-align:right;font-weight:bold">'+parts+'</div></div>';}
+      other.forEach(id=>{const ing=ingredients.find(x=>x.id===id)||{};al+='<div class="pesee" style="padding:4px 0"><div class="nom" style="font-size:13px">'+(ing.nom||id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(add[id])+'</div></div>';});
       summary+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--gold-dark)">À préparer (ajouts)</div>'+al;}}
   return '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #D9C9a4"><div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin-bottom:2px">🧩 Mélanges</div>'+rows+summary+'</div>';
 }
