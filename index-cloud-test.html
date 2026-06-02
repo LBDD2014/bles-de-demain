@@ -177,8 +177,24 @@ padding-bottom: env(safe-area-inset-bottom, 0px);
 flex: 1; padding: 10px 3px 8px; cursor: pointer; border: none; background: transparent;
 display: flex; flex-direction: column; align-items: center; gap: 3px;
 font-family: inherit; min-width: 0; touch-action: none; user-select: none;
-transition: transform .12s, opacity .12s;
+transition: transform .12s, opacity .12s; position: relative;
 }
+.bnav-badge {
+position: absolute; top: 3px; left: 50%; transform: translateX(8px);
+min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box;
+border-radius: 9px; background: var(--red); color: #fff;
+font-size: 10px; font-weight: 800; line-height: 16px; text-align: center;
+box-shadow: 0 0 7px rgba(184,50,50,0.85); animation: badgeBlink 1s infinite;
+}
+@keyframes badgeBlink { 50% { opacity: 0.2; } }
+.livreur-sound-btn {
+display: flex; align-items: center; justify-content: center; gap: 8px;
+width: 100%; margin-bottom: 10px; padding: 11px 14px; border: none; cursor: pointer;
+border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 700;
+box-shadow: 0 2px 8px rgba(61,43,31,0.12);
+}
+.livreur-sound-btn.off { background: var(--orange); color: #fff; animation: badgeBlink 1.6s infinite; }
+.livreur-sound-btn.on  { background: #EAF3EC; color: var(--green); box-shadow: none; }
 .bnav-item.bnav-dragging {
 opacity: 0.85; transform: scale(1.12); background: rgba(206,171,82,0.18);
 border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.35);
@@ -2235,6 +2251,10 @@ let adminEditingPid = null;
 let messagesData = [];
 let messageDraft = { content: '', urgent: false, stop_boutique: '' };
 let realtimeChannelMessages = null;
+// Alerte sonore livreur (nouveau message)
+let msgSoundEnabled = false;
+let msgAudioCtx = null;
+let _msgAudioPrimed = false;
 
 // Réappro v18 : auto-copy last week hint
 let autoCopyLastWeekDate = null;
@@ -2734,6 +2754,12 @@ if (b === 'veigne') await loadProductionDefaults('saint-avertin');
 document.getElementById('splash').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
 document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
+// Livreur : charger + s'abonner aux messages dès l'entrée (badge live sur tous les onglets)
+if (b === 'livreur') {
+  try { if (localStorage.getItem('msgSoundEnabled') === '1') { msgSoundEnabled = true; primeMsgAudioOnGesture(); } } catch (e) {}
+  await loadMessages();
+  subscribeRealtimeMessages();
+}
 renderNav();
 setVue(NAV_ITEMS[b][0].id);
 }
@@ -2763,10 +2789,21 @@ document.getElementById('app').style.display = 'none';
 
 function renderNav() {
 const items = orderedNavItems(currentBoutique);
+const unread = unreadMessagesCount();
 document.getElementById('bottom-nav').innerHTML = items.map(function(it) {
-return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" data-vue="' + it.id + '"><span class="lbl">' + escapeHtml(it.lbl) + '</span></button>';
+let badge = '';
+if (it.id === 'messages' && unread > 0) {
+badge = '<span class="bnav-badge">' + (unread > 9 ? '9+' : unread) + '</span>';
+}
+return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" data-vue="' + it.id + '"><span class="lbl">' + escapeHtml(it.lbl) + '</span>' + badge + '</button>';
 }).join('');
 initNavDragOnce();
+}
+
+// Nombre de messages non lus (livreur uniquement) pour la pastille de l'onglet
+function unreadMessagesCount() {
+if (currentBoutique !== 'livreur') return 0;
+return messagesData.filter(function(m) { return !m.read_at; }).length;
 }
 
 // v20.53 — ordre des onglets mémorisé par appareil (localStorage), réorganisable par appui long
@@ -3689,8 +3726,21 @@ function renderReapproField(field, currentVal, placeholder, isCmd) {
     h += '</select>';
     return h;
   }
-  // Mode libre : input texte
-  return '<input type="text" inputmode="decimal" class="' + cls + '" data-pid="' + p.id + '" data-field="' + field + '" value="' + escapeHtml(currentVal) + '" placeholder="' + escapeHtml(placeholder) + '" oninput="handleReapproInput(this)" onfocus="this.select()">';
+  // Mode menu déroulant v20.71 — entiers 0→50, plus de saisie clavier (toutes boutiques)
+  const MAXN = 50;
+  const cv = (currentVal === null || currentVal === undefined) ? '' : String(currentVal);
+  let h = '<select class="' + cls + ' unit-select" data-pid="' + p.id + '" data-field="' + field + '" onchange="handleReapproInput(this)">';
+  h += '<option value="">' + escapeHtml(placeholder) + '</option>';
+  for (let n = 0; n <= MAXN; n++) {
+    h += '<option value="' + n + '"' + (cv === String(n) ? ' selected' : '') + '>' + n + '</option>';
+  }
+  // Préserve une valeur existante hors plage (ex ancien 80) sans rouvrir la saisie libre
+  const inRange = (cv !== '' && /^\d+$/.test(cv) && Number(cv) >= 0 && Number(cv) <= MAXN);
+  if (cv !== '' && !inRange) {
+    h += '<option value="' + escapeHtml(cv) + '" selected>' + escapeHtml(cv) + '</option>';
+  }
+  h += '</select>';
+  return h;
 }
 html += renderReapproField('avoir', a, "J'ai", false);
 html += renderReapproField('commander', c, 'À cmd', true);
@@ -4867,7 +4917,8 @@ const stopsForTour = deliveriesData
 const totalStops = stopsForTour.length;
 const deliveredStops = stopsForTour.filter(function(d) { return d.delivered; }).length;
 
-let html = '<div class="ventes-day-bar">'
+let html = livreurSoundBtnHtml();
+html += '<div class="ventes-day-bar">'
 
 + '<button class="ventes-day-btn" onclick="changeLivraisonDate(-1)"><</button>'
 + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
@@ -12751,6 +12802,7 @@ const ids = unread.map(function(m) { return m.id; });
 await supa.from('livreur_messages').update({ read_at: nowISO }).in('id', ids);
 unread.forEach(function(m) { m.read_at = nowISO; });
 renderMessages();
+renderNav(); // vide la pastille de l'onglet
 }
 
 async function toggleMessageDone(id, currentVal) {
@@ -12787,9 +12839,11 @@ if (currentBoutique !== 'livreur' && r.sender_boutique !== currentBoutique) retu
 if (payload.eventType === 'INSERT') {
 if (payload.new.sender_device === DEVICE_ID) return; // déjà traite localement
 messagesData.unshift(payload.new);
-renderMessages();
-if (currentBoutique === 'livreur' && payload.new.urgent) {
-showToast('Nouveau message URGENT', 'error');
+if (currentVue === 'messages') renderMessages();
+renderNav(); // maj pastille non-lus (visible même hors onglet Messages)
+if (currentBoutique === 'livreur') {
+playMessageBeep(!!payload.new.urgent);
+showToast(payload.new.urgent ? 'Nouveau message URGENT' : 'Nouveau message', payload.new.urgent ? 'error' : 'sync');
 } else {
 showToast('Nouveau message', 'sync');
 }
@@ -12797,11 +12851,13 @@ showToast('Nouveau message', 'sync');
 const idx = messagesData.findIndex(function(m) { return m.id === payload.new.id; });
 if (idx >= 0) {
 messagesData[idx] = payload.new;
-renderMessages();
+if (currentVue === 'messages') renderMessages();
+renderNav();
 }
 } else if (payload.eventType === 'DELETE') {
 messagesData = messagesData.filter(function(m) { return m.id !== payload.old.id; });
-renderMessages();
+if (currentVue === 'messages') renderMessages();
+renderNav();
 }
 }).subscribe();
 }
@@ -12836,6 +12892,7 @@ let html = '';
 
 if (isLivreur) {
 // RECEPTEUR - livreur
+html += livreurSoundBtnHtml();
 const toDo = messagesData.filter(function(m) { return !m.done; });
 const done = messagesData.filter(function(m) { return m.done; });
 const unread = messagesData.filter(function(m) { return !m.read_at; });
@@ -12985,6 +13042,67 @@ else if (s === 'error') text.textContent = 'Erreur';
 }
 
 let toastTimer;
+// ===== Alerte sonore livreur (nouveau message) =====
+// iOS/Safari : le son ne peut démarrer qu'après un geste utilisateur → bouton "Activer".
+function enableMessageSound() {
+try {
+if (!msgAudioCtx) msgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+if (msgAudioCtx.state === 'suspended') msgAudioCtx.resume();
+msgSoundEnabled = true;
+try { localStorage.setItem('msgSoundEnabled', '1'); } catch (e) {}
+playMessageBeep(false); // bip de confirmation
+} catch (e) {}
+// rafraîchir l'écran courant pour mettre le bouton à jour
+if (currentVue === 'tournee' || currentVue === 'livraison') renderLivraison();
+else if (currentVue === 'messages') renderMessages();
+}
+
+// Réamorce le contexte audio au 1er geste (après activation déjà mémorisée)
+function primeMsgAudioOnGesture() {
+if (_msgAudioPrimed) return;
+_msgAudioPrimed = true;
+const handler = function() {
+try {
+if (!msgAudioCtx) msgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+if (msgAudioCtx.state === 'suspended') msgAudioCtx.resume();
+} catch (e) {}
+document.removeEventListener('pointerdown', handler);
+document.removeEventListener('touchstart', handler);
+};
+document.addEventListener('pointerdown', handler);
+document.addEventListener('touchstart', handler);
+}
+
+function playMessageBeep(urgent) {
+if (!msgSoundEnabled || !msgAudioCtx) return;
+try {
+if (msgAudioCtx.state === 'suspended') msgAudioCtx.resume();
+const ctx = msgAudioCtx;
+const beep = function(when, freq, dur) {
+const o = ctx.createOscillator();
+const g = ctx.createGain();
+o.type = 'sine'; o.frequency.value = freq;
+o.connect(g); g.connect(ctx.destination);
+g.gain.setValueAtTime(0.0001, when);
+g.gain.exponentialRampToValueAtTime(0.4, when + 0.02);
+g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+o.start(when); o.stop(when + dur + 0.03);
+};
+const t = ctx.currentTime;
+if (urgent) { beep(t, 1175, 0.16); beep(t + 0.2, 1175, 0.16); beep(t + 0.4, 1175, 0.22); }
+else { beep(t, 880, 0.2); }
+} catch (e) {}
+}
+
+// HTML du bouton son (affiché en haut des écrans Tournée + Messages du livreur)
+function livreurSoundBtnHtml() {
+if (currentBoutique !== 'livreur') return '';
+if (msgSoundEnabled) {
+return '<button class="livreur-sound-btn on" onclick="enableMessageSound()">🔔 Sons activés — alerte à chaque message</button>';
+}
+return '<button class="livreur-sound-btn off" onclick="enableMessageSound()">🔕 Activer les sons (1 fois en début de tournée)</button>';
+}
+
 function showToast(msg, type) {
 const t = document.getElementById('toast');
 t.textContent = msg;
