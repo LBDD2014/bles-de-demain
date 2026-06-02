@@ -107,9 +107,16 @@
 <section id="fab" class="page active">
   <div class="card print-hide">
     <h2>Production du jour</h2>
-    <p class="hint">Ajoute tes pains et leurs quantités (en kg de farine). L'app calcule les pesées, le levain à préparer et le total des matières.</p>
+    <p class="hint">Choisis le jour, ajoute tes pains (en bacs ou kg de farine). Tout est enregistré automatiquement.</p>
     <label>Site</label><div class="seg" id="fabSite"></div>
-    <label>Affichage</label>
+    <label>Semaine</label>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <button class="ico-btn" onclick="pdChangeWeek(-1)">‹</button>
+      <div id="pdWeek" style="flex:1;display:flex;gap:4px;overflow-x:auto"></div>
+      <button class="ico-btn" onclick="pdChangeWeek(1)">›</button>
+    </div>
+    <p class="hint" id="pdDayLabel" style="font-weight:bold;color:var(--gold-dark);margin-top:2px"></p>
+    <label>Affichage des pesées</label>
     <div class="seg" id="fabUnit">
       <button class="on" onclick="fabSetUnit('auto',this)">Auto</button>
       <button onclick="fabSetUnit('kg',this)">kg</button>
@@ -119,8 +126,7 @@
     <div id="pdRows"></div>
     <div class="btn-row"><button class="btn ghost" style="flex:1" onclick="pdAddRow()">＋ Ajouter un pain</button></div>
     <div class="btn-row">
-      <button class="btn" style="background:var(--green);color:#fff;flex:1" onclick="pdSaveDay()">✓ Enregistrer la production du jour</button>
-      <button class="btn dark" onclick="printFiche()">🖨️ Tout imprimer</button>
+      <button class="btn dark" style="flex:1" onclick="printFiche()">🖨️ Tout imprimer</button>
       <button class="btn ghost" onclick="fabReset()">↺ Coches</button>
     </div>
   </div>
@@ -215,6 +221,7 @@ const SITES=[['local','Le Local'],['veigne','Veigné'],['tours','Tours']];
 let fournisseurs=[],ingredients=[],produits=[];
 let gesCur='ing', fabUnitMode='auto', fabSite='local', fabChecked={};
 let recettesMap={}, pdRows=[]; // recettes actives par produit + lignes de la production du jour
+let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}; // planning semaine
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
@@ -234,11 +241,13 @@ async function loadAll(){
   await loadRecettesMap();
   setSync('🟢 connecté');
   fillSelectors();gesRender();
-  if(!pdRows.length)pdAddRow(); else pdRenderAll();
+  const t=new Date();t.setHours(0,0,0,0);
+  pdDate=pdISO(t);pdWeekStart=pdISO(pdMonday(t));
+  await pdLoadWeek();await pdLoadDay();
 }
 async function loadRecettesMap(){
   const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('actif',true);
-  recettesMap={};
+  recettesMap={};_dpfCache={};
   (r.data||[]).forEach(rec=>{recettesMap[rec.produit_id]=Object.assign({},rec,{lignes:rec.fab_recette_lignes||[]});});
 }
 function fillSelectors(){
@@ -372,30 +381,101 @@ async function recSave(){
   setSync('🟢 connecté');toast('Recette enregistrée ✓');await loadRecettesMap();pdRenderAll();
 }
 
-/* ---------- PRODUCTION DU JOUR (multi-pains) ---------- */
-function fabSetSite(s,btn){fabSite=s;[...document.getElementById('fabSite').children].forEach(c=>c.className='');btn.className='on';pdRenderFiches();}
+/* ---------- PRODUCTION DU JOUR / PLANNING SEMAINE ---------- */
+function fabSetSite(s,btn){fabSite=s;[...document.getElementById('fabSite').children].forEach(c=>c.className='');btn.className='on';pdLoadWeek();pdLoadDay();}
 function fabSetUnit(m,btn){fabUnitMode=m;[...document.getElementById('fabUnit').children].forEach(c=>c.className='');btn.className='on';pdRenderAll();}
 function fabReset(){fabChecked={};pdRenderFiches();}
 function fmt(x){if(fabUnitMode==='g')return Math.round(x*1000).toLocaleString('fr-FR')+' g';if(fabUnitMode==='kg')return (Math.round(x*1000)/1000).toLocaleString('fr-FR')+' kg';return x<1?Math.round(x*1000).toLocaleString('fr-FR')+' g':(Math.round(x*100)/100).toLocaleString('fr-FR')+' kg';}
+function r2(x){return Math.round(x*100)/100;}
 
-function pdAddRow(){const first=produits.find(p=>recettesMap[p.id]);pdRows.push({pid:first?first.id:'',qte:10,hydra:undefined});pdRenderAll();}
-function pdDel(i){pdRows.splice(i,1);fabChecked={};pdRenderAll();}
-function pdSet(i,field,val){
-  if(field==='qte')val=parseFloat(val)||0;
-  if(field==='hydra')val=(val===''?null:parseFloat(val));
-  pdRows[i][field]=val;
-  if(field==='pid')pdRows[i].hydra=undefined; // reprend l'hydratation de la nouvelle recette
-  pdRenderAll();
+/* --- dates --- */
+const PD_DAYS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const PD_DAYS_FULL=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function pdISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pdParse(iso){const a=iso.split('-').map(Number);return new Date(a[0],a[1]-1,a[2]);}
+function pdMonday(d){const x=new Date(d);const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);x.setHours(0,0,0,0);return x;}
+function pdAddDays(iso,n){const x=pdParse(iso);x.setDate(x.getDate()+n);return pdISO(x);}
+function pdLabel(iso){const d=pdParse(iso);return PD_DAYS_FULL[(d.getDay()+6)%7]+' '+d.getDate()+'/'+(d.getMonth()+1);}
+
+/* --- conversion bacs <-> kg de farine (poids d'un bac de pâte par recette) --- */
+function doughPerKgFlour(pid){
+  if(_dpfCache[pid]!=null)return _dpfCache[pid];
+  const rec=recettesMap[pid];if(!rec){return 0;}
+  const f=1/(rec.rendement_base||1);let tot=0,coulage=0,flour=0;
+  (rec.lignes||[]).forEach(l=>{const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};const q=l.quantite*f;tot+=q;if(ing.categorie==='farine')flour+=q;if(l.ingredient_id==='ing_eau')coulage=q;});
+  if(rec.hydratation_pct!=null&&flour>0){let b=(rec.hydratation_pct/100)*flour-coulage;if(b<0)b=0;tot+=b;}
+  _dpfCache[pid]=tot;return tot;
 }
-// Calcule les pesées + agrégats d'une ligne du jour
+function pdHasBac(pid){const rec=recettesMap[pid];return !!(rec&&rec.poids_bac>0&&doughPerKgFlour(pid)>0);}
+function pdRowKgFlour(row){
+  const rec=recettesMap[row.pid];if(!rec)return 0;const q=parseFloat(row.qte)||0;
+  if(row.unit==='bac'&&pdHasBac(row.pid))return q*rec.poids_bac/doughPerKgFlour(row.pid);
+  return q;
+}
+function pdKgToBac(pid,kg){const rec=recettesMap[pid];if(!pdHasBac(pid))return null;return kg*doughPerKgFlour(pid)/rec.poids_bac;}
+
+/* --- semaine --- */
+async function pdChangeWeek(delta){pdWeekStart=pdAddDays(pdWeekStart,delta*7);await pdLoadWeek();}
+async function pdLoadWeek(){
+  const end=pdAddDays(pdWeekStart,6);
+  const r=await supa.from('fab_production').select('produit_id,date_prod').eq('site',fabSite).gte('date_prod',pdWeekStart).lte('date_prod',end);
+  pdWeekData={};(r.data||[]).forEach(x=>{pdWeekData[x.date_prod]=(pdWeekData[x.date_prod]||0)+1;});
+  pdRenderWeekStrip();
+}
+function pdRenderWeekStrip(){
+  const el=document.getElementById('pdWeek');if(!el)return;let h='';
+  for(let i=0;i<7;i++){const iso=pdAddDays(pdWeekStart,i);const d=pdParse(iso);const cnt=pdWeekData[iso]||0;const sel=iso===pdDate;
+    h+='<button onclick="pdSetDate(\''+iso+'\')" style="flex:1;min-width:42px;padding:6px 2px;border-radius:8px;border:1.5px solid '+(sel?'var(--gold)':'#E8DCC2')+';background:'+(sel?'var(--gold)':'#fff')+';color:'+(sel?'#3a2c10':'var(--grey)')+';font-family:Georgia,serif;cursor:pointer;font-size:12px">'
+      +'<div style="font-weight:bold">'+PD_DAYS[i]+'</div><div style="font-size:11px">'+d.getDate()+'</div>'
+      +(cnt?'<div style="font-size:10px;color:'+(sel?'#3a2c10':'var(--green)')+';font-weight:bold">'+cnt+'</div>':'<div style="font-size:10px;color:#ccc">—</div>')
+      +'</button>';}
+  el.innerHTML=h;
+}
+async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
+
+/* --- jour : charge / sauve (auto-save) --- */
+async function pdLoadDay(){
+  const lab=document.getElementById('pdDayLabel');if(lab)lab.textContent='📅 '+pdLabel(pdDate);
+  const r=await supa.from('fab_production').select('produit_id,quantite').eq('site',fabSite).eq('date_prod',pdDate);
+  pdRows=(r.data||[]).filter(x=>recettesMap[x.produit_id]).map(x=>{
+    const useBac=pdHasBac(x.produit_id);
+    return {pid:x.produit_id,unit:useBac?'bac':'kg',qte:useBac?r2(pdKgToBac(x.produit_id,x.quantite)):r2(x.quantite),hydra:undefined};
+  });
+  fabChecked={};pdRenderAll();
+}
+function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
+async function pdDoSave(){
+  const valid=pdRows.filter(r=>recettesMap[r.pid]&&(parseFloat(r.qte)||0)>0);
+  setSync('enregistrement…');
+  const del=await supa.from('fab_production').delete().eq('site',fabSite).eq('date_prod',pdDate);
+  if(del.error){setSync('⚠️');toast(del.error.message);return;}
+  if(valid.length){
+    const rows=valid.map(r=>({produit_id:r.pid,recette_id:recettesMap[r.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(r))}));
+    const q=await supa.from('fab_production').insert(rows);
+    if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  }
+  setSync('🟢 connecté');pdLoadWeek();
+}
+
+/* --- lignes --- */
+function pdAddRow(){const first=produits.find(p=>recettesMap[p.id]);const pid=first?first.id:'';const bac=pdHasBac(pid);pdRows.push({pid,unit:bac?'bac':'kg',qte:bac?1:10,hydra:undefined});pdRenderAll();pdAutoSave();}
+function pdDel(i){pdRows.splice(i,1);fabChecked={};pdRenderAll();pdAutoSave();}
+function pdSet(i,field,val){
+  const row=pdRows[i];
+  if(field==='qte')row.qte=parseFloat(val)||0;
+  else if(field==='hydra')row.hydra=(val===''?null:parseFloat(val));
+  else if(field==='unit'){const kg=pdRowKgFlour(row);row.unit=val;row.qte=(val==='bac'&&pdHasBac(row.pid))?r2(pdKgToBac(row.pid,kg)):r2(kg);}
+  else if(field==='pid'){row.pid=val;row.hydra=undefined;if(!pdHasBac(val)&&row.unit==='bac')row.unit='kg';}
+  pdRenderAll();pdAutoSave();
+}
+// Pesées + agrégats d'une ligne du jour
 function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
-  const ref=rec.rendement_base||1;const f=(parseFloat(row.qte)||0)/ref;
+  const kgFlour=pdRowKgFlour(row);const f=kgFlour/(rec.rendement_base||1);
   const hydra=(row.hydra!==undefined)?row.hydra:(rec.hydratation_pct!=null?Math.round(rec.hydratation_pct):null);
   let lines=[],tot=0,coulage=0,totalFlour=0,levainDur=0,levainLiq=0;
   (rec.lignes||[]).forEach(l=>{
-    const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};
-    const q=l.quantite*f;tot+=q;
+    const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};const q=l.quantite*f;tot+=q;
     if(ing.categorie==='farine')totalFlour+=q;
     if(l.ingredient_id==='ing_eau')coulage=q;
     if(l.ingredient_id==='ing_levain_dur')levainDur+=q;
@@ -404,25 +484,31 @@ function pdCompute(row){
   });
   let bassinage=0;
   if(hydra!=null&&!isNaN(hydra)&&totalFlour>0){bassinage=(hydra/100)*totalFlour-coulage;if(bassinage<0)bassinage=0;tot+=bassinage;}
-  return {rec,f,hydra,lines,coulage,bassinage,totalFlour,tot,levainDur,levainLiq};
+  return {rec,f,hydra,lines,coulage,bassinage,totalFlour,tot,levainDur,levainLiq,kgFlour,bacs:pdKgToBac(row.pid,kgFlour)};
 }
 
 function pdRenderAll(){pdRenderRows();pdRenderLevain();pdRenderMatieres();pdRenderFiches();}
 
 function pdRenderRows(){
   const el=document.getElementById('pdRows');if(!el)return;
-  if(!pdRows.length){el.innerHTML='<p class="hint">Aucun pain. Clique « ＋ Ajouter un pain ».</p>';return;}
+  if(!pdRows.length){el.innerHTML='<p class="hint">Aucun pain ce jour. Clique « ＋ Ajouter un pain ».</p>';return;}
   const prodOpts=sel=>produits.filter(x=>recettesMap[x.id]).map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+x.nom+'</option>').join('');
   el.innerHTML=pdRows.map((row,i)=>{
-    const rec=recettesMap[row.pid];const hasHydra=rec&&rec.hydratation_pct!=null;
-    const curHydra=(row.hydra!==undefined&&row.hydra!=null)?row.hydra:(rec&&rec.hydratation_pct!=null?Math.round(rec.hydratation_pct):'');
+    const rec=recettesMap[row.pid];const hasBac=pdHasBac(row.pid);const hasHydra=rec&&rec.hydratation_pct!=null;
+    const unitSel='<select onchange="pdSet('+i+',\'unit\',this.value)" style="max-width:74px" title="unité">'
+      +(hasBac?'<option value="bac"'+(row.unit==='bac'?' selected':'')+'>bacs</option>':'')
+      +'<option value="kg"'+(row.unit==='kg'||!hasBac?' selected':'')+'>kg far.</option></select>';
+    const c=pdCompute(row);let conv='';
+    if(c){if(row.unit==='bac')conv='≈ '+r2(c.kgFlour)+' kg far.';else if(c.bacs!=null)conv='≈ '+r2(c.bacs)+' bacs';}
     let hyHtml='';
-    if(hasHydra){let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==curHydra?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSet('+i+',\'hydra\',this.value)" style="max-width:88px" title="hydratation">'+o+'</select>';}
-    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap">'
-      +'<select onchange="pdSet('+i+',\'pid\',this.value)" style="flex:1;min-width:130px">'+prodOpts(row.pid)+'</select>'
-      +'<input type="number" min="0" step="1" value="'+row.qte+'" onchange="pdSet('+i+',\'qte\',this.value)" style="width:64px" title="kg de farine">'
-      +'<span class="hint" style="font-size:11px">kg far.</span>'+hyHtml
-      +'<button class="ico-btn" onclick="pdDel('+i+')">🗑</button></div>';
+    if(hasHydra){const cur=(row.hydra!==undefined&&row.hydra!=null)?row.hydra:Math.round(rec.hydratation_pct);let o='';for(let p=60;p<=110;p++)o+='<option value="'+p+'"'+(p==cur?' selected':'')+'>'+p+'%</option>';hyHtml='<select onchange="pdSet('+i+',\'hydra\',this.value)" style="max-width:80px" title="hydratation">'+o+'</select>';}
+    return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;flex-wrap:wrap">'
+      +'<select onchange="pdSet('+i+',\'pid\',this.value)" style="flex:1;min-width:120px">'+prodOpts(row.pid)+'</select>'
+      +'<input type="number" min="0" step="0.5" value="'+row.qte+'" onchange="pdSet('+i+',\'qte\',this.value)" style="width:58px">'
+      +unitSel+hyHtml
+      +'<button class="ico-btn" onclick="pdDel('+i+')">🗑</button>'
+      +(conv?'<span class="hint" style="font-size:11px;width:100%;margin:2px 0 0">'+conv+'</span>':'')
+      +'</div>';
   }).join('');
 }
 
@@ -466,7 +552,7 @@ function pdRenderFiches(){
     });
     if(c.bassinage>0){const key=i+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
     body+='<div class="pesee" style="border-top:2px dashed #D9C9a4"><div class="chk" style="border:none;background:none"></div><div class="nom"><b>Total pâte</b></div><div class="q">'+fmt(c.tot)+'</div></div>';
-    const sub='Pour '+row.qte+' kg de farine · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
+    const sub='Pour '+(row.unit==='bac'?r2(row.qte)+' bac'+(row.qte>1?'s':'')+' (≈ '+r2(c.kgFlour)+' kg far.)':r2(c.kgFlour)+' kg de farine'+(c.bacs!=null?' (≈ '+r2(c.bacs)+' bacs)':''))+' · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
     const proc=c.rec.procede?'<div class="procede">'+String(c.rec.procede).replace(/[<>]/g,'')+'</div>':'';
     return '<div class="card"><h2>'+prodNom(row.pid)+'</h2><p class="hint">'+sub+'</p>'+body+proc
       +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq('+i+')">🏷️ Étiquette (reste)</button></div></div>';
@@ -474,24 +560,13 @@ function pdRenderFiches(){
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
 
-async function pdSaveDay(){
-  const valid=pdRows.filter(r=>recettesMap[r.pid]&&(parseFloat(r.qte)||0)>0);
-  if(!valid.length){toast('Ajoute au moins un pain avec une quantité');return;}
-  const today=new Date().toISOString().slice(0,10);
-  setSync('enregistrement production…');
-  const rows=valid.map(r=>({produit_id:r.pid,recette_id:recettesMap[r.pid].id,site:fabSite,date_prod:today,quantite:parseFloat(r.qte)}));
-  const q=await supa.from('fab_production').insert(rows);
-  if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast(valid.length+' production(s) enregistrée(s) ✓ — bilan à jour');
-}
-
 function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
 function pdEtiq(i){
   const row=pdRows[i];const c=pdCompute(row);if(!c)return;
   let lines='',reste=false;
   c.lines.forEach((l,k)=>{if(!fabChecked[i+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
   if(c.bassinage>0&&!fabChecked[i+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
-  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(row.pid)+' — '+row.qte+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
+  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(row.pid)+' — '+r2(row.qte)+(row.unit==='bac'?' bac'+(row.qte>1?'s':''):' kg far.')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('mode-etiq'));
