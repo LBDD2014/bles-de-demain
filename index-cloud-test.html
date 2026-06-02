@@ -1698,6 +1698,30 @@ max-width: 90vw; text-align: center;
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.sync { background: var(--blue); }
 .toast.error { background: var(--red); }
+
+/* Alerte message livreur — modal qui RESTE jusqu'au tap "J'ai vu" */
+.msg-alert-overlay {
+  display: none; position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.78); align-items: center; justify-content: center;
+  padding: 24px; animation: msgAlertIn .2s ease-out;
+}
+.msg-alert-overlay.show { display: flex; }
+@keyframes msgAlertIn { from { opacity: 0; } to { opacity: 1; } }
+.msg-alert-box {
+  width: 100%; max-width: 420px; background: var(--cream); border-radius: 22px;
+  padding: 26px 22px 22px; box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+  border-top: 8px solid var(--blue); text-align: center;
+}
+.msg-alert-box.urgent { border-top-color: var(--red); animation: msgAlertPulse 1s infinite; }
+@keyframes msgAlertPulse { 50% { box-shadow: 0 0 0 6px rgba(184,50,50,0.35), 0 18px 50px rgba(0,0,0,0.5); } }
+.msg-alert-icon { font-size: 42px; line-height: 1; margin-bottom: 8px; }
+.msg-alert-title { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: var(--brown); margin-bottom: 4px; }
+.msg-alert-title.urgent { color: var(--red); }
+.msg-alert-from { font-size: 13px; color: var(--gold-dark); font-weight: 600; margin-bottom: 14px; }
+.msg-alert-content { font-size: 17px; color: var(--brown); line-height: 1.45; background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 18px; white-space: pre-wrap; word-break: break-word; }
+.msg-alert-btn { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--green); color: #fff; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(74,124,89,0.4); }
+.msg-alert-btn:active { transform: scale(0.97); }
+.msg-alert-more { margin-top: 10px; font-size: 12px; color: var(--grey-light); font-weight: 600; }
 .empty-state {
 text-align: center; padding: 40px 20px; color: var(--brown-mid);
 background: white; border-radius: 12px; margin-top: 10px;
@@ -2043,6 +2067,9 @@ outline: none; border-color: var(--gold); background: white;
 
 <div class="toast" id="toast"></div>
 
+<!-- Alerte message livreur : reste affichée jusqu'au tap "J'ai vu" -->
+<div class="msg-alert-overlay" id="msg-alert"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- v20.24 — SheetJS pour export/import xlsx BackOffice -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -2251,10 +2278,13 @@ let adminEditingPid = null;
 let messagesData = [];
 let messageDraft = { content: '', urgent: false, stop_boutique: '' };
 let realtimeChannelMessages = null;
-// Alerte sonore livreur (nouveau message)
-let msgSoundEnabled = false;
+// Alerte sonore + visuelle livreur (nouveau message)
+let msgSoundEnabled = true;      // ON par défaut, le livreur peut couper
 let msgAudioCtx = null;
 let _msgAudioPrimed = false;
+let msgAlertQueue = [];          // messages en attente d'accusé "J'ai vu"
+let _msgAlertRepeatTimer = null; // re-bip tant que pas acquitté
+let _wakeLock = null;            // garde l'écran allumé (livreur)
 
 // Réappro v18 : auto-copy last week hint
 let autoCopyLastWeekDate = null;
@@ -2754,9 +2784,11 @@ if (b === 'veigne') await loadProductionDefaults('saint-avertin');
 document.getElementById('splash').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
 document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
-// Livreur : charger + s'abonner aux messages dès l'entrée (badge live sur tous les onglets)
+// Livreur : charger + s'abonner aux messages dès l'entrée (badge + alerte sur tous les onglets)
 if (b === 'livreur') {
-  try { if (localStorage.getItem('msgSoundEnabled') === '1') { msgSoundEnabled = true; primeMsgAudioOnGesture(); } } catch (e) {}
+  try { msgSoundEnabled = (localStorage.getItem('msgSoundMuted') !== '1'); } catch (e) { msgSoundEnabled = true; }
+  primeMsgAudioOnGesture();   // déverrouille le son au 1er tap
+  requestWakeLock();          // garde l'écran allumé pendant la tournée
   await loadMessages();
   subscribeRealtimeMessages();
 }
@@ -2772,6 +2804,8 @@ if (realtimeChannelProduction) { supa.removeChannel(realtimeChannelProduction); 
 if (realtimeChannelProductionLocal) { supa.removeChannel(realtimeChannelProductionLocal); realtimeChannelProductionLocal = null; }
 if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtimeChannelMarket = null; }
 if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); realtimeChannelMessages = null; }
+releaseWakeLock();
+msgAlertQueue = []; renderMessageAlert();
 if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
 if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
 if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     realtimeChannelPros = null; }
@@ -12842,8 +12876,7 @@ messagesData.unshift(payload.new);
 if (currentVue === 'messages') renderMessages();
 renderNav(); // maj pastille non-lus (visible même hors onglet Messages)
 if (currentBoutique === 'livreur') {
-playMessageBeep(!!payload.new.urgent);
-showToast(payload.new.urgent ? 'Nouveau message URGENT' : 'Nouveau message', payload.new.urgent ? 'error' : 'sync');
+showMessageAlert(payload.new); // modal persistant + bip répété jusqu'à "J'ai vu"
 } else {
 showToast('Nouveau message', 'sync');
 }
@@ -13042,30 +13075,21 @@ else if (s === 'error') text.textContent = 'Erreur';
 }
 
 let toastTimer;
-// ===== Alerte sonore livreur (nouveau message) =====
-// iOS/Safari : le son ne peut démarrer qu'après un geste utilisateur → bouton "Activer".
-function enableMessageSound() {
+// ===== Alerte livreur (nouveau message) : son + modal persistant =====
+// iOS/Safari : le son ne démarre qu'après un geste user → on déverrouille au 1er tap.
+
+// Déverrouille/réamorce le contexte audio au 1er geste (appelé à l'entrée livreur)
+function primeMsgAudioOnGesture() {
+const unlock = function() {
 try {
 if (!msgAudioCtx) msgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
 if (msgAudioCtx.state === 'suspended') msgAudioCtx.resume();
-msgSoundEnabled = true;
-try { localStorage.setItem('msgSoundEnabled', '1'); } catch (e) {}
-playMessageBeep(false); // bip de confirmation
 } catch (e) {}
-// rafraîchir l'écran courant pour mettre le bouton à jour
-if (currentVue === 'tournee' || currentVue === 'livraison') renderLivraison();
-else if (currentVue === 'messages') renderMessages();
-}
-
-// Réamorce le contexte audio au 1er geste (après activation déjà mémorisée)
-function primeMsgAudioOnGesture() {
-if (_msgAudioPrimed) return;
+};
+if (_msgAudioPrimed) { unlock(); return; }
 _msgAudioPrimed = true;
 const handler = function() {
-try {
-if (!msgAudioCtx) msgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-if (msgAudioCtx.state === 'suspended') msgAudioCtx.resume();
-} catch (e) {}
+unlock();
 document.removeEventListener('pointerdown', handler);
 document.removeEventListener('touchstart', handler);
 };
@@ -13081,27 +13105,102 @@ const ctx = msgAudioCtx;
 const beep = function(when, freq, dur) {
 const o = ctx.createOscillator();
 const g = ctx.createGain();
-o.type = 'sine'; o.frequency.value = freq;
+o.type = 'square'; o.frequency.value = freq;   // square = plus perçant qu'une sinus
 o.connect(g); g.connect(ctx.destination);
 g.gain.setValueAtTime(0.0001, when);
-g.gain.exponentialRampToValueAtTime(0.4, when + 0.02);
+g.gain.exponentialRampToValueAtTime(0.5, when + 0.02);
 g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
 o.start(when); o.stop(when + dur + 0.03);
 };
 const t = ctx.currentTime;
-if (urgent) { beep(t, 1175, 0.16); beep(t + 0.2, 1175, 0.16); beep(t + 0.4, 1175, 0.22); }
-else { beep(t, 880, 0.2); }
+if (urgent) { beep(t, 1245, 0.18); beep(t + 0.22, 988, 0.18); beep(t + 0.44, 1245, 0.26); }
+else { beep(t, 988, 0.16); beep(t + 0.2, 1245, 0.22); }
 } catch (e) {}
 }
 
-// HTML du bouton son (affiché en haut des écrans Tournée + Messages du livreur)
+// Bascule son ON/OFF (bouton en haut des écrans livreur)
+function toggleMessageSound() {
+msgSoundEnabled = !msgSoundEnabled;
+try { localStorage.setItem('msgSoundMuted', msgSoundEnabled ? '0' : '1'); } catch (e) {}
+if (msgSoundEnabled) { primeMsgAudioOnGesture(); playMessageBeep(false); }
+if (currentVue === 'tournee' || currentVue === 'livraison') renderLivraison();
+else if (currentVue === 'messages') renderMessages();
+}
+
+// HTML du bouton son (interrupteur, en haut des écrans Tournée + Messages du livreur)
 function livreurSoundBtnHtml() {
 if (currentBoutique !== 'livreur') return '';
 if (msgSoundEnabled) {
-return '<button class="livreur-sound-btn on" onclick="enableMessageSound()">🔔 Sons activés — alerte à chaque message</button>';
+return '<button class="livreur-sound-btn on" onclick="toggleMessageSound()">🔔 Sons activés — touche pour couper</button>';
 }
-return '<button class="livreur-sound-btn off" onclick="enableMessageSound()">🔕 Activer les sons (1 fois en début de tournée)</button>';
+return '<button class="livreur-sound-btn off" onclick="toggleMessageSound()">🔕 Sons coupés — touche pour activer</button>';
 }
+
+// ===== Modal d'alerte qui RESTE jusqu'au tap "J'ai vu" =====
+function showMessageAlert(msg) {
+msgAlertQueue.push(msg);
+if (msgAlertQueue.length === 1) renderMessageAlert();
+}
+
+function renderMessageAlert() {
+const ov = document.getElementById('msg-alert');
+if (!ov) return;
+if (!msgAlertQueue.length) { // plus rien : on ferme
+ov.classList.remove('show'); ov.innerHTML = '';
+if (_msgAlertRepeatTimer) { clearInterval(_msgAlertRepeatTimer); _msgAlertRepeatTimer = null; }
+return;
+}
+const msg = msgAlertQueue[0];
+const urgent = !!msg.urgent;
+const sender = BOUTIQUE_NAMES[msg.sender_boutique] || msg.sender_boutique || '';
+const extra = msgAlertQueue.length > 1 ? '<div class="msg-alert-more">+ ' + (msgAlertQueue.length - 1) + ' autre(s) message(s) en attente</div>' : '';
+ov.innerHTML =
+'<div class="msg-alert-box ' + (urgent ? 'urgent' : '') + '">'
++ '<div class="msg-alert-icon">' + (urgent ? '🚨' : '🔔') + '</div>'
++ '<div class="msg-alert-title ' + (urgent ? 'urgent' : '') + '">' + (urgent ? 'MESSAGE URGENT' : 'Nouveau message') + '</div>'
++ '<div class="msg-alert-from">de ' + escapeHtml(sender) + ' · ' + formatMsgDate(msg.created_at) + '</div>'
++ '<div class="msg-alert-content">' + escapeHtml(msg.content || '') + '</div>'
++ '<button class="msg-alert-btn" onclick="dismissMessageAlert()">✓ J\'ai vu</button>'
++ extra
++ '</div>';
+ov.classList.add('show');
+playMessageBeep(urgent);
+// Re-bip toutes les 6 s tant que le livreur n'a pas acquitté
+if (_msgAlertRepeatTimer) clearInterval(_msgAlertRepeatTimer);
+_msgAlertRepeatTimer = setInterval(function() {
+if (!msgAlertQueue.length) { clearInterval(_msgAlertRepeatTimer); _msgAlertRepeatTimer = null; return; }
+playMessageBeep(!!msgAlertQueue[0].urgent);
+}, 6000);
+}
+
+function dismissMessageAlert() {
+const msg = msgAlertQueue.shift();
+// marquer lu en base (et localement) puis passer au suivant
+if (msg && !msg.read_at) {
+const local = messagesData.find(function(m) { return m.id === msg.id; });
+if (local) local.read_at = new Date().toISOString();
+supa.from('livreur_messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id).then(function() {});
+renderNav();
+}
+renderMessageAlert();
+}
+
+// Garde l'écran de la tablette allumé pendant la tournée (sinon pas de son possible)
+async function requestWakeLock() {
+try {
+if ('wakeLock' in navigator && !_wakeLock) {
+_wakeLock = await navigator.wakeLock.request('screen');
+_wakeLock.addEventListener('release', function() { _wakeLock = null; });
+}
+} catch (e) {}
+}
+function releaseWakeLock() {
+try { if (_wakeLock) { _wakeLock.release(); _wakeLock = null; } } catch (e) {}
+}
+// Réacquérir le wake lock quand l'app revient au premier plan
+document.addEventListener('visibilitychange', function() {
+if (document.visibilityState === 'visible' && currentBoutique === 'livreur') requestWakeLock();
+});
 
 function showToast(msg, type) {
 const t = document.getElementById('toast');
