@@ -1722,6 +1722,37 @@ max-width: 90vw; text-align: center;
 .msg-alert-btn { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--green); color: #fff; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(74,124,89,0.4); }
 .msg-alert-btn:active { transform: scale(0.97); }
 .msg-alert-more { margin-top: 10px; font-size: 12px; color: var(--grey-light); font-weight: 600; }
+
+/* Pavé numérique réutilisable (Ventes + Prévis) — style du PIN BackOffice */
+.np-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1500;
+  background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center;
+}
+.np-overlay.show { display: flex; }
+.np-box {
+  width: 100%; max-width: 420px; background: var(--cream);
+  border-radius: 20px 20px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.4); animation: npUp .18s ease-out;
+}
+@keyframes npUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.np-head { font-size: 14px; font-weight: 700; color: var(--gold-dark); text-align: center; margin-bottom: 6px; }
+.np-display {
+  font-family: 'Playfair Display', Georgia, serif; font-size: 38px; font-weight: 700;
+  color: var(--brown); text-align: center; background: #fff; border-radius: 14px;
+  padding: 8px 12px; margin-bottom: 12px; min-height: 56px; line-height: 56px;
+}
+.np-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.np-key {
+  border: 2px solid #E8DCC2; background: #fff; padding: 16px 0; font-size: 24px;
+  font-weight: 700; color: var(--brown); border-radius: 14px; font-family: inherit; cursor: pointer;
+}
+.np-key:active { background: var(--gold); color: #fff; transform: scale(0.95); }
+.np-key.np-ghost { background: transparent; border-color: transparent; color: var(--grey-light); font-size: 22px; }
+.np-actions { display: flex; gap: 9px; margin-top: 12px; }
+.np-cancel, .np-ok { flex: 1; padding: 15px; border: none; border-radius: 14px; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+.np-cancel { background: #EFE7D6; color: var(--grey); }
+.np-ok { background: var(--green); color: #fff; box-shadow: 0 4px 12px rgba(74,124,89,0.35); }
+.np-ok:active, .np-cancel:active { transform: scale(0.97); }
 .empty-state {
 text-align: center; padding: 40px 20px; color: var(--brown-mid);
 background: white; border-radius: 12px; margin-top: 10px;
@@ -2069,6 +2100,9 @@ outline: none; border-color: var(--gold); background: white;
 
 <!-- Alerte message livreur : reste affichée jusqu'au tap "J'ai vu" -->
 <div class="msg-alert-overlay" id="msg-alert"></div>
+
+<!-- Pavé numérique réutilisable (Ventes + Prévis) -->
+<div class="np-overlay" id="np-overlay" onclick="if(event.target===this)closeNumpad()"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- v20.24 — SheetJS pour export/import xlsx BackOffice -->
@@ -4143,7 +4177,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   if (prevEditable) {
     const prevClasses = 'v-inp v-prev-input ' + (prevFilled ? 'has' : '') + (prevIsDefault ? ' is-default' : '');
     prevCell = '<div class="v-prev-wrap">'
-      + '<input type="text" inputmode="decimal" class="' + prevClasses + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(prevDisplay) + '" placeholder="-" oninput="handleVentesPrevisInput(this)" onfocus="this.select()">'
+      + '<input type="text" inputmode="none" readonly class="' + prevClasses + '" data-pid="' + p.id + '" data-default-pin="1" data-np-label="Prévis — ' + escapeHtml(p.name) + '" value="' + escapeHtml(prevDisplay) + '" placeholder="-" oninput="handleVentesPrevisInput(this)" onclick="openNumpad(this)">'
       + '<button class="btn-pin-default v-pin" data-pin-pid="' + p.id + '" title="Sauver comme défaut pour ce jour de semaine" onclick="pinAsDefault(\'' + currentBoutique + '\', \'' + p.id + '\', currentDate)">📌</button>'
       + '</div>';
   } else {
@@ -4154,10 +4188,10 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
-+ '<input type="number" inputmode="numeric" min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
-+ '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
-+ '<input type="number" inputmode="numeric" min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" value="' + rj2 + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
-+ '<input type="number" inputmode="numeric" min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onfocus="this.select()">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="Après-midi — ' + escapeHtml(p.name) + '" value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + rj2 + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
 + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
 + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
@@ -11955,7 +11989,7 @@ const unitLinePrv = escapeHtml(p.unit || '') + (condTxtPrv ? (p.unit ? ' · ' : 
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLinePrv + '</div></div>';
 html += '<div class="previs-j1">' + (j1v > 0 ? j1v : '<span style="color:#bbb">-</span>') + '</div>';
 html += '<div class="prev-input-wrap">';
-html += '<input type="text" inputmode="decimal" class="' + inputClasses + '" data-pid="' + p.id + '" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="none" readonly class="' + inputClasses + '" data-pid="' + p.id + '" data-default-pin="1" data-np-label="À produire — ' + escapeHtml(p.name) + '" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handlePrevisInput(this)" onclick="openNumpad(this)">';
 html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'' + currentBoutique + '\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
 html += '</div>';
 html += '</div>';
@@ -12053,9 +12087,9 @@ html += '<div class="traiteur-row">';
 // v20.38 — Conditionnement sous le nom (Prévis Traiteur Veigné)
 const condTxtTrV = formatConditioning(p);
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtTrV ? '<div class="produit-unit">' + escapeHtml(condTxtTrV) + '</div>' : '') + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input ' + (pvFilled ? 'has-value' : '') + (pvIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" value="' + escapeHtml(pvDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="none" readonly class="qty-input ' + (pvFilled ? 'has-value' : '') + (pvIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="veigne" data-np-label="Veigné — ' + escapeHtml(p.name) + '" value="' + escapeHtml(pvDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onclick="openNumpad(this)">';
 html += '<div class="traiteur-j1">' + (j1vN > 0 ? j1vN : '-') + '</div>';
-html += '<input type="text" inputmode="decimal" class="qty-input ' + (psaFilled ? 'has-value' : '') + (psaIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" value="' + escapeHtml(psaDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="none" readonly class="qty-input ' + (psaFilled ? 'has-value' : '') + (psaIsDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="saint-avertin" data-np-label="St-Avertin — ' + escapeHtml(p.name) + '" value="' + escapeHtml(psaDisplay) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onclick="openNumpad(this)">';
 html += '<div class="traiteur-j1">' + (j1saN > 0 ? j1saN : '-') + '</div>';
 html += '<div class="traiteur-total">' + (total > 0 ? '<strong>' + total + '</strong>' : '<span style="color:#bbb">-</span>') + '</div>';
 html += '</div>';
@@ -12085,7 +12119,7 @@ const condTxtTrT = formatConditioning(p);
 html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>' + (condTxtTrT ? '<div class="produit-unit">' + escapeHtml(condTxtTrT) + '</div>' : '') + '</div>';
 html += '<div class="previs-j1">' + (j1vN > 0 ? j1vN : '<span style="color:#bbb">-</span>') + '</div>';
 html += '<div class="prev-input-wrap">';
-html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="tours" data-default-pin="1" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onfocus="this.select()">';
+html += '<input type="text" inputmode="none" readonly class="qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '') + '" data-pid="' + p.id + '" data-boutique="tours" data-default-pin="1" data-np-label="Tours — ' + escapeHtml(p.name) + '" value="' + escapeHtml(displayValue) + '" placeholder="-" oninput="handleTraiteurPrevisInput(this)" onclick="openNumpad(this)">';
 html += '<button class="btn-pin-default" data-pin-pid="' + p.id + '" title="Sauver cette quantité comme défaut" onclick="pinAsDefault(\'tours\', \'' + p.id + '\', currentPrevisDate)">📌</button>';
 html += '</div>';
 html += '</div>';
@@ -13201,6 +13235,67 @@ try { if (_wakeLock) { _wakeLock.release(); _wakeLock = null; } } catch (e) {}
 document.addEventListener('visibilitychange', function() {
 if (document.visibilityState === 'visible' && currentBoutique === 'livreur') requestWakeLock();
 });
+
+// ===== Pavé numérique réutilisable (Ventes + Prévis) =====
+// Entiers uniquement. Réutilise le handler oninput existant de chaque champ
+// (on écrit la valeur puis on dispatch un event 'input' → la sauvegarde se fait toute seule).
+let _npTarget = null;
+let _npBuffer = '';
+
+function openNumpad(inp) {
+if (!inp) return;
+_npTarget = inp;
+const cur = (inp.value == null ? '' : String(inp.value)).replace(/[^0-9]/g, '');
+_npBuffer = cur;
+renderNumpad();
+}
+
+function renderNumpad() {
+const ov = document.getElementById('np-overlay');
+if (!ov || !_npTarget) return;
+const label = _npTarget.getAttribute('data-np-label') || 'Quantité';
+let keys = '';
+['1','2','3','4','5','6','7','8','9'].forEach(function(d) {
+keys += '<button class="np-key" onclick="npKey(\'' + d + '\')">' + d + '</button>';
+});
+keys += '<button class="np-key np-ghost" onclick="npClear()">C</button>';
+keys += '<button class="np-key" onclick="npKey(\'0\')">0</button>';
+keys += '<button class="np-key np-ghost" onclick="npBackspace()">⌫</button>';
+ov.innerHTML = '<div class="np-box">'
++ '<div class="np-head">' + escapeHtml(label) + '</div>'
++ '<div class="np-display" id="np-display">' + (_npBuffer === '' ? '0' : escapeHtml(_npBuffer)) + '</div>'
++ '<div class="np-pad">' + keys + '</div>'
++ '<div class="np-actions">'
++ '<button class="np-cancel" onclick="closeNumpad()">Annuler</button>'
++ '<button class="np-ok" onclick="npValidate()">Valider</button>'
++ '</div></div>';
+ov.classList.add('show');
+}
+
+function _npRefresh() {
+const d = document.getElementById('np-display');
+if (d) d.textContent = (_npBuffer === '' ? '0' : _npBuffer);
+}
+function npKey(d) {
+if (_npBuffer === '0') _npBuffer = '';   // pas de zéro en tête
+if (_npBuffer.length >= 5) return;       // garde-fou (max 99999)
+_npBuffer += d; _npRefresh();
+}
+function npBackspace() { _npBuffer = _npBuffer.slice(0, -1); _npRefresh(); }
+function npClear() { _npBuffer = ''; _npRefresh(); }
+
+function npValidate() {
+if (_npTarget) {
+_npTarget.value = _npBuffer;  // '' si vidé
+try { _npTarget.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+}
+closeNumpad();
+}
+function closeNumpad() {
+const ov = document.getElementById('np-overlay');
+if (ov) { ov.classList.remove('show'); ov.innerHTML = ''; }
+_npTarget = null; _npBuffer = '';
+}
 
 function showToast(msg, type) {
 const t = document.getElementById('toast');
