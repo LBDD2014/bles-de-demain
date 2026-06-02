@@ -221,6 +221,9 @@ let fournisseurs=[],ingredients=[],produits=[];
 let gesCur='ing', fabUnitMode='auto', fabSite='local', fabChecked={};
 let recettesMap={}, pdDay={}; // recettes actives par produit + pains cochés du jour (pid -> {qte,unit,hydra})
 let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}; // planning semaine
+let pdMelange={}; // melangePid -> nb bacs (du jour)
+// Pâtes de base qui ont des mélanges : produit de base -> ingrédient "pâte de X"
+const BASE_PATE={'pr_tradition':'ing_pate_tradition'};
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
@@ -436,22 +439,50 @@ async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
 async function pdLoadDay(){
   const lab=document.getElementById('pdDayLabel');if(lab)lab.textContent='📅 '+pdLabel(pdDate);
   const r=await supa.from('fab_production').select('produit_id,quantite').eq('site',fabSite).eq('date_prod',pdDate);
-  pdDay={};
-  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:r2(x.quantite),hydra:undefined});});
+  pdDay={};pdMelange={};
+  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{
+    const prod=produits.find(p=>p.id===x.produit_id)||{};
+    if(prod.categorie==='melange'){pdMelange[x.produit_id]=r2(x.quantite);}                 // mélange : quantite = nb bacs
+    else{if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:r2(x.quantite),hydra:undefined});}
+  });
   fabChecked={};pdRenderAll();
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
 async function pdDoSave(){
   const entries=pdEntries().filter(e=>(parseFloat(e.qte)||0)>0);
+  const mel=Object.keys(pdMelange).filter(m=>recettesMap[m]&&(parseFloat(pdMelange[m])||0)>0);
   setSync('enregistrement…');
   const del=await supa.from('fab_production').delete().eq('site',fabSite).eq('date_prod',pdDate);
   if(del.error){setSync('⚠️');toast(del.error.message);return;}
-  if(entries.length){
-    const rows=entries.map(e=>({produit_id:e.pid,recette_id:recettesMap[e.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(e))}));
-    const q=await supa.from('fab_production').insert(rows);
-    if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  }
+  const rows=entries.map(e=>({produit_id:e.pid,recette_id:recettesMap[e.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(e))}))
+    .concat(mel.map(m=>({produit_id:m,recette_id:recettesMap[m].id,site:fabSite,date_prod:pdDate,quantite:r2(parseFloat(pdMelange[m])||0)})));
+  if(rows.length){const q=await supa.from('fab_production').insert(rows);if(q.error){setSync('⚠️');toast(q.error.message);return;}}
   setSync('🟢 connecté');pdLoadWeek();
+}
+/* --- mélanges (variantes d'une pâte de base) --- */
+function melangesForBase(basePid){const ing=BASE_PATE[basePid];if(!ing)return [];
+  return produits.filter(p=>p.categorie==='melange'&&recettesMap[p.id]&&(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id===ing));}
+function melangePateParBac(mpid){const rec=recettesMap[mpid];if(!rec)return 0;const ing=(rec.lignes||[]).find(l=>l.ingredient_id===ing_pate_of(mpid));return ing?ing.quantite:0;}
+function ing_pate_of(mpid){const rec=recettesMap[mpid];if(!rec)return null;const l=(rec.lignes||[]).find(x=>x.ingredient_id&&x.ingredient_id.indexOf('ing_pate_')===0);return l?l.ingredient_id:null;}
+function pdSetMelange(mpid,bacs){const n=parseFloat(bacs)||0;if(n>0)pdMelange[mpid]=n;else delete pdMelange[mpid];pdRenderAll();pdAutoSave();}
+function pdMelangeSection(basePid){
+  const mels=melangesForBase(basePid);if(!mels.length)return '';
+  const pateIng=BASE_PATE[basePid];const dpf=doughPerKgFlour(basePid);
+  let produced=0;(pdDay[basePid]||[]).forEach(b=>produced+=(parseFloat(b.qte)||0)*dpf); // pâte produite par les pétrins (kg farine × densité)
+  let needed=0;const add={};
+  mels.forEach(p=>{const bacs=parseFloat(pdMelange[p.id])||0;if(!bacs)return;
+    (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;else add[l.ingredient_id]=(add[l.ingredient_id]||0)+l.quantite*bacs;});});
+  let rows='';
+  mels.forEach(p=>{const bacs=pdMelange[p.id]||0;const ppb=((recettesMap[p.id].lignes||[]).find(l=>l.ingredient_id===pateIng)||{}).quantite||0;
+    let opts='';for(let q=0;q<=12;q++)opts+='<option value="'+q+'"'+(q==bacs?' selected':'')+'>'+q+'</option>';
+    rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span></div>';});
+  let summary='';
+  if(needed>0){const reste=produced-needed,ok=reste>=-0.001;
+    summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · Pétrins : '+r2(produced)+' kg → '+(ok?'reste <b>'+r2(reste)+' kg</b> ✅':'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
+    const aKeys=Object.keys(add);
+    if(aKeys.length){let al='';aKeys.forEach(id=>{const ing=ingredients.find(x=>x.id===id)||{};al+='<div class="pesee" style="padding:4px 0"><div class="nom" style="font-size:13px">'+(ing.nom||id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(add[id])+'</div></div>';});
+      summary+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--gold-dark)">À préparer (ajouts)</div>'+al;}}
+  return '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #D9C9a4"><div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin-bottom:2px">🧩 Mélanges</div>'+rows+summary+'</div>';
 }
 
 /* --- sélection (cocher les pains) --- */
@@ -524,6 +555,7 @@ function pdRenderRows(){
           html+='<div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;padding-left:30px">'+lbl+qtySel+hyHtml+del+'</div>';
         });
         html+='<div style="padding-left:30px;margin-top:6px"><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="pdAddBatch(\''+p.id+'\')">＋ Ajouter un pétrin</button></div>';
+        if(BASE_PATE[p.id])html+=pdMelangeSection(p.id);
       }
       html+='</div>';
     });
