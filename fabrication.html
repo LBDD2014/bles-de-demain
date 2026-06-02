@@ -387,6 +387,7 @@ async function fabCalc(){
   const r=await supa.from('fab_recettes').select('*, fab_recette_lignes(*)').eq('produit_id',pid).eq('actif',true).maybeSingle();
   fabRecette=r.data||null;
   if(fabRecette&&fabRecette.hydratation_pct!=null)document.getElementById('fabHydra').value=Math.round(fabRecette.hydratation_pct);
+  else document.getElementById('fabHydra').value=''; // pas d'hydratation (ex brioche) -> pas de bassinage
   fabRender();
 }
 function fabRender(){
@@ -408,7 +409,9 @@ function fabRender(){
     if(ing.categorie==='farine') totalFlour+=q;          // farine totale réelle (toutes lignes farine)
     if(l.ingredient_id==='ing_eau'){nom='Eau de coulage';coulageWeight=q;}
     const done=fabChecked[k]?' done':'';
-    html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+nom+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
+    const noteTxt=(l.note||'').replace(/[<>&]/g,'');
+    const noteHtml=noteTxt?' <span style="font-size:11px;color:var(--red);font-weight:600;white-space:nowrap">⟶ '+noteTxt+'</span>':'';
+    html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+nom+(ing.bio?'<span class="leaf">bio</span>':'')+noteHtml+'</div><div class="q">'+fmt(q)+'</div></div>';
   });
   // Eau de bassinage = (hydratation × farine totale) − coulage. Robuste quelle que soit la référence.
   if(coulageWeight!==null && !isNaN(hydra) && totalFlour>0){
