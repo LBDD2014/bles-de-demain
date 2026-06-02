@@ -468,7 +468,10 @@ function pdSetMelange(mpid,bacs){const n=parseFloat(bacs)||0;if(n>0)pdMelange[mp
 function pdMelangeSection(basePid){
   const mels=melangesForBase(basePid);if(!mels.length)return '';
   const pateIng=BASE_PATE[basePid];const dpf=doughPerKgFlour(basePid);
-  let produced=0;(pdDay[basePid]||[]).forEach(b=>produced+=(parseFloat(b.qte)||0)*dpf); // pâte produite par les pétrins (kg farine × densité)
+  // Les mélanges se prélèvent sur le DERNIER pétrin (le 1er part souvent entier en nature)
+  const batches=pdDay[basePid]||[];const li=batches.length-1;
+  let produced=0,petLabel='le pétrin';
+  if(li>=0){produced=(parseFloat(batches[li].qte)||0)*dpf;petLabel=batches.length>1?'Pétrin '+(li+1):'Pétrin';}
   let needed=0;const add={};
   mels.forEach(p=>{const bacs=parseFloat(pdMelange[p.id])||0;if(!bacs)return;
     (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;else add[l.ingredient_id]=(add[l.ingredient_id]||0)+l.quantite*bacs;});});
@@ -478,7 +481,7 @@ function pdMelangeSection(basePid){
     rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span></div>';});
   let summary='';
   if(needed>0){const reste=produced-needed,ok=reste>=-0.001;
-    summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · Pétrins : '+r2(produced)+' kg → '+(ok?'reste <b>'+r2(reste)+' kg</b> ✅':'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
+    summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · '+petLabel+' : '+r2(produced)+' kg → '+(ok?'reste <b>'+r2(reste)+' kg</b> ✅':'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
     const aKeys=Object.keys(add);
     if(aKeys.length){let al='';aKeys.forEach(id=>{const ing=ingredients.find(x=>x.id===id)||{};al+='<div class="pesee" style="padding:4px 0"><div class="nom" style="font-size:13px">'+(ing.nom||id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(add[id])+'</div></div>';});
       summary+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--gold-dark)">À préparer (ajouts)</div>'+al;}}
