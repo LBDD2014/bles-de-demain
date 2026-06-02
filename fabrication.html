@@ -399,19 +399,20 @@ function fabRender(){
   const ref=fabRecette.rendement_base||1;const f=qte/ref;
   const hydra=parseFloat(document.getElementById('fabHydra').value);
   document.getElementById('fabSub').textContent='Pour '+qte+' '+(fabRecette.unite_base||'')+' · '+(SITES.find(s=>s[0]===fabSite)||['','?'])[1]+(isNaN(hydra)?'':' · hydratation '+hydra+'%');
-  let html='',tot=0,coulagePerKg=null;
+  let html='',tot=0,coulageWeight=null,totalFlour=0;
   // NB : pour un levain, la ligne contient déjà le POIDS TOTAL pesé (farine + eau).
   // Le bilan bio ressortira la farine via eau_ratio (plus tard). Ici on affiche tel quel.
   fabRecette.fab_recette_lignes.forEach((l,k)=>{
     const q=l.quantite*f;tot+=q;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};
     let nom=ing.nom||l.ingredient_id;
-    if(l.ingredient_id==='ing_eau'){nom='Eau de coulage';coulagePerKg=l.quantite;}
+    if(ing.categorie==='farine') totalFlour+=q;          // farine totale réelle (toutes lignes farine)
+    if(l.ingredient_id==='ing_eau'){nom='Eau de coulage';coulageWeight=q;}
     const done=fabChecked[k]?' done':'';
     html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+nom+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
   });
-  // Eau de bassinage calculée à partir de l'hydratation du moment (coulage fixe)
-  if(coulagePerKg!==null && !isNaN(hydra)){
-    let bass=(hydra/100 - coulagePerKg)*f; if(bass<0)bass=0; tot+=bass;
+  // Eau de bassinage = (hydratation × farine totale) − coulage. Robuste quelle que soit la référence.
+  if(coulageWeight!==null && !isNaN(hydra) && totalFlour>0){
+    let bass=(hydra/100)*totalFlour - coulageWeight; if(bass<0)bass=0; tot+=bass;
     const done=fabChecked['bass']?' done':'';
     html+='<div class="pesee'+done+'" id="pz_bass"><div class="chk" onclick="fabTog(\'bass\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(ajustée à '+hydra+'%)</span></div><div class="q">'+fmt(bass)+'</div></div>';
   }
