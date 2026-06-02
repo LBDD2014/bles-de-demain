@@ -437,7 +437,7 @@ async function pdLoadDay(){
   const lab=document.getElementById('pdDayLabel');if(lab)lab.textContent='📅 '+pdLabel(pdDate);
   const r=await supa.from('fab_production').select('produit_id,quantite').eq('site',fabSite).eq('date_prod',pdDate);
   pdDay={};
-  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{const bac=pdHasBac(x.produit_id);pdDay[x.produit_id]={qte:bac?r2(pdKgToBac(x.produit_id,x.quantite)):r2(x.quantite),unit:bac?'bac':'kg',hydra:undefined};});
+  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:r2(x.quantite),hydra:undefined});});
   fabChecked={};pdRenderAll();
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
@@ -457,22 +457,20 @@ async function pdDoSave(){
 /* --- sélection (cocher les pains) --- */
 const PD_CAT_ORDER=['pain','brioches_special','viennoiserie','patisserie_petits','patisserie_gros','gateaux_secs','traiteur'];
 const PD_CAT_NAME={pain:'Pains',brioches_special:'Brioches',viennoiserie:'Viennoiseries',patisserie_petits:'Pâtisserie',patisserie_gros:'Pâtisserie / gâteaux',gateaux_secs:'Gâteaux',traiteur:'Traiteur'};
+// pdDay[pid] = [{qte,hydra}, ...] : un objet par PÉTRIN. pdEntries aplatit tout.
 function pdEntries(){
-  return Object.keys(pdDay).map(pid=>Object.assign({pid},pdDay[pid]))
-    .sort((a,b)=>{const pa=produits.find(x=>x.id===a.pid)||{},pb=produits.find(x=>x.id===b.pid)||{};return ((PD_CAT_ORDER.indexOf(pa.categorie)+1)||9)-((PD_CAT_ORDER.indexOf(pb.categorie)+1)||9)||(pa.nom||'').localeCompare(pb.nom||'');});
+  const out=[];
+  Object.keys(pdDay).forEach(pid=>{(pdDay[pid]||[]).forEach((b,idx)=>out.push({pid,batchIdx:idx,qte:b.qte,hydra:b.hydra}));});
+  return out.sort((a,b)=>{const pa=produits.find(x=>x.id===a.pid)||{},pb=produits.find(x=>x.id===b.pid)||{};return ((PD_CAT_ORDER.indexOf(pa.categorie)+1)||9)-((PD_CAT_ORDER.indexOf(pb.categorie)+1)||9)||(pa.nom||'').localeCompare(pb.nom||'')||a.batchIdx-b.batchIdx;});
 }
 function pdToggle(pid){
   if(pdDay[pid])delete pdDay[pid];
-  else{pdDay[pid]={qte:pdDefaultQte(pid),unit:'kg',hydra:undefined};}
+  else pdDay[pid]=[{qte:pdDefaultQte(pid),hydra:undefined}];
   pdRenderAll();pdAutoSave();
 }
-function pdSet(pid,field,val){
-  const e=pdDay[pid];if(!e)return;
-  if(field==='qte')e.qte=parseFloat(val)||0;
-  else if(field==='hydra')e.hydra=(val===''?null:parseFloat(val));
-  else if(field==='unit'){const kg=pdRowKgFlour({pid,qte:e.qte,unit:e.unit});e.unit=val;e.qte=(val==='bac'&&pdHasBac(pid))?r2(pdKgToBac(pid,kg)):r2(kg);}
-  pdRenderAll();pdAutoSave();
-}
+function pdAddBatch(pid){if(!pdDay[pid])pdDay[pid]=[];pdDay[pid].push({qte:pdDefaultQte(pid),hydra:undefined});pdRenderAll();pdAutoSave();}
+function pdDelBatch(pid,idx){const a=pdDay[pid];if(!a)return;a.splice(idx,1);if(!a.length)delete pdDay[pid];fabChecked={};pdRenderAll();pdAutoSave();}
+function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(val)||0;else if(field==='hydra')a[idx].hydra=(val===''?null:parseFloat(val));pdRenderAll();pdAutoSave();}
 // Pesées + agrégats d'une ligne du jour
 function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
@@ -512,16 +510,22 @@ function pdRenderRows(){
     const list=withRec.filter(p=>p.categorie===cat);if(!list.length)return;
     html+='<div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin:8px 0 3px">'+(PD_CAT_NAME[cat]||cat)+'</div>';
     list.forEach(p=>{
-      const e=pdDay[p.id];const on=!!e;const rec=recettesMap[p.id];const hasHydra=rec.hydratation_pct!=null;
-      let ctrls='';
-      if(on){
-        const qtySel='<select onchange="pdSet(\''+p.id+'\',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,e.qte)+'</select>';
-        let hyHtml='';if(hasHydra){const cur=(e.hydra!=null)?e.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSet(\''+p.id+'\',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
-        ctrls=qtySel+hyHtml;
-      }
-      html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap;'+(on?'background:#FBF6EA;border-radius:8px;padding:5px 7px':'padding:1px 7px')+'">'
+      const arr=pdDay[p.id];const on=!!arr;const rec=recettesMap[p.id];const hasHydra=rec.hydratation_pct!=null;
+      html+='<div style="margin-bottom:5px;'+(on?'background:#FBF6EA;border-radius:8px;padding:6px 8px':'padding:1px 8px')+'">';
+      html+='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
         +'<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:115px;cursor:pointer;font-size:14px"><input type="checkbox" '+(on?'checked':'')+' onchange="pdToggle(\''+p.id+'\')" style="width:auto;transform:scale(1.3)"> '+p.nom+'</label>'
-        +ctrls+'</div>';
+        +(on?'<button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="pdAddBatch(\''+p.id+'\')">＋ pétrin</button>':'')
+        +'</div>';
+      if(on){
+        arr.forEach((b,idx)=>{
+          const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>';
+          let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
+          const lbl=arr.length>1?'<span class="hint" style="font-size:11px;margin:0;min-width:56px">Pétrin '+(idx+1)+'</span>':'';
+          const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
+          html+='<div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;padding-left:30px">'+lbl+qtySel+hyHtml+del+'</div>';
+        });
+      }
+      html+='</div>';
     });
   });
   el.innerHTML=html;
@@ -558,30 +562,33 @@ function pdRenderFiches(){
   const siteName=(SITES.find(s=>s[0]===fabSite)||['','?'])[1];
   el.innerHTML=entries.map(row=>{
     const c=pdCompute(row);if(!c)return '';
-    const pid=row.pid;let body='';
+    const pid=row.pid;const k0=pid+'_'+row.batchIdx;const nb=(pdDay[pid]||[]).length;
+    const title=prodNom(pid)+(nb>1?' · Pétrin '+(row.batchIdx+1):'');
+    let body='';
     c.lines.forEach((l,k)=>{
-      const key=pid+'_'+k,done=fabChecked[key]?' done':'';
+      const key=k0+'_'+k,done=fabChecked[key]?' done':'';
       const noteTxt=(l.note||'').replace(/[<>&]/g,'');
       const noteHtml=noteTxt?' <span style="font-size:11px;color:var(--red);font-weight:600">⟶ '+noteTxt+'</span>':'';
       body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">'+l.nom+(l.bio?'<span class="leaf">bio</span>':'')+noteHtml+'</div><div class="q">'+fmt(l.q)+'</div></div>';
     });
-    if(c.bassinage>0){const key=pid+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
+    if(c.bassinage>0){const key=k0+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
     body+='<div class="pesee" style="border-top:2px dashed #D9C9a4"><div class="chk" style="border:none;background:none"></div><div class="nom"><b>Total pâte</b></div><div class="q">'+fmt(c.tot)+'</div></div>';
-    const sub='Pour '+(row.unit==='bac'?r2(row.qte)+' bac'+(row.qte>1?'s':'')+' (≈ '+r2(c.kgFlour)+' kg far.)':r2(c.kgFlour)+' kg de farine'+(c.bacs!=null?' (≈ '+r2(c.bacs)+' bacs)':''))+' · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
+    const sub='Pour '+r2(c.kgFlour)+' kg de farine · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
     const proc=c.rec.procede?'<div class="procede">'+String(c.rec.procede).replace(/[<>]/g,'')+'</div>':'';
-    return '<div class="card"><h2>'+prodNom(pid)+'</h2><p class="hint">'+sub+'</p>'+body+proc
-      +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq(\''+pid+'\')">🏷️ Étiquette (reste)</button></div></div>';
+    return '<div class="card"><h2>'+title+'</h2><p class="hint">'+sub+'</p>'+body+proc
+      +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq(\''+pid+'\','+row.batchIdx+')">🏷️ Étiquette (reste)</button></div></div>';
   }).join('');
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
 
 function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
-function pdEtiq(pid){
-  const e=pdDay[pid];if(!e)return;const row={pid,qte:e.qte,unit:e.unit,hydra:e.hydra};const c=pdCompute(row);if(!c)return;
+function pdEtiq(pid,batchIdx){
+  const b=(pdDay[pid]||[])[batchIdx];if(!b)return;const row={pid,batchIdx,qte:b.qte,hydra:b.hydra};const c=pdCompute(row);if(!c)return;
+  const k0=pid+'_'+batchIdx;const nb=(pdDay[pid]||[]).length;
   let lines='',reste=false;
-  c.lines.forEach((l,k)=>{if(!fabChecked[pid+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
-  if(c.bassinage>0&&!fabChecked[pid+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
-  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+' — '+r2(row.qte)+(row.unit==='bac'?' bac'+(row.qte>1?'s':''):' kg far.')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
+  c.lines.forEach((l,k)=>{if(!fabChecked[k0+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
+  if(c.bassinage>0&&!fabChecked[k0+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
+  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('mode-etiq'));
