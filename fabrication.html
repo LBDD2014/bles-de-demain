@@ -147,7 +147,7 @@
       <div class="row">
         <div><label>Unité de base</label>
           <select id="recUnite"><option value="kg de farine">kg de farine</option><option value="kg de pâte">kg de pâte</option><option value="pièce">pièce</option><option value="bac">bac</option></select></div>
-        <div><label>Quantité de référence</label><input type="number" id="recRef" value="10" title="ex: la recette donnée pour 10 kg de farine"></div>
+        <div><label>Quantité de référence</label><input type="number" id="recRef" value="10" onchange="recRefChange()" title="Change-la : toutes les quantités se recalculent automatiquement"></div>
       </div>
       <label>💧 Hydratation par défaut (%) <span style="font-weight:400;color:var(--grey-light)">(la ligne « Eau » = coulage fixe ; le bassinage s'ajuste au %)</span></label>
       <input type="number" id="recHydra" placeholder="ex 94">
@@ -286,6 +286,7 @@ function gesForm(t,obj){
     h+='<label>Fournisseur</label><select id="m_four"><option value="">—</option>'+fournisseurs.map(f=>'<option value="'+f.id+'" '+(obj.fournisseur_id===f.id?'selected':'')+'>'+f.nom+'</option>').join('')+'</select>';
     h+='<label>Unité</label><select id="m_unite">'+['kg','g','L','piece'].map(u=>'<option '+(obj.unite===u?'selected':'')+'>'+u+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
+    h+='<label>Eau du levain (pour 1 de farine — ex 0,6 = 60% · laisse 0 si ce n\'est pas un levain)</label><input type="number" step="0.05" id="m_eau_ratio" value="'+(obj.eau_ratio!=null?obj.eau_ratio:0)+'">';
   }else if(t==='prod'){
     h+='<label>Catégorie</label><select id="m_cat">'+PCATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
@@ -297,7 +298,7 @@ async function gesSave(t,isNew,id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:null;};
   const chk=x=>{const e=document.getElementById(x);return e?e.checked:false;};
   let table,row;
-  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio')};}
+  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0};}
   else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
   else{table='fab_fournisseurs';row={nom:v('m_nom')};}
   if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
@@ -316,6 +317,18 @@ async function gesDel(t,id){
 
 /* ---------- RECETTES ---------- */
 let recLignesData=[]; // {ingredient_id, quantite}
+let recRefPrev=null;  // valeur précédente de la quantité de référence (pour recalcul proportionnel)
+// Quand on change la "Quantité de référence", toutes les lignes se recalculent (× facteur).
+function recRefChange(){
+  const nv=parseFloat(document.getElementById('recRef').value);
+  if(isNaN(nv)||nv<=0)return; // valeur invalide → on attend
+  if(recRefPrev&&recRefPrev>0&&nv!==recRefPrev){
+    const factor=nv/recRefPrev;
+    recLignesData.forEach(l=>{ l.quantite=Math.round((l.quantite*factor)*1000)/1000; });
+    recRenderLignes();
+  }
+  recRefPrev=nv;
+}
 async function recLoad(){
   const pid=document.getElementById('recProd').value;
   const ed=document.getElementById('recEditor');
@@ -334,6 +347,7 @@ async function recLoad(){
     document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recHydra').value='';document.getElementById('recProc').value='';
     recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
   }
+  recRefPrev=parseFloat(document.getElementById('recRef').value)||1; // base pour le recalcul
   recRenderLignes();
 }
 function recRenderLignes(){
@@ -387,8 +401,13 @@ function fabRender(){
   document.getElementById('fabSub').textContent='Pour '+qte+' '+(fabRecette.unite_base||'')+' · '+(SITES.find(s=>s[0]===fabSite)||['','?'])[1]+(isNaN(hydra)?'':' · hydratation '+hydra+'%');
   let html='',tot=0,coulagePerKg=null;
   fabRecette.fab_recette_lignes.forEach((l,k)=>{
-    const q=l.quantite*f;tot+=q;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};
+    const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};
     let nom=ing.nom||l.ingredient_id;
+    let q=l.quantite*f;
+    // Levain = farine + son eau : on affiche le poids TOTAL à peser (le bilan bio, lui, ne compte que la farine)
+    const eauRatio=parseFloat(ing.eau_ratio)||0;
+    if(eauRatio>0){ q=q*(1+eauRatio); }
+    tot+=q;
     if(l.ingredient_id==='ing_eau'){nom='Eau de coulage';coulagePerKg=l.quantite;}
     const done=fabChecked[k]?' done':'';
     html+='<div class="pesee'+done+'" id="pz_'+k+'"><div class="chk" onclick="fabTog('+k+')">✓</div><div class="nom">'+nom+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(q)+'</div></div>';
@@ -420,7 +439,7 @@ function printFiche(){document.body.classList.remove('mode-etiq');window.print()
 function printEtiq(){
   if(!fabRecette)return;const qte=parseFloat(document.getElementById('fabQte').value)||0;const ref=fabRecette.rendement_base||1;const f=qte/ref;
   let lines='',reste=false;
-  fabRecette.fab_recette_lignes.forEach((l,k)=>{if(!fabChecked[k]){reste=true;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};lines+='<div class="ln"><span>'+(ing.nom||'')+'</span><b>'+fmt(l.quantite*f)+'</b></div>';}});
+  fabRecette.fab_recette_lignes.forEach((l,k)=>{if(!fabChecked[k]){reste=true;const ing=ingredients.find(i=>i.id===l.ingredient_id)||{};const er=parseFloat(ing.eau_ratio)||0;lines+='<div class="ln"><span>'+(ing.nom||'')+'</span><b>'+fmt(l.quantite*f*(1+er))+'</b></div>';}});
   document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(document.getElementById('fabProd').value)+' — '+qte+' '+(fabRecette.unite_base||'')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
