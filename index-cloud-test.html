@@ -1753,6 +1753,10 @@ max-width: 90vw; text-align: center;
 .np-cancel { background: #EFE7D6; color: var(--grey); }
 .np-ok { background: var(--green); color: #fff; box-shadow: 0 4px 12px rgba(74,124,89,0.35); }
 .np-ok:active, .np-cancel:active { transform: scale(0.97); }
+/* Pavé code d'accès : centré, coins arrondis */
+#code-overlay { align-items: center; }
+#code-overlay .np-box { border-radius: 20px; max-width: 360px; animation: msgAlertIn .18s ease-out; }
+.np-error { display: none; color: var(--red); font-size: 13px; font-weight: 700; text-align: center; margin: -4px 0 10px; }
 .empty-state {
 text-align: center; padding: 40px 20px; color: var(--brown-mid);
 background: white; border-radius: 12px; margin-top: 10px;
@@ -2103,6 +2107,9 @@ outline: none; border-color: var(--gold); background: white;
 
 <!-- Pavé numérique réutilisable (Ventes + Prévis) -->
 <div class="np-overlay" id="np-overlay" onclick="if(event.target===this)closeNumpad()"></div>
+
+<!-- Pavé PIN code d'accès boutique -->
+<div class="np-overlay" id="code-overlay" onclick="if(event.target===this)codeCancel()"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- v20.24 — SheetJS pour export/import xlsx BackOffice -->
@@ -2790,11 +2797,9 @@ if (b !== 'amboise' && b !== 'beaujardin') {
   if (remembered !== b) {
     const need = boutiqueCodes[b];
     if (need) { // si aucun code configuré, on ne bloque pas (sécurité anti-lockout)
-      const entered = prompt('Code d\'accès — ' + (BOUTIQUE_NAMES[b] || b) + ' :');
-      if (entered === null) return;
       const master = boutiqueCodes['master'] || '2412';
-      const val = String(entered).trim();
-      if (val !== need && val !== master) { alert('Code incorrect.'); return; }
+      const ok = await askCodeModal('Code d\'accès — ' + (BOUTIQUE_NAMES[b] || b), [String(need).trim(), String(master).trim()]);
+      if (!ok) return; // annulé
       try { localStorage.setItem('boutiqueUnlocked', b); } catch (e) {}
     }
   }
@@ -13295,6 +13300,67 @@ function closeNumpad() {
 const ov = document.getElementById('np-overlay');
 if (ov) { ov.classList.remove('show'); ov.innerHTML = ''; }
 _npTarget = null; _npBuffer = '';
+}
+
+// ===== Pavé PIN code d'accès boutique (remplace prompt()/alert() natifs) =====
+let _codeResolve = null, _codeLabel = '', _codeValid = [], _codeBuffer = '';
+
+function askCodeModal(label, validCodes) {
+_codeLabel = label || 'Code d\'accès';
+_codeValid = (validCodes || []).map(function(c) { return String(c); });
+_codeBuffer = '';
+return new Promise(function(resolve) { _codeResolve = resolve; renderCodeModal(); });
+}
+
+function renderCodeModal() {
+const ov = document.getElementById('code-overlay');
+if (!ov) return;
+let keys = '';
+['1','2','3','4','5','6','7','8','9'].forEach(function(d) {
+keys += '<button class="np-key" onclick="codeKey(\'' + d + '\')">' + d + '</button>';
+});
+keys += '<button class="np-key np-ghost" onclick="codeClear()">C</button>';
+keys += '<button class="np-key" onclick="codeKey(\'0\')">0</button>';
+keys += '<button class="np-key np-ghost" onclick="codeBackspace()">⌫</button>';
+ov.innerHTML = '<div class="np-box">'
++ '<div class="np-head">' + escapeHtml(_codeLabel) + '</div>'
++ '<div class="np-display" id="code-display">&nbsp;</div>'
++ '<div class="np-error" id="code-error">Code incorrect</div>'
++ '<div class="np-pad">' + keys + '</div>'
++ '<div class="np-actions">'
++ '<button class="np-cancel" onclick="codeCancel()">Annuler</button>'
++ '<button class="np-ok" onclick="codeSubmit()">Valider</button>'
++ '</div></div>';
+ov.classList.add('show');
+}
+
+function _codeRefresh() {
+const d = document.getElementById('code-display');
+if (d) d.textContent = _codeBuffer ? '•'.repeat(_codeBuffer.length) : ' ';
+}
+function codeKey(d) {
+if (_codeBuffer.length >= 10) return;
+_codeBuffer += d;
+const e = document.getElementById('code-error'); if (e) e.style.display = 'none';
+_codeRefresh();
+}
+function codeBackspace() { _codeBuffer = _codeBuffer.slice(0, -1); _codeRefresh(); }
+function codeClear() { _codeBuffer = ''; _codeRefresh(); }
+function codeSubmit() {
+if (_codeValid.indexOf(_codeBuffer) !== -1) {
+_resolveCode(true);
+} else {
+_codeBuffer = '';
+const e = document.getElementById('code-error'); if (e) e.style.display = 'block';
+_codeRefresh();
+}
+}
+function codeCancel() { _resolveCode(false); }
+function _resolveCode(val) {
+const ov = document.getElementById('code-overlay');
+if (ov) { ov.classList.remove('show'); ov.innerHTML = ''; }
+const r = _codeResolve; _codeResolve = null; _codeBuffer = '';
+if (r) r(val);
 }
 
 function showToast(msg, type) {
