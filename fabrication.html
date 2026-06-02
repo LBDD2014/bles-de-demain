@@ -96,7 +96,7 @@
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs">
-  <button class="active" onclick="show('fab',this)">🍞 Fiche de fab</button>
+  <button class="active" onclick="show('fab',this)">🍞 Prod. du jour</button>
   <button onclick="show('rec',this)">📖 Recettes</button>
   <button onclick="show('liv',this)">📦 Livraisons</button>
   <button onclick="show('bil',this)">📊 Bilan bio</button>
@@ -122,9 +122,8 @@
       <button onclick="fabSetUnit('kg',this)">kg</button>
       <button onclick="fabSetUnit('g',this)">grammes</button>
     </div>
-    <label>Pains du jour</label>
+    <label>Coche les pains du jour</label>
     <div id="pdRows"></div>
-    <div class="btn-row"><button class="btn ghost" style="flex:1" onclick="pdAddRow()">＋ Ajouter un pain</button></div>
     <div class="btn-row">
       <button class="btn dark" style="flex:1" onclick="printFiche()">🖨️ Tout imprimer</button>
       <button class="btn ghost" onclick="fabReset()">↺ Coches</button>
@@ -220,7 +219,7 @@ const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const SITES=[['local','Le Local'],['veigne','Veigné'],['tours','Tours']];
 let fournisseurs=[],ingredients=[],produits=[];
 let gesCur='ing', fabUnitMode='auto', fabSite='local', fabChecked={};
-let recettesMap={}, pdRows=[]; // recettes actives par produit + lignes de la production du jour
+let recettesMap={}, pdDay={}; // recettes actives par produit + pains cochés du jour (pid -> {qte,unit,hydra})
 let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}; // planning semaine
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
@@ -437,35 +436,41 @@ async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
 async function pdLoadDay(){
   const lab=document.getElementById('pdDayLabel');if(lab)lab.textContent='📅 '+pdLabel(pdDate);
   const r=await supa.from('fab_production').select('produit_id,quantite').eq('site',fabSite).eq('date_prod',pdDate);
-  pdRows=(r.data||[]).filter(x=>recettesMap[x.produit_id]).map(x=>{
-    const useBac=pdHasBac(x.produit_id);
-    return {pid:x.produit_id,unit:useBac?'bac':'kg',qte:useBac?r2(pdKgToBac(x.produit_id,x.quantite)):r2(x.quantite),hydra:undefined};
-  });
+  pdDay={};
+  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{const bac=pdHasBac(x.produit_id);pdDay[x.produit_id]={qte:bac?r2(pdKgToBac(x.produit_id,x.quantite)):r2(x.quantite),unit:bac?'bac':'kg',hydra:undefined};});
   fabChecked={};pdRenderAll();
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
 async function pdDoSave(){
-  const valid=pdRows.filter(r=>recettesMap[r.pid]&&(parseFloat(r.qte)||0)>0);
+  const entries=pdEntries().filter(e=>(parseFloat(e.qte)||0)>0);
   setSync('enregistrement…');
   const del=await supa.from('fab_production').delete().eq('site',fabSite).eq('date_prod',pdDate);
   if(del.error){setSync('⚠️');toast(del.error.message);return;}
-  if(valid.length){
-    const rows=valid.map(r=>({produit_id:r.pid,recette_id:recettesMap[r.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(r))}));
+  if(entries.length){
+    const rows=entries.map(e=>({produit_id:e.pid,recette_id:recettesMap[e.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(e))}));
     const q=await supa.from('fab_production').insert(rows);
     if(q.error){setSync('⚠️');toast(q.error.message);return;}
   }
   setSync('🟢 connecté');pdLoadWeek();
 }
 
-/* --- lignes --- */
-function pdAddRow(){const first=produits.find(p=>recettesMap[p.id]);const pid=first?first.id:'';const bac=pdHasBac(pid);pdRows.push({pid,unit:bac?'bac':'kg',qte:bac?1:10,hydra:undefined});pdRenderAll();pdAutoSave();}
-function pdDel(i){pdRows.splice(i,1);fabChecked={};pdRenderAll();pdAutoSave();}
-function pdSet(i,field,val){
-  const row=pdRows[i];
-  if(field==='qte')row.qte=parseFloat(val)||0;
-  else if(field==='hydra')row.hydra=(val===''?null:parseFloat(val));
-  else if(field==='unit'){const kg=pdRowKgFlour(row);row.unit=val;row.qte=(val==='bac'&&pdHasBac(row.pid))?r2(pdKgToBac(row.pid,kg)):r2(kg);}
-  else if(field==='pid'){row.pid=val;row.hydra=undefined;if(!pdHasBac(val)&&row.unit==='bac')row.unit='kg';}
+/* --- sélection (cocher les pains) --- */
+const PD_CAT_ORDER=['pain','brioches_special','viennoiserie','patisserie_petits','patisserie_gros','gateaux_secs','traiteur'];
+const PD_CAT_NAME={pain:'Pains',brioches_special:'Brioches',viennoiserie:'Viennoiseries',patisserie_petits:'Pâtisserie',patisserie_gros:'Pâtisserie / gâteaux',gateaux_secs:'Gâteaux',traiteur:'Traiteur'};
+function pdEntries(){
+  return Object.keys(pdDay).map(pid=>Object.assign({pid},pdDay[pid]))
+    .sort((a,b)=>{const pa=produits.find(x=>x.id===a.pid)||{},pb=produits.find(x=>x.id===b.pid)||{};return ((PD_CAT_ORDER.indexOf(pa.categorie)+1)||9)-((PD_CAT_ORDER.indexOf(pb.categorie)+1)||9)||(pa.nom||'').localeCompare(pb.nom||'');});
+}
+function pdToggle(pid){
+  if(pdDay[pid])delete pdDay[pid];
+  else{const bac=pdHasBac(pid);pdDay[pid]={qte:bac?1:10,unit:bac?'bac':'kg',hydra:undefined};}
+  pdRenderAll();pdAutoSave();
+}
+function pdSet(pid,field,val){
+  const e=pdDay[pid];if(!e)return;
+  if(field==='qte')e.qte=parseFloat(val)||0;
+  else if(field==='hydra')e.hydra=(val===''?null:parseFloat(val));
+  else if(field==='unit'){const kg=pdRowKgFlour({pid,qte:e.qte,unit:e.unit});e.unit=val;e.qte=(val==='bac'&&pdHasBac(pid))?r2(pdKgToBac(pid,kg)):r2(kg);}
   pdRenderAll();pdAutoSave();
 }
 // Pesées + agrégats d'une ligne du jour
@@ -491,30 +496,33 @@ function pdRenderAll(){pdRenderRows();pdRenderLevain();pdRenderMatieres();pdRend
 
 function pdRenderRows(){
   const el=document.getElementById('pdRows');if(!el)return;
-  if(!pdRows.length){el.innerHTML='<p class="hint">Aucun pain ce jour. Clique « ＋ Ajouter un pain ».</p>';return;}
-  const prodOpts=sel=>produits.filter(x=>recettesMap[x.id]).map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+x.nom+'</option>').join('');
-  el.innerHTML=pdRows.map((row,i)=>{
-    const rec=recettesMap[row.pid];const hasBac=pdHasBac(row.pid);const hasHydra=rec&&rec.hydratation_pct!=null;
-    const unitSel='<select onchange="pdSet('+i+',\'unit\',this.value)" style="max-width:74px" title="unité">'
-      +(hasBac?'<option value="bac"'+(row.unit==='bac'?' selected':'')+'>bacs</option>':'')
-      +'<option value="kg"'+(row.unit==='kg'||!hasBac?' selected':'')+'>kg far.</option></select>';
-    const c=pdCompute(row);let conv='';
-    if(c){if(row.unit==='bac')conv='≈ '+r2(c.kgFlour)+' kg far.';else if(c.bacs!=null)conv='≈ '+r2(c.bacs)+' bacs';}
-    let hyHtml='';
-    if(hasHydra){const cur=(row.hydra!==undefined&&row.hydra!=null)?row.hydra:Math.round(rec.hydratation_pct);let o='';for(let p=60;p<=110;p++)o+='<option value="'+p+'"'+(p==cur?' selected':'')+'>'+p+'%</option>';hyHtml='<select onchange="pdSet('+i+',\'hydra\',this.value)" style="max-width:80px" title="hydratation">'+o+'</select>';}
-    return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;flex-wrap:wrap">'
-      +'<select onchange="pdSet('+i+',\'pid\',this.value)" style="flex:1;min-width:120px">'+prodOpts(row.pid)+'</select>'
-      +'<input type="number" min="0" step="0.5" value="'+row.qte+'" onchange="pdSet('+i+',\'qte\',this.value)" style="width:58px">'
-      +unitSel+hyHtml
-      +'<button class="ico-btn" onclick="pdDel('+i+')">🗑</button>'
-      +(conv?'<span class="hint" style="font-size:11px;width:100%;margin:2px 0 0">'+conv+'</span>':'')
-      +'</div>';
-  }).join('');
+  const withRec=produits.filter(p=>recettesMap[p.id]);
+  if(!withRec.length){el.innerHTML='<p class="hint">Aucune recette.</p>';return;}
+  let html='';
+  PD_CAT_ORDER.forEach(cat=>{
+    const list=withRec.filter(p=>p.categorie===cat);if(!list.length)return;
+    html+='<div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin:8px 0 3px">'+(PD_CAT_NAME[cat]||cat)+'</div>';
+    list.forEach(p=>{
+      const e=pdDay[p.id];const on=!!e;const rec=recettesMap[p.id];const hasBac=pdHasBac(p.id);const hasHydra=rec.hydratation_pct!=null;
+      let ctrls='';
+      if(on){
+        const unitSel='<select onchange="pdSet(\''+p.id+'\',\'unit\',this.value)" style="max-width:68px">'+(hasBac?'<option value="bac"'+(e.unit==='bac'?' selected':'')+'>bacs</option>':'')+'<option value="kg"'+(e.unit==='kg'||!hasBac?' selected':'')+'>kg far</option></select>';
+        let hyHtml='';if(hasHydra){const cur=(e.hydra!=null)?e.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSet(\''+p.id+'\',\'hydra\',this.value)" style="max-width:70px">'+o+'</select>';}
+        const c=pdCompute({pid:p.id,qte:e.qte,unit:e.unit,hydra:e.hydra});let conv='';
+        if(c){if(e.unit==='bac')conv='<span class="hint" style="font-size:10.5px;margin:0;width:100%">≈ '+r2(c.kgFlour)+' kg far.</span>';else if(c.bacs!=null)conv='<span class="hint" style="font-size:10.5px;margin:0;width:100%">≈ '+r2(c.bacs)+' bacs</span>';}
+        ctrls='<input type="number" min="0" step="0.5" value="'+e.qte+'" onchange="pdSet(\''+p.id+'\',\'qte\',this.value)" style="width:50px">'+unitSel+hyHtml+conv;
+      }
+      html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap;'+(on?'background:#FBF6EA;border-radius:8px;padding:5px 7px':'padding:1px 7px')+'">'
+        +'<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:115px;cursor:pointer;font-size:14px"><input type="checkbox" '+(on?'checked':'')+' onchange="pdToggle(\''+p.id+'\')" style="width:auto;transform:scale(1.3)"> '+p.nom+'</label>'
+        +ctrls+'</div>';
+    });
+  });
+  el.innerHTML=html;
 }
 
 function pdRenderLevain(){
   const el=document.getElementById('pdLevain');if(!el)return;
-  let dur=0,liq=0;pdRows.forEach(r=>{const c=pdCompute(r);if(c){dur+=c.levainDur;liq+=c.levainLiq;}});
+  let dur=0,liq=0;pdEntries().forEach(r=>{const c=pdCompute(r);if(c){dur+=c.levainDur;liq+=c.levainLiq;}});
   if(dur<=0&&liq<=0){el.style.display='none';return;}
   const rd=parseFloat((ingredients.find(x=>x.id==='ing_levain_dur')||{}).eau_ratio)||0.6;
   const rl=parseFloat((ingredients.find(x=>x.id==='ing_levain_liquide')||{}).eau_ratio)||1;
@@ -527,7 +535,7 @@ function pdRenderLevain(){
 function pdRenderMatieres(){
   const el=document.getElementById('pdMatieres');if(!el)return;
   const tot={};let bass=0;
-  pdRows.forEach(r=>{const c=pdCompute(r);if(!c)return;c.lines.forEach(l=>{tot[l.id]=(tot[l.id]||0)+l.q;});bass+=c.bassinage;});
+  pdEntries().forEach(r=>{const c=pdCompute(r);if(!c)return;c.lines.forEach(l=>{tot[l.id]=(tot[l.id]||0)+l.q;});bass+=c.bassinage;});
   const keys=Object.keys(tot);if(!keys.length){el.style.display='none';return;}
   keys.sort((a,b)=>{const ia=ingredients.find(x=>x.id===a)||{},ib=ingredients.find(x=>x.id===b)||{};return (ia.categorie||'').localeCompare(ib.categorie||'')||(ia.nom||a).localeCompare(ib.nom||b);});
   let html='<h2>📋 Total des matières du jour</h2>';
@@ -538,35 +546,35 @@ function pdRenderMatieres(){
 
 function pdRenderFiches(){
   const el=document.getElementById('pdFiches');if(!el)return;
-  if(!pdRows.length){el.innerHTML='';return;}
+  const entries=pdEntries();
+  if(!entries.length){el.innerHTML='';return;}
   const siteName=(SITES.find(s=>s[0]===fabSite)||['','?'])[1];
-  el.innerHTML=pdRows.map((row,i)=>{
-    const c=pdCompute(row);
-    if(!c)return '<div class="card"><h2>'+prodNom(row.pid)+'</h2><p class="hint">Pas encore de recette pour ce produit.</p></div>';
-    let body='';
+  el.innerHTML=entries.map(row=>{
+    const c=pdCompute(row);if(!c)return '';
+    const pid=row.pid;let body='';
     c.lines.forEach((l,k)=>{
-      const key=i+'_'+k,done=fabChecked[key]?' done':'';
+      const key=pid+'_'+k,done=fabChecked[key]?' done':'';
       const noteTxt=(l.note||'').replace(/[<>&]/g,'');
       const noteHtml=noteTxt?' <span style="font-size:11px;color:var(--red);font-weight:600">⟶ '+noteTxt+'</span>':'';
       body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">'+l.nom+(l.bio?'<span class="leaf">bio</span>':'')+noteHtml+'</div><div class="q">'+fmt(l.q)+'</div></div>';
     });
-    if(c.bassinage>0){const key=i+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
+    if(c.bassinage>0){const key=pid+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
     body+='<div class="pesee" style="border-top:2px dashed #D9C9a4"><div class="chk" style="border:none;background:none"></div><div class="nom"><b>Total pâte</b></div><div class="q">'+fmt(c.tot)+'</div></div>';
     const sub='Pour '+(row.unit==='bac'?r2(row.qte)+' bac'+(row.qte>1?'s':'')+' (≈ '+r2(c.kgFlour)+' kg far.)':r2(c.kgFlour)+' kg de farine'+(c.bacs!=null?' (≈ '+r2(c.bacs)+' bacs)':''))+' · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
     const proc=c.rec.procede?'<div class="procede">'+String(c.rec.procede).replace(/[<>]/g,'')+'</div>':'';
-    return '<div class="card"><h2>'+prodNom(row.pid)+'</h2><p class="hint">'+sub+'</p>'+body+proc
-      +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq('+i+')">🏷️ Étiquette (reste)</button></div></div>';
+    return '<div class="card"><h2>'+prodNom(pid)+'</h2><p class="hint">'+sub+'</p>'+body+proc
+      +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq(\''+pid+'\')">🏷️ Étiquette (reste)</button></div></div>';
   }).join('');
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
 
 function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
-function pdEtiq(i){
-  const row=pdRows[i];const c=pdCompute(row);if(!c)return;
+function pdEtiq(pid){
+  const e=pdDay[pid];if(!e)return;const row={pid,qte:e.qte,unit:e.unit,hydra:e.hydra};const c=pdCompute(row);if(!c)return;
   let lines='',reste=false;
-  c.lines.forEach((l,k)=>{if(!fabChecked[i+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
-  if(c.bassinage>0&&!fabChecked[i+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
-  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(row.pid)+' — '+r2(row.qte)+(row.unit==='bac'?' bac'+(row.qte>1?'s':''):' kg far.')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
+  c.lines.forEach((l,k)=>{if(!fabChecked[pid+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
+  if(c.bassinage>0&&!fabChecked[pid+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
+  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+' — '+r2(row.qte)+(row.unit==='bac'?' bac'+(row.qte>1?'s':''):' kg far.')+'</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('mode-etiq'));
