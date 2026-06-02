@@ -514,16 +514,16 @@ function pdRenderRows(){
       html+='<div style="margin-bottom:5px;'+(on?'background:#FBF6EA;border-radius:8px;padding:6px 8px':'padding:1px 8px')+'">';
       html+='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
         +'<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:115px;cursor:pointer;font-size:14px"><input type="checkbox" '+(on?'checked':'')+' onchange="pdToggle(\''+p.id+'\')" style="width:auto;transform:scale(1.3)"> '+p.nom+'</label>'
-        +(on?'<button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="pdAddBatch(\''+p.id+'\')">＋ pétrin</button>':'')
         +'</div>';
       if(on){
         arr.forEach((b,idx)=>{
           const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>';
           let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
-          const lbl=arr.length>1?'<span class="hint" style="font-size:11px;margin:0;min-width:56px">Pétrin '+(idx+1)+'</span>':'';
+          const lbl=arr.length>1?'<span class="hint" style="font-size:12px;margin:0;min-width:58px;font-weight:bold">Pétrin '+(idx+1)+'</span>':'';
           const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
           html+='<div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;padding-left:30px">'+lbl+qtySel+hyHtml+del+'</div>';
         });
+        html+='<div style="padding-left:30px;margin-top:6px"><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="pdAddBatch(\''+p.id+'\')">＋ Ajouter un pétrin</button></div>';
       }
       html+='</div>';
     });
