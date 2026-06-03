@@ -208,13 +208,34 @@
   <div class="card"><h2>Dernières pertes</h2><div id="perList"></div></div>
 </section>
 
+<!-- INVENTAIRE (comptage physique) -->
+<section id="inv" class="page">
+  <div class="card">
+    <h2>Comptage physique</h2>
+    <p class="hint">📋 Compte ce qu'il reste réellement. Ça devient la nouvelle base du stock : tout ce qui a été saisi avant (essais, formation) n'a plus d'impact. L'écart avec le théorique s'affiche.</p>
+    <label>Site</label><div class="seg" id="invSite"></div>
+    <label>Date du comptage</label><input type="date" id="invDate" onchange="invRender()">
+    <div id="invList" style="margin-top:6px"></div>
+    <div class="btn-row"><button class="btn" onclick="invSave()">✓ Enregistrer le comptage</button></div>
+  </div>
+  <div class="card"><h2>Derniers comptages</h2><div id="invHist"></div></div>
+</section>
+
 <!-- BILAN -->
 <section id="bil" class="page">
   <div class="card">
     <h2>Bilan matière bio</h2>
-    <p class="hint">Reçu + dispatch − consommé − pertes = stock théorique, par farine bio × site.</p>
-    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock théo.</th></tr></thead><tbody></tbody></table></div>
-    <div class="btn-row"><button class="btn ghost sm" onclick="bilLoad()">↻ Rafraîchir</button></div>
+    <p class="hint">Départ + reçu + dispatch − conso − pertes = stock fin, par farine bio × site. Le « départ » repart du dernier comptage physique.</p>
+    <div class="row">
+      <div><label>Du</label><input type="date" id="bilD1"></div>
+      <div><label>Au</label><input type="date" id="bilD2"></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:8px">
+      <button class="btn ghost sm" onclick="bilPreset('year')">Année en cours</button>
+      <button class="btn ghost sm" onclick="bilPreset('all')">Depuis le début</button>
+      <button class="btn sm" onclick="bilLoad()">↻ Calculer</button>
+    </div>
+    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody></tbody></table></div>
   </div>
 </section>
 
@@ -259,6 +280,7 @@ const TABS=[
   {id:'rec',label:'📖 Recettes'},
   {id:'liv',label:'📦 Livraisons'},
   {id:'per',label:'🗑️ Pertes'},
+  {id:'inv',label:'📋 Inventaire'},
   {id:'bil',label:'📊 Bilan bio'},
   {id:'ges',label:'⚙️ Gérer'}
 ];
@@ -281,7 +303,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilLoad();if(id==='liv')livRenderList();if(id==='per')perRenderList();
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();
 }
 let _fabDragInit=false;
 function initTabDrag(){
@@ -352,6 +374,8 @@ function fillSelectors(){
   document.getElementById('perIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
   document.getElementById('perSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
+  document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
 }
 
 /* ---------- GESTION ---------- */
@@ -815,14 +839,97 @@ async function perDel(id){
   setSync('🟢 connecté');toast('Perte supprimée');perRenderList();
 }
 
-/* ---------- BILAN ---------- */
-async function bilLoad(){
-  const q=await supa.from('fab_bilan_matiere').select('*').order('ingredient');
+/* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
+let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[];
+const k2=x=>Math.round(x*100)/100;
+function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
+async function bilLoadRaw(){
+  const [lv,pr,pe,mv,inv]=await Promise.all([
+    supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg'),
+    supa.from('fab_production').select('site,date_prod,quantite,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
+    supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
+    supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
+    supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false})
+  ]);
+  if(lv.error||pr.error||pe.error||mv.error||inv.error){setSync('⚠️');toast('Erreur de chargement (Supabase en pause ?)');}
+  bilLivr=lv.data||[];bilProd=pr.data||[];bilPertes=pe.data||[];bilMouv=mv.data||[];bilInv=inv.data||[];
+}
+// mouvements (from exclusif, to inclusif ; null = pas de borne)
+function movWin(ing,site,from,to){
+  let recu=0,dispIn=0,dispOut=0,conso=0,pertes=0;
+  const inW=d=>(from==null||d>from)&&(to==null||d<=to);
+  bilLivr.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_livraison))recu+=+l.quantite_kg;});
+  bilPertes.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_perte))pertes+=+l.quantite_kg;});
+  bilMouv.forEach(m=>{if(m.ingredient_id===ing){if(m.site_arrivee===site&&inW(m.date_mouvement))dispIn+=+m.quantite_kg;if(m.site_depart===site&&inW(m.date_mouvement))dispOut+=+m.quantite_kg;}});
+  bilProd.forEach(p=>{if(p.site===site&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{if(rl.ingredient_id===ing)conso+=(+rl.quantite)*(+p.quantite/rb);});}});
+  return {recu,dispIn,dispOut,conso,pertes};
+}
+function lastInv(ing,site,date){let best=null;bilInv.forEach(v=>{if(v.ingredient_id===ing&&v.site===site&&v.date_inv<=date){if(!best||v.date_inv>best.date_inv)best=v;}});return best;}
+function theoAt(ing,site,date){const v=lastInv(ing,site,date);const base=v?+v.qte_reelle_kg:0;const m=movWin(ing,site,v?v.date_inv:null,date);return base+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;}
+
+function bilPreset(p){const t=new Date();const y=t.getFullYear();
+  document.getElementById('bilD1').value=(p==='all')?'2000-01-01':y+'-01-01';
+  document.getElementById('bilD2').value=t.toISOString().slice(0,10);bilLoad();}
+function bilLoad(){
+  const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
   const tb=document.querySelector('#bilTable tbody');
-  if(q.error){tb.innerHTML='<tr><td colspan="8">'+q.error.message+'</td></tr>';return;}
-  if(!q.data.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--grey-light)">Aucun mouvement pour l\'instant (saisis des livraisons et de la production).</td></tr>';return;}
-  tb.innerHTML=q.data.map(r=>{const st=r.stock_theorique_kg;const cls=st<0?'bad':(st<5?'warn':'ok');const pe=r.perte_kg||0;
-    return '<tr><td>'+r.ingredient+'</td><td>'+(SITES.find(s=>s[0]===r.site)||['',r.site])[1]+'</td><td>'+r.recu_kg+'</td><td>'+r.dispatch_entrant_kg+'</td><td>'+r.dispatch_sortant_kg+'</td><td>'+r.consomme_kg+'</td><td'+(pe>0?' style="color:var(--red)"':'')+'>'+pe+'</td><td class="'+cls+'">'+(Math.round(st*100)/100)+'</td></tr>';}).join('');
+  if(!d1||!d2){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Choisis une période.</td></tr>';return;}
+  const bio=ingredients.filter(x=>x.bio);let rows=[];
+  bio.forEach(ing=>SITES.forEach(s=>{
+    const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,d1?prevDay(d1):null,d2);
+    const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
+    const tot=Math.abs(dep)+m.recu+m.dispIn+m.dispOut+m.conso+m.pertes+Math.abs(fin);
+    if(tot<0.005)return;
+    const cls=fin<-0.005?'bad':(fin<5?'warn':'ok');
+    rows.push('<tr><td>'+ing.nom+'</td><td>'+s[1]+'</td><td>'+k2(dep)+'</td><td>'+k2(m.recu)+'</td><td>'+k2(m.dispIn)+'</td><td>'+k2(m.dispOut)+'</td><td>'+k2(m.conso)+'</td><td'+(m.pertes>0.005?' style="color:var(--red)"':'')+'>'+k2(m.pertes)+'</td><td class="'+cls+'">'+k2(fin)+'</td></tr>');
+  }));
+  tb.innerHTML=rows.join('')||'<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Aucun mouvement sur cette période.</td></tr>';
+}
+async function bilEnter(){await bilLoadRaw();const y=new Date().getFullYear();
+  if(!document.getElementById('bilD1').value)document.getElementById('bilD1').value=y+'-01-01';
+  if(!document.getElementById('bilD2').value)document.getElementById('bilD2').value=new Date().toISOString().slice(0,10);
+  bilLoad();}
+
+/* ---------- INVENTAIRE ---------- */
+let invCurSite='local';
+function invSetSite(s,btn){invCurSite=s;[...document.getElementById('invSite').children].forEach(c=>c.className='');btn.className='on';invRender();}
+async function invEnter(){await bilLoadRaw();if(!document.getElementById('invDate').value)document.getElementById('invDate').value=new Date().toISOString().slice(0,10);invRender();invHist();}
+function invRender(){
+  const date=document.getElementById('invDate').value||new Date().toISOString().slice(0,10);
+  const bio=ingredients.filter(x=>x.bio);const box=document.getElementById('invList');
+  if(!bio.length){box.innerHTML='<div class="hint">Aucune matière bio. Ajoute-les dans Gérer.</div>';return;}
+  box.innerHTML='<table><thead><tr><th>Matière bio</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
+    bio.map(ing=>{const theo=k2(theoAt(ing.id,invCurSite,date));
+      return '<tr><td>'+ing.nom+'</td><td style="color:var(--grey-light)">'+theo+'</td>'+
+        '<td><input type="number" step="0.1" id="iv_'+ing.id+'" data-theo="'+theo+'" oninput="invUpd(\''+ing.id+'\')" style="padding:7px;text-align:right" placeholder="—"></td>'+
+        '<td id="ive_'+ing.id+'">·</td></tr>';}).join('')+'</tbody></table>';
+}
+function invUpd(ing){const el=document.getElementById('iv_'+ing);const ec=document.getElementById('ive_'+ing);if(!el||!ec)return;
+  if(el.value===''){ec.textContent='·';ec.className='';return;}
+  const theo=parseFloat(el.dataset.theo)||0;const reel=parseFloat(el.value)||0;const e=reel-theo;
+  const cls=(theo>0?(Math.abs(e)/theo>0.10?'bad':'ok'):(Math.abs(e)>0.005?'bad':'ok'));
+  ec.className=cls;ec.textContent=(e>0?'+':'')+k2(e);
+}
+async function invSave(){
+  const date=document.getElementById('invDate').value;if(!date){toast('Mets une date');return;}
+  const bio=ingredients.filter(x=>x.bio);const rows=[];
+  bio.forEach(ing=>{const el=document.getElementById('iv_'+ing.id);if(el&&el.value!==''){rows.push({ingredient_id:ing.id,site:invCurSite,date_inv:date,qte_reelle_kg:parseFloat(el.value)||0});}});
+  if(!rows.length){toast('Compte au moins une matière');return;}
+  setSync('enregistrement…');
+  const q=await supa.from('fab_inventaires').insert(rows);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast(rows.length+' comptage(s) enregistré(s) ✓ — nouvelle base');
+  await bilLoadRaw();invRender();invHist();
+}
+function invHist(){
+  const box=document.getElementById('invHist');
+  if(!bilInv.length){box.innerHTML='<div class="hint">Aucun comptage.</div>';return;}
+  box.innerHTML=bilInv.slice(0,20).map(v=>'<div class="item"><span style="font-size:20px">📋</span><div class="meta"><div class="t">'+ingNom(v.ingredient_id)+' — '+v.qte_reelle_kg+' kg</div><div class="s">'+v.date_inv+' · '+(SITES.find(s=>s[0]===v.site)||['','?'])[1]+'</div></div><button class="ico-btn" onclick="invDel('+v.id+')">🗑</button></div>').join('');
+}
+async function invDel(id){if(!confirm('Supprimer ce comptage ? (le stock repartira du comptage précédent)'))return;
+  const q=await supa.from('fab_inventaires').delete().eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  toast('Comptage supprimé');await bilLoadRaw();invRender();invHist();
 }
 
 renderTabs();initTabDrag();loadAll();
