@@ -80,12 +80,23 @@
   @media print{
     nav.tabs,header,.btn-row,.print-hide{display:none!important}
     .page{display:none!important}body{background:#fff;padding:0}
-    body:not(.mode-etiq) #fab{display:block!important}
-    body.mode-etiq .page{display:none!important}
+    body:not(.mode-etiq):not(.mode-recettes) #fab{display:block!important}
     body.mode-etiq #etiq{display:block!important}
-    @page{margin:6mm}
+    body.mode-recettes #recexport{display:block!important}
+    @page{margin:8mm}
   }
   #etiq{display:none}
+  #recexport{display:none}
+  .rx-head{font-family:"Playfair Display",Georgia,serif;font-size:21px;font-weight:700;margin-bottom:2px}
+  .rx-meta{font-size:11px;color:#555;margin-bottom:14px}
+  .rx-item{break-inside:avoid;page-break-inside:avoid;border:1px solid #ccc;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .rx-item h3{font-family:"Playfair Display",Georgia,serif;font-size:16px;margin:0 0 2px;color:#000}
+  .rx-sub{font-size:11px;color:#666;margin-bottom:6px}
+  .rx-item table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+  .rx-item td{padding:3px 4px;border-bottom:1px solid #eee;text-align:left}
+  .rx-item td.q{text-align:right;font-weight:bold;white-space:nowrap}
+  .rx-proc{font-size:11.5px;line-height:1.4;white-space:pre-line;border-left:3px solid var(--gold);padding-left:8px;color:#333}
+  .rx-note{color:var(--red);font-size:10.5px}
   .etq{border:2px solid #000;border-radius:6px;padding:9px 11px;width:62mm}
   .etq .tt{font-family:"Playfair Display",Georgia,serif;font-size:15px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:4px;margin-bottom:6px}
   .etq .ln{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
@@ -134,6 +145,7 @@
   <div class="card">
     <h2>Recettes</h2>
     <p class="hint">Choisis un produit, compose sa recette, enregistre. Modifiable à tout moment.</p>
+    <div class="btn-row" style="margin:0 0 10px"><button class="btn dark sm" onclick="recExportAll()">📄 Exporter toutes les recettes (PDF)</button></div>
     <label>Produit</label><select id="recProd" onchange="recLoad()"></select>
     <div id="recEditor" style="display:none">
       <div class="row">
@@ -255,6 +267,7 @@
 <!-- MODALE GENERIQUE -->
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
 <div id="etiq"></div>
+<div id="recexport"></div>
 <div id="toast"></div>
 
 <script>
@@ -760,7 +773,26 @@ function pdEtiq(pid,batchIdx){
   document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
-window.addEventListener('afterprint',()=>document.body.classList.remove('mode-etiq'));
+window.addEventListener('afterprint',()=>{document.body.classList.remove('mode-etiq');document.body.classList.remove('mode-recettes');});
+
+/* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
+function recExportAll(){
+  const today=new Date().toLocaleDateString('fr-FR');
+  const items=Object.keys(recettesMap).map(pid=>{
+    const rec=recettesMap[pid];const nom=prodNom(pid);return {nom,pid,rec};
+  }).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  let html='<div class="rx-head">Les Blés de Demain — Recettes</div>'
+    +'<div class="rx-meta">'+items.length+' recettes · document généré le '+today+'</div>';
+  items.forEach(it=>{
+    const r=it.rec;const prod=produits.find(p=>p.id===it.pid)||{};
+    const sub='Pour '+(r.rendement_base||1)+' '+(r.unite_base||'kg de farine')+(r.hydratation_pct!=null?' · hydratation '+r.hydratation_pct+'%':'');
+    const lignes=(r.lignes||[]).map(l=>'<tr><td>'+ingNom(l.ingredient_id)+(l.note?' <span class="rx-note">('+String(l.note).replace(/[<>]/g,'')+')</span>':'')+'</td><td class="q">'+l.quantite+' '+(l.unite||'kg')+'</td></tr>').join('');
+    const proc=r.procede?'<div class="rx-proc">'+String(r.procede).replace(/[<>]/g,'')+'</div>':'';
+    html+='<div class="rx-item"><h3>'+it.nom+(prod.bio?' 🌱':'')+'</h3><div class="rx-sub">'+sub+'</div><table>'+lignes+'</table>'+proc+'</div>';
+  });
+  document.getElementById('recexport').innerHTML=html;
+  document.body.classList.add('mode-recettes');window.print();
+}
 
 /* ---------- LIVRAISONS ---------- */
 async function livSave(){
