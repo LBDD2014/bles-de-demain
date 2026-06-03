@@ -99,6 +99,7 @@
   <button class="active" onclick="show('fab',this)">🍞 Prod. du jour</button>
   <button onclick="show('rec',this)">📖 Recettes</button>
   <button onclick="show('liv',this)">📦 Livraisons</button>
+  <button onclick="show('per',this)">🗑️ Pertes</button>
   <button onclick="show('bil',this)">📊 Bilan bio</button>
   <button onclick="show('ges',this)">⚙️ Gérer</button>
 </nav>
@@ -184,12 +185,41 @@
   <div class="card"><h2>Dernières livraisons</h2><div id="livList"></div></div>
 </section>
 
+<!-- PERTES -->
+<section id="per" class="page">
+  <div class="card">
+    <h2>Enregistrer une perte</h2>
+    <p class="hint">🗑️ Matière bio perdue (brûlée, renversée, sac percé, périmée…). Se déduit du stock du bilan bio.</p>
+    <div class="row">
+      <div><label>Matière bio</label><select id="perIng"></select></div>
+      <div><label>Quantité (kg)</label><input type="number" id="perQte" value=""></div>
+    </div>
+    <label>Motif</label>
+    <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin:2px 0 8px">
+      <button type="button" class="btn ghost sm" onclick="perMotif('Torréfaction')">Torréfaction</button>
+      <button type="button" class="btn ghost sm" onclick="perMotif('Sac percé')">Sac percé</button>
+      <button type="button" class="btn ghost sm" onclick="perMotif('Renversé')">Renversé</button>
+      <button type="button" class="btn ghost sm" onclick="perMotif('Périmé')">Périmé</button>
+    </div>
+    <input type="text" id="perMotif" placeholder="ou précise le motif…">
+    <div class="row">
+      <div><label>Site</label><select id="perSite"></select></div>
+      <div><label>Date</label><input type="date" id="perDate"></div>
+    </div>
+    <label>📷 Photo <span style="font-weight:400;color:var(--grey-light)">(optionnel — preuve pour le contrôle bio)</span></label>
+    <input type="file" id="perPhoto" accept="image/*" capture="environment">
+    <label>Note (optionnel)</label><input type="text" id="perNote" placeholder="">
+    <div class="btn-row"><button class="btn" onclick="perSave()">✓ Enregistrer la perte</button></div>
+  </div>
+  <div class="card"><h2>Dernières pertes</h2><div id="perList"></div></div>
+</section>
+
 <!-- BILAN -->
 <section id="bil" class="page">
   <div class="card">
     <h2>Bilan matière bio</h2>
     <p class="hint">Reçu + dispatch − consommé = stock théorique, par farine bio × site.</p>
-    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Stock théo.</th></tr></thead><tbody></tbody></table></div>
+    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock théo.</th></tr></thead><tbody></tbody></table></div>
     <div class="btn-row"><button class="btn ghost sm" onclick="bilLoad()">↻ Rafraîchir</button></div>
   </div>
 </section>
@@ -229,7 +259,7 @@ const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_es
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
-function show(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');window.scrollTo(0,0);if(id==='bil')bilLoad();if(id==='liv')livRenderList();}
+function show(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');window.scrollTo(0,0);if(id==='bil')bilLoad();if(id==='liv')livRenderList();if(id==='per')perRenderList();}
 function ingNom(id){const i=ingredients.find(x=>x.id===id);return i?i.nom:id;}
 function prodNom(id){const p=produits.find(x=>x.id===id);return p?p.nom:id;}
 
@@ -261,6 +291,9 @@ function fillSelectors(){
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('perIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
+  document.getElementById('perSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
+  document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
 }
 
 /* ---------- GESTION ---------- */
@@ -679,14 +712,45 @@ async function livRenderList(){
   box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'</div>').join('')||'<div class="hint">Aucune livraison.</div>';
 }
 
+/* ---------- PERTES ---------- */
+function perMotif(m){document.getElementById('perMotif').value=m;}
+async function perSave(){
+  const row={ingredient_id:document.getElementById('perIng').value,quantite_kg:parseFloat(document.getElementById('perQte').value)||0,
+    site:document.getElementById('perSite').value,date_perte:document.getElementById('perDate').value,
+    motif:document.getElementById('perMotif').value||null,note:document.getElementById('perNote').value||null};
+  if(!row.quantite_kg){toast('Mets une quantité');return;}
+  const fi=document.getElementById('perPhoto');
+  if(fi&&fi.files&&fi.files[0]){
+    setSync('envoi de la photo…');
+    const f=fi.files[0];const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+    const path='perte_'+Date.now()+'.'+ext;
+    const up=await supa.storage.from('bons-bio').upload(path,f,{upsert:false});
+    if(up.error){setSync('⚠️');toast('Photo : '+up.error.message);return;}
+    row.photo_url=supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
+  }
+  setSync('enregistrement…');
+  const q=await supa.from('fab_pertes').insert(row);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Perte enregistrée ✓');
+  document.getElementById('perQte').value='';document.getElementById('perMotif').value='';document.getElementById('perNote').value='';
+  if(fi)fi.value='';
+  perRenderList();
+}
+async function perRenderList(){
+  const q=await supa.from('fab_pertes').select('*').order('date_perte',{ascending:false}).limit(15);
+  const box=document.getElementById('perList');
+  if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🗑️</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.motif?l.motif+' · ':'')+l.date_perte+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'</div>').join('')||'<div class="hint">Aucune perte enregistrée.</div>';
+}
+
 /* ---------- BILAN ---------- */
 async function bilLoad(){
   const q=await supa.from('fab_bilan_matiere').select('*').order('ingredient');
   const tb=document.querySelector('#bilTable tbody');
-  if(q.error){tb.innerHTML='<tr><td colspan="7">'+q.error.message+'</td></tr>';return;}
-  if(!q.data.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey-light)">Aucun mouvement pour l\'instant (saisis des livraisons et de la production).</td></tr>';return;}
-  tb.innerHTML=q.data.map(r=>{const st=r.stock_theorique_kg;const cls=st<0?'bad':(st<5?'warn':'ok');
-    return '<tr><td>'+r.ingredient+'</td><td>'+(SITES.find(s=>s[0]===r.site)||['',r.site])[1]+'</td><td>'+r.recu_kg+'</td><td>'+r.dispatch_entrant_kg+'</td><td>'+r.dispatch_sortant_kg+'</td><td>'+r.consomme_kg+'</td><td class="'+cls+'">'+(Math.round(st*100)/100)+'</td></tr>';}).join('');
+  if(q.error){tb.innerHTML='<tr><td colspan="8">'+q.error.message+'</td></tr>';return;}
+  if(!q.data.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--grey-light)">Aucun mouvement pour l\'instant (saisis des livraisons et de la production).</td></tr>';return;}
+  tb.innerHTML=q.data.map(r=>{const st=r.stock_theorique_kg;const cls=st<0?'bad':(st<5?'warn':'ok');const pe=r.perte_kg||0;
+    return '<tr><td>'+r.ingredient+'</td><td>'+(SITES.find(s=>s[0]===r.site)||['',r.site])[1]+'</td><td>'+r.recu_kg+'</td><td>'+r.dispatch_entrant_kg+'</td><td>'+r.dispatch_sortant_kg+'</td><td>'+r.consomme_kg+'</td><td'+(pe>0?' style="color:var(--red)"':'')+'>'+pe+'</td><td class="'+cls+'">'+(Math.round(st*100)/100)+'</td></tr>';}).join('');
 }
 
 loadAll();
