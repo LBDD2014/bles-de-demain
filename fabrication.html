@@ -367,11 +367,11 @@ async function loadRecettesMap(){
 function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
-  document.getElementById('livIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
+  document.getElementById('livIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
-  document.getElementById('perIng').innerHTML=opt(ingredients.filter(x=>x.bio),'id','nom');
+  document.getElementById('perIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
   document.getElementById('perSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
@@ -411,6 +411,7 @@ function gesForm(t,obj){
     h+='<label>Unité</label><select id="m_unite">'+['kg','g','L','piece'].map(u=>'<option '+(obj.unite===u?'selected':'')+'>'+u+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
     h+='<label>Eau du levain (pour 1 de farine — ex 0,6 = 60% · laisse 0 si ce n\'est pas un levain)</label><input type="number" step="0.05" id="m_eau_ratio" value="'+(obj.eau_ratio!=null?obj.eau_ratio:0)+'">';
+    h+='<label>Farine du levain <span style="font-weight:400;color:var(--grey-light)">(seulement pour un levain : la farine bio comptée au bilan)</span></label><select id="m_farine_levain"><option value="">—</option>'+ingredients.filter(i=>i.categorie==='farine').map(i=>'<option value="'+i.id+'" '+(obj.farine_levain_id===i.id?'selected':'')+'>'+i.nom+(i.bio?' (bio)':'')+'</option>').join('')+'</select>';
   }else if(t==='prod'){
     h+='<label>Catégorie</label><select id="m_cat">'+PCATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
@@ -422,7 +423,7 @@ async function gesSave(t,isNew,id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:null;};
   const chk=x=>{const e=document.getElementById(x);return e?e.checked:false;};
   let table,row;
-  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0};}
+  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null};}
   else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
   else{table='fab_fournisseurs';row={nom:v('m_nom')};}
   if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
@@ -840,7 +841,7 @@ async function perDel(id){
 }
 
 /* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
-let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[];
+let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[],_ingById={};
 const k2=x=>Math.round(x*100)/100;
 function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
 async function bilLoadRaw(){
@@ -853,6 +854,7 @@ async function bilLoadRaw(){
   ]);
   if(lv.error||pr.error||pe.error||mv.error||inv.error){setSync('⚠️');toast('Erreur de chargement (Supabase en pause ?)');}
   bilLivr=lv.data||[];bilProd=pr.data||[];bilPertes=pe.data||[];bilMouv=mv.data||[];bilInv=inv.data||[];
+  _ingById={};ingredients.forEach(i=>_ingById[i.id]=i);
 }
 // mouvements (from exclusif, to inclusif ; null = pas de borne)
 function movWin(ing,site,from,to){
@@ -861,7 +863,12 @@ function movWin(ing,site,from,to){
   bilLivr.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_livraison))recu+=+l.quantite_kg;});
   bilPertes.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_perte))pertes+=+l.quantite_kg;});
   bilMouv.forEach(m=>{if(m.ingredient_id===ing){if(m.site_arrivee===site&&inW(m.date_mouvement))dispIn+=+m.quantite_kg;if(m.site_depart===site&&inW(m.date_mouvement))dispOut+=+m.quantite_kg;}});
-  bilProd.forEach(p=>{if(p.site===site&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{if(rl.ingredient_id===ing)conso+=(+rl.quantite)*(+p.quantite/rb);});}});
+  bilProd.forEach(p=>{if(p.site===site&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+    const qty=(+rl.quantite)*(+p.quantite/rb);
+    if(rl.ingredient_id===ing)conso+=qty; // farine/ingrédient utilisé directement
+    const li=_ingById[rl.ingredient_id]; // si la ligne est un LEVAIN, on compte sa farine bio (total ÷ (1+eau_ratio))
+    if(li&&li.categorie==='levain'&&li.farine_levain_id===ing){const r=(+li.eau_ratio)||0;conso+=qty/(1+r);}
+  });}});
   return {recu,dispIn,dispOut,conso,pertes};
 }
 function lastInv(ing,site,date){let best=null;bilInv.forEach(v=>{if(v.ingredient_id===ing&&v.site===site&&v.date_inv<=date){if(!best||v.date_inv>best.date_inv)best=v;}});return best;}
@@ -874,7 +881,7 @@ function bilLoad(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
   const tb=document.querySelector('#bilTable tbody');
   if(!d1||!d2){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Choisis une période.</td></tr>';return;}
-  const bio=ingredients.filter(x=>x.bio);let rows=[];
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');let rows=[];
   bio.forEach(ing=>SITES.forEach(s=>{
     const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,d1?prevDay(d1):null,d2);
     const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
@@ -896,7 +903,7 @@ function invSetSite(s,btn){invCurSite=s;[...document.getElementById('invSite').c
 async function invEnter(){await bilLoadRaw();if(!document.getElementById('invDate').value)document.getElementById('invDate').value=new Date().toISOString().slice(0,10);invRender();invHist();}
 function invRender(){
   const date=document.getElementById('invDate').value||new Date().toISOString().slice(0,10);
-  const bio=ingredients.filter(x=>x.bio);const box=document.getElementById('invList');
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const box=document.getElementById('invList');
   if(!bio.length){box.innerHTML='<div class="hint">Aucune matière bio. Ajoute-les dans Gérer.</div>';return;}
   box.innerHTML='<table><thead><tr><th>Matière bio</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
     bio.map(ing=>{const theo=k2(theoAt(ing.id,invCurSite,date));
@@ -912,7 +919,7 @@ function invUpd(ing){const el=document.getElementById('iv_'+ing);const ec=docume
 }
 async function invSave(){
   const date=document.getElementById('invDate').value;if(!date){toast('Mets une date');return;}
-  const bio=ingredients.filter(x=>x.bio);const rows=[];
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const rows=[];
   bio.forEach(ing=>{const el=document.getElementById('iv_'+ing.id);if(el&&el.value!==''){rows.push({ingredient_id:ing.id,site:invCurSite,date_inv:date,qte_reelle_kg:parseFloat(el.value)||0});}});
   if(!rows.length){toast('Compte au moins une matière');return;}
   setSync('enregistrement…');
