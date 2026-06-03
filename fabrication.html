@@ -27,6 +27,7 @@
   nav.tabs{display:flex;background:var(--grey);position:sticky;top:0;z-index:10;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,.15)}
   nav.tabs button{flex:1 0 auto;background:none;border:none;color:var(--cream);padding:13px 14px;font-size:13.5px;font-family:Georgia,serif;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;opacity:.65}
   nav.tabs button.active{opacity:1;border-bottom-color:var(--gold);background:rgba(206,171,82,.12)}
+  nav.tabs button.dragging{opacity:.55;background:rgba(206,171,82,.25);transform:scale(.96);touch-action:none}
 
   .page{display:none;padding:16px;max-width:780px;margin:0 auto}
   .page.active{display:block}
@@ -95,14 +96,7 @@
   <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio</div></div>
   <div id="sync">connexion…</div>
 </header>
-<nav class="tabs">
-  <button class="active" onclick="show('fab',this)">🍞 Prod. du jour</button>
-  <button onclick="show('rec',this)">📖 Recettes</button>
-  <button onclick="show('liv',this)">📦 Livraisons</button>
-  <button onclick="show('per',this)">🗑️ Pertes</button>
-  <button onclick="show('bil',this)">📊 Bilan bio</button>
-  <button onclick="show('ges',this)">⚙️ Gérer</button>
-</nav>
+<nav class="tabs" id="fabNav"></nav>
 
 <!-- PRODUCTION DU JOUR -->
 <section id="fab" class="page active">
@@ -259,7 +253,71 @@ const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_es
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
-function show(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');window.scrollTo(0,0);if(id==='bil')bilLoad();if(id==='liv')livRenderList();if(id==='per')perRenderList();}
+/* ---------- ONGLETS (réordonnables par appui long, mémorisés par appareil) ---------- */
+const TABS=[
+  {id:'fab',label:'🍞 Prod. du jour'},
+  {id:'rec',label:'📖 Recettes'},
+  {id:'liv',label:'📦 Livraisons'},
+  {id:'per',label:'🗑️ Pertes'},
+  {id:'bil',label:'📊 Bilan bio'},
+  {id:'ges',label:'⚙️ Gérer'}
+];
+let currentTab='fab';
+function orderedTabs(){
+  let saved=[];try{saved=JSON.parse(localStorage.getItem('fabNavOrder')||'[]');}catch(e){}
+  if(!Array.isArray(saved)||!saved.length)return TABS.slice();
+  const byId={};TABS.forEach(t=>byId[t.id]=t);
+  const out=[];saved.forEach(id=>{if(byId[id]){out.push(byId[id]);delete byId[id];}});
+  TABS.forEach(t=>{if(byId[t.id])out.push(t);}); // nouveaux onglets ajoutés en bout
+  return out;
+}
+function renderTabs(){
+  const nav=document.getElementById('fabNav');if(!nav)return;
+  nav.innerHTML=orderedTabs().map(t=>'<button data-screen="'+t.id+'"'+(t.id===currentTab?' class="active"':'')+'>'+t.label+'</button>').join('');
+}
+function show(id){
+  currentTab=id;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const sec=document.getElementById(id);if(sec)sec.classList.add('active');
+  document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
+  window.scrollTo(0,0);
+  if(id==='bil')bilLoad();if(id==='liv')livRenderList();if(id==='per')perRenderList();
+}
+let _fabDragInit=false;
+function initTabDrag(){
+  if(_fabDragInit)return;const nav=document.getElementById('fabNav');if(!nav)return;_fabDragInit=true;
+  let pressTimer=null,dragging=false,dragEl=null,startX=0,startY=0,moved=false;
+  function clearPress(){if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}}
+  nav.addEventListener('pointerdown',function(e){
+    const item=e.target.closest('button');if(!item)return;
+    dragEl=item;startX=e.clientX;startY=e.clientY;moved=false;dragging=false;
+    try{nav.setPointerCapture(e.pointerId);}catch(er){}
+    pressTimer=setTimeout(function(){dragging=true;item.classList.add('dragging');if(navigator.vibrate)try{navigator.vibrate(15);}catch(er){}},450);
+  });
+  nav.addEventListener('pointermove',function(e){
+    if(!dragEl)return;
+    if(!dragging){if(Math.abs(e.clientX-startX)>8||Math.abs(e.clientY-startY)>8){moved=true;clearPress();}return;}
+    e.preventDefault();
+    const items=Array.prototype.slice.call(nav.querySelectorAll('button'));
+    let target=null;
+    for(let i=0;i<items.length;i++){if(items[i]===dragEl)continue;const r=items[i].getBoundingClientRect();if(e.clientX<r.left+r.width/2){target=items[i];break;}}
+    if(target){if(dragEl.nextSibling!==target)nav.insertBefore(dragEl,target);}
+    else if(dragEl!==nav.lastElementChild)nav.appendChild(dragEl);
+  });
+  function endPress(){
+    clearPress();if(!dragEl)return;
+    if(dragging){
+      dragEl.classList.remove('dragging');
+      const ids=Array.prototype.slice.call(nav.querySelectorAll('button')).map(b=>b.dataset.screen);
+      try{localStorage.setItem('fabNavOrder',JSON.stringify(ids));}catch(er){}
+    }else if(!moved){
+      const v=dragEl.dataset.screen;if(v)show(v);
+    }
+    dragEl=null;dragging=false;moved=false;
+  }
+  nav.addEventListener('pointerup',endPress);
+  nav.addEventListener('pointercancel',endPress);
+}
 function ingNom(id){const i=ingredients.find(x=>x.id===id);return i?i.nom:id;}
 function prodNom(id){const p=produits.find(x=>x.id===id);return p?p.nom:id;}
 
@@ -753,7 +811,7 @@ async function bilLoad(){
     return '<tr><td>'+r.ingredient+'</td><td>'+(SITES.find(s=>s[0]===r.site)||['',r.site])[1]+'</td><td>'+r.recu_kg+'</td><td>'+r.dispatch_entrant_kg+'</td><td>'+r.dispatch_sortant_kg+'</td><td>'+r.consomme_kg+'</td><td'+(pe>0?' style="color:var(--red)"':'')+'>'+pe+'</td><td class="'+cls+'">'+(Math.round(st*100)/100)+'</td></tr>';}).join('');
 }
 
-loadAll();
+renderTabs();initTabDrag();loadAll();
 </script>
 </body>
 </html>
