@@ -212,7 +212,7 @@
 <section id="bil" class="page">
   <div class="card">
     <h2>Bilan matière bio</h2>
-    <p class="hint">Reçu + dispatch − consommé = stock théorique, par farine bio × site.</p>
+    <p class="hint">Reçu + dispatch − consommé − pertes = stock théorique, par farine bio × site.</p>
     <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock théo.</th></tr></thead><tbody></tbody></table></div>
     <div class="btn-row"><button class="btn ghost sm" onclick="bilLoad()">↻ Rafraîchir</button></div>
   </div>
@@ -767,7 +767,14 @@ async function livRenderList(){
   const q=await supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false}).limit(15);
   const box=document.getElementById('livList');
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
-  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'</div>').join('')||'<div class="hint">Aucune livraison.</div>';
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'<button class="ico-btn" onclick="livDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucune livraison.</div>';
+}
+async function livDel(id){
+  if(!confirm('Supprimer cette livraison ? (corrige le bilan en conséquence)'))return;
+  setSync('suppression…');
+  const q=await supa.from('fab_livraisons').delete().eq('id',id);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Livraison supprimée');livRenderList();
 }
 
 /* ---------- PERTES ---------- */
@@ -798,7 +805,14 @@ async function perRenderList(){
   const q=await supa.from('fab_pertes').select('*').order('date_perte',{ascending:false}).limit(15);
   const box=document.getElementById('perList');
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
-  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🗑️</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.motif?l.motif+' · ':'')+l.date_perte+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'</div>').join('')||'<div class="hint">Aucune perte enregistrée.</div>';
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🗑️</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.motif?l.motif+' · ':'')+l.date_perte+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'<button class="ico-btn" onclick="perDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucune perte enregistrée.</div>';
+}
+async function perDel(id){
+  if(!confirm('Supprimer cette perte ? (corrige le bilan en conséquence)'))return;
+  setSync('suppression…');
+  const q=await supa.from('fab_pertes').delete().eq('id',id);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Perte supprimée');perRenderList();
 }
 
 /* ---------- BILAN ---------- */
