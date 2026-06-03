@@ -875,6 +875,7 @@ async function perDel(id){
 /* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
 let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[],_ingById={};
 const k2=x=>Math.round(x*100)/100;
+const INVOPTS=(function(){let o='<option value="">—</option>';for(let v=0;v<=1000;v+=5)o+='<option value="'+v+'">'+v+'</option>';return o;})();
 function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
 async function bilLoadRaw(){
   const [lv,pr,pe,mv,inv]=await Promise.all([
@@ -940,7 +941,7 @@ function invRender(){
   box.innerHTML='<table><thead><tr><th>Matière bio</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
     bio.map(ing=>{const theo=k2(theoAt(ing.id,invCurSite,date));
       return '<tr><td>'+ing.nom+'</td><td style="color:var(--grey-light)">'+theo+'</td>'+
-        '<td><input type="number" step="0.1" id="iv_'+ing.id+'" data-theo="'+theo+'" oninput="invUpd(\''+ing.id+'\')" style="padding:7px;text-align:right" placeholder="—"></td>'+
+        '<td><select id="iv_'+ing.id+'" data-theo="'+theo+'" onchange="invUpd(\''+ing.id+'\')" style="padding:8px">'+INVOPTS+'</select></td>'+
         '<td id="ive_'+ing.id+'">·</td></tr>';}).join('')+'</tbody></table>';
 }
 function invUpd(ing){const el=document.getElementById('iv_'+ing);const ec=document.getElementById('ive_'+ing);if(!el||!ec)return;
