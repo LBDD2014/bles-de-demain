@@ -175,7 +175,7 @@
     <input type="file" id="livPhoto" accept="image/*" capture="environment">
     <div class="row">
       <div><label>Farine</label><select id="livIng"></select></div>
-      <div><label>Quantité (kg)</label><input type="number" id="livQte" value=""></div>
+      <div><label>Quantité (kg)</label><select id="livQte"></select></div>
     </div>
     <div class="row">
       <div><label>N° de lot <span style="font-weight:400;color:var(--grey-light)">(optionnel)</span></label><input type="text" id="livLot" placeholder="sur la photo"></div>
@@ -198,7 +198,7 @@
     <p class="hint">🗑️ Matière bio perdue (brûlée, renversée, sac percé, périmée…). Se déduit du stock du bilan bio.</p>
     <div class="row">
       <div><label>Matière bio</label><select id="perIng"></select></div>
-      <div><label>Quantité (kg)</label><input type="number" id="perQte" value=""></div>
+      <div><label>Quantité (kg)</label><select id="perQte"></select></div>
     </div>
     <label>Motif</label>
     <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin:2px 0 8px">
@@ -389,6 +389,8 @@ function fillSelectors(){
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('livQte').innerHTML=INVOPTS;
+  document.getElementById('perQte').innerHTML=INVOPTS;
 }
 
 /* ---------- GESTION ---------- */
