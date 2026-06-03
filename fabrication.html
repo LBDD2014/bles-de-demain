@@ -174,8 +174,8 @@
     <label>📷 Photo du bon de livraison <span style="font-weight:400;color:var(--grey-light)">(l'essentiel : lot, date, fournisseur y figurent)</span></label>
     <input type="file" id="livPhoto" accept="image/*" capture="environment">
     <div class="row">
-      <div><label>Farine</label><select id="livIng"></select></div>
-      <div><label>Quantité (kg)</label><select id="livQte"></select></div>
+      <div><label>Matière</label><select id="livIng" onchange="setLivQty()"></select></div>
+      <div><label>Quantité</label><span id="livQteWrap"></span></div>
     </div>
     <div class="row">
       <div><label>N° de lot <span style="font-weight:400;color:var(--grey-light)">(optionnel)</span></label><input type="text" id="livLot" placeholder="sur la photo"></div>
@@ -197,8 +197,8 @@
     <h2>Enregistrer une perte</h2>
     <p class="hint">🗑️ Matière bio perdue (brûlée, renversée, sac percé, périmée…). Se déduit du stock du bilan bio.</p>
     <div class="row">
-      <div><label>Matière bio</label><select id="perIng"></select></div>
-      <div><label>Quantité (kg)</label><select id="perQte"></select></div>
+      <div><label>Matière bio</label><select id="perIng" onchange="setPerQty()"></select></div>
+      <div><label>Quantité</label><span id="perQteWrap"></span></div>
     </div>
     <label>Motif</label>
     <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin:2px 0 8px">
@@ -389,9 +389,14 @@ function fillSelectors(){
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
-  document.getElementById('livQte').innerHTML=INVOPTS;
-  document.getElementById('perQte').innerHTML=INVOPTS;
+  setLivQty();setPerQty();
 }
+// Champ quantité : menu déroulant (kg, pas de 5) pour les FARINES, frappe libre sinon
+function qtyHTML(id,ing){return (ing&&ing.categorie==='farine')
+  ?'<select id="'+id+'" style="width:100%">'+INVOPTS+'</select>'
+  :'<input type="number" step="0.1" id="'+id+'" placeholder="kg / L" style="width:100%">';}
+function setLivQty(){const ing=ingredients.find(x=>x.id===document.getElementById('livIng').value);document.getElementById('livQteWrap').innerHTML=qtyHTML('livQte',ing);}
+function setPerQty(){const ing=ingredients.find(x=>x.id===document.getElementById('perIng').value);document.getElementById('perQteWrap').innerHTML=qtyHTML('perQte',ing);}
 
 /* ---------- GESTION ---------- */
 function gesTab(t,btn){gesCur=t;[...document.getElementById('gesSeg').children].forEach(c=>c.className='');btn.className='on';gesRender();}
@@ -943,7 +948,9 @@ function invRender(){
   box.innerHTML='<table><thead><tr><th>Matière bio</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
     bio.map(ing=>{const theo=k2(theoAt(ing.id,invCurSite,date));
       return '<tr><td>'+ing.nom+'</td><td style="color:var(--grey-light)">'+theo+'</td>'+
-        '<td><select id="iv_'+ing.id+'" data-theo="'+theo+'" onchange="invUpd(\''+ing.id+'\')" style="padding:8px">'+INVOPTS+'</select></td>'+
+        '<td>'+(ing.categorie==='farine'
+          ?'<select id="iv_'+ing.id+'" data-theo="'+theo+'" onchange="invUpd(\''+ing.id+'\')" style="padding:8px">'+INVOPTS+'</select>'
+          :'<input type="number" step="0.1" id="iv_'+ing.id+'" data-theo="'+theo+'" oninput="invUpd(\''+ing.id+'\')" style="padding:7px;text-align:right" placeholder="—">')+'</td>'+
         '<td id="ive_'+ing.id+'">·</td></tr>';}).join('')+'</tbody></table>';
 }
 function invUpd(ing){const el=document.getElementById('iv_'+ing);const ec=document.getElementById('ive_'+ing);if(!el||!ec)return;
