@@ -197,6 +197,25 @@
   <div class="card"><h2>Dernières livraisons</h2><div id="livList"></div></div>
 </section>
 
+<!-- DISPATCH -->
+<section id="mov" class="page">
+  <div class="card">
+    <h2>Dispatch (Local → boutiques)</h2>
+    <p class="hint">🚚 Matière bio sortie du Local et livrée à une boutique. Elle sort du stock du Local et entre dans celui de la boutique.</p>
+    <div class="row">
+      <div><label>Matière</label><select id="movIng" onchange="setMovQty()"></select></div>
+      <div><label>Quantité</label><span id="movQteWrap"></span></div>
+    </div>
+    <div class="row">
+      <div><label>De</label><select id="movFrom"></select></div>
+      <div><label>Vers</label><select id="movTo"></select></div>
+    </div>
+    <label>Date</label><input type="date" id="movDate">
+    <div class="btn-row"><button class="btn" onclick="movSave()">✓ Enregistrer le dispatch</button></div>
+  </div>
+  <div class="card"><h2>Derniers dispatchs</h2><div id="movList"></div></div>
+</section>
+
 <!-- PERTES -->
 <section id="per" class="page">
   <div class="card">
@@ -300,6 +319,7 @@ const TABS=[
   {id:'fab',label:'🍞 Prod. du jour'},
   {id:'rec',label:'📖 Recettes'},
   {id:'liv',label:'📦 Livraisons'},
+  {id:'mov',label:'🚚 Dispatch'},
   {id:'per',label:'🗑️ Pertes'},
   {id:'inv',label:'📋 Inventaire'},
   {id:'bil',label:'📊 Bilan bio'},
@@ -324,7 +344,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();
 }
 let _fabDragInit=false;
 function initTabDrag(){
@@ -397,7 +417,11 @@ function fillSelectors(){
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
-  setLivQty();setPerQty();
+  document.getElementById('movIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
+  document.getElementById('movFrom').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
+  document.getElementById('movTo').innerHTML=SITES.map(s=>'<option value="'+s[0]+'"'+(s[0]==='veigne'?' selected':'')+'>'+s[1]+'</option>').join('');
+  document.getElementById('movDate').value=new Date().toISOString().slice(0,10);
+  setLivQty();setPerQty();setMovQty();
 }
 // Champ quantité : menu déroulant (kg, pas de 5) pour les FARINES, frappe libre sinon
 function qtyHTML(id,ing){return (ing&&ing.categorie==='farine')
@@ -405,6 +429,7 @@ function qtyHTML(id,ing){return (ing&&ing.categorie==='farine')
   :'<input type="number" step="0.1" id="'+id+'" placeholder="kg / L" style="width:100%">';}
 function setLivQty(){const ing=ingredients.find(x=>x.id===document.getElementById('livIng').value);document.getElementById('livQteWrap').innerHTML=qtyHTML('livQte',ing);}
 function setPerQty(){const ing=ingredients.find(x=>x.id===document.getElementById('perIng').value);document.getElementById('perQteWrap').innerHTML=qtyHTML('perQte',ing);}
+function setMovQty(){const ing=ingredients.find(x=>x.id===document.getElementById('movIng').value);document.getElementById('movQteWrap').innerHTML=qtyHTML('movQte',ing);}
 
 /* ---------- GESTION ---------- */
 function gesTab(t,btn){gesCur=t;[...document.getElementById('gesSeg').children].forEach(c=>c.className='');btn.className='on';gesRender();}
@@ -885,6 +910,33 @@ async function perDel(id){
   const q=await supa.from('fab_pertes').delete().eq('id',id);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   setSync('🟢 connecté');toast('Perte supprimée');perRenderList();
+}
+
+/* ---------- DISPATCH (Local → boutiques) ---------- */
+async function movSave(){
+  const from=document.getElementById('movFrom').value,to=document.getElementById('movTo').value;
+  if(from===to){toast('« De » et « Vers » doivent être différents');return;}
+  const row={ingredient_id:document.getElementById('movIng').value,site_depart:from,site_arrivee:to,
+    date_mouvement:document.getElementById('movDate').value,quantite_kg:parseFloat((document.getElementById('movQte')||{}).value)||0};
+  if(!row.quantite_kg){toast('Mets une quantité');return;}
+  setSync('enregistrement…');
+  const q=await supa.from('fab_mouvements').insert(row);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Dispatch enregistré ✓');
+  setMovQty();movRenderList();
+}
+async function movRenderList(){
+  const q=await supa.from('fab_mouvements').select('*').order('date_mouvement',{ascending:false}).limit(15);
+  const box=document.getElementById('movList');
+  if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
+  const sn=c=>(SITES.find(s=>s[0]===c)||['','?'])[1];
+  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🚚</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+sn(l.site_depart)+' → '+sn(l.site_arrivee)+' · '+l.date_mouvement+'</div></div><button class="ico-btn" onclick="movDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucun dispatch.</div>';
+}
+async function movDel(id){
+  if(!confirm('Supprimer ce dispatch ?'))return;
+  const q=await supa.from('fab_mouvements').delete().eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  toast('Dispatch supprimé');movRenderList();
 }
 
 /* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
