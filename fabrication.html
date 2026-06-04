@@ -80,13 +80,19 @@
   @media print{
     nav.tabs,header,.btn-row,.print-hide{display:none!important}
     .page{display:none!important}body{background:#fff;padding:0}
-    body:not(.mode-etiq):not(.mode-recettes) #fab{display:block!important}
+    body:not(.mode-etiq):not(.mode-recettes):not(.mode-bilan) #fab{display:block!important}
     body.mode-etiq #etiq{display:block!important}
     body.mode-recettes #recexport{display:block!important}
+    body.mode-bilan #bilexport{display:block!important}
     @page{margin:8mm}
   }
   #etiq{display:none}
   #recexport{display:none}
+  #bilexport{display:none}
+  .bx{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+  .bx th,.bx td{border:1px solid #bbb;padding:5px 7px;text-align:right}
+  .bx th{background:#eee;font-family:Georgia,serif}
+  .bx td:first-child,.bx th:first-child,.bx td:nth-child(2),.bx th:nth-child(2){text-align:left}
   .rx-head{font-family:"Playfair Display",Georgia,serif;font-size:21px;font-weight:700;margin-bottom:2px}
   .rx-meta{font-size:11px;color:#555;margin-bottom:14px}
   .rx-item{break-inside:avoid;page-break-inside:avoid;border:1px solid #ccc;border-radius:8px;padding:10px 12px;margin-bottom:10px}
@@ -246,6 +252,7 @@
       <button class="btn ghost sm" onclick="bilPreset('year')">Année en cours</button>
       <button class="btn ghost sm" onclick="bilPreset('all')">Depuis le début</button>
       <button class="btn sm" onclick="bilLoad()">↻ Calculer</button>
+      <button class="btn dark sm" onclick="bilExport()">📄 Exporter le bilan (PDF)</button>
     </div>
     <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody></tbody></table></div>
   </div>
@@ -268,6 +275,7 @@
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
 <div id="etiq"></div>
 <div id="recexport"></div>
+<div id="bilexport"></div>
 <div id="toast"></div>
 
 <script>
@@ -780,7 +788,7 @@ function pdEtiq(pid,batchIdx){
   document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
-window.addEventListener('afterprint',()=>{document.body.classList.remove('mode-etiq');document.body.classList.remove('mode-recettes');});
+window.addEventListener('afterprint',()=>{document.body.classList.remove('mode-etiq');document.body.classList.remove('mode-recettes');document.body.classList.remove('mode-bilan');});
 
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
 function recExportAll(){
@@ -917,20 +925,40 @@ function theoAt(ing,site,date){const v=lastInv(ing,site,date);const base=v?+v.qt
 function bilPreset(p){const t=new Date();const y=t.getFullYear();
   document.getElementById('bilD1').value=(p==='all')?'2000-01-01':y+'-01-01';
   document.getElementById('bilD2').value=t.toISOString().slice(0,10);bilLoad();}
+function bilComputeRows(d1,d2){
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
+  bio.forEach(ing=>SITES.forEach(s=>{
+    const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,prevDay(d1),d2);
+    const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
+    const tot=Math.abs(dep)+m.recu+m.dispIn+m.dispOut+m.conso+m.pertes+Math.abs(fin);
+    if(tot<0.005)return;
+    out.push({nom:ing.nom,site:s[1],dep,recu:m.recu,dispIn:m.dispIn,dispOut:m.dispOut,conso:m.conso,pertes:m.pertes,fin});
+  }));
+  return out;
+}
 function bilLoad(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
   const tb=document.querySelector('#bilTable tbody');
   if(!d1||!d2){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Choisis une période.</td></tr>';return;}
-  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');let rows=[];
-  bio.forEach(ing=>SITES.forEach(s=>{
-    const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,d1?prevDay(d1):null,d2);
-    const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
-    const tot=Math.abs(dep)+m.recu+m.dispIn+m.dispOut+m.conso+m.pertes+Math.abs(fin);
-    if(tot<0.005)return;
-    const cls=fin<-0.005?'bad':(fin<5?'warn':'ok');
-    rows.push('<tr><td>'+ing.nom+'</td><td>'+s[1]+'</td><td>'+k2(dep)+'</td><td>'+k2(m.recu)+'</td><td>'+k2(m.dispIn)+'</td><td>'+k2(m.dispOut)+'</td><td>'+k2(m.conso)+'</td><td'+(m.pertes>0.005?' style="color:var(--red)"':'')+'>'+k2(m.pertes)+'</td><td class="'+cls+'">'+k2(fin)+'</td></tr>');
-  }));
-  tb.innerHTML=rows.join('')||'<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Aucun mouvement sur cette période.</td></tr>';
+  const rows=bilComputeRows(d1,d2);
+  tb.innerHTML=rows.map(r=>{const cls=r.fin<-0.005?'bad':(r.fin<5?'warn':'ok');
+    return '<tr><td>'+r.nom+'</td><td>'+r.site+'</td><td>'+k2(r.dep)+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.dispIn)+'</td><td>'+k2(r.dispOut)+'</td><td>'+k2(r.conso)+'</td><td'+(r.pertes>0.005?' style="color:var(--red)"':'')+'>'+k2(r.pertes)+'</td><td class="'+cls+'">'+k2(r.fin)+'</td></tr>';}).join('')
+    ||'<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Aucun mouvement sur cette période.</td></tr>';
+}
+function bilExport(){
+  const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
+  if(!d1||!d2){toast('Choisis une période');return;}
+  const rows=bilComputeRows(d1,d2);
+  const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const today=new Date().toLocaleDateString('fr-FR');
+  let html='<div class="rx-head">Les Blés de Demain — Bilan matière bio</div>'
+    +'<div class="rx-meta">Période du '+fr(d1)+' au '+fr(d2)+' · document généré le '+today+'</div>'
+    +'<table class="bx"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody>'
+    +(rows.length?rows.map(r=>'<tr><td>'+r.nom+'</td><td>'+r.site+'</td><td>'+k2(r.dep)+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.dispIn)+'</td><td>'+k2(r.dispOut)+'</td><td>'+k2(r.conso)+'</td><td>'+k2(r.pertes)+'</td><td>'+k2(r.fin)+'</td></tr>').join('')
+       :'<tr><td colspan="9" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
+    +'</tbody></table>';
+  document.getElementById('bilexport').innerHTML=html;
+  document.body.classList.add('mode-bilan');window.print();
 }
 async function bilEnter(){await bilLoadRaw();const y=new Date().getFullYear();
   if(!document.getElementById('bilD1').value)document.getElementById('bilD1').value=y+'-01-01';
