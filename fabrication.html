@@ -1145,17 +1145,18 @@ async function invDel(id){if(!confirm('Supprimer ce comptage ? (le stock reparti
 }
 
 /* ---------- PIN D'ACCÈS (mêmes codes que l'app principale) ---------- */
-let _pin='',_pinCodes=['2412'];
+let _pin='',_pinCodes=['2412'],_codesFail=false;
 async function pinLoadCodes(){
   try{const q=await supa.from('boutique_codes').select('code').eq('tenant_id','00000000-0000-0000-0000-000000000001');
-    if(!q.error&&q.data&&q.data.length)_pinCodes=q.data.map(r=>String(r.code).trim());}catch(e){}
+    if(q.error){_codesFail=true;return;}
+    if(q.data&&q.data.length)_pinCodes=q.data.map(r=>String(r.code).trim());}catch(e){_codesFail=true;}
 }
 function pinDots(){const d=document.getElementById('pinDots');let h='';for(let i=0;i<4;i++)h+='<span class="dot'+(i<_pin.length?' on':'')+'"></span>';d.innerHTML=h;}
-function pinUnlock(){try{localStorage.setItem('fabUnlocked','1');}catch(e){}document.getElementById('pinov').classList.add('hidden');_pin='';}
+function pinUnlock(code){try{localStorage.setItem('fabUnlockCode',code);}catch(e){}document.getElementById('pinov').classList.add('hidden');_pin='';}
 function pinKey(k){
   if(k==='del')_pin=_pin.slice(0,-1);else if(_pin.length<6)_pin+=k;
   pinDots();document.getElementById('pinErr').textContent='';
-  if(_pinCodes.includes(_pin)){pinUnlock();return;}
+  if(_pinCodes.includes(_pin)){pinUnlock(_pin);return;}
   if(_pin.length>=4&&!_pinCodes.some(c=>c.startsWith(_pin))){document.getElementById('pinErr').textContent='Code incorrect';_pin='';pinDots();}
 }
 function pinPadInit(){
@@ -1167,9 +1168,13 @@ function pinPadInit(){
   pad.innerHTML=h;
 }
 async function pinInit(){
-  let unlocked=false;try{unlocked=localStorage.getItem('fabUnlocked')==='1';}catch(e){}
-  if(unlocked){document.getElementById('pinov').classList.add('hidden');return;}
-  pinPadInit();pinDots();await pinLoadCodes();
+  pinPadInit();pinDots();
+  await pinLoadCodes();
+  let saved=null;try{saved=localStorage.getItem('fabUnlockCode');}catch(e){}
+  // Déverrouillage auto UNIQUEMENT si le code mémorisé est TOUJOURS valide en base.
+  // → si tu changes/supprimes un code (employé parti), son appareil redemande le code = rebloqué.
+  // Anti-lockout : si la base est injoignable (Supabase en pause), on garde l'accès d'un appareil déjà connu.
+  if(saved&&(_pinCodes.includes(saved)||_codesFail)){document.getElementById('pinov').classList.add('hidden');}
 }
 
 renderTabs();initTabDrag();pinInit();loadAll();
