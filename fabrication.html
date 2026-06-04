@@ -80,15 +80,17 @@
   @media print{
     nav.tabs,header,.btn-row,.print-hide{display:none!important}
     .page{display:none!important}body{background:#fff;padding:0}
-    body:not(.mode-etiq):not(.mode-recettes):not(.mode-bilan) #fab{display:block!important}
+    body:not(.mode-etiq):not(.mode-recettes):not(.mode-bilan):not(.mode-lots) #fab{display:block!important}
     body.mode-etiq #etiq{display:block!important}
     body.mode-recettes #recexport{display:block!important}
     body.mode-bilan #bilexport{display:block!important}
+    body.mode-lots #lotexport{display:block!important}
     @page{margin:8mm}
   }
   #etiq{display:none}
   #recexport{display:none}
   #bilexport{display:none}
+  #lotexport{display:none}
   .bx{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
   .bx th,.bx td{border:1px solid #bbb;padding:5px 7px;text-align:right}
   .bx th{background:#eee;font-family:Georgia,serif}
@@ -194,7 +196,13 @@
     <label>Note (optionnel)</label><input type="text" id="livNote" placeholder="">
     <div class="btn-row"><button class="btn" onclick="livSave()">✓ Enregistrer</button></div>
   </div>
-  <div class="card"><h2>Dernières livraisons</h2><div id="livList"></div></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">Dernières livraisons</h2>
+      <button class="btn dark sm" onclick="lotExport()">📄 Registre des lots (PDF)</button>
+    </div>
+    <div id="livList" style="margin-top:8px"></div>
+  </div>
 </section>
 
 <!-- DISPATCH -->
@@ -295,6 +303,7 @@
 <div id="etiq"></div>
 <div id="recexport"></div>
 <div id="bilexport"></div>
+<div id="lotexport"></div>
 <div id="toast"></div>
 
 <script>
@@ -814,7 +823,28 @@ function pdEtiq(pid,batchIdx){
   document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
-window.addEventListener('afterprint',()=>{document.body.classList.remove('mode-etiq');document.body.classList.remove('mode-recettes');document.body.classList.remove('mode-bilan');});
+window.addEventListener('afterprint',()=>{['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));});
+
+/* ---------- REGISTRE DES LOTS (export PDF des réceptions bio) ---------- */
+async function lotExport(){
+  setSync('chargement…');
+  const q=await supa.from('fab_livraisons').select('*').order('date_livraison');
+  setSync('🟢 connecté');
+  if(q.error){toast(q.error.message);return;}
+  const data=q.data||[];
+  const fr=d=>{if(!d)return'';const p=String(d).split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const sn=c=>(SITES.find(s=>s[0]===c)||['',c])[1];
+  const fn=id=>{const f=fournisseurs.find(x=>x.id===id);return f?f.nom:'';};
+  const today=new Date().toLocaleDateString('fr-FR');
+  let html='<div class="rx-head">Les Blés de Demain — Registre des lots reçus (matières bio)</div>'
+    +'<div class="rx-meta">'+data.length+' réceptions · document généré le '+today+'</div>'
+    +'<table class="bx"><thead><tr><th>Date</th><th>Matière</th><th>Lot</th><th>Bon n°</th><th>Quantité (kg)</th><th>Fournisseur</th><th>Site</th></tr></thead><tbody>'
+    +(data.length?data.map(l=>'<tr><td>'+fr(l.date_livraison)+'</td><td>'+ingNom(l.ingredient_id)+'</td><td>'+(l.numero_lot||'—')+'</td><td>'+(l.numero_bon||'—')+'</td><td>'+l.quantite_kg+'</td><td>'+fn(l.fournisseur_id)+'</td><td>'+sn(l.site)+'</td></tr>').join('')
+       :'<tr><td colspan="7" style="text-align:center">Aucune réception enregistrée.</td></tr>')
+    +'</tbody></table>';
+  document.getElementById('lotexport').innerHTML=html;
+  document.body.classList.add('mode-lots');window.print();
+}
 
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
 function recExportAll(){
