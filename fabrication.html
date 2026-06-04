@@ -206,9 +206,9 @@
       <div><label>Du</label><input type="date" id="lotD1"></div>
       <div><label>Au</label><input type="date" id="lotD2"></div>
     </div>
-    <div class="btn-row"><button class="btn dark sm" onclick="lotExport()">📄 Exporter le registre (PDF)</button></div>
+    <div class="btn-row"><button class="btn sm" onclick="livRenderList(true)">🔍 Afficher la liste</button><button class="btn dark sm" onclick="lotExport()">📄 Exporter le registre (PDF)</button></div>
   </div>
-  <div class="card"><h2>Dernières livraisons</h2><div id="livList"></div></div>
+  <div class="card"><h2 id="livListTitle">Dernières livraisons</h2><div id="livList"></div></div>
 </section>
 
 <!-- DISPATCH -->
@@ -905,9 +905,18 @@ async function livSave(){
   ['livPhoto','livFacture'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   livRenderList();
 }
-async function livRenderList(){
-  const q=await supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false}).limit(15);
+async function livRenderList(filtered){
+  let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false});
+  if(filtered){
+    const site=document.getElementById('lotSite').value,d1=document.getElementById('lotD1').value,d2=document.getElementById('lotD2').value;
+    if(site)qb=qb.eq('site',site);
+    if(d1)qb=qb.gte('date_livraison',d1);
+    if(d2)qb=qb.lte('date_livraison',d2);
+    qb=qb.limit(500);
+  }else{qb=qb.limit(15);}
+  const q=await qb;
   const box=document.getElementById('livList');
+  const t=document.getElementById('livListTitle');if(t)t.textContent=filtered?('Livraisons filtrées ('+((q.data||[]).length)+')'):'Dernières livraisons';
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
   box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+(l.photo_facture_url?'<a class="ico-btn" href="'+l.photo_facture_url+'" target="_blank">🧾</a>':'')+'<button class="ico-btn" onclick="livDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucune livraison.</div>';
 }
