@@ -408,7 +408,7 @@ async function loadRecettesMap(){
 function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
-  document.getElementById('livIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
+  document.getElementById('livIng').innerHTML=ingredients.filter(x=>x.bio&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
@@ -437,7 +437,7 @@ function gesRender(){
   const body=document.getElementById('gesBody');let arr,html='';
   if(gesCur==='ing'){
     arr=ingredients;
-    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+'</div><div class="s">'+x.categorie+(x.fournisseur_id?' · '+(fournisseurs.find(f=>f.id===x.fournisseur_id)||{}).nom:'')+' · '+x.unite+'</div></div><button class="ico-btn" onclick="gesEdit(\'ing\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'ing\',\''+x.id+'\')">🗑</button></div>').join('');
+    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+(x.code_fournisseur?' <span style="font-size:11px;color:var(--grey-light)">'+x.code_fournisseur+'</span>':'')+'</div><div class="s">'+x.categorie+(x.fournisseur_id?' · '+(fournisseurs.find(f=>f.id===x.fournisseur_id)||{}).nom:'')+' · '+x.unite+'</div></div><button class="ico-btn" onclick="gesEdit(\'ing\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'ing\',\''+x.id+'\')">🗑</button></div>').join('');
   }else if(gesCur==='prod'){
     arr=produits;
     html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+'</div><div class="s">'+x.categorie+'</div></div><button class="ico-btn" onclick="gesEdit(\'prod\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'prod\',\''+x.id+'\')">🗑</button></div>').join('');
@@ -462,6 +462,7 @@ function gesForm(t,obj){
     h+='<label>Catégorie</label><select id="m_cat">'+CATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
     h+='<label>Fournisseur</label><select id="m_four"><option value="">—</option>'+fournisseurs.map(f=>'<option value="'+f.id+'" '+(obj.fournisseur_id===f.id?'selected':'')+'>'+f.nom+'</option>').join('')+'</select>';
     h+='<label>Unité</label><select id="m_unite">'+['kg','g','L','piece'].map(u=>'<option '+(obj.unite===u?'selected':'')+'>'+u+'</option>').join('')+'</select>';
+    h+='<label>Code fournisseur <span style="font-weight:400;color:var(--grey-light)">(optionnel — ex PF930325 ; laisse vide si facture manuscrite)</span></label><input id="m_code" value="'+(obj.code_fournisseur||'')+'">';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
     h+='<label>Eau du levain (pour 1 de farine — ex 0,6 = 60% · laisse 0 si ce n\'est pas un levain)</label><input type="number" step="0.05" id="m_eau_ratio" value="'+(obj.eau_ratio!=null?obj.eau_ratio:0)+'">';
     h+='<label>Farine du levain <span style="font-weight:400;color:var(--grey-light)">(seulement pour un levain : la farine bio comptée au bilan)</span></label><select id="m_farine_levain"><option value="">—</option>'+ingredients.filter(i=>i.categorie==='farine').map(i=>'<option value="'+i.id+'" '+(obj.farine_levain_id===i.id?'selected':'')+'>'+i.nom+(i.bio?' (bio)':'')+'</option>').join('')+'</select>';
@@ -476,7 +477,7 @@ async function gesSave(t,isNew,id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:null;};
   const chk=x=>{const e=document.getElementById(x);return e?e.checked:false;};
   let table,row;
-  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null};}
+  if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null,code_fournisseur:v('m_code')||null};}
   else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
   else{table='fab_fournisseurs';row={nom:v('m_nom')};}
   if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
