@@ -478,7 +478,7 @@ function gesRender(){
     html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+(x.code_fournisseur?' <span style="font-size:11px;color:var(--grey-light)">'+x.code_fournisseur+'</span>':'')+'</div><div class="s">'+x.categorie+(x.fournisseur_id?' · '+(fournisseurs.find(f=>f.id===x.fournisseur_id)||{}).nom:'')+' · '+x.unite+'</div></div><button class="ico-btn" onclick="gesEdit(\'ing\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'ing\',\''+x.id+'\')">🗑</button></div>').join('');
   }else if(gesCur==='prod'){
     arr=produits;
-    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+'</div><div class="s">'+x.categorie+'</div></div><button class="ico-btn" onclick="gesEdit(\'prod\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'prod\',\''+x.id+'\')">🗑</button></div>').join('');
+    html=arr.map(x=>{const ina=x.actif===false;return '<div class="item"'+(ina?' style="opacity:.5"':'')+'><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+(ina?' <span style="font-size:10px;background:var(--grey-light);color:#fff;padding:1px 7px;border-radius:20px">inactif</span>':'')+'</div><div class="s">'+x.categorie+'</div></div><button class="ico-btn" onclick="gesToggleActif(\''+x.id+'\')" title="'+(ina?'Réactiver':'Désactiver')+'">'+(ina?'▶️':'⏸️')+'</button><button class="ico-btn" onclick="gesEdit(\'prod\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'prod\',\''+x.id+'\')">🗑</button></div>';}).join('');
   }else{
     arr=fournisseurs;
     html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+'</div></div><button class="ico-btn" onclick="gesEdit(\'four\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'four\',\''+x.id+'\')">🗑</button></div>').join('');
@@ -530,6 +530,13 @@ async function gesDel(t,id){
   const q=await supa.from(table).delete().eq('id',id);
   if(q.error){toast(q.error.message);return;}
   await loadAll();toast('Supprimé');
+}
+async function gesToggleActif(id){
+  const p=produits.find(x=>x.id===id);if(!p)return;
+  const wasActive=(p.actif!==false);
+  const q=await supa.from('fab_produits').update({actif:!wasActive}).eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  await loadAll();toast(wasActive?'Recette désactivée':'Recette réactivée');
 }
 
 /* ---------- RECETTES ---------- */
@@ -680,7 +687,7 @@ async function pdDoSave(){
 }
 /* --- mélanges (variantes d'une pâte de base) --- */
 function melangesForBase(basePid){const ing=BASE_PATE[basePid];if(!ing)return [];
-  return produits.filter(p=>p.categorie==='melange'&&recettesMap[p.id]&&(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id===ing));}
+  return produits.filter(p=>p.categorie==='melange'&&p.actif!==false&&recettesMap[p.id]&&(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id===ing));}
 function melangePateParBac(mpid){const rec=recettesMap[mpid];if(!rec)return 0;const ing=(rec.lignes||[]).find(l=>l.ingredient_id===ing_pate_of(mpid));return ing?ing.quantite:0;}
 function ing_pate_of(mpid){const rec=recettesMap[mpid];if(!rec)return null;const l=(rec.lignes||[]).find(x=>x.ingredient_id&&x.ingredient_id.indexOf('ing_pate_')===0);return l?l.ingredient_id:null;}
 function pdSetMelange(mpid,bacs){const n=parseFloat(bacs)||0;if(n>0)pdMelange[mpid]=n;else delete pdMelange[mpid];pdRenderAll();pdAutoSave();}
@@ -763,7 +770,7 @@ function pdDefaultQte(pid){return pid==='pr_tradition'?25:10;}
 
 function pdRenderRows(){
   const el=document.getElementById('pdRows');if(!el)return;
-  const withRec=produits.filter(p=>recettesMap[p.id]);
+  const withRec=produits.filter(p=>recettesMap[p.id]&&p.actif!==false);
   if(!withRec.length){el.innerHTML='<p class="hint">Aucune recette.</p>';return;}
   let html='';
   PD_CAT_ORDER.forEach(cat=>{
