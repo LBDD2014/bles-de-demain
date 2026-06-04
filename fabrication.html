@@ -324,6 +324,11 @@
     <div id="gesBody" style="margin-top:12px"></div>
     <div class="btn-row"><button class="btn" id="gesAdd" onclick="gesOpenAdd()">+ Ajouter</button></div>
   </div>
+  <div class="card">
+    <h2>🔑 Sécurité — code d'accès</h2>
+    <p class="hint">Change le code d'accès de l'app Fabrication (ex : un employé quitte l'entreprise). Les appareils avec l'ancien code seront <b>rebloqués</b> à la prochaine ouverture. Protégé par le code maître.</p>
+    <div class="btn-row"><button class="btn dark sm" onclick="changeFabCode()">Changer le code d'accès Fabrication</button></div>
+  </div>
 </section>
 
 <!-- MODALE GENERIQUE -->
@@ -1147,7 +1152,7 @@ async function invDel(id){if(!confirm('Supprimer ce comptage ? (le stock reparti
 /* ---------- PIN D'ACCÈS (mêmes codes que l'app principale) ---------- */
 let _pin='',_pinCodes=['2412'],_codesFail=false;
 async function pinLoadCodes(){
-  try{const q=await supa.from('boutique_codes').select('code').eq('tenant_id','00000000-0000-0000-0000-000000000001');
+  try{const q=await supa.from('boutique_codes').select('boutique_id,code').eq('tenant_id','00000000-0000-0000-0000-000000000001').in('boutique_id',['fabrication','master']);
     if(q.error){_codesFail=true;return;}
     if(q.data&&q.data.length)_pinCodes=q.data.map(r=>String(r.code).trim());}catch(e){_codesFail=true;}
 }
@@ -1166,6 +1171,25 @@ function pinPadInit(){
     else h+='<button onclick="pinKey(\''+k+'\')">'+(k==='del'?'⌫':k)+'</button>';
   });
   pad.innerHTML=h;
+}
+async function changeFabCode(){
+  const T='00000000-0000-0000-0000-000000000001';
+  const m=await supa.from('boutique_codes').select('code').eq('tenant_id',T).eq('boutique_id','master').maybeSingle();
+  const master=(m.data&&String(m.data.code).trim())||'2412';
+  const admin=prompt('Code maître (admin) pour modifier le code Fabrication :');
+  if(admin===null)return;
+  if(String(admin).trim()!==master){toast('Code maître incorrect');return;}
+  const nc=prompt('Nouveau code d\'accès Fabrication (4 à 6 chiffres) :');
+  if(nc===null)return;
+  const code=String(nc).trim();
+  if(!/^[0-9]{4,6}$/.test(code)){toast('Le code doit faire 4 à 6 chiffres');return;}
+  setSync('enregistrement…');
+  const sel=await supa.from('boutique_codes').select('boutique_id').eq('tenant_id',T).eq('boutique_id','fabrication').maybeSingle();
+  let q;
+  if(sel.data) q=await supa.from('boutique_codes').update({code}).eq('tenant_id',T).eq('boutique_id','fabrication');
+  else q=await supa.from('boutique_codes').insert({tenant_id:T,boutique_id:'fabrication',code});
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast('Code Fabrication mis à jour ✓ — les anciens appareils seront rebloqués');
 }
 async function pinInit(){
   pinPadInit();pinDots();
