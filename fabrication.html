@@ -486,7 +486,7 @@ function gesRender(){
     html=arr.map(x=>{const ina=x.actif===false;return '<div class="item"'+(ina?' style="opacity:.5"':'')+'><div class="meta"><div class="t">'+x.nom+(x.bio?'<span class="leaf">bio</span>':'')+(ina?' <span style="font-size:10px;background:var(--grey-light);color:#fff;padding:1px 7px;border-radius:20px">inactif</span>':'')+'</div><div class="s">'+x.categorie+'</div></div><button class="ico-btn" onclick="gesToggleActif(\''+x.id+'\')" title="'+(ina?'Réactiver':'Désactiver')+'">'+(ina?'▶️':'⏸️')+'</button><button class="ico-btn" onclick="gesEdit(\'prod\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'prod\',\''+x.id+'\')">🗑</button></div>';}).join('');
   }else{
     arr=fournisseurs;
-    html=arr.map(x=>'<div class="item"><div class="meta"><div class="t">'+x.nom+'</div></div><button class="ico-btn" onclick="gesEdit(\'four\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'four\',\''+x.id+'\')">🗑</button></div>').join('');
+    html=arr.map(x=>{const c=[x.telephone,x.email,x.adresse].filter(Boolean).join(' · ');return '<div class="item"><div class="meta"><div class="t">'+x.nom+'</div>'+(c?'<div class="s">'+c+'</div>':'')+'</div><button class="ico-btn" onclick="gesEdit(\'four\',\''+x.id+'\')">✎</button><button class="ico-btn" onclick="gesDel(\'four\',\''+x.id+'\')">🗑</button></div>';}).join('');
   }
   body.innerHTML=html||'<div class="hint">Rien pour l\'instant.</div>';
 }
@@ -512,6 +512,10 @@ function gesForm(t,obj){
   }else if(t==='prod'){
     h+='<label>Catégorie</label><select id="m_cat">'+PCATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
+  }else if(t==='four'){
+    h+='<label>Téléphone</label><input id="m_tel" value="'+((obj.telephone||'').replace(/"/g,'&quot;'))+'">';
+    h+='<label>Email</label><input id="m_email" value="'+((obj.email||'').replace(/"/g,'&quot;'))+'">';
+    h+='<label>Adresse</label><input id="m_adresse" value="'+((obj.adresse||'').replace(/"/g,'&quot;'))+'">';
   }
   h+='<div class="btn-row"><button class="btn" onclick="gesSave(\''+t+'\','+(isNew?'true':'false')+',\''+(obj.id||'')+'\')">Enregistrer</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
   m.innerHTML=h;document.getElementById('modalBg').classList.add('show');
@@ -522,7 +526,7 @@ async function gesSave(t,isNew,id){
   let table,row;
   if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null,code_fournisseur:v('m_code')||null};}
   else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
-  else{table='fab_fournisseurs';row={nom:v('m_nom')};}
+  else{table='fab_fournisseurs';row={nom:v('m_nom'),telephone:v('m_tel')||null,email:v('m_email')||null,adresse:v('m_adresse')||null};}
   if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
   setSync('enregistrement…');
   const q=isNew?await supa.from(table).insert(row):await supa.from(table).update(row).eq('id',id);
