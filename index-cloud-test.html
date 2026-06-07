@@ -8503,7 +8503,11 @@ async function saveProInterfaceOrder() {
   if (!d.id) {
     const butoir = proGetButoirForDate(pro, d.date_livraison);
     if (butoir == null || Date.now() >= butoir) {
-      alert('L\'heure butoir pour ce jour est dépassée. Choisis un autre jour.');
+      const _src = pro.boutique_principale || 'local';
+      const _tels = { local: '07 50 05 22 96', tours: '07 57 77 05 87', veigne: '07 57 77 05 39' };
+      const _tel = _tels[_src] || _tels.local;
+      const _bn = BOUTIQUE_NAMES[_src] || 'Le Local';
+      alert('Trop tard pour commander en ligne pour ce jour — l\'heure limite est passée.\n\nPour un dépannage, appelez ' + _bn + ' au ' + _tel + ' : on verra ensemble si c\'est possible.');
       return;
     }
   }
