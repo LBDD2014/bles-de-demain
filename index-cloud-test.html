@@ -5457,7 +5457,7 @@ async function loadVeignePatReassort() {
   const { data, error } = await supa.from('reappros').select('*')
     .eq('tenant_id', TENANT_ID).eq('service_date', veignePatDate)
     .in('boutique_id', ['tours', 'saint-avertin'])
-    .not('sent_at', 'is', null).is('prepared_at', null);
+    .not('sent_at', 'is', null); // v20.76 — on garde aussi les préparés pour les afficher avec ✓ "fait"
   if (error) return;
   (data || []).forEach(function(r) {
     if (!veignePatStockData[r.product_id]) return;
@@ -5494,26 +5494,33 @@ function renderStockVeignePat() {
   let anyReassort = false;
   [['tours', 'Tours'], ['saint-avertin', 'St-Avertin']].forEach(function(b) {
     const list = (veignePatReassort[b[0]] || []).slice().sort(function(a, c) {
+      const pa = a.prepared_at ? 1 : 0, pc = c.prepared_at ? 1 : 0; // non-faits en premier
+      if (pa !== pc) return pa - pc;
       const na = (products.find(function(x) { return x.id === a.product_id; }) || {}).name || '';
       const nc = (products.find(function(x) { return x.id === c.product_id; }) || {}).name || '';
       return na.localeCompare(nc);
     });
     if (!list.length) return;
     anyReassort = true;
+    const todo = list.filter(function(r) { return !r.prepared_at; }).length;
     html += '<div class="section reappro-section">';
     html += '<div class="section-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
-      + '<span>📦 À préparer — ' + escapeHtml(b[1]) + ' (' + list.length + ')</span>'
-      + '<button class="btn-gold-sm" onclick="prepareVeignePatBoutique(\'' + b[0] + '\')">✓ Tout préparé</button>'
+      + '<span>📦 À préparer — ' + escapeHtml(b[1]) + ' (' + todo + ')</span>'
+      + (todo > 0
+          ? '<button class="btn-gold-sm" onclick="prepareVeignePatBoutique(\'' + b[0] + '\')">✓ Tout préparé</button>'
+          : '<span style="color:var(--green);font-weight:700;font-size:13px">✓ tout fait</span>')
       + '</div>';
     list.forEach(function(r) {
       const p = products.find(function(x) { return x.id === r.product_id; }) || {};
       const st = veignePatStockData[r.product_id] || {};
       const qty = parseQty(r.commander);
       const u = (!st.stock_unit || st.stock_unit === 'piece') ? 'pièce' : st.stock_unit;
-      html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px">';
-      html += '<div><div class="produit-name">' + escapeHtml(p.name || r.product_id) + '</div>'
+      const done = !!r.prepared_at;
+      html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px' + (done ? ';opacity:0.55' : '') + '">';
+      html += '<div><div class="produit-name">' + (done ? '✓ ' : '') + escapeHtml(p.name || r.product_id) + '</div>'
         + '<div class="produit-unit">' + qty + ' ' + escapeHtml(u) + (qty > 1 ? 's' : '') + '</div></div>';
-      html += '<button class="btn-gold-sm" onclick="prepareVeignePatLine(\'' + b[0] + '\', \'' + r.product_id + '\')">✓ préparé</button>';
+      if (done) html += '<span style="color:var(--green);font-weight:700;font-size:13px">✓ fait</span>';
+      else html += '<button class="btn-gold-sm" onclick="prepareVeignePatLine(\'' + b[0] + '\', \'' + r.product_id + '\')">✓ préparé</button>';
       html += '</div>';
     });
     html += '</div>';
@@ -5529,6 +5536,7 @@ function renderStockVeignePat() {
   const outByProduct = {};
   ['tours', 'saint-avertin'].forEach(function(b) {
     (veignePatReassort[b] || []).forEach(function(r) {
+      if (r.prepared_at) return; // déjà parti / fait → ne compte plus dans "à partir"
       outByProduct[r.product_id] = (outByProduct[r.product_id] || 0) + (parseQty(r.commander) || 0);
     });
   });
@@ -5661,7 +5669,7 @@ function editVeignePatUnitPieces(pid) {
 
 // Marquer un produit d'un réassort comme préparé → décompte le stock
 async function prepareVeignePatLine(boutique, productId) {
-  const rows = (veignePatReassort[boutique] || []).filter(function(r) { return r.product_id === productId; });
+  const rows = (veignePatReassort[boutique] || []).filter(function(r) { return r.product_id === productId && !r.prepared_at; });
   if (!rows.length) return;
   await applyVeignePatPrepared(rows);
   await loadVeignePatReassort();
@@ -5670,7 +5678,7 @@ async function prepareVeignePatLine(boutique, productId) {
 
 // Marquer tout le réassort d'une boutique comme préparé
 async function prepareVeignePatBoutique(boutique) {
-  const rows = (veignePatReassort[boutique] || []).slice();
+  const rows = (veignePatReassort[boutique] || []).filter(function(r) { return !r.prepared_at; });
   if (!rows.length) return;
   if (!confirm('Marquer TOUT le réassort ' + (BOUTIQUE_NAMES[boutique] || boutique) + ' comme préparé ?\nLe stock sera décompté.')) return;
   await applyVeignePatPrepared(rows);
