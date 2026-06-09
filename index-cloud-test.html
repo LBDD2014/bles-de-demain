@@ -1250,6 +1250,10 @@ background: #F5F0E5; gap: 6px;
 .col-lbl { font-size: 10px; font-weight: 700; color: var(--brown-mid); text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
 .col-lbl:first-child { text-align: left; }
 .col-lbl.cmd { color: var(--gold-dark); }
+/* v20.75 — cellule "À commander" avec bouton rapide "2" (pâtisserie Veigné) */
+.reappro-cmd-cell { display: flex; align-items: center; gap: 6px; }
+.cmd-quick { flex-shrink: 0; width: 38px; height: 42px; border: 2px solid var(--gold); background: var(--gold-light); color: var(--gold-dark); border-radius: 8px; font-size: 17px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.cmd-quick:active { background: var(--gold); color: white; transform: scale(0.94); }
 .produit-row {
 display: grid; grid-template-columns: 1fr 80px 90px; align-items: center;
 padding: 8px 14px; border-bottom: 1px solid #F5F0E8; gap: 6px;
@@ -3095,6 +3099,7 @@ renderProductionSA();
 // v20.14 : St-Av Cmd Local (fusion pain+vienn) + Cmd Veigné Pât.
 // Veigné/Tours : Cmd Veigné Pât. (pâtisserie depuis Veigné Pâtissier)
 await loadReappros(currentBoutique);
+if (v === 'reappro_pat') await loadVeignePatStock(); // v20.75 — unités réelles (grille 28/50) sur l'écran commande
 subscribeRealtimeReappro(currentBoutique);
 if (v === 'reappro_pat' && currentBoutique === 'tours') {
   renderReappro(); // Tours : filtré sur section patisserie_veigne via currentVue
@@ -3751,7 +3756,7 @@ let html = '<div class="section reappro-section">'
   if (type === 'previs') {
   html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl cmd" style="grid-column:2/-1">À produire/plaquer</span></div>';
   } else {
-  html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J\'ai</span><span class="col-lbl cmd">À commander</span></div>';
+  html += '<div class="col-header" style="grid-template-columns:1fr 140px"><span class="col-lbl">Produit</span><span class="col-lbl cmd">À commander</span></div>';
   }
 
 cats.forEach(function(cat) {
@@ -3767,17 +3772,21 @@ function renderReapproRow(p, type) {
 const val = reapprosData[p.id] || { avoir: '', commander: '', previs: '', sent_at: null };
 const isSent = !!val.sent_at;
 const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
+// v20.75 — produit commandé à Veigné (pâtisserie) : on récupère son unité réelle (grille de 28/50, pièce…) depuis le stock pâtissier
+const isVeignePat = getProductSupply(p, currentBoutique) === 'veigne';
+const vpSt = isVeignePat ? veignePatStockData[p.id] : null;
 const hasFill = (type === 'previs')
   ? (val.previs != null && val.previs !== '')
   : ((val.commander != null && val.commander !== '') || (val.avoir != null && val.avoir !== ''));
-let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '">';
+let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '"' + (type !== 'previs' ? ' style="grid-template-columns:1fr 140px"' : '') + '>';
 // v20.33 — Conditionnement à côté du unit
 const condTxt = formatConditioning(p);
 // v20.34 — Cible "doit avoir" pour la boutique courante (affichée si renseignée)
 const cible = getCibleForProduct(p, currentBoutique);
 const cibleTxt = cible != null ? 'Cible: ' + cible : '';
 const unitParts = [];
-if (p.unit) unitParts.push(escapeHtml(p.unit));
+if (vpSt) unitParts.push('<span style="color:var(--gold-dark);font-weight:600">' + escapeHtml(veignePatUnitLabel(vpSt)) + '</span>');
+else if (p.unit) unitParts.push(escapeHtml(p.unit));
 if (condTxt) unitParts.push(escapeHtml(condTxt));
 if (cibleTxt) unitParts.push('<span style="color:var(--gold-dark);font-weight:600">' + cibleTxt + '</span>');
 const unitLine = unitParts.join(' · ');
@@ -3786,7 +3795,7 @@ if (type === 'previs') {
 const pv = val.previs == null ? '' : String(val.previs);
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv !== '' ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" data-field="previs" value="' + escapeHtml(pv) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
 } else {
-const a = val.avoir || '', c = val.commander || '';
+const c = val.commander || '';
 // v20.35 — Helper inline pour rendre soit select caisse (si pces_per_caisse), soit input
 // Placeholders explicites "J'ai" / "À cmd" pour rester lisible même sans le header de colonnes
 function renderReapproField(field, currentVal, placeholder, isCmd) {
@@ -3823,8 +3832,11 @@ function renderReapproField(field, currentVal, placeholder, isCmd) {
   h += '</select>';
   return h;
 }
-html += renderReapproField('avoir', a, "J'ai", false);
+// v20.75 — colonne "J'ai" retirée. Pour la pâtisserie commandée à Veigné : bouton "2" (1 clic = 2), ajustable au menu.
+html += '<div class="reappro-cmd-cell">';
+if (isVeignePat) html += '<button type="button" class="cmd-quick" onclick="quickReappro2(\'' + p.id + '\')">2</button>';
 html += renderReapproField('commander', c, 'À cmd', true);
+html += '</div>';
 }
 html += '</div>';
 return html;
@@ -3889,6 +3901,26 @@ clearTimeout(updateTimers['r_' + pid]);
 updateTimers['r_' + pid] = setTimeout(function() {
 upsertReappro(pid);
 }, 500);
+}
+
+// v20.75 — 1 clic = commande de 2 (caisses/grilles), ajustable ensuite au menu
+function quickReappro2(pid) {
+if (!reapprosData[pid]) reapprosData[pid] = { avoir: '', commander: '', previs: '', sent_at: null };
+reapprosData[pid].commander = '2';
+if (reapprosData[pid].sent_at) reapprosData[pid].sent_at = null;
+const el = document.querySelector('[data-pid="' + pid + '"][data-field="commander"]');
+if (el) {
+if (el.tagName === 'SELECT') {
+const exists = Array.from(el.options).some(function(o) { return o.value === '2'; });
+if (!exists) { const o = document.createElement('option'); o.value = '2'; o.textContent = '2'; el.appendChild(o); }
+}
+el.value = '2';
+el.classList.add('has-value');
+const row = el.closest('.produit-row');
+if (row) row.classList.add('row-filled');
+}
+clearTimeout(updateTimers['r_' + pid]);
+updateTimers['r_' + pid] = setTimeout(function() { upsertReappro(pid); }, 300);
 }
 
 // === VENTES ===
@@ -5491,7 +5523,15 @@ function renderStockVeignePat() {
   }
 
   // SECTION 2 — Mon stock
-  html += '<div class="info-banner"><strong>Mon stock</strong><br>L\'<strong>Entrée</strong> ajoute ta production du jour. Le stock baisse quand tu marques un réassort « préparé » ci-dessus. Alerte 🔴 sous le Mini, 🟠 au-dessus du Maxi.</div>';
+  html += '<div class="info-banner"><strong>Mon stock</strong><br>L\'<strong>Entrée</strong> ajoute ta production du jour. Le stock baisse quand tu marques un réassort « préparé » ci-dessus. Alerte 🔴 sous le Mini. La colonne <strong>À partir</strong> = réassorts Tours/St-Av à préparer pour la prochaine livraison.</div>';
+
+  // v20.75 — réassorts qui vont partir, par produit (somme Tours + St-Av)
+  const outByProduct = {};
+  ['tours', 'saint-avertin'].forEach(function(b) {
+    (veignePatReassort[b] || []).forEach(function(r) {
+      outByProduct[r.product_id] = (outByProduct[r.product_id] || 0) + (parseQty(r.commander) || 0);
+    });
+  });
 
   const entries = Object.keys(veignePatStockData).map(function(pid) {
     return { st: veignePatStockData[pid], p: products.find(function(x) { return x.id === pid; }) };
@@ -5513,7 +5553,7 @@ function renderStockVeignePat() {
     + '<span class="col-lbl cmd">Entrée</span>'
     + '<span class="col-lbl">Stock</span>'
     + '<span class="col-lbl">Mini</span>'
-    + '<span class="col-lbl">Maxi</span>'
+    + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
     + '</div>';
 
   cats.forEach(function(cat) {
@@ -5522,11 +5562,11 @@ function renderStockVeignePat() {
     list.forEach(function(e) {
       const st = e.st;
       const stock = Number(st.stock) || 0;
-      const mini = st.mini, maxi = st.maxi;
+      const mini = st.mini;
+      const aPartir = outByProduct[e.p.id] || 0;
       let alertCls = '', dot = '';
       if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
-      else if (maxi != null && stock > Number(maxi)) { alertCls = 'stock-orange'; dot = '🟠 '; }
-      else if (mini != null || maxi != null) { alertCls = 'stock-green'; dot = '🟢 '; }
+      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       const editPen = (st.stock_unit !== 'piece')
         ? ' <a href="#" onclick="editVeignePatUnitPieces(\'' + e.p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️</a>' : '';
       html += '<div class="produit-row stock-row ' + alertCls + '">';
@@ -5535,7 +5575,7 @@ function renderStockVeignePat() {
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'maxi\', this)">' + veignePatQtyOptions(maxi) + '</select></div>';
+      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
       html += '</div>';
     });
   });
