@@ -546,6 +546,13 @@ cursor: pointer; font-family: inherit;
 
 .sp-section-title { padding: 10px 14px 4px; font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: var(--brown); }
 
+/* v20.74 — plaques préréglées + case Trancher */
+.sp-plaques { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sp-plaque-btn { background: #FAF6EE; border: 1px solid var(--gold); color: var(--brown); border-radius: 16px; padding: 6px 12px; font-size: 13px; font-family: inherit; cursor: pointer; }
+.sp-plaque-btn:active { background: var(--gold); color: white; }
+.sp-tranche { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14px; color: var(--brown); cursor: pointer; }
+.sp-tranche input { width: 18px; height: 18px; }
+
 .sp-section { margin-bottom: 12px; border-left: 4px solid transparent; }
 .sp-section.shop-veigne { border-left-color: #C9A24B; }
 .sp-section.shop-tours { border-left-color: #7A9FB8; }
@@ -2333,6 +2340,7 @@ let autoCopyLastWeekDate = null;
 // v19 : Commandes speciales
 let currentSpecialWeekStart = null;  // ISO lundi
 let selectedSpecialDay = null;       // ISO jour sélectionné dans la bandeau
+let currentVentesWeekStart = null;   // ISO lundi — bande de dates de l'onglet Ventes
 let specialOrdersData = [];          // array de commandes avec items inclus
 let specialFormMode = null;          // null | 'new' | 'edit'
 let specialFormDraft = null;         // objet commande en cours
@@ -4093,8 +4101,27 @@ return ventesProducts.some(function(p) { return p.category === c; });
 const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
 _ventesPrevisCache = previsRaw;
 
-let html = '<div class="ventes-day-bar">'
-
+// v20.74 — bande de dates cliquable (comme les commandes spéciales)
+if (!currentVentesWeekStart || currentDate < currentVentesWeekStart || currentDate > addDaysISO(currentVentesWeekStart, 6)) {
+currentVentesWeekStart = getMondayOf(currentDate);
+}
+let html = '<div class="sp-week-bar">';
+html += '<button class="sp-week-nav" onclick="changeVentesWeek(-1)">←</button>';
+html += '<div class="sp-week-days">';
+for (let i = 0; i < 7; i++) {
+const wiso = addDaysISO(currentVentesWeekStart, i);
+const wd = new Date(wiso + 'T12:00');
+const wcls = 'sp-day' + (wiso === currentDate ? ' active' : '') + (wiso === serviceDateISO() ? ' today' : '');
+html += '<button class="' + wcls + '" onclick="selectVentesDay(\'' + wiso + '\')">';
+html += '<div class="sp-day-dow">' + DOW_ABBR[wd.getDay()] + '</div>';
+html += '<div class="sp-day-num">' + wd.getDate() + '</div>';
+html += '<div class="sp-day-cnt"></div>';
+html += '</button>';
+}
+html += '</div>';
+html += '<button class="sp-week-nav" onclick="changeVentesWeek(1)">→</button>';
+html += '</div>';
+html += '<div class="ventes-day-bar">'
 + '<button class="ventes-day-btn" onclick="changeDate(-1)"><</button>'
 + '<span class="ventes-day-title">' + formatDateFr(currentDate) + '</span>'
 + '<button class="ventes-day-btn" onclick="changeDate(1)">></button>'
@@ -4535,6 +4562,19 @@ async function changeDate(delta) {
 const d = new Date(currentDate + 'T12:00');
 d.setDate(d.getDate() + delta);
 currentDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+await loadSales(currentBoutique, currentDate);
+renderVentes();
+}
+
+// v20.74 — navigation de la bande de dates Ventes (calquée sur les commandes spéciales)
+async function selectVentesDay(iso) {
+currentDate = iso;
+await loadSales(currentBoutique, currentDate);
+renderVentes();
+}
+async function changeVentesWeek(delta) {
+currentVentesWeekStart = addDaysISO(currentVentesWeekStart || getMondayOf(currentDate), delta * 7);
+currentDate = currentVentesWeekStart; // se cale sur le lundi de la nouvelle semaine
 await loadSales(currentBoutique, currentDate);
 renderVentes();
 }
@@ -6535,7 +6575,7 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
         html += '<div class="prod-special-items">';
         o.items.forEach(function(it) {
           const pname = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id) : (it.product_name_custom || '?');
-          html += '<span class="prod-special-item">' + escapeHtml(pname) + ' ×' + (parseQty(it.qty) || 0) + '</span>';
+          html += '<span class="prod-special-item">' + escapeHtml(pname) + ' ×' + (parseQty(it.qty) || 0) + (it.tranche ? ' 🔪' : '') + '</span>';
         });
         html += '</div>';
       }
@@ -12304,6 +12344,7 @@ product_name_custom: it.product_name_custom ? it.product_name_custom.trim() : nu
 qty: parseQty(it.qty) || 1,
 unit_price: it.unit_price ? parseQty(it.unit_price) : null,
 notes: it.notes ? it.notes.trim() : null,
+tranche: !!it.tranche,
 position: idx
 };
 });
@@ -12379,7 +12420,7 @@ if (o.status) html += '<div class="ticket-row"><span>Statut :</span>' + escapeHt
 html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qte</th></tr></thead><tbody>';
 (o.items || []).forEach(function(it) {
 const name = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
-html += '<tr><td>' + escapeHtml(name) + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td></tr>';
+html += '<tr><td>' + escapeHtml(name) + (it.tranche ? ' 🔪 tranché' : '') + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td></tr>';
 });
 html += '</tbody></table>';
 if (o.notes) html += '<div class="ticket-notes"><strong>Notes :</strong> ' + escapeHtml(o.notes) + '</div>';
@@ -12561,7 +12602,7 @@ function renderSpecialOrderCard(o, isMine) {
 const nbItems = (o.items || []).reduce(function(s, it) { return s + (parseQty(it.qty) || 0); }, 0);
 const summary = (o.items || []).map(function(it) {
 const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
-return (parseQty(it.qty) || 1) + 'x ' + name;
+return (parseQty(it.qty) || 1) + 'x ' + name + (it.tranche ? ' 🔪' : '');
 }).join(' + ');
 // v20.62 — commande d'une autre boutique (À produire) = lecture seule : pas d'édition du contenu
 const editAttr = isMine ? ' onclick="openEditSpecialOrder(\'' + o.id + '\')"' : '';
@@ -12595,7 +12636,7 @@ pickup_date: selectedSpecialDay || currentSpecialWeekStart,
 pickup_time: '',
 status: 'brouillon',
 notes: '',
-items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' }]
+items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
 };
 renderSpecials();
 }
@@ -12621,12 +12662,13 @@ product_id: it.product_id,
 product_name_custom: it.product_name_custom || '',
 qty: String(it.qty || 1),
 notes: it.notes || '',
-category: p ? (p.category || '') : (it.product_name_custom ? '__custom' : '')
+category: p ? (p.category || '') : (it.product_name_custom ? '__custom' : ''),
+tranche: !!it.tranche
 };
 })
 };
 if (!specialFormDraft.items.length) {
-specialFormDraft.items = [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' }];
+specialFormDraft.items = [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }];
 }
 renderSpecials();
 }
@@ -12638,14 +12680,14 @@ renderSpecials();
 }
 
 function addSpecialItem() {
-specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' });
+specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false });
 renderSpecials();
 }
 
 function removeSpecialItem(idx) {
 specialFormDraft.items.splice(idx, 1);
 if (!specialFormDraft.items.length) {
-specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '' });
+specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false });
 }
 renderSpecials();
 }
@@ -12653,6 +12695,14 @@ renderSpecials();
 function handleSpecialFormField(field, val) {
 if (!specialFormDraft) return;
 specialFormDraft[field] = val;
+}
+
+// v20.74 — messages de plaque préréglés (clic = remplit Notes, éditable ensuite)
+const SP_PLAQUES = ['Joyeux anniversaire', 'Bon anniversaire', 'Félicitations', 'Bon rétablissement', 'Joyeux Noël', 'Bonne fête'];
+function setSpecialNote(txt) {
+if (!specialFormDraft) return;
+specialFormDraft.notes = txt;
+renderSpecialOrderForm();
 }
 
 function handleSpecialItemField(idx, field, val) {
@@ -12744,6 +12794,12 @@ html += '</div>';
 
 // Notes
 html += '<div class="sp-form-row"><label class="sp-lbl">Notes</label>';
+// v20.74 — plaques préréglées (1 clic remplit le message, éditable ensuite)
+html += '<div class="sp-plaques">';
+SP_PLAQUES.forEach(function(txt) {
+html += '<button type="button" class="sp-plaque-btn" onclick="setSpecialNote(\'' + txt.replace(/'/g, "\\'") + '\')">' + escapeHtml(txt) + '</button>';
+});
+html += '</div>';
 html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, decoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
 
 // Status (si edit)
@@ -12820,6 +12876,11 @@ prodsInCat.forEach(function(p) {
 html += '<option value="' + p.id + '"' + (it.product_id === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
 });
 html += '</select></div>';
+}
+
+// v20.74 — case Trancher (pains uniquement)
+if (it.category === 'pains') {
+html += '<label class="sp-tranche"><input type="checkbox"' + (it.tranche ? ' checked' : '') + ' onchange="handleSpecialItemField(' + idx + ', \'tranche\', this.checked)"> 🔪 Trancher</label>';
 }
 
 // Notes item
