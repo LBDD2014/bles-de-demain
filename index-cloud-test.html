@@ -3572,9 +3572,13 @@ const s = getProductSupply(p, currentBoutique);
 // Exclusions v20 : les produits qui ont leur propre ecran Prévis / Traiteur
 if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
 if (s === 'on_site' && categoryHasPrevis(p.category) && p.category !== 'traiteur') return false;
-// v20.77 — catalogue pâtissier : si le produit est suivi en stock pâtissier, respecter actif + magasins autorisés
-const vps = veignePatStockData[p.id];
-if (vps) { if (vps.actif === false) return false; if (patShopsOf(vps).indexOf(currentBoutique) === -1) return false; }
+// v20.78 — catalogue pâtissier : la pâtisserie commandée à Veigné = UNIQUEMENT les produits du stock pâtissier, actifs + magasin autorisé
+const isPatCat = ['patisserie_petits', 'patisserie_gros', 'gateaux_secs'].indexOf(p.category) !== -1;
+if (isPatCat && s === 'veigne') {
+  const vps = veignePatStockData[p.id];
+  if (!vps || vps.actif === false) return false;
+  if (patShopsOf(vps).indexOf(currentBoutique) === -1) return false;
+}
 return true;
 });
 
@@ -3711,8 +3715,12 @@ if (sup == null) return false;
 // Pâtisserie : à St-Av on exige supply='veigne' (livrée depuis Veigné).
 // À Veigné on accepte tout supply non null (Veigné Pâtissier produit sur place : 'on_site').
 if (isPat && boutiqueForSupply === 'saint-avertin' && sup !== 'veigne') return false;
-// v20.77 — catalogue pâtissier : actif + magasins autorisés
-if (isPat) { const vps = veignePatStockData[p.id]; if (vps) { if (vps.actif === false) return false; if (patShopsOf(vps).indexOf(boutiqueForSupply) === -1) return false; } }
+// v20.78 — catalogue pâtissier : UNIQUEMENT les produits du stock pâtissier, actifs + magasin autorisé
+if (isPat) {
+  const vps = veignePatStockData[p.id];
+  if (!vps || vps.actif === false) return false;
+  if (patShopsOf(vps).indexOf(boutiqueForSupply) === -1) return false;
+}
 return true;
 });
 
