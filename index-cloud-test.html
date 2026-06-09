@@ -3803,7 +3803,8 @@ const isSent = !!val.sent_at;
 const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
 // v20.75 — produit commandé à Veigné (pâtisserie) : on récupère son unité réelle (grille de 28/50, pièce…) depuis le stock pâtissier
 const isVeignePat = getProductSupply(p, currentBoutique) === 'veigne';
-const vpSt = isVeignePat ? veignePatStockData[p.id] : null;
+// v20.79 — unité réelle (grille de 28/50, pièce) depuis le stock pâtissier, même si supply = on_site (cas Veigné)
+const vpSt = veignePatStockData[p.id] || null;
 const hasFill = (type === 'previs')
   ? (val.previs != null && val.previs !== '')
   : ((val.commander != null && val.commander !== '') || (val.avoir != null && val.avoir !== ''));
