@@ -3579,6 +3579,8 @@ if (isPatCat && s === 'veigne') {
   if (!vps || vps.actif === false) return false;
   if (patShopsOf(vps).indexOf(currentBoutique) === -1) return false;
 }
+// v20.80 — catalogue tourier : viennoiserie/brioche désactivée par le chef tourier → pas commandable
+if ((p.category === 'viennoiserie' || p.category === 'brioches_special') && p.tourier_actif === false) return false;
 return true;
 });
 
@@ -3721,6 +3723,8 @@ if (isPat) {
   if (!vps || vps.actif === false) return false;
   if (patShopsOf(vps).indexOf(boutiqueForSupply) === -1) return false;
 }
+// v20.80 — catalogue tourier : viennoiserie/brioche désactivée → pas commandable
+if ((p.category === 'viennoiserie' || p.category === 'brioches_special') && p.tourier_actif === false) return false;
 return true;
 });
 
@@ -9066,6 +9070,7 @@ function renderAccessCodes() {
   const rows = [
     ['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin'],
     ['veigne_pat_chef', '🧁 Chef pâtissier (gérer catalogue)'],
+    ['local_tour_chef', '🥐 Chef tourier (gérer catalogue)'],
     ['local', 'Le Local'], ['livreur', 'Livreur'], ['master', '🔑 Code maître (ouvre tout)']
   ];
   let h = '<div class="info-banner"><strong>Codes d\'accès par boutique</strong><br>'
@@ -11567,6 +11572,30 @@ seuil: p.seuil_stock != null ? parseQty(p.seuil_stock) : null
 });
 }
 
+// ===== v20.80 — Catalogue tourier : activer/désactiver viennoiserie/brioches (code chef tourier) =====
+let tourierCatalogUnlocked = false;
+async function tourierCatalogUnlock() {
+  if (tourierCatalogUnlocked) { tourierCatalogUnlocked = false; renderStock(); return; }
+  if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
+  const need = boutiqueCodes['local_tour_chef'];
+  const master = boutiqueCodes['master'] || '2412';
+  const valid = need ? [String(need).trim(), String(master).trim()] : [String(master).trim()];
+  const ok = await askCodeModal('Code chef tourier', valid);
+  if (!ok) return;
+  tourierCatalogUnlocked = true; renderStock();
+}
+async function tourierToggleActif(pid) {
+  const p = products.find(function(x) { return x.id === pid; });
+  const next = p ? (p.tourier_actif === false) : true;
+  setSyncStatus('syncing');
+  const r = await supa.from('products').update({ tourier_actif: next }).eq('id', pid);
+  if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+  setSyncStatus('ok');
+  if (p) p.tourier_actif = next;
+  if (stockData[pid] && stockData[pid].product) stockData[pid].product.tourier_actif = next;
+  renderStock();
+}
+
 function renderStock() {
 const mc = document.getElementById('main-content');
 let html = renderProductFilter();
@@ -11576,6 +11605,12 @@ html += '<div class="stock-actions-bar">'
 
 + '<button class="btn-gold" onclick="openStockReceiptModal()">+ Réception fournisseur</button>'
 + '</div>';
+
+// v20.80 — gestion du catalogue tourier sous code chef
+html += '<div class="cheflock' + (tourierCatalogUnlocked ? ' on' : '') + '" onclick="tourierCatalogUnlock()">'
+  + (tourierCatalogUnlocked ? '🔓 Mode chef tourier — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef tourier)')
+  + '</div>';
+if (tourierCatalogUnlocked) html += manageProductsButtonHtml();
 
 const entries = Object.keys(stockData).map(function(pid) { return stockData[pid]; });
 if (!entries.length) {
@@ -11617,10 +11652,16 @@ else alertCls = 'stock-green';
 }
 let ecartCls = '';
 if (Math.abs(ecart) > Math.max(theo * 0.1, 1)) ecartCls = 'stock-red';
-html += '<div class="produit-row stock-row ' + alertCls + '">';
+const tInactif = (e.product.tourier_actif === false);
+html += '<div class="produit-row stock-row ' + alertCls + (tInactif ? ' pat-inactif' : '') + '">';
 // v20.38 — Conditionnement sous le nom (Stock Local)
 const condTxtSt = formatConditioning(e.product);
-html += '<div><div class="produit-name">' + escapeHtml(e.product.name) + '</div>' + (condTxtSt ? '<div class="produit-unit">' + escapeHtml(condTxtSt) + '</div>' : '') + '</div>';
+let tCtrl = '';
+if (tourierCatalogUnlocked) {
+  tCtrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.product.id + '\')" title="actif/inactif">' + (tInactif ? '⬜' : '✅') + '</button></div>';
+}
+const subTxt = (condTxtSt ? escapeHtml(condTxtSt) : '') + (tInactif ? (condTxtSt ? ' · ' : '') + '<span style="color:var(--red)">désactivé</span>' : '');
+html += '<div><div class="produit-name">' + (tInactif ? '⏸ ' : '') + escapeHtml(e.product.name) + '</div>' + (subTxt ? '<div class="produit-unit">' + subTxt + '</div>' : '') + tCtrl + '</div>';
 html += '<div class="stock-cell">' + theo + '</div>';
 html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input stock-real-inp" data-pid="' + e.product.id + '" placeholder="' + real + '" onchange="saveStockReal(this)"></div>';
 html += '<div class="stock-cell ' + ecartCls + '">' + (ecart > 0 ? '+' : '') + ecart + '</div>';
