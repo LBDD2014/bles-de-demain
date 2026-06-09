@@ -553,6 +553,22 @@ cursor: pointer; font-family: inherit;
 .sp-tranche { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14px; color: var(--brown); cursor: pointer; }
 .sp-tranche input { width: 18px; height: 18px; }
 
+/* v20.77 — catalogue pâtissier (Stock Pât.) */
+.cheflock { background: var(--grey-dark); color: var(--cream); border-radius: 10px; padding: 12px 14px; text-align: center; font-weight: 700; font-size: 14px; cursor: pointer; margin: 10px 12px; }
+.cheflock.on { background: var(--green); }
+.addbtn-pat { display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 13px; border: 2px dashed var(--gold); background: #FFFCF2; color: var(--gold-dark); border-radius: 12px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.pat-chef-ctrl { display: flex; gap: 6px; margin-top: 6px; }
+.iconbtn-pat { border: 1px solid #E0D8C8; background: #FAF8F4; border-radius: 8px; padding: 6px 9px; font-size: 14px; cursor: pointer; }
+.iconbtn-pat.del { color: var(--red); border-color: #F0CFC8; }
+.produit-row.pat-inactif { opacity: .55; }
+.seg-btn { flex: 1; padding: 11px; border: 2px solid #E0D8C8; background: #FAF8F4; border-radius: 8px; font-family: inherit; font-size: 15px; cursor: pointer; color: var(--brown); }
+.seg-btn.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+.chk-shop { display: inline-flex; align-items: center; gap: 6px; padding: 9px 13px; border: 2px solid #E0D8C8; border-radius: 10px; background: #FAF8F4; font-size: 15px; cursor: pointer; }
+.chk-shop.on { background: var(--green); color: #fff; border-color: var(--green); }
+.chk-shop input { width: 16px; height: 16px; }
+.pat-frow { margin-bottom: 12px; }
+.pat-frow .sp-lbl { display: block; margin-bottom: 4px; }
+
 .sp-section { margin-bottom: 12px; border-left: 4px solid transparent; }
 .sp-section.shop-veigne { border-left-color: #C9A24B; }
 .sp-section.shop-tours { border-left-color: #7A9FB8; }
@@ -3556,6 +3572,9 @@ const s = getProductSupply(p, currentBoutique);
 // Exclusions v20 : les produits qui ont leur propre ecran Prévis / Traiteur
 if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
 if (s === 'on_site' && categoryHasPrevis(p.category) && p.category !== 'traiteur') return false;
+// v20.77 — catalogue pâtissier : si le produit est suivi en stock pâtissier, respecter actif + magasins autorisés
+const vps = veignePatStockData[p.id];
+if (vps) { if (vps.actif === false) return false; if (patShopsOf(vps).indexOf(currentBoutique) === -1) return false; }
 return true;
 });
 
@@ -3692,6 +3711,8 @@ if (sup == null) return false;
 // Pâtisserie : à St-Av on exige supply='veigne' (livrée depuis Veigné).
 // À Veigné on accepte tout supply non null (Veigné Pâtissier produit sur place : 'on_site').
 if (isPat && boutiqueForSupply === 'saint-avertin' && sup !== 'veigne') return false;
+// v20.77 — catalogue pâtissier : actif + magasins autorisés
+if (isPat) { const vps = veignePatStockData[p.id]; if (vps) { if (vps.actif === false) return false; if (patShopsOf(vps).indexOf(boutiqueForSupply) === -1) return false; } }
 return true;
 });
 
@@ -5479,9 +5500,124 @@ function veignePatUnitLabel(st) {
   return 'pièce';
 }
 
+// ===================== v20.77 — Catalogue pâtissier (géré depuis Stock Pât., code chef) =====================
+let patCatalogUnlocked = false;
+let patForm = null; // { mode:'new'|'edit', id, nom, cat, type, taille, shops:[] }
+const PAT_CATS = [['patisserie_petits','Petits Gâteaux'],['patisserie_gros','Gros Gâteaux'],['gateaux_secs','Gâteaux Secs']];
+const PAT_SHOPS = [['veigne','Veigné'],['tours','Tours'],['saint-avertin','St-Avertin']];
+
+function patShopsOf(st){
+  if(!st || st.shops==null) return ['veigne','tours','saint-avertin'];
+  if(Array.isArray(st.shops)) return st.shops;
+  try { return JSON.parse(st.shops) || []; } catch(e){ return []; }
+}
+
+async function chefCatalogUnlock(){
+  if(patCatalogUnlocked){ patCatalogUnlocked=false; renderStockVeignePat(); return; }
+  if(!boutiqueCodesLoaded){ try{ await loadBoutiqueCodes(); }catch(e){} }
+  const need = boutiqueCodes['veigne_pat_chef'];
+  const master = boutiqueCodes['master'] || '2412';
+  const valid = need ? [String(need).trim(), String(master).trim()] : [String(master).trim()];
+  const ok = await askCodeModal('Code chef pâtissier', valid);
+  if(!ok) return;
+  patCatalogUnlocked=true; renderStockVeignePat();
+}
+
+function patNewProduct(){ patForm={ mode:'new', id:null, nom:'', cat:'patisserie_petits', type:'grille', taille:28, shops:['veigne','tours','saint-avertin'] }; renderStockVeignePat(); }
+function patEditProduct(pid){
+  const st=veignePatStockData[pid]||{}; const p=products.find(function(x){return x.id===pid;})||{};
+  patForm={ mode:'edit', id:pid, nom:p.name||'', cat:p.category||'patisserie_petits',
+    type:(st.stock_unit==='piece')?'pièce':'grille',
+    taille:(st.stock_unit!=='piece')?(st.unit_pieces||null):null,
+    shops:patShopsOf(st) };
+  renderStockVeignePat();
+}
+function patFormField(f,v){ if(patForm) patForm[f]=v; }
+function patFormSetType(t){ if(!patForm) return; patForm.type=t; if(t==='pièce') patForm.taille=null; else if(!patForm.taille) patForm.taille=28; renderStockVeignePat(); }
+function patToggleFormShop(s,on){ if(!patForm) return; patForm.shops=patForm.shops.filter(function(x){return x!==s;}); if(on) patForm.shops.push(s); }
+function patCancelForm(){ patForm=null; renderStockVeignePat(); }
+
+function renderPatChefForm(){
+  const f=patForm;
+  let h='<div class="date-bar"><div class="date-title">'+(f.mode==='edit'?'Modifier un produit':'Nouveau produit')+'</div></div>';
+  h+='<div style="padding:14px;max-width:560px;margin:0 auto">';
+  h+='<div class="pat-frow"><label class="sp-lbl">Nom</label><input class="sp-input" type="text" id="patf-nom" value="'+escapeHtml(f.nom||'')+'" placeholder="ex : Tarte citron" oninput="patFormField(\'nom\',this.value)"></div>';
+  h+='<div class="pat-frow"><label class="sp-lbl">Catégorie</label><select class="sp-input" onchange="patFormField(\'cat\',this.value)">'+PAT_CATS.map(function(c){return '<option value="'+c[0]+'"'+(f.cat===c[0]?' selected':'')+'>'+c[1]+'</option>';}).join('')+'</select></div>';
+  h+='<div class="pat-frow"><label class="sp-lbl">Conditionnement</label><div style="display:flex;gap:8px">'
+    +'<button type="button" class="seg-btn'+(f.type==='grille'?' active':'')+'" onclick="patFormSetType(\'grille\')">Grille</button>'
+    +'<button type="button" class="seg-btn'+(f.type==='pièce'?' active':'')+'" onclick="patFormSetType(\'pièce\')">Pièce</button></div></div>';
+  if(f.type==='grille') h+='<div class="pat-frow"><label class="sp-lbl">Pièces par grille</label><input class="sp-input" type="number" id="patf-taille" value="'+(f.taille||'')+'" placeholder="28" oninput="patFormField(\'taille\',this.value)"></div>';
+  h+='<div class="pat-frow"><label class="sp-lbl">Magasins autorisés à commander</label><div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + PAT_SHOPS.map(function(s){ const on=f.shops.indexOf(s[0])!==-1; return '<label class="chk-shop'+(on?' on':'')+'"><input type="checkbox" '+(on?'checked':'')+' onchange="patToggleFormShop(\''+s[0]+'\',this.checked); this.closest(\'label\').classList.toggle(\'on\',this.checked)"> '+s[1]+'</label>'; }).join('')
+    +'</div></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:12px"><button class="btn-grey" style="flex:1" onclick="patCancelForm()">Annuler</button><button class="btn-gold" style="flex:1" onclick="patSaveForm()">'+(f.mode==='edit'?'Enregistrer':'Créer')+'</button></div>';
+  h+='</div>';
+  return h;
+}
+
+async function patSaveForm(){
+  const f=patForm; if(!f) return;
+  const nomEl=document.getElementById('patf-nom');
+  const nom=((nomEl?nomEl.value:f.nom)||'').trim();
+  if(!nom){ showToast('Nom obligatoire','error'); return; }
+  if(!f.shops.length){ showToast('Coche au moins un magasin','error'); return; }
+  const tailleEl=document.getElementById('patf-taille');
+  const taille = f.type==='grille' ? (parseInt((tailleEl?tailleEl.value:f.taille),10)||null) : null;
+  const stockUnit = f.type==='grille' ? 'grille' : 'piece';
+  const unitPieces = f.type==='grille' ? taille : 1;
+  const supplyMap={}; f.shops.forEach(function(s){ supplyMap[s] = (s==='veigne')?'on_site':'veigne'; });
+  setSyncStatus('syncing');
+  if(f.mode==='new'){
+    const pid=genProductId(nom);
+    const prow={ id:pid, tenant_id:TENANT_ID, name:nom, category:f.cat, unit:(f.type==='grille'?'grille':'pièce'), usage:'reappro', actif:true, supply_by_boutique:supplyMap };
+    const r1=await supa.from('products').insert(prow).select();
+    if(r1.error||!r1.data||!r1.data.length){ setSyncStatus('error'); showToast((r1.error&&r1.error.message)||'Création produit bloquée (RLS ?)','error'); return; }
+    const srow={ tenant_id:TENANT_ID, product_id:pid, stock:0, stock_unit:stockUnit, unit_pieces:unitPieces, actif:true, shops:f.shops };
+    const r2=await supa.from('veigne_pat_stock').insert(srow);
+    if(r2.error){ setSyncStatus('error'); showToast(r2.error.message,'error'); return; }
+  } else {
+    const r1=await supa.from('products').update({ name:nom, category:f.cat, unit:(f.type==='grille'?'grille':'pièce'), supply_by_boutique:supplyMap }).eq('id',f.id);
+    if(r1.error){ setSyncStatus('error'); showToast(r1.error.message,'error'); return; }
+    const r2=await supa.from('veigne_pat_stock').update({ stock_unit:stockUnit, unit_pieces:unitPieces, shops:f.shops, updated_at:new Date().toISOString(), updated_by:DEVICE_ID }).eq('tenant_id',TENANT_ID).eq('product_id',f.id);
+    if(r2.error){ setSyncStatus('error'); showToast(r2.error.message,'error'); return; }
+  }
+  setSyncStatus('ok');
+  patForm=null;
+  await loadProducts(); await loadVeignePatStock();
+  renderStockVeignePat();
+  showToast(f.mode==='edit'?'Produit modifié':'Produit créé','sync');
+}
+
+async function patToggleActif(pid){
+  const st=veignePatStockData[pid]; if(!st) return;
+  const next = !st.actif;
+  setSyncStatus('syncing');
+  const r=await supa.from('veigne_pat_stock').update({ actif:next, updated_at:new Date().toISOString(), updated_by:DEVICE_ID }).eq('tenant_id',TENANT_ID).eq('product_id',pid);
+  if(r.error){ setSyncStatus('error'); showToast(r.error.message,'error'); return; }
+  setSyncStatus('ok'); st.actif=next; renderStockVeignePat();
+}
+
+async function patDeleteProduct(pid){
+  const p=products.find(function(x){return x.id===pid;})||{};
+  if(!confirm('Retirer « '+(p.name||pid)+' » du catalogue ?\n(Le produit sera désactivé partout, l\'historique reste.)')) return;
+  setSyncStatus('syncing');
+  await supa.from('veigne_pat_stock').delete().eq('tenant_id',TENANT_ID).eq('product_id',pid);
+  await supa.from('products').update({ actif:false }).eq('id',pid);
+  setSyncStatus('ok');
+  await loadProducts(); await loadVeignePatStock();
+  renderStockVeignePat();
+  showToast('Produit retiré du catalogue','sync');
+}
+// ===================== fin bloc catalogue pâtissier =====================
+
 function renderStockVeignePat() {
   const mc = document.getElementById('main-content');
+  if (patForm) { mc.innerHTML = renderPatChefForm(); return; }
   let html = '';
+  // v20.77 — barre code chef pour gérer le catalogue
+  html += '<div class="cheflock' + (patCatalogUnlocked ? ' on' : '') + '" onclick="chefCatalogUnlock()">'
+    + (patCatalogUnlocked ? '🔓 Mode chef actif — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef)')
+    + '</div>';
 
   // Barre de date (réassort du jour — Tours et St-Av ne sont pas les mêmes jours)
   html += '<div class="date-bar">'
@@ -5545,7 +5681,11 @@ function renderStockVeignePat() {
     return { st: veignePatStockData[pid], p: products.find(function(x) { return x.id === pid; }) };
   }).filter(function(e) { return e.p; });
 
-  if (!entries.length) { mc.innerHTML = html; return; }
+  if (!entries.length) {
+    if (patCatalogUnlocked) html += '<button class="addbtn-pat" onclick="patNewProduct()">＋ Ajouter un produit</button>';
+    else html += '<div class="info-banner" style="background:#F0EAE0">Aucun produit pour l\'instant. Déverrouille le mode chef pour en ajouter.</div>';
+    mc.innerHTML = html; return;
+  }
 
   const byCat = {};
   entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
@@ -5555,6 +5695,7 @@ function renderStockVeignePat() {
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
 
+  if (patCatalogUnlocked) html += '<button class="addbtn-pat" onclick="patNewProduct()">＋ Ajouter un produit</button>';
   html += '<div class="section reappro-section">';
   html += '<div class="col-header stock-col-header">'
     + '<span class="col-lbl">Produit</span>'
@@ -5577,9 +5718,18 @@ function renderStockVeignePat() {
       else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       const editPen = (st.stock_unit !== 'piece')
         ? ' <a href="#" onclick="editVeignePatUnitPieces(\'' + e.p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️</a>' : '';
-      html += '<div class="produit-row stock-row ' + alertCls + '">';
-      html += '<div><div class="produit-name">' + dot + escapeHtml(e.p.name) + '</div>'
-        + '<div class="produit-unit">' + escapeHtml(veignePatUnitLabel(st)) + editPen + '</div></div>';
+      const inactif = (st.actif === false);
+      html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
+      let chefCtrl = '';
+      if (patCatalogUnlocked) {
+        chefCtrl = '<div class="pat-chef-ctrl">'
+          + '<button class="iconbtn-pat" onclick="patToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button>'
+          + '<button class="iconbtn-pat" onclick="patEditProduct(\'' + e.p.id + '\')">✏️</button>'
+          + '<button class="iconbtn-pat del" onclick="patDeleteProduct(\'' + e.p.id + '\')">🗑</button>'
+          + '</div>';
+      }
+      html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div>'
+        + '<div class="produit-unit">' + escapeHtml(veignePatUnitLabel(st)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + editPen + '</div>' + chefCtrl + '</div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
@@ -8906,6 +9056,7 @@ function renderAccessCodes() {
   const mc = document.getElementById('main-content');
   const rows = [
     ['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin'],
+    ['veigne_pat_chef', '🧁 Chef pâtissier (gérer catalogue)'],
     ['local', 'Le Local'], ['livreur', 'Livreur'], ['master', '🔑 Code maître (ouvre tout)']
   ];
   let h = '<div class="info-banner"><strong>Codes d\'accès par boutique</strong><br>'
