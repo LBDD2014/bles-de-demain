@@ -3123,8 +3123,8 @@ if (v === 'reappro_pat' && currentBoutique === 'tours') {
   renderReapproSA(v);
 }
 } else if (v === 'stock' || v === 'stock_tour') {
-// v20.15 : 'stock' renommé 'stock_tour' (Stock Tourier)
-await loadStockData();
+// v20.81 : Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir)
+await loadTourierStock();
 renderStock();
 } else if (v === 'stock_boul_pro') {
 // v21.2 — Stock congelé Boulangers (refactor v21.2.1)
@@ -11596,85 +11596,170 @@ async function tourierToggleActif(pid) {
   renderStock();
 }
 
+// ===================== v20.81 — Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir) =====================
+let tourierStockData = {};   // { product_id: {stock, mini, ...} }
+let tourierReassort = {};    // { boutique: [reappro rows] }
+let tourierDate = todayISO();
+
+async function loadTourierStock() {
+  const { data, error } = await supa.from('tourier_stock').select('*').eq('tenant_id', TENANT_ID);
+  tourierStockData = {};
+  if (error) { showToast('Erreur stock tourier : ' + error.message, 'error'); }
+  else (data || []).forEach(function(r) { tourierStockData[r.product_id] = r; });
+  await loadTourierReassort();
+}
+async function loadTourierReassort() {
+  tourierReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).eq('service_date', tourierDate)
+    .in('boutique_id', ['veigne', 'tours', 'saint-avertin'])
+    .not('sent_at', 'is', null);
+  if (error) return;
+  (data || []).forEach(function(r) {
+    if (!tourierStockData[r.product_id]) return;
+    if (!(parseQty(r.commander) > 0)) return;
+    const p = products.find(function(x) { return x.id === r.product_id; });
+    if (!p || (p.category !== 'viennoiserie' && p.category !== 'brioches_special')) return;
+    if (getProductSupply(p, r.boutique_id) !== 'local') return;
+    if (tourierReassort[r.boutique_id]) tourierReassort[r.boutique_id].push(r);
+  });
+}
+function changeTourierDate(delta) { tourierDate = addDays(tourierDate, delta); loadTourierStock().then(renderStock); }
+function tourierUnitLabel(p) { const c = formatConditioning(p); return c || (p && p.unit) || 'pièce'; }
+
+async function saveTourierField(pid, field, val) {
+  const st = tourierStockData[pid]; if (!st) return;
+  const v = (String(val).trim() === '' ? null : parseQty(val));
+  setSyncStatus('syncing');
+  const upd = { updated_at: new Date().toISOString(), updated_by: DEVICE_ID }; upd[field] = v;
+  const { error } = await supa.from('tourier_stock').update(upd).eq('tenant_id', TENANT_ID).eq('product_id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok'); st[field] = v; renderStock();
+}
+function tourierSelectField(pid, field, el) {
+  let val = el.value;
+  if (val === '__custom__') { const v = prompt('Valeur pour ' + field + ' :', ''); if (v === null) { renderStock(); return; } val = v; }
+  saveTourierField(pid, field, val);
+}
+function tourierSelectEntree(pid, el) {
+  let val = el.value;
+  if (val === '__custom__') { const v = prompt('Combien produit aujourd\'hui (à ajouter au stock) ?', ''); if (v === null) { renderStock(); return; } val = v; }
+  addTourierEntreeVal(pid, val);
+}
+async function addTourierEntreeVal(pid, val) {
+  const add = parseQty(val); if (!add) { renderStock(); return; }
+  const st = tourierStockData[pid]; if (!st) return;
+  const ns = (Number(st.stock) || 0) + add;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('tourier_stock').update({ stock: ns, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok'); st.stock = ns; renderStock();
+}
+async function prepareTourierLine(boutique, productId) {
+  const rows = (tourierReassort[boutique] || []).filter(function(r) { return r.product_id === productId && !r.prepared_at; });
+  if (!rows.length) return;
+  await applyTourierPrepared(rows); await loadTourierReassort(); renderStock();
+}
+async function prepareTourierBoutique(boutique) {
+  const rows = (tourierReassort[boutique] || []).filter(function(r) { return !r.prepared_at; });
+  if (!rows.length) return;
+  if (!confirm('Marquer TOUT le réassort ' + (BOUTIQUE_NAMES[boutique] || boutique) + ' comme préparé ?\nLe stock sera décompté.')) return;
+  await applyTourierPrepared(rows); await loadTourierReassort(); renderStock();
+}
+async function applyTourierPrepared(rows) {
+  setSyncStatus('syncing'); const now = new Date().toISOString();
+  for (const r of rows) {
+    const up = await supa.from('reappros').update({ prepared_at: now }).eq('id', r.id);
+    if (up.error) { setSyncStatus('error'); showToast(up.error.message, 'error'); return; }
+    const st = tourierStockData[r.product_id]; const qty = parseQty(r.commander);
+    if (st && qty > 0) {
+      const ns = (Number(st.stock) || 0) - qty;
+      await supa.from('tourier_stock').update({ stock: ns, updated_at: now, updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', r.product_id);
+      st.stock = ns;
+    }
+  }
+  setSyncStatus('ok'); showToast('Réassort préparé · stock décompté', 'sync');
+}
+
 function renderStock() {
-const mc = document.getElementById('main-content');
-let html = renderProductFilter();
-html += '<div class="info-banner"><strong>Stock Tourier</strong> (viennoiserie + brioches surgelées)<br>Théorique = auto (dernier réel + réceptions - sorties). Réel = inventaire physique. Décompte auto lors de la validation livreur. Seuil en BackOffice > Produits.</div>';
+  const mc = document.getElementById('main-content');
+  let html = '';
+  // Code chef tourier
+  html += '<div class="cheflock' + (tourierCatalogUnlocked ? ' on' : '') + '" onclick="tourierCatalogUnlock()">'
+    + (tourierCatalogUnlocked ? '🔓 Mode chef tourier — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef tourier)')
+    + '</div>';
+  if (tourierCatalogUnlocked) html += manageProductsButtonHtml();
+  // Barre de date
+  html += '<div class="date-bar"><button class="date-nav" onclick="changeTourierDate(-1)">←</button>'
+    + '<div class="date-title">Réassort du <strong>' + escapeHtml(formatDateFr(tourierDate)) + '</strong></div>'
+    + '<button class="date-nav" onclick="changeTourierDate(1)">→</button></div>';
+  // Réception fournisseur
+  html += '<div class="stock-actions-bar"><button class="btn-gold" onclick="openStockReceiptModal()">+ Réception fournisseur</button></div>';
 
-html += '<div class="stock-actions-bar">'
+  // SECTION 1 — À préparer (commandes des magasins)
+  let anyR = false;
+  [['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin']].forEach(function(b) {
+    const list = (tourierReassort[b[0]] || []).slice().sort(function(a, c) {
+      const pa = a.prepared_at ? 1 : 0, pc = c.prepared_at ? 1 : 0; if (pa !== pc) return pa - pc;
+      const na = (products.find(function(x) { return x.id === a.product_id; }) || {}).name || '';
+      const nc = (products.find(function(x) { return x.id === c.product_id; }) || {}).name || '';
+      return na.localeCompare(nc);
+    });
+    if (!list.length) return; anyR = true;
+    const todo = list.filter(function(r) { return !r.prepared_at; }).length;
+    html += '<div class="section reappro-section"><div class="section-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>📦 À préparer — ' + escapeHtml(b[1]) + ' (' + todo + ')</span>'
+      + (todo > 0 ? '<button class="btn-gold-sm" onclick="prepareTourierBoutique(\'' + b[0] + '\')">✓ Tout préparé</button>' : '<span style="color:var(--green);font-weight:700;font-size:13px">✓ tout fait</span>')
+      + '</div>';
+    list.forEach(function(r) {
+      const p = products.find(function(x) { return x.id === r.product_id; }) || {};
+      const qty = parseQty(r.commander); const done = !!r.prepared_at;
+      html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px' + (done ? ';opacity:0.55' : '') + '">';
+      html += '<div><div class="produit-name">' + (done ? '✓ ' : '') + escapeHtml(p.name || r.product_id) + '</div><div class="produit-unit">' + qty + ' ' + escapeHtml(tourierUnitLabel(p)) + '</div></div>';
+      if (done) html += '<span style="color:var(--green);font-weight:700;font-size:13px">✓ fait</span>';
+      else html += '<button class="btn-gold-sm" onclick="prepareTourierLine(\'' + b[0] + '\', \'' + r.product_id + '\')">✓ préparé</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  if (!anyR) html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes des magasins apparaissent ici une fois envoyées.)</div>';
 
-+ '<button class="btn-gold" onclick="openStockReceiptModal()">+ Réception fournisseur</button>'
-+ '</div>';
-
-// v20.80 — gestion du catalogue tourier sous code chef
-html += '<div class="cheflock' + (tourierCatalogUnlocked ? ' on' : '') + '" onclick="tourierCatalogUnlock()">'
-  + (tourierCatalogUnlocked ? '🔓 Mode chef tourier — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef tourier)')
-  + '</div>';
-if (tourierCatalogUnlocked) html += manageProductsButtonHtml();
-
-const entries = Object.keys(stockData).map(function(pid) { return stockData[pid]; });
-if (!entries.length) {
-html += '<div class="empty-state">Aucun produit suivi en stock.<br>Seules les viennoiseries et brioches sont suivies.</div>';
-mc.innerHTML = html;
-return;
-}
-
-// Grouper par catégorie
-const byCat = { 'viennoiserie': [], 'brioches_special': [] };
-entries.forEach(function(e) { byCat[e.product.category].push(e); });
-
-html += '<div class="section reappro-section">';
-html += '<div class="col-header stock-col-header">'
-
-+ '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl">Théo.</span>'
-+ '<span class="col-lbl cmd">Réel</span>'
-+ '<span class="col-lbl">Écart</span>'
-+ '<span class="col-lbl">Seuil</span>'
-+ '</div>';
-
-['viennoiserie', 'brioches_special'].forEach(function(cat) {
-if (!byCat[cat] || !byCat[cat].length) return;
-html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
-byCat[cat].sort(function(a, b) { return a.product.name.localeCompare(b.product.name); });
-byCat[cat].forEach(function(e) {
-const theo = e.theoretical;
-const real = e.last_real;
-const ecart = real - theo;
-const seuil = e.seuil;
-// Alerte
-let alertCls = '';
-if (seuil != null && seuil > 0) {
-const ratio = real / seuil;
-if (ratio < 0.3) alertCls = 'stock-red';
-else if (ratio < 0.5) alertCls = 'stock-orange';
-else alertCls = 'stock-green';
-}
-let ecartCls = '';
-if (Math.abs(ecart) > Math.max(theo * 0.1, 1)) ecartCls = 'stock-red';
-const tInactif = (e.product.tourier_actif === false);
-html += '<div class="produit-row stock-row ' + alertCls + (tInactif ? ' pat-inactif' : '') + '">';
-// v20.38 — Conditionnement sous le nom (Stock Local)
-const condTxtSt = formatConditioning(e.product);
-let tCtrl = '';
-if (tourierCatalogUnlocked) {
-  tCtrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.product.id + '\')" title="actif/inactif">' + (tInactif ? '⬜' : '✅') + '</button></div>';
-}
-const subTxt = (condTxtSt ? escapeHtml(condTxtSt) : '') + (tInactif ? (condTxtSt ? ' · ' : '') + '<span style="color:var(--red)">désactivé</span>' : '');
-html += '<div><div class="produit-name">' + (tInactif ? '⏸ ' : '') + escapeHtml(e.product.name) + '</div>' + (subTxt ? '<div class="produit-unit">' + subTxt + '</div>' : '') + tCtrl + '</div>';
-html += '<div class="stock-cell">' + theo + '</div>';
-html += '<div class="stock-cell"><input type="text" inputmode="decimal" class="qty-input stock-real-inp" data-pid="' + e.product.id + '" placeholder="' + real + '" onchange="saveStockReal(this)"></div>';
-html += '<div class="stock-cell ' + ecartCls + '">' + (ecart > 0 ? '+' : '') + ecart + '</div>';
-html += '<div class="stock-cell">' + (seuil != null ? seuil : '<span style="color:#bbb">-</span>') + '</div>';
-html += '</div>';
-});
-});
-
-html += '</div>';
-mc.innerHTML = html;
-applyProductFilter();
-
-if (stockReceiptModalOpen) renderStockReceiptModal();
+  // SECTION 2 — Mon stock
+  html += '<div class="info-banner"><strong>Mon stock</strong><br>L\'<strong>Entrée</strong> ajoute ta production du jour (la réception fournisseur aussi). Le stock baisse au « préparé » ci-dessus. Alerte 🔴 sous le Mini. <strong>À partir</strong> = ce qui est commandé, pas encore préparé.</div>';
+  const outBy = {};
+  ['veigne', 'tours', 'saint-avertin'].forEach(function(b) { (tourierReassort[b] || []).forEach(function(r) { if (r.prepared_at) return; outBy[r.product_id] = (outBy[r.product_id] || 0) + (parseQty(r.commander) || 0); }); });
+  const entries = Object.keys(tourierStockData).map(function(pid) { return { st: tourierStockData[pid], p: products.find(function(x) { return x.id === pid; }) }; }).filter(function(e) { return e.p; });
+  if (!entries.length) {
+    if (tourierCatalogUnlocked) html += manageProductsButtonHtml();
+    else html += '<div class="info-banner" style="background:#F0EAE0">Aucun produit. Déverrouille le mode chef pour en ajouter.</div>';
+    mc.innerHTML = html; if (stockReceiptModalOpen) renderStockReceiptModal(); return;
+  }
+  const byCat = {}; entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
+  html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
+    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span></div>';
+  ['viennoiserie', 'brioches_special'].forEach(function(cat) {
+    if (!byCat[cat] || !byCat[cat].length) return;
+    const list = byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); });
+    html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
+    list.forEach(function(e) {
+      const st = e.st; const stock = Number(st.stock) || 0; const mini = st.mini; const aPartir = outBy[e.p.id] || 0;
+      const inactif = (e.p.tourier_actif === false);
+      let alertCls = '', dot = '';
+      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
+      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
+      html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
+      let ctrl = '';
+      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button></div>';
+      html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div><div class="produit-unit">' + escapeHtml(tourierUnitLabel(e.p)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</div>' + ctrl + '</div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
+      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += '</div>';
+    });
+  });
+  html += '</div>';
+  mc.innerHTML = html;
+  if (stockReceiptModalOpen) renderStockReceiptModal();
 }
 
 async function saveStockReal(el) {
@@ -11722,9 +11807,16 @@ received_at: new Date().toISOString(), supplier: d.supplier || null,
 note: d.note || null, updated_by: DEVICE_ID
 });
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+// v20.81 — la réception alimente le stock courant tourier
+const tst = tourierStockData[d.product_id];
+if (tst) {
+const ns = (Number(tst.stock) || 0) + qty;
+await supa.from('tourier_stock').update({ stock: ns, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', d.product_id);
+tst.stock = ns;
+}
 setSyncStatus('ok');
 stockReceiptModalOpen = false;
-await loadStockData();
+await loadTourierStock();
 renderStock();
 showToast('+' + qty + ' en stock', 'sync');
 }
