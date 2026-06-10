@@ -3186,7 +3186,8 @@ await loadTourierStock();
 renderStock();
 } else if (v === 'stock_boul_pro') {
 // v21.2 — Stock congelé Boulangers (refactor v21.2.1)
-if (!adminProducts.length) await loadAdminProducts();
+proForm = null; // pas de formulaire resté ouvert d'une fois précédente
+await loadAdminProducts(); // recharge (évite liste vide si cache schéma rechargé / 1er load raté)
 if (!adminPros.length) await loadAdminPros();
 proStockDate = todayISO();
 await loadProStock();
