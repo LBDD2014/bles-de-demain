@@ -12075,7 +12075,8 @@ async function proRemoveFromList(pid) {
 
 // --- Créer / modifier un produit Boul. Pro (mode chef) ---
 const PRO_CATS = [['pains', 'Pains'], ['brioches_special', 'Brioches spéciales'], ['viennoiserie', 'Viennoiserie']];
-const PRO_COND_UNITS = ['', 'caisse', 'sac', 'pièce', 'seau', 'carton', 'kg', 'L'];
+// [valeur stockée (doit respecter la CHECK products_conditioning_unit_chk), libellé affiché]
+const PRO_COND_UNITS = [['', '— aucun —'], ['caisse', 'caisse'], ['sac', 'sac'], ['piece', 'pièce'], ['seau', 'seau'], ['carton', 'carton'], ['kg', 'kg'], ['L', 'L'], ['grille', 'grille']];
 let proForm = null;
 function proNewProduct() { proForm = { mode: 'new', nom: '', cat: 'pains', condUnit: '', condQty: '' }; renderStockBoulangerPro(); }
 function proEditProduct(pid) {
@@ -12093,7 +12094,7 @@ function renderProChefForm() {
   h += '<div class="pat-frow"><label class="sp-lbl">Nom</label><input class="sp-input" type="text" id="prof-nom" value="' + escapeHtml(f.nom || '') + '" placeholder="ex : Pain burger 70g" oninput="proFormField(\'nom\',this.value)"></div>';
   h += '<div class="pat-frow"><label class="sp-lbl">Catégorie</label><select class="sp-input" onchange="proFormField(\'cat\',this.value)">' + PRO_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (f.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>';
   h += '<div class="pat-frow"><label class="sp-lbl">Conditionnement (optionnel)</label><div style="display:flex;gap:8px">'
-    + '<select class="sp-input" style="flex:1" onchange="proFormField(\'condUnit\',this.value)">' + PRO_COND_UNITS.map(function(u) { return '<option value="' + u + '"' + (f.condUnit === u ? ' selected' : '') + '>' + (u || '— aucun —') + '</option>'; }).join('') + '</select>'
+    + '<select class="sp-input" style="flex:1" onchange="proFormField(\'condUnit\',this.value)">' + PRO_COND_UNITS.map(function(u) { return '<option value="' + u[0] + '"' + (f.condUnit === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select>'
     + '<input class="sp-input" type="number" id="prof-cq" style="width:110px" value="' + (f.condQty !== '' && f.condQty != null ? f.condQty : '') + '" placeholder="qté" oninput="proFormField(\'condQty\',this.value)"></div></div>';
   h += '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn-grey" style="flex:1" onclick="proCancelForm()">Annuler</button><button class="btn-gold" style="flex:1" onclick="proSaveForm()">' + (f.mode === 'edit' ? 'Enregistrer' : 'Créer') + '</button></div>';
   h += '</div>';
