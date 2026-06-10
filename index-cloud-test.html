@@ -3187,8 +3187,11 @@ renderStock();
 } else if (v === 'stock_boul_pro') {
 // v21.2 — Stock congelé Boulangers (refactor v21.2.1)
 if (!adminProducts.length) await loadAdminProducts();
+if (!adminPros.length) await loadAdminPros();
+proStockDate = todayISO();
 await loadProStock();
 await loadProStockMovements();
+await loadProStockDayOrders();
 subscribeRealtimeProStock();
 renderStockBoulangerPro();
 } else if (v === 'stock_pat') {
@@ -5333,29 +5336,9 @@ async function markProOrderDelivered(orderId, currentStatus) {
   const { error } = await supa.from('pro_orders').update({ statut: newStatus }).eq('id', orderId);
   if (error) { setSyncStatus('error'); showToast('Erreur statut: ' + error.message, 'error'); return; }
 
-  // v21.2 — Auto-décrément / réincrément du stock pro pour les items suivis
-  // Nécessite d'avoir adminProducts + proStockData chargés
+  // v21.2.2 — Le décompte du stock Boul. Pro se fait désormais au « ✓ préparé »
+  // (écran Stock Boul. Pro), PLUS à la livraison → on ne touche plus au stock ici.
   const order = livreurProOrders.find(function(x) { return x.id === orderId; });
-  if (order && Array.isArray(order.pro_order_items)) {
-    // S'assurer que proStockData est chargé (cache local utilisé par applyProStockMovement)
-    if (!Object.keys(proStockData).length) await loadProStock();
-    const allProducts = (adminProducts && adminProducts.length) ? adminProducts : products;
-    for (let i = 0; i < order.pro_order_items.length; i++) {
-      const it = order.pro_order_items[i];
-      if (!it.product_id) continue;
-      const prod = allProducts.find(function(p) { return p.id === it.product_id; });
-      if (!prod || !prod.suivi_stock_pro) continue; // seul les produits suivis génèrent un mouvement
-      const qty = Number(it.qty) || 0;
-      if (qty <= 0) continue;
-      if (newStatus === 'livre') {
-        // Sortie de stock
-        await applyProStockMovement(it.product_id, -qty, 'delivery', orderId);
-      } else {
-        // Annulation : restaurer
-        await applyProStockMovement(it.product_id, +qty, 'delivery_cancel', orderId);
-      }
-    }
-  }
 
   setSyncStatus('ok');
   // Optimistic local update (realtime suit, mais évite le flicker)
@@ -11947,9 +11930,122 @@ async function loadProStock() {
   (data || []).forEach(function(r) {
     proStockData[r.product_id] = {
       qty: Number(r.qty) || 0,
+      mini: (r.mini == null ? null : Number(r.mini)),
       updated_at: r.updated_at || null
     };
   });
+}
+
+// === v21.2.2 — Stock Boul. Pro sur le modèle tourier (Entrée/Stock/Mini/À partir) ===
+let proStockDate = todayISO();
+let proStockDayOrders = []; // pro_orders (Local) du jour sélectionné, avec items
+
+async function loadProStockDayOrders() {
+  const { data, error } = await supa.from('pro_orders')
+    .select('*, pro_order_items(*)')
+    .eq('tenant_id', TENANT_ID)
+    .eq('boutique_source', 'local')
+    .eq('date_livraison', proStockDate)
+    .neq('statut', 'annule');
+  proStockDayOrders = error ? [] : (data || []);
+}
+function changeProStockDate(delta) {
+  proStockDate = addDays(proStockDate, delta);
+  loadProStockDayOrders().then(renderStockBoulangerPro);
+}
+
+// Lignes "à préparer" = items de produits suivis, à plat (1 ligne = 1 item de commande)
+function proStockPrepLines() {
+  const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+  const prodById = {}; allProds.forEach(function(p) { prodById[p.id] = p; });
+  const lines = [];
+  proStockDayOrders.forEach(function(o) {
+    (o.pro_order_items || []).forEach(function(it) {
+      const prod = prodById[it.product_id];
+      if (!prod || !prod.suivi_stock_pro) return;
+      if (!(Number(it.qty) > 0)) return;
+      const pro = (adminPros || []).find(function(x) { return x.id === o.pro_id; });
+      lines.push({
+        itemId: it.id, orderId: o.id, productId: it.product_id,
+        productName: prod.name, qty: Number(it.qty),
+        proName: pro ? pro.nom : (o.pro_id || 'Pro'),
+        mode: o.mode_retrait || o.retrait || null,
+        prepared: !!it.prepared_at
+      });
+    });
+  });
+  return lines;
+}
+
+// Entrée (ajoute la production au stock) — upsert pro_stock
+async function proAddEntree(pid, val) {
+  const add = parseQty(val); if (!add) { renderStockBoulangerPro(); return; }
+  const cur = proStockData[pid] || { qty: 0, mini: null };
+  const ns = (Number(cur.qty) || 0) + add;
+  setSyncStatus('syncing');
+  const now = new Date().toISOString();
+  const { error } = await supa.from('pro_stock').upsert({
+    tenant_id: TENANT_ID, product_id: pid, qty: ns, mini: cur.mini, updated_at: now, updated_by: DEVICE_ID
+  }, { onConflict: 'tenant_id,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  await applyProStockMovement(pid, add, 'production', null); // trace pour l'historique
+  setSyncStatus('ok');
+  proStockData[pid] = { qty: ns, mini: cur.mini, updated_at: now };
+  await loadProStockMovements();
+  renderStockBoulangerPro();
+}
+function proSelectEntree(pid, el) {
+  let val = el.value;
+  if (val === '__custom__') { const v = prompt('Combien produit aujourd\'hui (à ajouter au stock) ?', ''); if (v === null) { renderStockBoulangerPro(); return; } val = v; }
+  proAddEntree(pid, val);
+}
+// Stock / Mini — set direct (upsert)
+async function proSaveField(pid, field, val) {
+  const cur = proStockData[pid] || { qty: 0, mini: null };
+  const v = (String(val).trim() === '' ? null : parseQty(val));
+  const row = { tenant_id: TENANT_ID, product_id: pid, qty: cur.qty, mini: cur.mini, updated_at: new Date().toISOString(), updated_by: DEVICE_ID };
+  row[field] = v;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('pro_stock').upsert(row, { onConflict: 'tenant_id,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  proStockData[pid] = { qty: Number(row.qty) || 0, mini: (row.mini == null ? null : Number(row.mini)), updated_at: row.updated_at };
+  renderStockBoulangerPro();
+}
+function proSelectField(pid, field, el) {
+  let val = el.value;
+  if (val === '__custom__') { const v = prompt('Valeur pour ' + field + ' :', ''); if (v === null) { renderStockBoulangerPro(); return; } val = v; }
+  proSaveField(pid, field, val);
+}
+
+// ✓ préparé — marque l'item + décompte le stock
+async function applyProPrepared(lines) {
+  setSyncStatus('syncing'); const now = new Date().toISOString();
+  for (const l of lines) {
+    const up = await supa.from('pro_order_items').update({ prepared_at: now, prepared_by: DEVICE_ID }).eq('id', l.itemId);
+    if (up.error) { setSyncStatus('error'); showToast(up.error.message, 'error'); return; }
+    const cur = proStockData[l.productId];
+    if (cur && l.qty > 0) {
+      const ns = (Number(cur.qty) || 0) - l.qty;
+      await supa.from('pro_stock').upsert({ tenant_id: TENANT_ID, product_id: l.productId, qty: ns, mini: cur.mini, updated_at: now, updated_by: DEVICE_ID }, { onConflict: 'tenant_id,product_id' });
+      await applyProStockMovement(l.productId, -l.qty, 'preparation', l.orderId); // trace historique
+      cur.qty = ns;
+    }
+  }
+  setSyncStatus('ok'); showToast('Préparé · stock décompté', 'sync');
+}
+async function prepareProLine(itemId) {
+  const l = proStockPrepLines().find(function(x) { return x.itemId === itemId && !x.prepared; });
+  if (!l) return;
+  await applyProPrepared([l]);
+  await loadProStockDayOrders(); await loadProStockMovements(); renderStockBoulangerPro();
+}
+async function prepareProAll() {
+  const lines = proStockPrepLines().filter(function(x) { return !x.prepared; });
+  if (!lines.length) return;
+  if (!confirm('Marquer TOUTES les commandes pros du jour comme préparées ?\nLe stock sera décompté.')) return;
+  await applyProPrepared(lines);
+  await loadProStockDayOrders(); await loadProStockMovements(); renderStockBoulangerPro();
 }
 
 // v21.2.1 — Charge les 30 derniers jours de mouvements (assez pour le Théo
@@ -11979,6 +12075,18 @@ function subscribeRealtimeProStock() {
       async function() {
         await loadProStockMovements();
         if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_order_items' },
+      async function() {
+        if (currentVue !== 'stock_boul_pro') return;
+        await loadProStockDayOrders();
+        renderStockBoulangerPro();
+      })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_orders' },
+      async function() {
+        if (currentVue !== 'stock_boul_pro') return;
+        await loadProStockDayOrders();
+        renderStockBoulangerPro();
       })
     .subscribe();
 }
@@ -12122,16 +12230,35 @@ function renderStockBoulangerPro() {
   const mc = document.getElementById('main-content');
   const suiviProducts = (adminProducts || []).filter(function(p) { return p.suivi_stock_pro && p.actif; });
 
-  let html = '<div class="info-banner" style="border-left-color:var(--gold)">'
-    + '<strong>Stock Boulanger Pro</strong> (pain congelé pour commandes pros)<br>'
-    + 'Théorique = auto (dernier réel + productions − livraisons). Réel = inventaire physique. Décompte auto à la livraison d\'une commande pro. Seuil en BackOffice > Produits.<br>'
-    + '<em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → éditer → coche <strong>« Suivi stock pro »</strong>.</em>'
-    + '</div>';
+  // Barre de date
+  let html = '<div class="date-bar"><button class="date-nav" onclick="changeProStockDate(-1)">←</button>'
+    + '<div class="date-title">Commandes pros du <strong>' + escapeHtml(formatDateFr(proStockDate)) + '</strong></div>'
+    + '<button class="date-nav" onclick="changeProStockDate(1)">→</button></div>';
 
-  // Bouton + Production
-  html += '<div class="stock-actions-bar" style="margin:10px 0">'
-    + '<button class="btn-gold" onclick="openProProductionModal()">+ Production boulanger</button>'
-    + '</div>';
+  // SECTION 1 — À préparer — Pros
+  const prepLines = proStockPrepLines().sort(function(a, b) {
+    if (a.prepared !== b.prepared) return a.prepared ? 1 : -1;
+    return a.productName.localeCompare(b.productName);
+  });
+  const todo = prepLines.filter(function(l) { return !l.prepared; }).length;
+  if (prepLines.length) {
+    html += '<div class="section reappro-section"><div class="section-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>📦 À préparer — Pros (' + todo + ')</span>'
+      + (todo > 0 ? '<button class="btn-gold-sm" onclick="prepareProAll()">✓ Tout préparé</button>' : '<span style="color:var(--green);font-weight:700;font-size:13px">✓ tout fait</span>')
+      + '</div>';
+    prepLines.forEach(function(l) {
+      html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px' + (l.prepared ? ';opacity:0.55' : '') + '">';
+      html += '<div><div class="produit-name">' + (l.prepared ? '✓ ' : '') + escapeHtml(l.productName) + '</div><div class="produit-unit">' + l.qty + ' · ' + escapeHtml(l.proName) + (l.mode ? ' · ' + escapeHtml(l.mode) : '') + '</div></div>';
+      if (l.prepared) html += '<span style="color:var(--green);font-weight:700;font-size:13px">✓ fait</span>';
+      else html += '<button class="btn-gold-sm" onclick="prepareProLine(\'' + l.itemId + '\')">✓ préparé</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="info-banner" style="background:#F0EAE0">Aucune commande pro à préparer ce jour.</div>';
+  }
+
+  // SECTION 2 — Mon stock
+  html += '<div class="info-banner"><strong>Mon stock</strong> (pain congelé pour les pros)<br>L\'<strong>Entrée</strong> ajoute ta production du jour. Le stock baisse au « préparé » ci-dessus. Alerte 🔴 sous le Mini. <strong>À partir</strong> = commandes pros à venir, pas encore préparées.<br><em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → coche <strong>« Suivi stock pro »</strong>.</em></div>';
 
   if (!suiviProducts.length) {
     html += '<div class="empty-state">Aucun produit configuré en suivi stock pro.<br><span style="font-size:12px;color:var(--brown-mid)">Va dans BackOffice et coche « Suivi stock pro » sur les produits concernés.</span></div>';
@@ -12139,7 +12266,11 @@ function renderStockBoulangerPro() {
     return;
   }
 
-  // Grouper par catégorie
+  // "À partir" = somme des commandes pros du jour pas encore préparées, par produit
+  const outBy = {};
+  prepLines.forEach(function(l) { if (!l.prepared) outBy[l.productId] = (outBy[l.productId] || 0) + l.qty; });
+
+  // Grouper par catégorie (catégories réelles, rien d'inventé)
   const byCat = {};
   suiviProducts.forEach(function(p) {
     const c = p.category || 'autre';
@@ -12152,14 +12283,14 @@ function renderStockBoulangerPro() {
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
 
-  // Tableau 5 colonnes (style Stock Tourier)
+  // Tableau Entrée / Stock / Mini / À partir (modèle tourier)
   html += '<div class="section reappro-section">';
   html += '<div class="col-header stock-col-header">'
     + '<span class="col-lbl">Produit</span>'
-    + '<span class="col-lbl">Théo.</span>'
-    + '<span class="col-lbl cmd">Réel</span>'
-    + '<span class="col-lbl">Écart</span>'
-    + '<span class="col-lbl">Seuil</span>'
+    + '<span class="col-lbl cmd">Entrée</span>'
+    + '<span class="col-lbl">Stock</span>'
+    + '<span class="col-lbl">Mini</span>'
+    + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
     + '</div>';
 
   cats.forEach(function(cat) {
@@ -12167,33 +12298,23 @@ function renderStockBoulangerPro() {
     byCat[cat].sort(stockSortCmp);
     const catPids = byCat[cat].map(function(x) { return x.id; });
     byCat[cat].forEach(function(p) {
-      const theo = computeProStockTheo(p.id);
-      const inv = proStockData[p.id];
-      const real = (inv && inv.qty != null) ? Number(inv.qty) : 0;
-      const ecart = real - theo;
-      const seuil = p.seuil_stock != null ? Number(p.seuil_stock) : null;
-      // Alerte stock vs seuil (rouge si < 30%, orange < 50%, vert sinon)
-      let alertCls = '';
-      if (seuil != null && seuil > 0) {
-        const ratio = theo / seuil;
-        if (ratio < 0.3) alertCls = 'stock-red';
-        else if (ratio < 0.5) alertCls = 'stock-orange';
-        else alertCls = 'stock-green';
-      }
-      // Écart > 10% du théo en valeur absolue → rouge
-      let ecartCls = '';
-      if (Math.abs(ecart) > Math.max(Math.abs(theo) * 0.1, 1)) ecartCls = 'stock-red';
-      // v20.38 — Conditionnement
+      const inv = proStockData[p.id] || { qty: 0, mini: null };
+      const stock = Number(inv.qty) || 0;
+      const mini = inv.mini;
+      const aPartir = outBy[p.id] || 0;
+      let alertCls = '', dot = '';
+      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
+      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       const condTxt = formatConditioning(p);
       html += '<div class="produit-row stock-row ' + alertCls + '">';
-      html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>'
+      html += '<div><div class="produit-name">' + dot + escapeHtml(p.name) + '</div>'
         + '<div class="produit-unit">' + (condTxt ? escapeHtml(condTxt) + ' ' : '') + '<a href="#" onclick="editProConditioning(\'' + p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️ cond.</a></div>'
         + '<div class="pat-chef-ctrl">' + stockSortArrows(p.id, catPids) + '</div>'
         + '</div>';
-      html += '<div class="stock-cell">' + theo + '</div>';
-      html += '<div class="stock-cell"><input type="number" inputmode="numeric" class="qty-input stock-real-inp" data-pid="' + escapeHtml(p.id) + '" placeholder="' + real + '" onchange="handleProStockRealInput(this)"></div>';
-      html += '<div class="stock-cell ' + ecartCls + '">' + (ecart > 0 ? '+' : '') + ecart + '</div>';
-      html += '<div class="stock-cell">' + (seuil != null ? seuil : '<span style="color:#bbb">-</span>') + '</div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectEntree(\'' + p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="proSelectField(\'' + p.id + '\', \'qty\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
+      html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectField(\'' + p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
+      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
       html += '</div>';
     });
   });
@@ -12214,6 +12335,7 @@ function renderStockBoulangerPro() {
       const isPos = delta > 0;
       const reasonLbl = ({
         production: 'Production',
+        preparation: 'Préparé (commande pro)',
         delivery: 'Livraison',
         delivery_cancel: 'Annulation livraison',
         correction: 'Correction'
