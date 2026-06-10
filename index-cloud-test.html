@@ -12072,6 +12072,58 @@ async function proRemoveFromList(pid) {
   renderStockBoulangerPro();
 }
 
+// --- Créer / modifier un produit Boul. Pro (mode chef) ---
+const PRO_CATS = [['pains', 'Pains'], ['brioches_special', 'Brioches spéciales'], ['viennoiserie', 'Viennoiserie']];
+const PRO_COND_UNITS = ['', 'caisse', 'sac', 'pièce', 'seau', 'carton', 'kg', 'L'];
+let proForm = null;
+function proNewProduct() { proForm = { mode: 'new', nom: '', cat: 'pains', condUnit: '', condQty: '' }; renderStockBoulangerPro(); }
+function proEditProduct(pid) {
+  const p = (adminProducts || []).find(function(x) { return x.id === pid; }) || products.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  proForm = { mode: 'edit', id: pid, nom: p.name || '', cat: p.category || 'pains', condUnit: p.conditioning_unit || '', condQty: (p.conditioning_qty != null ? p.conditioning_qty : '') };
+  renderStockBoulangerPro();
+}
+function proFormField(f, v) { if (proForm) proForm[f] = v; }
+function proCancelForm() { proForm = null; renderStockBoulangerPro(); }
+function renderProChefForm() {
+  const f = proForm;
+  let h = '<div class="date-bar"><div class="date-title">' + (f.mode === 'edit' ? 'Modifier un produit' : 'Nouveau produit') + '</div></div>';
+  h += '<div style="padding:14px;max-width:560px;margin:0 auto">';
+  h += '<div class="pat-frow"><label class="sp-lbl">Nom</label><input class="sp-input" type="text" id="prof-nom" value="' + escapeHtml(f.nom || '') + '" placeholder="ex : Pain burger 70g" oninput="proFormField(\'nom\',this.value)"></div>';
+  h += '<div class="pat-frow"><label class="sp-lbl">Catégorie</label><select class="sp-input" onchange="proFormField(\'cat\',this.value)">' + PRO_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (f.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="pat-frow"><label class="sp-lbl">Conditionnement (optionnel)</label><div style="display:flex;gap:8px">'
+    + '<select class="sp-input" style="flex:1" onchange="proFormField(\'condUnit\',this.value)">' + PRO_COND_UNITS.map(function(u) { return '<option value="' + u + '"' + (f.condUnit === u ? ' selected' : '') + '>' + (u || '— aucun —') + '</option>'; }).join('') + '</select>'
+    + '<input class="sp-input" type="number" id="prof-cq" style="width:110px" value="' + (f.condQty !== '' && f.condQty != null ? f.condQty : '') + '" placeholder="qté" oninput="proFormField(\'condQty\',this.value)"></div></div>';
+  h += '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn-grey" style="flex:1" onclick="proCancelForm()">Annuler</button><button class="btn-gold" style="flex:1" onclick="proSaveForm()">' + (f.mode === 'edit' ? 'Enregistrer' : 'Créer') + '</button></div>';
+  h += '</div>';
+  return h;
+}
+async function proSaveForm() {
+  const f = proForm; if (!f) return;
+  const nomEl = document.getElementById('prof-nom');
+  const nom = ((nomEl ? nomEl.value : f.nom) || '').trim();
+  if (!nom) { showToast('Nom obligatoire', 'error'); return; }
+  const cqEl = document.getElementById('prof-cq');
+  const cqRaw = (cqEl ? cqEl.value : f.condQty);
+  const condUnit = f.condUnit || null;
+  const condQty = (condUnit && cqRaw !== '' && cqRaw != null) ? (parseInt(cqRaw, 10) || null) : null;
+  setSyncStatus('syncing');
+  if (f.mode === 'new') {
+    const pid = genProductId(nom);
+    const prow = { id: pid, tenant_id: TENANT_ID, name: nom, category: f.cat, unit: condUnit, usage: 'reappro', actif: true, suivi_stock_pro: true, supply_by_boutique: {}, conditioning_unit: condUnit, conditioning_qty: condQty };
+    const r1 = await supa.from('products').insert(prow).select();
+    if (r1.error || !r1.data || !r1.data.length) { setSyncStatus('error'); showToast((r1.error && r1.error.message) || 'Création bloquée (RLS ?)', 'error'); return; }
+  } else {
+    const r1 = await supa.from('products').update({ name: nom, category: f.cat, conditioning_unit: condUnit, conditioning_qty: condQty }).eq('id', f.id);
+    if (r1.error) { setSyncStatus('error'); showToast(r1.error.message, 'error'); return; }
+  }
+  setSyncStatus('ok');
+  proForm = null;
+  await loadProducts(); await loadAdminProducts(); await loadProStock();
+  renderStockBoulangerPro();
+  showToast(f.mode === 'edit' ? 'Produit modifié' : 'Produit créé', 'sync');
+}
+
 // v21.2.1 — Charge les 30 derniers jours de mouvements (assez pour le Théo
 // dans la pratique : on inventoriait au moins 1× / mois)
 async function loadProStockMovements() {
@@ -12254,10 +12306,13 @@ function renderStockBoulangerPro() {
   const mc = document.getElementById('main-content');
   const suiviProducts = (adminProducts || []).filter(function(p) { return p.suivi_stock_pro && p.actif; });
 
-  // Code chef Local (gérer : retirer + ranger)
+  // Formulaire création/édition produit (mode chef)
+  if (proForm) { mc.innerHTML = renderProChefForm(); return; }
+  // Code chef Local (gérer : créer / modifier / retirer / ranger)
   let html = '<div class="cheflock' + (proCatalogUnlocked ? ' on' : '') + '" onclick="proCatalogUnlock()">'
     + (proCatalogUnlocked ? '🔓 Mode chef — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef Local)')
     + '</div>';
+  if (proCatalogUnlocked) html += '<div style="text-align:right;margin:4px 14px 0"><button class="btn-gold-sm" onclick="proNewProduct()">＋ Ajouter un produit</button></div>';
   // Barre de date
   html += '<div class="date-bar"><button class="date-nav" onclick="changeProStockDate(-1)">←</button>'
     + '<div class="date-title">Commandes pros du <strong>' + escapeHtml(formatDateFr(proStockDate)) + '</strong></div>'
@@ -12337,7 +12392,7 @@ function renderStockBoulangerPro() {
       let ctrl = '';
       if (proCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl">'
         + '<button class="iconbtn-pat" onclick="proRemoveFromList(\'' + p.id + '\')" title="retirer de la liste">🗑</button>'
-        + '<button class="iconbtn-pat" onclick="editProConditioning(\'' + p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>'
+        + '<button class="iconbtn-pat" onclick="proEditProduct(\'' + p.id + '\')" title="modifier (nom, catégorie, conditionnement)">✏️</button>'
         + stockSortArrows(p.id, catPids) + '</div>';
       html += '<div class="produit-row stock-row ' + alertCls + '">';
       html += '<div><div class="produit-name">' + dot + escapeHtml(p.name) + '</div>'
