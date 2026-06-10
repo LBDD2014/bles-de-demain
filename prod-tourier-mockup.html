@@ -42,6 +42,7 @@
   .tag.sa{background:#FDEFE0;color:var(--orange)}
   .tag.spe{background:#FFF4D6;color:var(--gold-dark)}
   .tag.pro{background:#E7EEF6;color:var(--blue)}
+  .tag.marche{background:#E7F1E8;color:var(--green)}
   .qty{font-weight:700;color:var(--gold-dark);font-size:20px;min-width:38px;text-align:right}
   .btn-prep{background:var(--gold);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:13px;padding:10px 16px;border-radius:10px;cursor:pointer;white-space:nowrap}
   .prep-row.done{background:#F4F8F4}
@@ -67,18 +68,18 @@
   </div>
 
   <div class="wrap">
-    <div class="note">🖼️ <b>Maquette v2 — version condensée.</b> Une <b>seule liste</b> : 1 ligne = 1 produit, avec la <b>quantité totale</b> à cuire et, en petit, <b>pour qui</b> (St-Av / Spé / Pros). Un seul bouton <b>✓ préparé</b> par ligne. Plus de blocs séparés, plus de tableau total en double.</div>
+    <div class="note">🖼️ <b>Maquette v3 — jour de marché.</b> Le <b>Marché</b> apparaît comme une destination de plus (pastille verte), <b>uniquement les jours de marché</b> : Amboise le vendredi, Beaujardin le samedi. Le reste de la semaine, il n'apparaît pas. Cuit frais le matin → s'ajoute au total à cuire.</div>
 
     <div class="datebar">
       <div class="arrow">←</div>
-      <div class="lbl">Production du <b>Mercredi 10 Juin</b></div>
+      <div class="lbl">Production du <b>Vendredi 13 Juin</b> 🛒</div>
       <div class="arrow">→</div>
     </div>
 
     <div class="kpi-bar">
       <div class="kpi"><div class="v">7</div><div class="l">À préparer</div></div>
       <div class="kpi"><div class="v" style="color:var(--green)">1</div><div class="l">Préparés</div></div>
-      <div class="kpi"><div class="v">206</div><div class="l">Pièces total</div></div>
+      <div class="kpi"><div class="v">286</div><div class="l">Pièces total</div></div>
     </div>
 
     <div class="prep">
@@ -91,25 +92,25 @@
 
       <div class="prep-row">
         <div class="name">Croissant
-          <span class="src"><span class="tag sa">St-Av 48</span><span class="tag pro">Pros 30</span></span>
+          <span class="src"><span class="tag sa">St-Av 48</span><span class="tag pro">Pros 30</span><span class="tag marche">Marché Amboise 40</span></span>
         </div>
-        <div class="qty">78</div>
+        <div class="qty">118</div>
         <button class="btn-prep">✓ préparé</button>
       </div>
 
       <div class="prep-row">
         <div class="name">Pain au Chocolat
-          <span class="src"><span class="tag sa">St-Av 48</span><span class="tag pro">Pros 20</span></span>
+          <span class="src"><span class="tag sa">St-Av 48</span><span class="tag pro">Pros 20</span><span class="tag marche">Marché Amboise 30</span></span>
         </div>
-        <div class="qty">68</div>
+        <div class="qty">98</div>
         <button class="btn-prep">✓ préparé</button>
       </div>
 
       <div class="prep-row">
         <div class="name">Pain aux Raisins
-          <span class="src"><span class="tag sa">St-Av 16</span></span>
+          <span class="src"><span class="tag sa">St-Av 16</span><span class="tag marche">Marché Amboise 12</span></span>
         </div>
-        <div class="qty">16</div>
+        <div class="qty">28</div>
         <button class="btn-prep">✓ préparé</button>
       </div>
 
@@ -123,9 +124,9 @@
 
       <div class="prep-row done">
         <div class="name">Chausson aux pommes
-          <span class="src"><span class="tag sa">St-Av 8</span></span>
+          <span class="src"><span class="tag sa">St-Av 8</span><span class="tag marche">Marché Amboise 6</span></span>
         </div>
-        <div class="qty">8</div>
+        <div class="qty">14</div>
         <button class="btn-prep ok">✓ fait</button>
       </div>
 
