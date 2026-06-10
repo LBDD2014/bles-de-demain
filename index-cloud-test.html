@@ -1079,6 +1079,30 @@ font-family: inherit; cursor: pointer; letter-spacing: 0.3px;
 margin-left: auto;
 }
 .msg-send-btn:active { background: var(--gold-dark); transform: scale(0.97); }
+.msg-compose-row {
+display: flex; gap: 8px; margin-bottom: 10px; align-items: center;
+}
+.msg-to-select {
+background: #FAF8F4; border: 2px solid #E0D8C8; border-radius: 10px;
+padding: 10px; font-size: 14px; color: var(--brown); font-weight: 700;
+font-family: inherit; flex: 1; min-width: 0;
+}
+.msg-date-input {
+background: #FAF8F4; border: 2px solid #E0D8C8; border-radius: 10px;
+padding: 9px 10px; font-size: 14px; color: var(--brown);
+font-family: inherit;
+}
+.msg-name-input {
+background: #FAF8F4; border: 2px solid #E0D8C8; border-radius: 10px;
+padding: 8px 10px; font-size: 13px; color: var(--brown);
+font-family: inherit; flex: 1; min-width: 120px; box-sizing: border-box;
+}
+.msg-name-input:focus, .msg-to-select:focus, .msg-date-input:focus { outline: none; border-color: var(--gold); background: white; }
+.msg-day-label {
+font-size: 12px; font-weight: 700; color: var(--gold-dark);
+text-transform: uppercase; letter-spacing: 0.5px;
+margin: 12px 0 6px; padding-left: 2px;
+}
 
 .msg-card {
 background: white; border-radius: 12px; padding: 12px 14px;
@@ -2183,6 +2207,23 @@ const BOUTIQUE_NAMES = {
 
 const MARKET_IDS = ['amboise', 'beaujardin'];
 const MARKET_LABELS_SHORT = { 'amboise': 'Amb.', 'beaujardin': 'Beauj.' };
+
+// === Messagerie inter-équipes ===
+// Les 2 marchés partagent une seule boîte "marche".
+function msgBoxId(b) { return (b === 'amboise' || b === 'beaujardin') ? 'marche' : b; }
+// Destinataires possibles (id de boîte → libellé affiché)
+const MSG_RECIPIENTS = [
+  { id: 'local',         lbl: 'Le Local' },
+  { id: 'veigne',        lbl: 'Veigné' },
+  { id: 'tours',         lbl: 'Tours' },
+  { id: 'saint-avertin', lbl: 'St-Avertin' },
+  { id: 'livreur',       lbl: 'Livreur' },
+  { id: 'marche',        lbl: 'Marché' }
+];
+function msgBoxName(boxId) {
+  const r = MSG_RECIPIENTS.find(function(x) { return x.id === boxId; });
+  return r ? r.lbl : (BOUTIQUE_NAMES[boxId] || boxId);
+}
 const MARKET_DAY_OF_WEEK = { 'amboise': 5, 'beaujardin': 6 }; // 0=dim ... 5=ven, 6=sam
 const MARKET_PREP_DAYS = 3;
 
@@ -2221,10 +2262,12 @@ const NAV_ITEMS = {
     { id: 'messages', lbl: 'Messages' }
   ],
   'amboise': [
-    { id: 'marche', lbl: 'Tableau marché' }
+    { id: 'marche', lbl: 'Tableau marché' },
+    { id: 'messages', lbl: 'Messages' }
   ],
   'beaujardin': [
-    { id: 'marche', lbl: 'Tableau marché' }
+    { id: 'marche', lbl: 'Tableau marché' },
+    { id: 'messages', lbl: 'Messages' }
   ],
   'local': [
     { id: 'prod_boul',      lbl: 'Prod. Boulangers' },
@@ -2347,7 +2390,11 @@ let adminEditingPid = null;
 
 // Messagerie livreur
 let messagesData = [];
-let messageDraft = { content: '', urgent: false, stop_boutique: '' };
+function freshMessageDraft() {
+  return { content: '', urgent: false, stop_boutique: '', recipient: '', sender_name: '', msg_date: todayISO() };
+}
+let messageDraft = freshMessageDraft();
+let msgHistoryOpen = false; // historique (jours passés) replié par défaut
 let realtimeChannelMessages = null;
 // Alerte sonore + visuelle livreur (nouveau message)
 let msgSoundEnabled = true;      // ON par défaut, le livreur peut couper
@@ -2854,13 +2901,20 @@ if (b === 'veigne') await loadProductionDefaults('saint-avertin');
 document.getElementById('splash').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
 document.getElementById('header-boutique').textContent = BOUTIQUE_NAMES[b] || b;
-// Livreur : charger + s'abonner aux messages dès l'entrée (badge + alerte sur tous les onglets)
-if (b === 'livreur') {
+// Messagerie : tous les sites chargent + s'abonnent dès l'entrée
+// (badge non-lus + pop-up "J'ai vu" sur tous les onglets). Pas pour le back-office.
+if (b !== 'backoffice') {
   try { msgSoundEnabled = (localStorage.getItem('msgSoundMuted') !== '1'); } catch (e) { msgSoundEnabled = true; }
   primeMsgAudioOnGesture();   // déverrouille le son au 1er tap
-  requestWakeLock();          // garde l'écran allumé pendant la tournée
+  if (b === 'livreur') requestWakeLock(); // garde l'écran allumé pendant la tournée
   await loadMessages();
   subscribeRealtimeMessages();
+  // Pop-up "J'ai vu" à l'ouverture pour les messages reçus non lus du jour/à venir
+  const myBox = msgBoxId(b);
+  const todayStr = todayISO();
+  messagesData
+    .filter(function(m) { return m.recipient_boutique === myBox && !m.read_at && (m.msg_date || todayStr) >= todayStr; })
+    .forEach(function(m) { showMessageAlert(m); });
 }
 renderNav();
 setVue(NAV_ITEMS[b][0].id);
@@ -2883,7 +2937,7 @@ if (realtimeChannelProOrders){ supa.removeChannel(realtimeChannelProOrders); rea
 if (realtimeChannelProOrdersProduction) { supa.removeChannel(realtimeChannelProOrdersProduction); realtimeChannelProOrdersProduction = null; }
 currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
-messagesData = []; messageDraft = { content: '', urgent: false, stop_boutique: '' };
+messagesData = []; messageDraft = freshMessageDraft();
 specialOrdersData = []; specialFormMode = null; specialFormDraft = null; selectedSpecialDay = null; currentSpecialWeekStart = null;
 previsData = {}; previsTraiteurDataV = {}; previsTraiteurDataSA = {};
 isLivreurMode = false; isLocalMode = false;
@@ -2904,10 +2958,11 @@ return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '"
 initNavDragOnce();
 }
 
-// Nombre de messages non lus (livreur uniquement) pour la pastille de l'onglet
+// Nombre de messages REÇUS non lus pour ma boîte (pastille de l'onglet Messages)
 function unreadMessagesCount() {
-if (currentBoutique !== 'livreur') return 0;
-return messagesData.filter(function(m) { return !m.read_at; }).length;
+if (!currentBoutique || currentBoutique === 'backoffice') return 0;
+const box = msgBoxId(currentBoutique);
+return messagesData.filter(function(m) { return m.recipient_boutique === box && !m.read_at; }).length;
 }
 
 // v20.53 — ordre des onglets mémorisé par appareil (localStorage), réorganisable par appui long
@@ -3078,7 +3133,7 @@ renderMarket();
 await loadMessages();
 subscribeRealtimeMessages();
 renderMessages();
-if (currentBoutique === 'livreur') markAllMessagesRead();
+markAllMessagesRead(); // ouvrir l'onglet = marquer les reçus comme lus (vide la pastille)
 } else if (v === 'specials') {
 if (!currentSpecialWeekStart) currentSpecialWeekStart = getMondayOf(currentDate);
 if (!selectedSpecialDay) selectedSpecialDay = currentDate;
@@ -13295,24 +13350,31 @@ return html;
 
 // === MESSAGERIE LIVREUR ===
 async function loadMessages() {
-let q = supa.from('livreur_messages').select('*').eq('tenant_id', TENANT_ID);
-// Le livreur voit tout. Un expediteur (local/veigne) ne voit que ses messages envoyés.
-if (currentBoutique !== 'livreur') {
-q = q.eq('sender_boutique', currentBoutique);
-}
-const { data, error } = await q.order('created_at', { ascending: false }).limit(80);
+const box = msgBoxId(currentBoutique);
+// Ma boîte : ce que je reçois (recipient) + ce que j'envoie (sender)
+const { data, error } = await supa.from('livreur_messages').select('*')
+.eq('tenant_id', TENANT_ID)
+.or('recipient_boutique.eq.' + box + ',sender_boutique.eq.' + box)
+.order('msg_date', { ascending: false })
+.order('created_at', { ascending: false })
+.limit(120);
 if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
 messagesData = data || [];
 }
 
 async function sendMessage() {
 const content = (messageDraft.content || '').trim();
+const recipient = messageDraft.recipient || '';
+if (!recipient) { showToast('Choisis un destinataire', 'error'); return; }
 if (!content) { showToast('Message vide', 'error'); return; }
 setSyncStatus('syncing');
 const payload = {
 tenant_id: TENANT_ID,
-sender_boutique: currentBoutique,
+sender_boutique: msgBoxId(currentBoutique),
 sender_device: DEVICE_ID,
+recipient_boutique: recipient,
+sender_name: (messageDraft.sender_name || '').trim() || null,
+msg_date: messageDraft.msg_date || todayISO(),
 content: content,
 urgent: !!messageDraft.urgent,
 stop_boutique: messageDraft.stop_boutique || null
@@ -13320,10 +13382,10 @@ stop_boutique: messageDraft.stop_boutique || null
 const { error } = await supa.from('livreur_messages').insert(payload);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
-messageDraft = { content: '', urgent: false, stop_boutique: '' };
+messageDraft = freshMessageDraft();
 await loadMessages();
 renderMessages();
-showToast('Message envoyé', 'sync');
+showToast('Message envoyé à ' + msgBoxName(recipient), 'sync');
 }
 
 async function markMessageRead(id) {
@@ -13335,7 +13397,8 @@ if (!error) msg.read_at = nowISO;
 }
 
 async function markAllMessagesRead() {
-const unread = messagesData.filter(function(m) { return !m.read_at; });
+const box = msgBoxId(currentBoutique);
+const unread = messagesData.filter(function(m) { return m.recipient_boutique === box && !m.read_at; });
 if (!unread.length) return;
 const nowISO = new Date().toISOString();
 const ids = unread.map(function(m) { return m.id; });
@@ -13374,14 +13437,15 @@ realtimeChannelMessages = supa.channel('messages_' + currentBoutique)
 function(payload) {
 const r = payload.new || payload.old;
 if (!r) return;
-// Filtrer selon le contexte (idem loadMessages)
-if (currentBoutique !== 'livreur' && r.sender_boutique !== currentBoutique) return;
+const box = msgBoxId(currentBoutique);
+// Ma boîte = ce que je reçois OU ce que j'envoie (idem loadMessages)
+if (r.recipient_boutique !== box && r.sender_boutique !== box) return;
 if (payload.eventType === 'INSERT') {
 if (payload.new.sender_device === DEVICE_ID) return; // déjà traite localement
 messagesData.unshift(payload.new);
 if (currentVue === 'messages') renderMessages();
 renderNav(); // maj pastille non-lus (visible même hors onglet Messages)
-if (currentBoutique === 'livreur') {
+if (payload.new.recipient_boutique === box) {
 showMessageAlert(payload.new); // modal persistant + bip répété jusqu'à "J'ai vu"
 } else {
 showToast('Nouveau message', 'sync');
@@ -13424,109 +13488,135 @@ if (d.toDateString() === yest.toDateString()) return 'Hier ' + hh + 'h' + mm;
 return d.getDate() + '/' + (d.getMonth()+1) + ' ' + hh + 'h' + mm;
 }
 
+// Libellé de jour pour un msg_date (YYYY-MM-DD)
+function formatMsgDayLabel(dateStr) {
+const today = todayISO();
+if (dateStr === today) return "Aujourd'hui";
+const d = new Date(dateStr + 'T12:00:00');
+const t = new Date(today + 'T12:00:00');
+const diff = Math.round((d - t) / 86400000);
+if (diff === 1) return 'Demain';
+if (diff === -1) return 'Hier';
+const jours = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+return jours[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
+}
+
+// Bouton son (toutes les tablettes, sur l'écran Messages)
+function msgSoundBtnHtml() {
+if (msgSoundEnabled) {
+return '<button class="livreur-sound-btn on" onclick="toggleMessageSound()">🔔 Sons activés — touche pour couper</button>';
+}
+return '<button class="livreur-sound-btn off" onclick="toggleMessageSound()">🔕 Sons coupés — touche pour activer</button>';
+}
+
 function renderMessages() {
 const mc = document.getElementById('main-content');
-const isLivreur = (currentBoutique === 'livreur');
+const box = msgBoxId(currentBoutique);
+const today = todayISO();
 let html = '';
 
-if (isLivreur) {
-// RECEPTEUR - livreur
-html += livreurSoundBtnHtml();
-const toDo = messagesData.filter(function(m) { return !m.done; });
-const done = messagesData.filter(function(m) { return m.done; });
-const unread = messagesData.filter(function(m) { return !m.read_at; });
+html += msgSoundBtnHtml();
+
+// ===== Composer =====
+html += '<div class="msg-composer">';
+html += '<div class="msg-compose-row">';
+html += '<select class="msg-to-select" onchange="handleMessageDraftInput(\'recipient\', this.value)">';
+html += '<option value="">📨 À qui ?</option>';
+MSG_RECIPIENTS.forEach(function(r) {
+if (r.id === box) return; // pas à soi-même
+html += '<option value="' + r.id + '"' + (messageDraft.recipient === r.id ? ' selected' : '') + '>' + escapeHtml(r.lbl) + '</option>';
+});
+html += '</select>';
+html += '<input type="date" class="msg-date-input" value="' + (messageDraft.msg_date || today) + '" onchange="handleMessageDraftInput(\'msg_date\', this.value)">';
+html += '</div>';
+html += '<textarea class="msg-textarea" id="msg-content" placeholder="Ton message…" oninput="handleMessageDraftInput(\'content\', this.value)">' + escapeHtml(messageDraft.content) + '</textarea>';
+html += '<div class="msg-options">';
+html += '<input type="text" class="msg-name-input" placeholder="Ton prénom (option)" value="' + escapeHtml(messageDraft.sender_name || '') + '" oninput="handleMessageDraftInput(\'sender_name\', this.value)">';
+html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : '') + '" onclick="toggleMessageDraftUrgent()">' + (messageDraft.urgent ? '⚠ URGENT' : 'Marquer urgent') + '</button>';
+// Legacy : "arrêt concerné" quand Le Local écrit au livreur
+if (box === 'local' && messageDraft.recipient === 'livreur') {
+html += '<select class="msg-stop-select" onchange="handleMessageDraftInput(\'stop_boutique\', this.value)">'
++ '<option value="">-- Arrêt concerné (option) --</option>'
++ '<option value="veigne"' + (messageDraft.stop_boutique === 'veigne' ? ' selected' : '') + '>Veigné</option>'
++ '<option value="tours"' + (messageDraft.stop_boutique === 'tours' ? ' selected' : '') + '>Tours</option>'
++ '<option value="saint-avertin"' + (messageDraft.stop_boutique === 'saint-avertin' ? ' selected' : '') + '>St-Avertin</option>'
++ '</select>';
+}
+html += '<button class="msg-send-btn" onclick="sendMessage()">Envoyer</button>';
+html += '</div>';
+html += '</div>';
+
+// ===== Tri des données =====
+const received = messagesData.filter(function(m) { return m.recipient_boutique === box; });
+const sent = messagesData.filter(function(m) { return m.sender_boutique === box && m.recipient_boutique !== box; });
+const recvCur = received.filter(function(m) { return (m.msg_date || today) >= today; });
+const sentCur = sent.filter(function(m) { return (m.msg_date || today) >= today; });
+const past = received.concat(sent).filter(function(m) { return (m.msg_date || today) < today; });
+
+// KPIs reçus
+const unread = received.filter(function(m) { return !m.read_at; });
+const toDo = recvCur.filter(function(m) { return !m.done; });
 const urgents = toDo.filter(function(m) { return m.urgent; });
-
 html += '<div class="prod-kpi-bar">'
-
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (unread.length > 0 ? 'var(--red)' : 'var(--brown-mid)') + '">' + unread.length + '</div><div class="prod-kpi-lbl">Non lus</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (urgents.length > 0 ? 'var(--red)' : 'var(--brown-mid)') + '">' + urgents.length + '</div><div class="prod-kpi-lbl">Urgents</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + toDo.length + '</div><div class="prod-kpi-lbl">A faire</div></div>'
++ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (unread.length ? 'var(--red)' : 'var(--brown-mid)') + '">' + unread.length + '</div><div class="prod-kpi-lbl">Non lus</div></div>'
++ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (urgents.length ? 'var(--red)' : 'var(--brown-mid)') + '">' + urgents.length + '</div><div class="prod-kpi-lbl">Urgents</div></div>'
++ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--gold-dark)">' + toDo.length + '</div><div class="prod-kpi-lbl">À faire</div></div>'
 + '</div>';
 
-// Tri : urgents en haut dans toDo
-toDo.sort(function(a, b) {
+// ===== Reçus (aujourd'hui + à venir), groupés par date =====
+html += '<div class="section"><div class="section-header">📥 Reçus (' + recvCur.length + ')</div>';
+if (!recvCur.length) {
+html += '<div class="prod-empty">Aucun message reçu.</div>';
+} else {
+const groups = {};
+recvCur.forEach(function(m) { const d = m.msg_date || today; (groups[d] = groups[d] || []).push(m); });
+Object.keys(groups).sort().forEach(function(d) {
+html += '<div class="msg-day-label">' + escapeHtml(formatMsgDayLabel(d)) + '</div>';
+groups[d].sort(function(a, b) {
+if (!!a.done !== !!b.done) return a.done ? 1 : -1;
 if (!!b.urgent !== !!a.urgent) return (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0);
 return new Date(b.created_at) - new Date(a.created_at);
 });
-
-html += '<div class="section"><div class="section-header">A faire (' + toDo.length + ')</div>';
-if (!toDo.length) {
-html += '<div class="prod-empty">Rien a faire. Tout est OK.</div>';
-} else {
-toDo.forEach(function(m) {
-html += renderMessageCard(m, isLivreur);
+groups[d].forEach(function(m) { html += renderMessageCard(m, 'in'); });
 });
 }
 html += '</div>';
 
-if (done.length) {
-html += '<div class="section"><div class="section-header">Historique fait (' + done.length + ')</div>';
-done.slice(0, 20).forEach(function(m) {
-html += renderMessageCard(m, isLivreur);
-});
+// ===== Envoyés (aujourd'hui + à venir) =====
+if (sentCur.length) {
+html += '<div class="section"><div class="section-header">📤 Envoyés (' + sentCur.length + ')</div>';
+sentCur.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+sentCur.forEach(function(m) { html += renderMessageCard(m, 'out'); });
 html += '</div>';
 }
 
-} else {
-// EXPEDITEUR - local ou veigne
-html += '<div class="info-banner"><strong>Messages au livreur</strong><br>Ecris un message au livreur. Coche "Urgent" pour un bouton rouge prioritaire.</div>';
-
-// Composer
-html += '<div class="msg-composer">';
-html += '<textarea class="msg-textarea" id="msg-content" placeholder="Ex: Passer chez le maraicher recuperer la commande tomates avant Veigné" oninput="handleMessageDraftInput(\'content\', this.value)">' + escapeHtml(messageDraft.content) + '</textarea>';
-html += '<div class="msg-options">';
-// Urgent toggle
-html += '<button class="msg-urgent-toggle ' + (messageDraft.urgent ? 'active' : '') + '" onclick="toggleMessageDraftUrgent()">'
-
-+ (messageDraft.urgent ? '⚠ URGENT' : 'Marquer urgent')
-+ '</button>';
-  // Stop select (only for local sender)
-  if (currentBoutique === 'local') {
-  html += '<select class="msg-stop-select" onchange="handleMessageDraftInput(\'stop_boutique\', this.value)">'
-  + '<option value="">-- Arret concerne (optionnel) --</option>'
-  + '<option value="veigne" ' + (messageDraft.stop_boutique === 'veigne' ? 'selected' : '') + '>Veigné</option>'
-  + '<option value="tours" ' + (messageDraft.stop_boutique === 'tours' ? 'selected' : '') + '>Tours</option>'
-  + '<option value="saint-avertin" ' + (messageDraft.stop_boutique === 'saint-avertin' ? 'selected' : '') + '>St-Avertin</option>'
-  + '</select>';
-    }
-    html += '<button class="msg-send-btn" onclick="sendMessage()">Envoyer</button>';
-    html += '</div>';
-    html += '</div>';
-
-// Stats envoyés
-const unreadSent = messagesData.filter(function(m) { return !m.read_at; }).length;
-const doneSent = messagesData.filter(function(m) { return m.done; }).length;
-html += '<div class="prod-kpi-bar">'
-
-+ '<div class="prod-kpi"><div class="prod-kpi-val">' + messagesData.length + '</div><div class="prod-kpi-lbl">Envoyes</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (unreadSent > 0 ? 'var(--red)' : 'var(--green)') + '">' + unreadSent + '</div><div class="prod-kpi-lbl">Non lus</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + doneSent + '</div><div class="prod-kpi-lbl">Fait</div></div>'
-+ '</div>';
-
-html += '<div class="section"><div class="section-header">Mes messages envoyés (' + messagesData.length + ')</div>';
-if (!messagesData.length) {
-html += '<div class="prod-empty">Aucun message envoyé pour le moment.</div>';
-} else {
-messagesData.forEach(function(m) {
-html += renderMessageCard(m, isLivreur);
+// ===== Historique (jours passés) repliable =====
+if (past.length) {
+html += '<div class="section">';
+html += '<div class="section-header" style="cursor:pointer" onclick="msgHistoryOpen=!msgHistoryOpen;renderMessages()">🗄 Historique (' + past.length + ') ' + (msgHistoryOpen ? '▾' : '▸') + '</div>';
+if (msgHistoryOpen) {
+past.sort(function(a, b) { return (b.msg_date || '').localeCompare(a.msg_date || '') || (new Date(b.created_at) - new Date(a.created_at)); });
+past.slice(0, 60).forEach(function(m) {
+html += renderMessageCard(m, m.recipient_boutique === box ? 'in' : 'out');
 });
 }
 html += '</div>';
-
 }
 
 mc.innerHTML = html;
 }
 
-function renderMessageCard(m, isLivreur) {
+// mode : 'in' (message reçu) ou 'out' (message envoyé)
+function renderMessageCard(m, mode) {
+const isIn = (mode === 'in');
 const cls = 'msg-card'
-
 + (m.urgent ? ' urgent' : '')
 + (m.done ? ' done' : '')
-+ (!m.read_at && isLivreur ? ' unread' : '');
-  const sender = BOUTIQUE_NAMES[m.sender_boutique] || m.sender_boutique;
-  const stop = m.stop_boutique ? (BOUTIQUE_NAMES[m.stop_boutique] || m.stop_boutique) : null;
++ (isIn && !m.read_at ? ' unread' : '');
+const fromName = msgBoxName(m.sender_boutique) + (m.sender_name ? ' (' + m.sender_name + ')' : '');
+const toName = msgBoxName(m.recipient_boutique);
+const headLabel = isIn ? ('de ' + escapeHtml(fromName)) : ('à ' + escapeHtml(toName));
+const stop = m.stop_boutique ? (BOUTIQUE_NAMES[m.stop_boutique] || m.stop_boutique) : null;
 
 let status = '';
 if (m.done) status = '<span class="msg-status done">✓ Fait</span>';
@@ -13535,24 +13625,21 @@ else status = '<span class="msg-status unread">Non lu</span>';
 
 let html = '<div class="' + cls + '">';
 html += '<div class="msg-head">'
-
-+ '<div class="msg-sender">' + escapeHtml(sender) + (stop ? ' <span class="msg-stop">→ ' + escapeHtml(stop) + '</span>' : '') + (m.urgent ? ' <span class="msg-urgent-tag">URGENT</span>' : '') + '</div>'
++ '<div class="msg-sender">' + headLabel + (stop ? ' <span class="msg-stop">→ ' + escapeHtml(stop) + '</span>' : '') + (m.urgent ? ' <span class="msg-urgent-tag">URGENT</span>' : '') + '</div>'
 + '<div class="msg-date">' + formatMsgDate(m.created_at) + '</div>'
 + '</div>';
-  html += '<div class="msg-content">' + escapeHtml(m.content).replace(/\n/g, '<br>') + '</div>';
-  html += '<div class="msg-footer">';
-  html += status;
-  if (isLivreur) {
-  html += '<button class="msg-done-btn ' + (m.done ? 'undone' : '') + '" onclick="toggleMessageDone(\'' + m.id + '\', ' + !!m.done + ')">'
-+ (m.done ? 'Annuler' : 'Marquer fait')
-+ '</button>';
-  } else {
-  html += '<button class="msg-del-btn" onclick="deleteMessage(\'' + m.id + '\')">Supprimer</button>';
-  }
-  html += '</div>';
-  html += '</div>';
-  return html;
-  }
+html += '<div class="msg-content">' + escapeHtml(m.content).replace(/\n/g, '<br>') + '</div>';
+html += '<div class="msg-footer">';
+html += status;
+if (isIn) {
+html += '<button class="msg-done-btn ' + (m.done ? 'undone' : '') + '" onclick="toggleMessageDone(\'' + m.id + '\', ' + !!m.done + ')">' + (m.done ? 'Annuler' : 'Marquer fait') + '</button>';
+} else {
+html += '<button class="msg-del-btn" onclick="deleteMessage(\'' + m.id + '\')">Supprimer</button>';
+}
+html += '</div>';
+html += '</div>';
+return html;
+}
 
 // === IMPRESSION ===
 function printCurrentView() {
@@ -13658,7 +13745,7 @@ return;
 }
 const msg = msgAlertQueue[0];
 const urgent = !!msg.urgent;
-const sender = BOUTIQUE_NAMES[msg.sender_boutique] || msg.sender_boutique || '';
+const sender = (msgBoxName(msg.sender_boutique) || msg.sender_boutique || '') + (msg.sender_name ? ' (' + msg.sender_name + ')' : '');
 const extra = msgAlertQueue.length > 1 ? '<div class="msg-alert-more">+ ' + (msgAlertQueue.length - 1) + ' autre(s) message(s) en attente</div>' : '';
 ov.innerHTML =
 '<div class="msg-alert-box ' + (urgent ? 'urgent' : '') + '">'
