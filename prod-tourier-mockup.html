@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette — Prod. Touriers (frais du jour)</title>
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --brown-mid:#6B4226;
+    --green:#4A7C59; --red:#B83232; --orange:#D4701A; --blue:#2C5F8A; --white:#FFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Georgia,serif;background:var(--cream);color:var(--brown);padding-bottom:80px}
+  .header{background:var(--grey-dark);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+  .header .title{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:18px}
+  .header .sub{font-size:12px;color:var(--gold-light)}
+  .wrap{max-width:780px;margin:0 auto;padding:14px}
+
+  /* Notice maquette */
+  .note{background:#FFF8E6;border:1px solid var(--gold-light);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--brown-mid);margin-bottom:14px}
+  .note b{color:var(--gold-dark)}
+
+  /* Bandeau date */
+  .datebar{background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;justify-content:center;gap:14px;box-shadow:0 2px 12px rgba(61,43,31,.08);margin-bottom:14px}
+  .datebar .arrow{width:42px;height:42px;border-radius:10px;border:2px solid var(--gold-light);background:#FAF8F4;font-size:18px;color:var(--gold-dark);cursor:pointer}
+  .datebar .lbl{font-size:16px}.datebar .lbl b{font-weight:700}
+
+  /* Bloc "À préparer" */
+  .prep{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(61,43,31,.08);margin-bottom:14px;overflow:hidden}
+  .prep-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid #EFE7D6}
+  .prep-head .h{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:17px;color:var(--brown)}
+  .prep-head .h .ic{margin-right:6px}
+  .prep-head .h small{display:block;font-family:Georgia,serif;font-weight:400;font-size:12px;color:var(--brown-mid)}
+  .btn-allprep{background:var(--gold);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:13px;padding:9px 14px;border-radius:10px;cursor:pointer;white-space:nowrap}
+  .prep-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #F3EDE0}
+  .prep-row:last-child{border-bottom:none}
+  .prep-row .name{font-size:15px;font-weight:600}
+  .prep-row .name small{display:block;font-size:12px;color:var(--brown-mid);font-weight:400}
+  .qty{font-weight:700;color:var(--gold-dark)}
+  .btn-prep{background:var(--gold);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:13px;padding:9px 16px;border-radius:10px;cursor:pointer}
+  .prep-row.done{background:#F4F8F4}
+  .prep-row.done .name{color:var(--grey-light)}
+  .btn-prep.ok{background:#EBF3EC;color:var(--green);border:1px solid #CFE5D3}
+
+  .badge-fresh{display:inline-block;background:#FDEFE0;color:var(--orange);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  .badge-spe{background:#FFF4D6;color:var(--gold-dark)}
+  .badge-pro{background:#E7EEF6;color:var(--blue)}
+
+  /* Total à enfourner */
+  .info{background:#F4F0FF00;border-left:4px solid var(--blue);background:#F7F4FF;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--brown-mid);margin:6px 0 12px}
+  .totbl{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(61,43,31,.08);overflow:hidden}
+  .totbl .cat{padding:10px 16px;background:#F3EDDD;font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:15px}
+  .totbl .cat small{font-weight:400;color:var(--brown-mid);font-size:12px}
+  .totrow{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #F3EDE0}
+  .totrow:last-child{border-bottom:none}
+  .totrow .n{font-size:14px}.totrow .n small{display:block;font-size:11px;color:var(--brown-mid)}
+  .totrow .t{font-weight:700;font-size:17px;color:var(--gold-dark);min-width:50px;text-align:right}
+  .totrow .src{font-size:11px;color:var(--brown-mid)}
+
+  .section-title{font-family:'Playfair Display',Georgia,serif;font-size:15px;font-weight:700;color:var(--brown);margin:18px 2px 8px}
+
+  /* nav bas factice */
+  .nav{position:fixed;bottom:0;left:0;right:0;background:var(--grey-dark);display:flex;justify-content:space-around;padding:8px 4px;font-size:11px;color:#bbb}
+  .nav .it.active{color:var(--gold)}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div><div class="title">Les Blés de Demain</div><div class="sub">Le Local · Prod. Touriers</div></div>
+    <div style="font-size:12px;color:#9fe0a0">● Connecté</div>
+  </div>
+
+  <div class="wrap">
+    <div class="note">🖼️ <b>Maquette</b> — proposition d'écran « Prod. Touriers » (frais du jour). Rien n'est branché, c'est juste pour valider l'idée : en haut <b>« À préparer » par destination avec bouton ✓ préparé</b> (comme Stock Pât. à Veigné), en bas le <b>total à enfourner</b> par produit.</div>
+
+    <div class="datebar">
+      <div class="arrow">←</div>
+      <div class="lbl">Production du <b>Mercredi 10 Juin</b></div>
+      <div class="arrow">→</div>
+    </div>
+
+    <!-- BLOC 1 : St-Avertin -->
+    <div class="prep">
+      <div class="prep-head">
+        <div class="h"><span class="ic">📦</span>À préparer — St-Avertin <span class="badge-fresh">CUIT DU JOUR</span><small>Livraison du jour · magasin froid</small></div>
+        <button class="btn-allprep">✓ Tout préparé</button>
+      </div>
+      <div class="prep-row"><div class="name">Croissant <small>pièce</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">48</span><button class="btn-prep">✓ préparé</button></div></div>
+      <div class="prep-row"><div class="name">Pain au Chocolat <small>pièce</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">48</span><button class="btn-prep">✓ préparé</button></div></div>
+      <div class="prep-row"><div class="name">Pain aux Raisins <small>pièce</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">16</span><button class="btn-prep">✓ préparé</button></div></div>
+      <div class="prep-row done"><div class="name">Chausson aux pommes <small>pièce</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">8</span><button class="btn-prep ok">✓ fait</button></div></div>
+      <div class="prep-row"><div class="name">Viennoise chocolat <small>pièce</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">18</span><button class="btn-prep">✓ préparé</button></div></div>
+    </div>
+
+    <!-- BLOC 2 : Spéciales -->
+    <div class="prep">
+      <div class="prep-head">
+        <div class="h"><span class="ic">⭐</span>À préparer — Spéciales <span class="badge-fresh badge-spe">CMD SPÉCIALE</span><small>Commandes nominatives du jour</small></div>
+        <button class="btn-allprep">✓ Tout préparé</button>
+      </div>
+      <div class="prep-row"><div class="name">Flan 6 pers. <small>Mme Dubois · retrait 11h</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">2</span><button class="btn-prep">✓ préparé</button></div></div>
+      <div class="prep-row"><div class="name">Croissant amandes <small>Café du Centre</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">8</span><button class="btn-prep">✓ préparé</button></div></div>
+    </div>
+
+    <!-- BLOC 3 : Pros frais -->
+    <div class="prep">
+      <div class="prep-head">
+        <div class="h"><span class="ic">💼</span>À préparer — Pros <span class="badge-fresh badge-pro">FRAIS</span><small>Comptes pro · livraison ou retrait au Local</small></div>
+        <button class="btn-allprep">✓ Tout préparé</button>
+      </div>
+      <div class="prep-row"><div class="name">Croissant <small>Hôtel des Tours · livreur</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">30</span><button class="btn-prep">✓ préparé</button></div></div>
+      <div class="prep-row"><div class="name">Pain au Chocolat <small>Hôtel des Tours · livreur</small></div><div style="display:flex;align-items:center;gap:14px"><span class="qty">20</span><button class="btn-prep">✓ préparé</button></div></div>
+    </div>
+
+    <!-- TOTAL À ENFOURNER -->
+    <div class="section-title">🔥 Total à enfourner aujourd'hui</div>
+    <div class="info">Somme de tout ce qu'il faut cuire (St-Av + spéciales + pros). C'est le repère « combien je fourne en tout » par produit.</div>
+    <div class="totbl">
+      <div class="cat">Viennoiserie <small>(quantités cumulées)</small></div>
+      <div class="totrow"><div class="n">Croissant <small>St-Av 48 · Pros 30</small></div><div class="t">78</div></div>
+      <div class="totrow"><div class="n">Pain au Chocolat <small>St-Av 48 · Pros 20</small></div><div class="t">68</div></div>
+      <div class="totrow"><div class="n">Pain aux Raisins <small>St-Av 16</small></div><div class="t">16</div></div>
+      <div class="totrow"><div class="n">Viennoise chocolat <small>St-Av 18</small></div><div class="t">18</div></div>
+      <div class="totrow"><div class="n">Chausson aux pommes <small>St-Av 8</small></div><div class="t">8</div></div>
+      <div class="totrow"><div class="n">Croissant amandes <small>Spé 8</small></div><div class="t">8</div></div>
+      <div class="totrow"><div class="n">Flan 6 pers. <small>Spé 2</small></div><div class="t">2</div></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="it">Prod. Boulangers</div>
+    <div class="it active">Prod. Touriers</div>
+    <div class="it">Stock Tourier</div>
+    <div class="it">Stock Boul. Pro</div>
+    <div class="it">Spéciales</div>
+    <div class="it">Pros</div>
+    <div class="it">Messages</div>
+  </div>
+</body>
+</html>
