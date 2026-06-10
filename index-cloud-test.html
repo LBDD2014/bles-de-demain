@@ -568,6 +568,9 @@ cursor: pointer; font-family: inherit;
 .chk-shop input { width: 16px; height: 16px; }
 .pat-frow { margin-bottom: 12px; }
 .pat-frow .sp-lbl { display: block; margin-bottom: 4px; }
+/* v20.82 — flèches de tri ↑/↓ */
+.stock-arrows { display: inline-flex; gap: 4px; }
+.stock-arrows .iconbtn-pat { padding: 4px 8px; font-size: 15px; line-height: 1; }
 
 .sp-section { margin-bottom: 12px; border-left: 4px solid transparent; }
 .sp-section.shop-veigne { border-left-color: #C9A24B; }
@@ -5719,7 +5722,8 @@ function renderStockVeignePat() {
     + '</div>';
 
   cats.forEach(function(cat) {
-    const list = byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); });
+    const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
+    const catPids = list.map(function(x) { return x.p.id; });
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
     list.forEach(function(e) {
       const st = e.st;
@@ -5739,6 +5743,7 @@ function renderStockVeignePat() {
           + '<button class="iconbtn-pat" onclick="patToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button>'
           + '<button class="iconbtn-pat" onclick="patEditProduct(\'' + e.p.id + '\')">✏️</button>'
           + '<button class="iconbtn-pat del" onclick="patDeleteProduct(\'' + e.p.id + '\')">🗑</button>'
+          + stockSortArrows(e.p.id, catPids)
           + '</div>';
       }
       html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div>'
@@ -11681,6 +11686,57 @@ async function applyTourierPrepared(rows) {
   setSyncStatus('ok'); showToast('Réassort préparé · stock décompté', 'sync');
 }
 
+// ===== v20.82 — tri (↑/↓) + conditionnement éditable sur les écrans stock =====
+function stockSortCmp(a, b) {
+  const sa = a.stock_sort, sb = b.stock_sort;
+  if (sa != null && sb != null) return (sa !== sb) ? (sa - sb) : a.name.localeCompare(b.name);
+  if (sa != null) return -1; if (sb != null) return 1;
+  return a.name.localeCompare(b.name);
+}
+function stockSortArrows(pid, pids) {
+  const attr = escapeHtml(JSON.stringify(pids));
+  return '<span class="stock-arrows">'
+    + '<button class="iconbtn-pat" onclick="moveStockSort(\'' + pid + '\',-1,\'' + attr + '\')">↑</button>'
+    + '<button class="iconbtn-pat" onclick="moveStockSort(\'' + pid + '\',1,\'' + attr + '\')">↓</button>'
+    + '</span>';
+}
+async function moveStockSort(pid, dir, pidsJson) {
+  let pids; try { pids = JSON.parse(pidsJson); } catch (e) { return; }
+  const i = pids.indexOf(pid); if (i < 0) return;
+  const j = i + dir; if (j < 0 || j >= pids.length) return;
+  pids.splice(j, 0, pids.splice(i, 1)[0]);
+  setSyncStatus('syncing');
+  for (let k = 0; k < pids.length; k++) {
+    const arrs = [products]; if (typeof adminProducts !== 'undefined' && adminProducts) arrs.push(adminProducts);
+    let cur = null;
+    arrs.forEach(function(arr) { const p = (arr || []).find(function(y) { return y.id === pids[k]; }); if (p && cur == null) cur = p.stock_sort; });
+    if (cur !== k) {
+      const r = await supa.from('products').update({ stock_sort: k }).eq('id', pids[k]);
+      if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+      arrs.forEach(function(arr) { const p = (arr || []).find(function(y) { return y.id === pids[k]; }); if (p) p.stock_sort = k; });
+    }
+  }
+  setSyncStatus('ok');
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
+}
+async function editProConditioning(pid) {
+  const p = (typeof adminProducts !== 'undefined' && (adminProducts || []).find(function(x) { return x.id === pid; })) || products.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  const unit = prompt('Unité de conditionnement (caisse / sac / pièce / kg / L) — laisse vide pour aucun :', p.conditioning_unit || '');
+  if (unit === null) return;
+  const cu = unit.trim() ? unit.trim() : null;
+  let cq = null;
+  if (cu) { const q = prompt('Combien par ' + cu + ' ?', p.conditioning_qty != null ? p.conditioning_qty : ''); if (q === null) return; cq = parseInt(q, 10) || null; }
+  setSyncStatus('syncing');
+  const r = await supa.from('products').update({ conditioning_unit: cu, conditioning_qty: cq }).eq('id', pid);
+  if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+  [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) { const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) { x.conditioning_unit = cu; x.conditioning_qty = cq; } });
+  setSyncStatus('ok');
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+}
+
 function renderStock() {
   const mc = document.getElementById('main-content');
   let html = '';
@@ -11738,7 +11794,8 @@ function renderStock() {
     + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span></div>';
   ['viennoiserie', 'brioches_special'].forEach(function(cat) {
     if (!byCat[cat] || !byCat[cat].length) return;
-    const list = byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); });
+    const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
+    const catPids = list.map(function(x) { return x.p.id; });
     html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
     list.forEach(function(e) {
       const st = e.st; const stock = Number(st.stock) || 0; const mini = st.mini; const aPartir = outBy[e.p.id] || 0;
@@ -11748,7 +11805,7 @@ function renderStock() {
       else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
       let ctrl = '';
-      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button></div>';
+      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button>' + stockSortArrows(e.p.id, catPids) + '</div>';
       html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div><div class="produit-unit">' + escapeHtml(tourierUnitLabel(e.p)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</div>' + ctrl + '</div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
@@ -12050,7 +12107,8 @@ function renderStockBoulangerPro() {
 
   cats.forEach(function(cat) {
     html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
-    byCat[cat].sort(function(a, b) { return a.name.localeCompare(b.name); });
+    byCat[cat].sort(stockSortCmp);
+    const catPids = byCat[cat].map(function(x) { return x.id; });
     byCat[cat].forEach(function(p) {
       const theo = computeProStockTheo(p.id);
       const inv = proStockData[p.id];
@@ -12072,7 +12130,8 @@ function renderStockBoulangerPro() {
       const condTxt = formatConditioning(p);
       html += '<div class="produit-row stock-row ' + alertCls + '">';
       html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div>'
-        + (condTxt ? '<div class="produit-unit">' + escapeHtml(condTxt) + '</div>' : '')
+        + '<div class="produit-unit">' + (condTxt ? escapeHtml(condTxt) + ' ' : '') + '<a href="#" onclick="editProConditioning(\'' + p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️ cond.</a></div>'
+        + '<div class="pat-chef-ctrl">' + stockSortArrows(p.id, catPids) + '</div>'
         + '</div>';
       html += '<div class="stock-cell">' + theo + '</div>';
       html += '<div class="stock-cell"><input type="number" inputmode="numeric" class="qty-input stock-real-inp" data-pid="' + escapeHtml(p.id) + '" placeholder="' + real + '" onchange="handleProStockRealInput(this)"></div>';
