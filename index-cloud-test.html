@@ -6382,7 +6382,7 @@ await loadStAvSalesForProduction(currentReapproDate);
 if (typeof loadStAvSalesFromTable === 'function') await loadStAvSalesFromTable(currentReapproDate);
 }
 // v20.42 — Pro_orders du jour + semaine pour bande "À anticiper"
-if (currentBoutique === 'local' || currentBoutique === 'veigne') {
+if (currentBoutique === 'local' || currentBoutique === 'veigne' || currentBoutique === 'tours') {
 await loadProOrdersForProduction(currentBoutique, currentReapproDate);
 await loadProOrdersForProductionWeek(currentBoutique, currentReapproDate);
 }
