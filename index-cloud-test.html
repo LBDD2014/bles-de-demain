@@ -11735,6 +11735,8 @@ async function editProConditioning(pid) {
   [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) { const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) { x.conditioning_unit = cu; x.conditioning_qty = cq; } });
   setSyncStatus('ok');
   if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
 }
 
 function renderStock() {
@@ -11805,7 +11807,7 @@ function renderStock() {
       else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
       let ctrl = '';
-      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button>' + stockSortArrows(e.p.id, catPids) + '</div>';
+      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button><button class="iconbtn-pat" onclick="editProConditioning(\'' + e.p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>' + stockSortArrows(e.p.id, catPids) + '</div>';
       html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div><div class="produit-unit">' + escapeHtml(tourierUnitLabel(e.p)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</div>' + ctrl + '</div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
