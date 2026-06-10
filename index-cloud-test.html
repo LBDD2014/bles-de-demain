@@ -6382,7 +6382,7 @@ await loadStAvSalesForProduction(currentReapproDate);
 if (typeof loadStAvSalesFromTable === 'function') await loadStAvSalesFromTable(currentReapproDate);
 }
 // v20.42 — Pro_orders du jour + semaine pour bande "À anticiper"
-if (currentBoutique === 'local' || currentBoutique === 'veigne' || currentBoutique === 'tours') {
+if (currentBoutique === 'local' || currentBoutique === 'veigne') {
 await loadProOrdersForProduction(currentBoutique, currentReapproDate);
 await loadProOrdersForProductionWeek(currentBoutique, currentReapproDate);
 }
@@ -6624,25 +6624,6 @@ if (isToursProd) {
   });
 } else {
   allProducts = products.slice();
-}
-
-// v20.90 — Inclure les produits commandés par les pros ce jour-là même s'ils ne
-// sont pas au catalogue standard (pros_only et/ou usage=reappro absents de `products`).
-// Sinon une commande pro sur un produit sur-mesure n'aurait aucune ligne (cas burgers 90g / Mathis 2,5kg à Tours).
-if (isVeignePat || isLocalBoul || isLocalTour || isToursProd) {
-  try {
-    const _proIds = Object.keys(aggregateProOrdersForProduction(currentVue) || {});
-    const _present = {}; allProducts.forEach(function(p) { _present[p.id] = true; });
-    const _pool = (adminProducts && adminProducts.length) ? adminProducts : products;
-    _proIds.forEach(function(pid) {
-      if (_present[pid]) return;
-      const p = _pool.find(function(x) { return x.id === pid; });
-      if (!p) return;
-      // À Tours, on respecte le périmètre des familles produites sur place
-      if (isToursProd && ['pains', 'viennoiserie', 'brioches_special', 'traiteur'].indexOf(p.category) === -1) return;
-      allProducts.push(p);
-    });
-  } catch (e) { /* ne jamais bloquer le rendu de la production */ }
 }
 
 // Marches actifs dans l'horizon : ceux qui ont au moins un produit avec emmene > 0
