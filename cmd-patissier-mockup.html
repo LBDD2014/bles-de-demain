@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stock Pâtissier ↔ Cmd magasins — maquette LBDD</title>
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --green:#4A7C59; --red:#B83232;
+    --orange:#D4701A; --blue:#2C5F8A; --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:Georgia,serif;background:var(--cream);color:var(--grey-dark);}
+  header{background:var(--grey-dark);color:var(--cream);padding:14px 16px;text-align:center;}
+  header h1{font-family:'Playfair Display',Georgia,serif;margin:0;font-size:1.2rem;}
+  header h1 .e{color:var(--gold);}
+  .viewswitch{display:flex;gap:8px;justify-content:center;padding:12px;background:#EFE7D6;}
+  .viewswitch button{flex:1;max-width:240px;padding:12px;border:2px solid var(--gold);background:var(--white);
+    color:var(--brown);border-radius:10px;font-size:1rem;font-weight:bold;font-family:inherit;cursor:pointer;}
+  .viewswitch button.active{background:var(--brown);color:var(--white);border-color:var(--brown);}
+  .wrap{max-width:820px;margin:0 auto;padding:14px;}
+  .note{background:var(--gold-light);border-left:4px solid var(--gold-dark);border-radius:8px;
+    padding:10px 14px;font-size:.82rem;color:var(--brown);margin-bottom:14px;}
+  .cat{font-family:'Playfair Display',Georgia,serif;color:var(--gold-dark);font-size:1rem;
+    margin:18px 2px 6px;border-bottom:2px solid var(--gold-light);padding-bottom:3px;}
+  /* lignes produit */
+  .prow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--white);
+    border-radius:10px;padding:10px 12px;margin-bottom:7px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
+  .prow .nm{font-weight:bold;font-size:.98rem;}
+  .prow .sub{font-size:.72rem;color:var(--grey-light);margin-top:2px;}
+  .shops-tags{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
+  .stag{font-size:.62rem;padding:1px 7px;border-radius:10px;background:#EFE7D6;color:var(--brown);}
+  .stag.on{background:var(--green);color:#fff;}
+  .pat-actions{display:flex;gap:6px;flex-shrink:0;}
+  .iconbtn{border:1px solid #E0D8C8;background:#FAF8F4;border-radius:8px;padding:8px 10px;font-size:.9rem;cursor:pointer;}
+  .iconbtn.del{color:var(--red);border-color:#F0CFC8;}
+  .addbtn{width:100%;padding:14px;border:2px dashed var(--gold);background:#FFFCF2;color:var(--gold-dark);
+    border-radius:12px;font-size:1rem;font-weight:bold;font-family:inherit;cursor:pointer;margin-top:6px;}
+  /* champ commande (magasin) */
+  .cmd-sel{width:90px;padding:9px;border:2px solid var(--gold);border-radius:8px;font-size:1rem;
+    font-weight:bold;text-align:center;color:var(--brown);background:#FEFBF4;font-family:inherit;flex-shrink:0;}
+  .cmd-sel.has{background:#FBF0D5;}
+  /* sélecteur magasin */
+  .shopsel{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .shopsel button{padding:10px 16px;border:2px solid var(--gold);background:var(--white);color:var(--brown);
+    border-radius:20px;font-size:.9rem;font-weight:bold;font-family:inherit;cursor:pointer;}
+  .shopsel button.active{background:var(--gold);color:#fff;}
+  /* form */
+  .formbox{background:var(--white);border-radius:12px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.12);margin-bottom:14px;border:2px solid var(--gold);}
+  .formbox h3{margin:0 0 10px;font-family:'Playfair Display',Georgia,serif;color:var(--brown);}
+  .frow{margin-bottom:12px;}
+  .frow label{display:block;font-size:.78rem;font-weight:bold;color:var(--grey);margin-bottom:4px;text-transform:uppercase;}
+  .frow input[type=text],.frow input[type=number],.frow select{width:100%;padding:11px;border:2px solid #E0D8C8;
+    border-radius:8px;font-size:1rem;font-family:inherit;background:#FAF8F4;}
+  .seg{display:flex;gap:8px;}
+  .seg button{flex:1;padding:10px;border:2px solid #E0D8C8;background:#FAF8F4;border-radius:8px;font-family:inherit;font-size:.95rem;cursor:pointer;}
+  .seg button.active{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .chk{display:flex;gap:8px;flex-wrap:wrap;}
+  .chk label{display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border:2px solid #E0D8C8;
+    border-radius:10px;background:#FAF8F4;font-size:.92rem;cursor:pointer;text-transform:none;font-weight:normal;}
+  .chk label.on{background:var(--green);color:#fff;border-color:var(--green);}
+  .chk input{width:16px;height:16px;}
+  .formactions{display:flex;gap:8px;margin-top:6px;}
+  .formactions button{flex:1;padding:12px;border:none;border-radius:10px;font-size:1rem;font-weight:bold;font-family:inherit;cursor:pointer;}
+  .btn-go{background:var(--gold);color:#fff;}
+  .btn-cancel{background:var(--grey-light);color:#fff;}
+  .hide{display:none;}
+  .cheflock{background:var(--grey-dark);color:var(--cream);border-radius:10px;padding:12px 14px;
+    text-align:center;font-weight:bold;font-size:.92rem;cursor:pointer;margin-bottom:12px;}
+  .cheflock.on{background:var(--green);}
+  .prow.inactive{opacity:.5;background:#F2EEE4;}
+  .prow.inactive .nm{text-decoration:line-through;}
+</style>
+</head>
+<body>
+<header><h1>Stock P<span class="e">â</span>tissier ↔ Commande magasins <span style="font-size:.7rem;opacity:.7">(maquette)</span></h1></header>
+
+<div class="viewswitch">
+  <button id="vb-pat" class="active" onclick="setView('pat')">👩‍🍳 Pâtissier</button>
+  <button id="vb-mag" onclick="setView('mag')">🏪 Magasin</button>
+</div>
+
+<div class="wrap" id="content"></div>
+
+<script>
+// ---- État (en mémoire, comme si c'était la base) ----
+const SHOPS = [['veigne','Veigné'],['tours','Tours'],['saint-avertin','St-Avertin']];
+const CATS = [['petits','Petits Gâteaux'],['gros','Gros Gâteaux'],['secs','Gâteaux Secs']];
+let products = [
+  { id:1, nom:'Paris-Brest',   cat:'petits', type:'grille', taille:28, shops:['veigne','tours','saint-avertin'], actif:true },
+  { id:2, nom:'Choux Vanille', cat:'petits', type:'grille', taille:50, shops:['veigne','tours'], actif:true },
+  { id:3, nom:'Royal',         cat:'petits', type:'grille', taille:28, shops:['veigne','tours','saint-avertin'], actif:true },
+  { id:4, nom:'Éclair Café',   cat:'petits', type:'pièce',  taille:null, shops:['veigne'], actif:true },
+  { id:5, nom:'Fraisier 6 pers', cat:'gros', type:'pièce',  taille:null, shops:['veigne','tours'], actif:true },
+  { id:6, nom:'Sablé Breton',  cat:'secs',   type:'grille', taille:28, shops:['saint-avertin'], actif:false },
+];
+let nextId = 7;
+let view = 'pat';
+let currentShop = 'veigne';
+let chefUnlocked = false;   // code chef pour gérer le catalogue
+const CHEF_CODE = '1234';   // (démo)
+let editing = null;        // produit en cours d'édition (ou objet "nouveau")
+let cmdQty = {};           // {productId: qty} pour la démo commande
+
+const shopName = id => (SHOPS.find(s=>s[0]===id)||[])[1] || id;
+const catName  = id => (CATS.find(c=>c[0]===id)||[])[1] || id;
+const unitLabel = p => p.type==='grille' ? ('grille de '+(p.taille||'?')) : 'pièce';
+
+function setView(v){ view=v; editing=null;
+  document.getElementById('vb-pat').classList.toggle('active', v==='pat');
+  document.getElementById('vb-mag').classList.toggle('active', v==='mag');
+  render();
+}
+
+function render(){ view==='pat' ? renderPat() : renderMag(); }
+
+// ---------- VUE PÂTISSIER ----------
+function renderPat(){
+  const c = document.getElementById('content');
+  let h = '<div class="note">👩‍🍳 <b>Côté pâtissier</b> — gestion du catalogue réservée au <b>chef</b> (code). Coche les magasins autorisés par produit. Un produit <b>désactivé</b> n\'apparaît plus à la commande mais reste là pour le réactiver.</div>';
+  // Barre code chef
+  h += '<div class="cheflock '+(chefUnlocked?'on':'')+'" onclick="toggleChef()">'
+     + (chefUnlocked ? '🔓 Mode chef actif — appuie pour verrouiller' : '🔒 Gérer le catalogue (code chef)')
+     + '</div>';
+  if (editing){ c.innerHTML = h + renderForm(); bindForm(); return; }
+  CATS.forEach(function(cat){
+    const list = products.filter(p=>p.cat===cat[0]);
+    if(!list.length) return;
+    h += '<div class="cat">'+cat[1]+' ('+list.length+')</div>';
+    list.forEach(function(p){
+      h += '<div class="prow'+(p.actif?'':' inactive')+'"><div>'
+        + '<div class="nm">'+(p.actif?'':'⏸ ')+p.nom+'</div>'
+        + '<div class="sub">'+unitLabel(p)+(p.actif?'':' · désactivé')+'</div>'
+        + '<div class="shops-tags">'+SHOPS.map(s=>'<span class="stag'+(p.shops.includes(s[0])?' on':'')+'">'+s[1]+'</span>').join('')+'</div>'
+        + '</div><div class="pat-actions">';
+      if (chefUnlocked) {
+        h += '<button class="iconbtn" onclick="toggleActif('+p.id+')" title="actif/inactif">'+(p.actif?'✅':'⬜')+'</button>'
+           + '<button class="iconbtn" onclick="editProd('+p.id+')">✏️</button>'
+           + '<button class="iconbtn del" onclick="delProd('+p.id+')">🗑</button>';
+      } else {
+        h += '<span style="font-size:.7rem;color:#bbb">🔒</span>';
+      }
+      h += '</div></div>';
+    });
+  });
+  if (chefUnlocked) h += '<button class="addbtn" onclick="newProd()">＋ Ajouter un produit</button>';
+  c.innerHTML = h;
+}
+
+function toggleChef(){
+  if (chefUnlocked){ chefUnlocked=false; render(); return; }
+  const code = prompt('Code chef (démo : '+CHEF_CODE+') :');
+  if (code === null) return;
+  if (String(code).trim() === CHEF_CODE){ chefUnlocked=true; render(); }
+  else alert('Code incorrect');
+}
+function toggleActif(id){ const p=products.find(x=>x.id===id); p.actif=!p.actif; render(); }
+
+function newProd(){ editing = { id:null, nom:'', cat:'petits', type:'grille', taille:28, shops:['veigne','tours','saint-avertin'], actif:true }; render(); }
+function editProd(id){ editing = JSON.parse(JSON.stringify(products.find(p=>p.id===id))); render(); }
+function delProd(id){ const p=products.find(x=>x.id===id); if(confirm('Enlever « '+p.nom+' » de la liste ?')){ products=products.filter(x=>x.id!==id); render(); } }
+
+function renderForm(){
+  const e = editing;
+  return '<div class="formbox"><h3>'+(e.id?'Modifier le produit':'Nouveau produit')+'</h3>'
+    + '<div class="frow"><label>Nom</label><input type="text" id="f-nom" value="'+(e.nom||'').replace(/"/g,'&quot;')+'" placeholder="ex : Tarte citron"></div>'
+    + '<div class="frow"><label>Catégorie</label><select id="f-cat">'+CATS.map(c=>'<option value="'+c[0]+'"'+(e.cat===c[0]?' selected':'')+'>'+c[1]+'</option>').join('')+'</select></div>'
+    + '<div class="frow"><label>Conditionnement</label><div class="seg">'
+      + '<button id="seg-grille" class="'+(e.type==='grille'?'active':'')+'" onclick="setType(\'grille\')">Grille</button>'
+      + '<button id="seg-piece" class="'+(e.type==='pièce'?'active':'')+'" onclick="setType(\'pièce\')">Pièce</button>'
+      + '</div></div>'
+    + '<div class="frow '+(e.type==='grille'?'':'hide')+'" id="f-taille-row"><label>Pièces par grille</label><input type="number" id="f-taille" value="'+(e.taille||'')+'" placeholder="ex : 28"></div>'
+    + '<div class="frow"><label>Magasins qui peuvent commander</label><div class="chk">'
+      + SHOPS.map(s=>'<label class="'+(e.shops.includes(s[0])?'on':'')+'" id="shoplbl-'+s[0]+'"><input type="checkbox" '+(e.shops.includes(s[0])?'checked':'')+' onchange="toggleShop(\''+s[0]+'\',this.checked)">'+s[1]+'</label>').join('')
+      + '</div></div>'
+    + '<div class="formactions"><button class="btn-cancel" onclick="cancelForm()">Annuler</button>'
+    + '<button class="btn-go" onclick="saveForm()">'+(e.id?'Enregistrer':'Créer')+'</button></div></div>';
+}
+function bindForm(){}
+function setType(t){ editing.type=t; if(t==='pièce') editing.taille=null; else if(!editing.taille) editing.taille=28; render(); }
+function toggleShop(id,on){ editing.shops = editing.shops.filter(s=>s!==id); if(on) editing.shops.push(id);
+  document.getElementById('shoplbl-'+id).classList.toggle('on',on); }
+function cancelForm(){ editing=null; render(); }
+function saveForm(){
+  editing.nom = (document.getElementById('f-nom').value||'').trim();
+  editing.cat = document.getElementById('f-cat').value;
+  if(editing.type==='grille') editing.taille = parseInt(document.getElementById('f-taille').value,10)||null;
+  if(!editing.nom){ alert('Donne un nom'); return; }
+  if(!editing.shops.length){ alert('Coche au moins un magasin'); return; }
+  if(editing.id){ const i=products.findIndex(p=>p.id===editing.id); products[i]=editing; }
+  else { editing.id=nextId++; products.push(editing); }
+  editing=null; render();
+}
+
+// ---------- VUE MAGASIN ----------
+function renderMag(){
+  const c = document.getElementById('content');
+  let h = '<div class="note">🏪 <b>Côté magasin</b> — choisis ta boutique. Tu vois seulement les produits que le pâtissier t\'a autorisés, et tu commandes (pas de stock visible). Livraison mercredi & samedi.</div>';
+  h += '<div class="shopsel">'+SHOPS.map(s=>'<button class="'+(currentShop===s[0]?'active':'')+'" onclick="pickShop(\''+s[0]+'\')">'+s[1]+'</button>').join('')+'</div>';
+  let any=false;
+  CATS.forEach(function(cat){
+    const list = products.filter(p=>p.cat===cat[0] && p.actif && p.shops.includes(currentShop));
+    if(!list.length) return; any=true;
+    h += '<div class="cat">'+cat[1]+' ('+list.length+')</div>';
+    list.forEach(function(p){
+      const q = cmdQty[p.id]||'';
+      h += '<div class="prow"><div>'
+        + '<div class="nm">'+p.nom+'</div><div class="sub">'+unitLabel(p)+'</div>'
+        + '</div>'
+        + '<select class="cmd-sel'+(q!==''?' has':'')+'" onchange="setQty('+p.id+',this.value)">'
+        + '<option value="">À cmd</option>'
+        + [1,2,3,4,5,6,8,10].map(n=>'<option value="'+n+'"'+(String(q)===String(n)?' selected':'')+'>'+n+'</option>').join('')
+        + '</select></div>';
+    });
+  });
+  if(!any) h += '<div class="note" style="background:#F0EAE0">Aucun produit autorisé pour '+shopName(currentShop)+' pour l\'instant.</div>';
+  c.innerHTML = h;
+}
+function pickShop(id){ currentShop=id; render(); }
+function setQty(id,v){ if(v==='') delete cmdQty[id]; else cmdQty[id]=v; renderMag(); }
+
+render();
+</script>
+</body>
+</html>

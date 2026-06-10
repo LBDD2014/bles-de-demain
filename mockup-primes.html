@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette — Performance & Primes (LBDD)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --brown-mid:#6B4226;
+    --green:#4A7C59; --red:#B83232; --orange:#D4701A;
+    --blue:#2C5F8A; --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Georgia,serif;background:var(--cream);color:var(--grey-dark);
+    -webkit-font-smoothing:antialiased;padding-bottom:40px;}
+  .wrap{max-width:720px;margin:0 auto;padding:0 14px;}
+  header{background:var(--grey-dark);color:var(--cream);padding:18px 14px;text-align:center;}
+  header h1{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;}
+  header h1 .e{color:var(--gold);}
+  header .sub{font-size:.8rem;opacity:.8;margin-top:3px;letter-spacing:.5px;}
+
+  /* onglets boutiques */
+  .tabs{display:flex;gap:8px;margin:16px 0 6px;}
+  .tab{flex:1;text-align:center;padding:11px 6px;border-radius:12px;background:var(--white);
+    border:2px solid #e7ddc6;font-weight:bold;font-size:.92rem;color:var(--grey);cursor:pointer;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .tab.active{background:var(--gold);border-color:var(--gold-dark);color:var(--brown);}
+
+  .period{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--brown-mid);
+    margin:14px 2px 4px;font-weight:600;}
+  .period small{font-family:Georgia,serif;font-size:.8rem;color:var(--grey-light);font-weight:normal;}
+
+  /* bandeau statut */
+  .status{border-radius:16px;padding:18px;margin:10px 0 18px;text-align:center;color:var(--white);
+    box-shadow:0 3px 10px rgba(0,0,0,.12);}
+  .status.win{background:linear-gradient(135deg,var(--green),#3c6b4a);}
+  .status.block{background:linear-gradient(135deg,var(--orange),#b85e15);}
+  .status .big{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;}
+  .status .why{font-size:.9rem;opacity:.95;margin-top:5px;}
+
+  /* cartes conditions */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .card{background:var(--white);border-radius:16px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,.07);}
+  .card .lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.6px;color:var(--grey-light);}
+  .card .val{font-family:'Playfair Display',serif;font-size:1.75rem;font-weight:700;margin:4px 0 2px;}
+  .card .note{font-size:.82rem;color:var(--grey);}
+  .ok{color:var(--green);} .ko{color:var(--red);} .pending{color:var(--orange);}
+  .pill{display:inline-block;font-size:.74rem;font-weight:bold;padding:2px 9px;border-radius:20px;margin-top:8px;}
+  .pill.ok{background:#e3f0e6;color:var(--green);}
+  .pill.ko{background:#f6e1e1;color:var(--red);}
+
+  /* jauge */
+  .gauge{height:14px;background:#eee3cb;border-radius:10px;overflow:hidden;margin-top:10px;}
+  .gauge > i{display:block;height:100%;border-radius:10px;}
+  .gauge.g-green > i{background:var(--green);}
+  .gauge.g-red > i{background:var(--red);}
+  .gscale{display:flex;justify-content:space-between;font-size:.7rem;color:var(--grey-light);margin-top:3px;}
+
+  /* tableau mensuel */
+  .block{background:var(--white);border-radius:16px;padding:6px 4px;margin:18px 0;box-shadow:0 2px 6px rgba(0,0,0,.07);}
+  .block h3{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--brown);padding:10px 12px 6px;}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;}
+  th,td{padding:9px 10px;text-align:right;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--grey-light);border-bottom:1px solid #ece3cd;}
+  tbody tr:not(:last-child) td{border-bottom:1px solid #f2ead8;}
+  tbody tr.cur td{background:#fbf3df;font-weight:bold;}
+  .up{color:var(--green);font-weight:bold;} .down{color:var(--red);font-weight:bold;}
+
+  /* cumul annuel */
+  .annual{display:flex;gap:12px;margin:18px 0;}
+  .annual .card{flex:1;text-align:center;}
+
+  .note-foot{font-size:.78rem;color:var(--grey-light);text-align:center;margin-top:22px;font-style:italic;}
+  .params{background:#fff8e8;border:1px dashed var(--gold-dark);border-radius:12px;padding:12px 14px;
+    margin:18px 0;font-size:.85rem;color:var(--brown-mid);}
+  .params b{color:var(--brown);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Performance &amp; Primes<span class="e"> 🎯</span></h1>
+  <div class="sub">Les Bl<span style="color:var(--gold)">é</span>s de Demain — maquette</div>
+</header>
+
+<div class="wrap">
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="period" id="period"></div>
+
+  <div class="status" id="status"></div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="lbl">Chiffre d'affaires</div>
+      <div class="val" id="caVal"></div>
+      <div class="note" id="caNote"></div>
+      <div class="gauge g-green" id="caGauge"><i></i></div>
+      <div class="gscale"><span>N-1</span><span>Objectif</span></div>
+      <span class="pill" id="caPill"></span>
+    </div>
+    <div class="card">
+      <div class="lbl">Taux de pertes</div>
+      <div class="val" id="loVal"></div>
+      <div class="note" id="loNote"></div>
+      <div class="gauge" id="loGauge"><i></i></div>
+      <div class="gscale"><span>0%</span><span id="loMax"></span></div>
+      <span class="pill" id="loPill"></span>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Détail du trimestre</h3>
+    <table>
+      <thead><tr><th>Mois</th><th>CA</th><th>N-1</th><th>Évol.</th><th>Pertes</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="annual">
+    <div class="card">
+      <div class="lbl">Cumul année</div>
+      <div class="val" id="annCa" style="font-size:1.4rem"></div>
+      <div class="note" id="annNote"></div>
+    </div>
+    <div class="card">
+      <div class="lbl">vs an dernier</div>
+      <div class="val" id="annPct" style="font-size:1.4rem"></div>
+      <div class="note">à fin du trimestre</div>
+    </div>
+  </div>
+
+  <div class="params">
+    ⚙️ <b>Réglages (modifiables par toi)</b> : prime déclenchée si CA <b>+4%</b> vs N-1
+    <i>et</i> pertes <b>≤ 5%</b> du CA. Enveloppe : <b>partagée par l'équipe de la boutique</b>, versée au trimestre.
+  </div>
+
+  <div class="note-foot">Maquette visuelle — chiffres fictifs, rien n'est branché. Touche les onglets de boutique pour comparer les cas.</div>
+</div>
+
+<script>
+const OBJ = 4;      // % progression vs N-1 pour déclencher
+const SEUIL = 5;    // % de pertes max
+const eur = n => n.toLocaleString('fr-FR') + ' €';
+
+const DATA = {
+  'Veigné': {
+    rows:[
+      {m:'Avril', ca:42300, n1:39800, lo:3.2},
+      {m:'Mai',   ca:45100, n1:41200, lo:4.1},
+      {m:'Juin (en cours)', ca:38600, n1:37900, lo:4.6, cur:true},
+    ],
+    annCa: 268400, annN1: 252100
+  },
+  'Tours': {
+    rows:[
+      {m:'Avril', ca:51200, n1:47100, lo:5.8},
+      {m:'Mai',   ca:54900, n1:50300, lo:6.4},
+      {m:'Juin (en cours)', ca:44100, n1:41600, lo:6.9, cur:true},
+    ],
+    annCa: 312700, annN1: 289400
+  },
+  'St-Avertin': {
+    rows:[
+      {m:'Avril', ca:21800, n1:21300, lo:2.7},
+      {m:'Mai',   ca:22600, n1:22400, lo:3.1},
+      {m:'Juin (en cours)', ca:18900, n1:19100, lo:2.9, cur:true},
+    ],
+    annCa: 131200, annN1: 129700
+  }
+};
+
+let current = 'Veigné';
+
+function render(){
+  const d = DATA[current];
+  const ca = d.rows.reduce((s,r)=>s+r.ca,0);
+  const n1 = d.rows.reduce((s,r)=>s+r.n1,0);
+  const pct = ((ca-n1)/n1*100);
+  const lo = d.rows.reduce((s,r)=>s+r.lo,0)/d.rows.length;
+
+  // onglets
+  document.getElementById('tabs').innerHTML = Object.keys(DATA).map(b=>
+    `<div class="tab ${b===current?'active':''}" onclick="current='${b}';render()">${b}</div>`).join('');
+
+  document.getElementById('period').innerHTML =
+    `Trimestre en cours — T2 2026 <small>(avr · mai · juin)</small>`;
+
+  const caOk = pct >= OBJ;
+  const loOk = lo <= SEUIL;
+  const win = caOk && loOk;
+
+  // bandeau statut
+  const st = document.getElementById('status');
+  if(win){
+    st.className='status win';
+    st.innerHTML=`<div class="big">🎯 Prime en vue !</div>
+      <div class="why">Objectif CA atteint et pertes maîtrisées. Continuez comme ça 💪</div>`;
+  } else {
+    st.className='status block';
+    let reasons=[];
+    if(!caOk) reasons.push(`CA encore sous l'objectif (+${pct.toFixed(1)}% / +${OBJ}% requis)`);
+    if(!loOk) reasons.push(`pertes trop élevées (${lo.toFixed(1)}% / max ${SEUIL}%)`);
+    st.innerHTML=`<div class="big">Prime pas encore acquise</div>
+      <div class="why">${reasons.join(' · ')}</div>`;
+  }
+
+  // carte CA
+  document.getElementById('caVal').textContent = eur(ca);
+  document.getElementById('caVal').className='val '+(caOk?'ok':'pending');
+  document.getElementById('caNote').innerHTML =
+    `<b class="${pct>=0?'up':'down'}">${pct>=0?'+':''}${pct.toFixed(1)}%</b> vs N-1 (${eur(n1)})`;
+  const caG=document.getElementById('caGauge');
+  caG.className='gauge '+(caOk?'g-green':'g-red');
+  // jauge : position du % réalisé entre 0 et objectif (plafonné visuellement à objectif)
+  caG.querySelector('i').style.width = Math.max(4,Math.min(100, pct/OBJ*100))+'%';
+  const caP=document.getElementById('caPill');
+  caP.className='pill '+(caOk?'ok':'ko');
+  caP.textContent = caOk?`✓ objectif +${OBJ}% atteint`:`objectif +${OBJ}% non atteint`;
+
+  // carte pertes
+  document.getElementById('loVal').textContent = lo.toFixed(1)+'%';
+  document.getElementById('loVal').className='val '+(loOk?'ok':'ko');
+  document.getElementById('loNote').textContent = `valeur invendus ÷ CA`;
+  document.getElementById('loMax').textContent = 'seuil '+SEUIL+'%';
+  const loG=document.getElementById('loGauge');
+  loG.className='gauge '+(loOk?'g-green':'g-red');
+  loG.querySelector('i').style.width = Math.min(100, lo/(SEUIL*1.6)*100)+'%';
+  const loP=document.getElementById('loPill');
+  loP.className='pill '+(loOk?'ok':'ko');
+  loP.textContent = loOk?`✓ sous le seuil`:`✗ au-dessus du seuil`;
+
+  // tableau
+  document.getElementById('rows').innerHTML = d.rows.map(r=>{
+    const e=((r.ca-r.n1)/r.n1*100);
+    return `<tr class="${r.cur?'cur':''}">
+      <td>${r.m}</td><td>${eur(r.ca)}</td><td>${eur(r.n1)}</td>
+      <td class="${e>=0?'up':'down'}">${e>=0?'+':''}${e.toFixed(1)}%</td>
+      <td class="${r.lo<=SEUIL?'ok':'ko'}">${r.lo.toFixed(1)}%</td></tr>`;
+  }).join('');
+
+  // cumul annuel
+  const ap=((d.annCa-d.annN1)/d.annN1*100);
+  document.getElementById('annCa').textContent = eur(d.annCa);
+  document.getElementById('annNote').textContent = `N-1 : ${eur(d.annN1)}`;
+  const annP=document.getElementById('annPct');
+  annP.textContent = (ap>=0?'+':'')+ap.toFixed(1)+'%';
+  annP.className='val '+(ap>=0?'ok':'ko');
+}
+render();
+</script>
+</body>
+</html>

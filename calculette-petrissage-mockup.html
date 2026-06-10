@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Calculette Pétrissage — LBDD (aperçu)</title>
+<style>
+  :root{
+    --gold:#CEAB52; --gold-light:#E8D5A3; --gold-dark:#8B6914;
+    --grey:#474950; --grey-dark:#2E3044; --grey-light:#5A5C66;
+    --cream:#FAF6EE; --brown:#3D2B1F; --green:#4A7C59; --red:#B83232;
+    --orange:#D4701A; --blue:#2C5F8A; --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:Georgia,serif;background:var(--cream);color:var(--grey-dark);
+       padding-bottom:240px;}
+  header{background:var(--grey-dark);color:var(--cream);padding:18px 16px;text-align:center;
+         box-shadow:0 2px 8px rgba(0,0,0,.25);}
+  header h1{font-family:'Playfair Display',Georgia,serif;margin:0;font-size:1.5rem;letter-spacing:.5px;}
+  header h1 .e{color:var(--gold);}
+  header p{margin:4px 0 0;font-size:.8rem;opacity:.8;}
+  .wrap{max-width:780px;margin:0 auto;padding:14px;}
+  .note{background:var(--gold-light);border-left:4px solid var(--gold-dark);border-radius:8px;
+        padding:10px 14px;font-size:.82rem;color:var(--brown);margin-bottom:16px;}
+  .cat{font-family:'Playfair Display',Georgia,serif;color:var(--gold-dark);font-size:1.05rem;
+       margin:22px 4px 8px;border-bottom:2px solid var(--gold-light);padding-bottom:4px;}
+  .row{display:flex;align-items:center;justify-content:space-between;background:var(--white);
+       border-radius:12px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .row.active{box-shadow:0 0 0 2px var(--gold);}
+  .row .info{flex:1;min-width:0;padding-right:10px;}
+  .row .name{font-weight:bold;font-size:1rem;color:var(--grey-dark);}
+  .row .unit{font-size:.72rem;color:var(--grey-light);margin-top:1px;}
+  .stepper{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .stepper button{width:46px;height:46px;border:none;border-radius:50%;font-size:1.6rem;
+       font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;
+       line-height:1;color:var(--white);background:var(--gold);transition:transform .05s;}
+  .stepper button:active{transform:scale(.9);}
+  .stepper button.minus{background:var(--grey-light);}
+  .stepper .qty{width:48px;text-align:center;font-size:1.5rem;font-weight:bold;
+       font-family:Georgia,serif;color:var(--grey-dark);}
+  .stepper .qty.zero{color:#c9c4b8;}
+
+  /* Résultats */
+  #results{position:fixed;left:0;right:0;bottom:0;background:var(--grey-dark);color:var(--cream);
+       box-shadow:0 -4px 16px rgba(0,0,0,.35);max-height:46vh;overflow-y:auto;
+       border-top-left-radius:18px;border-top-right-radius:18px;}
+  #results .head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 6px;
+       position:sticky;top:0;background:var(--grey-dark);}
+  #results .head h2{font-family:'Playfair Display',Georgia,serif;margin:0;font-size:1.05rem;color:var(--gold);}
+  #results .head .reset{background:none;border:1px solid var(--grey-light);color:var(--cream);
+       border-radius:8px;padding:6px 12px;font-size:.78rem;cursor:pointer;}
+  #results .empty{padding:6px 16px 18px;font-size:.85rem;opacity:.7;font-style:italic;}
+  .res-row{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;
+       border-top:1px solid rgba(255,255,255,.08);}
+  .res-row .l{min-width:0;}
+  .res-row .l .n{font-weight:bold;font-size:.98rem;}
+  .res-row .l .d{font-size:.72rem;opacity:.75;margin-top:1px;}
+  .res-row .r{text-align:right;flex-shrink:0;padding-left:10px;}
+  .res-row .r .f{font-size:1.35rem;font-weight:bold;font-family:Georgia,serif;color:var(--gold-light);}
+  .res-row .r .f small{font-size:.6em;opacity:.7;font-weight:normal;}
+  .pill{display:inline-block;font-size:.68rem;padding:2px 8px;border-radius:20px;margin-top:3px;}
+  .pill.petit{background:var(--blue);color:#fff;}
+  .pill.gros{background:var(--green);color:#fff;}
+  .pill.multi{background:var(--orange);color:#fff;}
+  .pill.warn{background:var(--red);color:#fff;}
+  .total{padding:12px 16px;border-top:2px solid var(--gold);display:flex;justify-content:space-between;
+       align-items:center;font-family:'Playfair Display',Georgia,serif;}
+  .total .lbl{font-size:.95rem;}
+  .total .val{font-size:1.5rem;font-weight:bold;color:var(--gold);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculette de p<span class="e">é</span>trissage</h1>
+  <p>Les Bl<span style="color:var(--gold)">é</span>s de Demain — aperçu (non branché)</p>
+</header>
+
+<div class="wrap">
+  <div class="note">
+    🤖 <b>Pré-rempli d'après les prévis du jour</b> (exemple). Ajuste avec +/− si besoin, puis le bandeau du bas te donne la
+    <b>farine à peser</b> et le <b>pétrin</b>. Les lignes <span style="color:var(--orange);font-weight:bold">modifiées</span> sont signalées.
+    <button class="reset" style="margin-top:8px;border-color:var(--gold-dark);color:var(--brown)" onclick="resetSuggest()">↺ Revenir aux valeurs proposées</button>
+  </div>
+  <div id="list"></div>
+</div>
+
+<div id="results">
+  <div class="head">
+    <h2>À peser ce matin</h2>
+    <button class="reset" onclick="resetAll()">Tout remettre à 0</button>
+  </div>
+  <div id="resBody"></div>
+</div>
+
+<script>
+// ---- Données produits (rendement = kg de pâte par kg de farine) ----
+// mode : 'bac' (saisie en bacs) | 'piece' | 'moule' ; poids = kg de PÂTE par unité
+const CATS = [
+  { titre:"🌾 Pains bio (en bacs)", items:[
+    {id:'mathis',  nom:'Mathis',          mode:'bac', poids:6,    rdt:2.40},
+    {id:'bp',      nom:'Blés de pop',     mode:'bac', poids:6,    rdt:2.28},
+    {id:'khorasan',nom:'Khorasan',        mode:'bac', poids:8,    rdt:2.45},
+    {id:'tourte',  nom:'Tourte de Meule', mode:'bac', poids:8,    rdt:2.37},
+    {id:'chataigne',nom:'Châtaigne',      mode:'bac', poids:7,    rdt:2.35},
+    {id:'essentiel',nom:'Essentiel',      mode:'bac', poids:7.9,  rdt:2.22, alt:'ou petits pains Fredeville'},
+    {id:'ideal',   nom:'Idéal',           mode:'bac', poids:7.95, rdt:2.22, alt:'ou 3 gros pains (marché)'},
+    {id:'integral',nom:'Intégral',        mode:'bac', poids:7.95, rdt:2.18, alt:'ou 3 gros pains (marché)'},
+    {id:'tradbio', nom:'Tradition Bio',   mode:'bac', poids:6.8,  rdt:1.91},
+    {id:'seigle',  nom:'Seigle',          mode:'bac', poids:8,    rdt:2.99, note:'10 pièces / bac'},
+  ]},
+  { titre:"🥖 Baguettes & pains (en bacs)", items:[
+    {id:'tradition',nom:'Tradition',          mode:'bac', poids:6.8, rdt:1.91, note:'20 pièces / bac'},
+    {id:'tradgr',  nom:'Tradition graines',   mode:'bac', poids:6.8, rdt:1.91, note:'+ graines'},
+    {id:'epeautre',nom:'Baguette épeautre',   mode:'bac', poids:6.8, rdt:1.89, note:'20 pièces / bac'},
+    {id:'painblanc',nom:'Pain blanc',         mode:'bac', poids:10,  rdt:1.68, note:'20 pièces / bac'},
+    {id:'bagord',  nom:'Baguette ordinaire',  mode:'bac', poids:6.8, rdt:1.68, note:'20 pièces / bac'},
+  ]},
+  { titre:"🍞 Moulés (sortie pétrin → nb de pains)", items:[
+    {id:'engrain', nom:'Engrain',   mode:'moule', poids:0.5, rdt:2.58},
+    {id:'norvegien',nom:'Norvégien',mode:'moule', poids:1.1, rdt:2.71},
+  ]},
+  { titre:"🍋 Spéciaux & viennoise (en pièces)", items:[
+    {id:'meteil', nom:'Méteil citron', mode:'piece', poids:0.354, rdt:1.97},
+    {id:'burger', nom:'Pain burger',   mode:'piece', poids:0.09,  rdt:1.845, note:'pâte viennoise'},
+    {id:'hotdog', nom:'Pain hotdog',   mode:'piece', poids:0.09,  rdt:1.845, note:'pâte viennoise'},
+  ]},
+];
+
+const PETIT_MIN = 5, PETIT_MAX = 15, GROS_MIN = 10, GROS_MAX = 75;
+
+// ---- Pré-remplissage "exemple" (viendra des prévis / plan de prod) ----
+const SUGGEST = {
+  mathis:4, bp:2, khorasan:2, tourte:2, chataigne:2,
+  essentiel:6, ideal:4, integral:4, tradbio:3, seigle:2,
+  tradition:8, tradgr:3, epeautre:2, painblanc:3, bagord:6,
+  engrain:10, norvegien:6, meteil:20, burger:30, hotdog:40
+};
+const qte = {};
+const unitLabel = m => m==='bac' ? 'bacs' : m==='moule' ? 'moules' : 'pièces';
+const round05 = x => Math.round(x*2)/2;
+
+function petrin(farine){
+  if(farine<PETIT_MIN) return {cls:'warn',  txt:'⚠️ &lt; mini 5 kg — pétris au moins 5 kg ou regroupe'};
+  if(farine<=PETIT_MAX) return {cls:'petit', txt:'Petit pétrin'};
+  if(farine<=GROS_MAX)  return {cls:'gros',  txt:'Gros pétrin'};
+  const n=Math.ceil(farine/GROS_MAX);
+  return {cls:'multi', txt:n+'× Gros pétrin ('+round05(farine/n)+' kg/fournée)'};
+}
+
+// ---- Rendu de la liste ----
+const list=document.getElementById('list');
+CATS.forEach(cat=>{
+  const h=document.createElement('div'); h.className='cat'; h.textContent=cat.titre; list.appendChild(h);
+  cat.items.forEach(p=>{
+    qte[p.id]=SUGGEST[p.id]||0;
+    const sub = p.note ? p.note : (p.mode==='bac'?'1 bac = '+p.poids+' kg de pâte':'') ;
+    const row=document.createElement('div'); row.className='row'; row.id='row_'+p.id;
+    row.innerHTML=`
+      <div class="info">
+        <div class="name">${p.nom}</div>
+        <div class="unit">${sub}${p.alt?' · '+p.alt:''} <span id="sg_${p.id}"></span></div>
+      </div>
+      <div class="stepper">
+        <button class="minus" onclick="bump('${p.id}',-1)">−</button>
+        <div class="qty" id="q_${p.id}">0</div>
+        <button onclick="bump('${p.id}',1)">+</button>
+      </div>`;
+    list.appendChild(row);
+    refreshRow(p.id);
+  });
+});
+
+function refreshRow(id){
+  const q=document.getElementById('q_'+id);
+  q.textContent=qte[id];
+  q.classList.toggle('zero',qte[id]===0);
+  document.getElementById('row_'+id).classList.toggle('active',qte[id]>0);
+  const sug=SUGGEST[id]||0, sg=document.getElementById('sg_'+id);
+  if(qte[id]!==sug) sg.innerHTML=`· <span style="color:var(--orange);font-weight:bold">modifié</span> (proposé : ${sug})`;
+  else sg.innerHTML='';
+}
+function bump(id,d){ qte[id]=Math.max(0,qte[id]+d); refreshRow(id); render(); }
+function resetAll(){ Object.keys(qte).forEach(id=>{ qte[id]=0; refreshRow(id); }); render(); }
+function resetSuggest(){ Object.keys(qte).forEach(id=>{ qte[id]=SUGGEST[id]||0; refreshRow(id); }); render(); }
+
+function render(){
+  const body=document.getElementById('resBody');
+  const all=[]; CATS.forEach(c=>c.items.forEach(p=>{ if(qte[p.id]>0) all.push(p); }));
+  if(!all.length){ body.innerHTML='<div class="empty">Rien de saisi pour l\'instant…</div>'; return; }
+  let html=''; let totalFarine=0;
+  all.forEach(p=>{
+    const n=qte[p.id];
+    const pate=n*p.poids;
+    const farine=pate/p.rdt;
+    totalFarine+=farine;
+    const pet=petrin(farine);
+    html+=`<div class="res-row">
+      <div class="l">
+        <div class="n">${p.nom}</div>
+        <div class="d">${n} ${unitLabel(p.mode)} · ${round05(pate)} kg de pâte</div>
+        <span class="pill ${pet.cls}">${pet.txt}</span>
+      </div>
+      <div class="r">
+        <div class="f">${round05(farine)}<small> kg farine</small></div>
+      </div>
+    </div>`;
+  });
+  html+=`<div class="total"><span class="lbl">Total farine</span><span class="val">${round05(totalFarine)} kg</span></div>`;
+  body.innerHTML=html;
+}
+render();
+</script>
+</body>
+</html>
