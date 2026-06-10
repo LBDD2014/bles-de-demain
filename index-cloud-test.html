@@ -12048,6 +12048,30 @@ async function prepareProAll() {
   await loadProStockDayOrders(); await loadProStockMovements(); renderStockBoulangerPro();
 }
 
+// Mode chef (réutilise le code chef Local du tourier : local_tour_chef)
+let proCatalogUnlocked = false;
+async function proCatalogUnlock() {
+  if (proCatalogUnlocked) { proCatalogUnlocked = false; renderStockBoulangerPro(); return; }
+  if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
+  const need = boutiqueCodes['local_tour_chef'];
+  const master = boutiqueCodes['master'] || '2412';
+  const valid = need ? [String(need).trim(), String(master).trim()] : [String(master).trim()];
+  const ok = await askCodeModal('Code chef Local', valid);
+  if (!ok) return;
+  proCatalogUnlocked = true; renderStockBoulangerPro();
+}
+// Retirer un produit de la liste Boul. Pro (ne supprime pas le produit)
+async function proRemoveFromList(pid) {
+  const p = (adminProducts || []).find(function(x) { return x.id === pid; }) || products.find(function(x) { return x.id === pid; });
+  if (!confirm('Retirer « ' + (p ? p.name : pid) + ' » du Stock Boul. Pro ?\n(Le produit n\'est pas supprimé, juste retiré de cette liste.)')) return;
+  setSyncStatus('syncing');
+  const r = await supa.from('products').update({ suivi_stock_pro: false }).eq('id', pid);
+  if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+  setSyncStatus('ok');
+  [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) { const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) x.suivi_stock_pro = false; });
+  renderStockBoulangerPro();
+}
+
 // v21.2.1 — Charge les 30 derniers jours de mouvements (assez pour le Théo
 // dans la pratique : on inventoriait au moins 1× / mois)
 async function loadProStockMovements() {
@@ -12230,8 +12254,12 @@ function renderStockBoulangerPro() {
   const mc = document.getElementById('main-content');
   const suiviProducts = (adminProducts || []).filter(function(p) { return p.suivi_stock_pro && p.actif; });
 
+  // Code chef Local (gérer : retirer + ranger)
+  let html = '<div class="cheflock' + (proCatalogUnlocked ? ' on' : '') + '" onclick="proCatalogUnlock()">'
+    + (proCatalogUnlocked ? '🔓 Mode chef — gérer le catalogue (appuie pour verrouiller)' : '🔒 Gérer le catalogue (code chef Local)')
+    + '</div>';
   // Barre de date
-  let html = '<div class="date-bar"><button class="date-nav" onclick="changeProStockDate(-1)">←</button>'
+  html += '<div class="date-bar"><button class="date-nav" onclick="changeProStockDate(-1)">←</button>'
     + '<div class="date-title">Commandes pros du <strong>' + escapeHtml(formatDateFr(proStockDate)) + '</strong></div>'
     + '<button class="date-nav" onclick="changeProStockDate(1)">→</button></div>';
 
@@ -12306,10 +12334,15 @@ function renderStockBoulangerPro() {
       if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
       else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       const condTxt = formatConditioning(p);
+      let ctrl = '';
+      if (proCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl">'
+        + '<button class="iconbtn-pat" onclick="proRemoveFromList(\'' + p.id + '\')" title="retirer de la liste">🗑</button>'
+        + '<button class="iconbtn-pat" onclick="editProConditioning(\'' + p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>'
+        + stockSortArrows(p.id, catPids) + '</div>';
       html += '<div class="produit-row stock-row ' + alertCls + '">';
       html += '<div><div class="produit-name">' + dot + escapeHtml(p.name) + '</div>'
-        + '<div class="produit-unit">' + (condTxt ? escapeHtml(condTxt) + ' ' : '') + '<a href="#" onclick="editProConditioning(\'' + p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️ cond.</a></div>'
-        + '<div class="pat-chef-ctrl">' + stockSortArrows(p.id, catPids) + '</div>'
+        + (condTxt ? '<div class="produit-unit">' + escapeHtml(condTxt) + '</div>' : '')
+        + ctrl
         + '</div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectEntree(\'' + p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="proSelectField(\'' + p.id + '\', \'qty\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
