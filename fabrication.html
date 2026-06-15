@@ -225,6 +225,12 @@
 <!-- CALCULETTE DE PÉTRISSAGE -->
 <section id="calc" class="page">
   <div class="card">
+    <h2>📅 Depuis le planning</h2>
+    <p class="hint">Choisis un jour : la calculette lit ton planning, <b>regroupe par pâte</b> et te donne la farine à peser + le pétrin. (Les « 75+75 » sont additionnés.)</p>
+    <div class="btn-row" style="align-items:center;gap:8px"><input type="date" id="calcPlanDate" style="flex:1"><button class="btn sm" onclick="calcFromPlan()">↻ Calculer</button></div>
+    <div id="calcPlanResult" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>🧮 Calculette de pétrissage</h2>
     <p class="hint">Mets le nombre de bacs / pièces / moules avec les <b>+ / −</b>. En bas, le bandeau te donne la <b>farine à peser</b> et le <b>pétrin</b> pour chaque produit. <button class="btn ghost sm" style="margin-top:6px" onclick="calcResetAll()">↺ Tout remettre à 0</button></p>
     <div id="calcList"></div>
@@ -1505,6 +1511,7 @@ function calcPetrin(f){
   const n=Math.ceil(f/CALC_GROS_MAX);return{cls:'multi',txt:n+'× Gros pétrin ('+calcR05(f/n)+' kg/fournée)'};
 }
 function calcInit(){
+  const dp=document.getElementById('calcPlanDate');if(dp&&!dp.value)dp.value=new Date().toISOString().slice(0,10);
   if(calcBuilt){calcRender();return;}
   const box=document.getElementById('calcList');let html='';
   calcCATS.forEach(cat=>{
@@ -1542,6 +1549,30 @@ function calcRender(){
   body.innerHTML='<div class="ch"><h3>À peser ce matin</h3><button class="reset btn ghost sm" onclick="calcResetAll()">Tout remettre à 0</button></div>'+rows+totHtml;
 }
 
+// Lit le planning d'un jour, regroupe par pâte, donne farine à peser + pétrin
+function calcParseNum(s){if(s==null)return 0;const parts=String(s).replace(',','.').match(/-?\d+(?:\.\d+)?/g);return parts?parts.reduce((a,b)=>a+parseFloat(b),0):0;}
+async function calcFromPlan(){
+  const date=document.getElementById('calcPlanDate').value;if(!date){toast('Choisis un jour');return;}
+  setSync('lecture du planning…');
+  const [lg,vl]=await Promise.all([
+    supa.from('fab_planning_lignes').select('id,nom,pate,kg_farine_unite,actif').eq('actif',true),
+    supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',date)
+  ]);
+  if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
+  setSync('🟢 connecté');
+  const valById={};(vl.data||[]).forEach(v=>{valById[v.ligne_id]=v.valeur;});
+  const byPate={};
+  (lg.data||[]).forEach(l=>{const num=calcParseNum(valById[l.id]);if(!num||!l.kg_farine_unite)return;
+    const p=l.pate||l.nom;byPate[p]=(byPate[p]||0)+num*(+l.kg_farine_unite);});
+  const pates=Object.keys(byPate).sort((a,b)=>a.localeCompare(b));
+  const box=document.getElementById('calcPlanResult');
+  if(!pates.length){box.innerHTML='<div class="hint">Rien de planifié ce jour (ou pâtes/conversions à renseigner dans le Planning).</div>';return;}
+  let tot=0;
+  box.innerHTML='<table class="plan-tbl"><thead><tr><th style="text-align:left">Pâte</th><th>Farine</th><th>Pétrin</th></tr></thead><tbody>'
+    +pates.map(p=>{const f=byPate[p];tot+=f;const pet=calcPetrin(f);return '<tr><td class="pname">'+p+'</td><td><b>'+calcR05(f)+' kg</b></td><td><span class="calc-pill '+pet.cls+'">'+pet.txt+'</span></td></tr>';}).join('')
+    +'<tr style="background:var(--gold-light)"><td class="pname">TOTAL farine</td><td><b>'+calcR05(tot)+' kg</b></td><td></td></tr></tbody></table>';
+}
+
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planVals={};
 const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
@@ -1577,7 +1608,7 @@ function planRender(){
     body+='<tr><td class="pname">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span><div class="plan-ctrls">'
       +'<button class="ico-btn" onclick="planMove('+k+',-1)"'+(k===0?' disabled':'')+'>↑</button>'
       +'<button class="ico-btn" onclick="planMove('+k+',1)"'+(k===planLignes.length-1?' disabled':'')+'>↓</button>'
-      +'<button class="ico-btn" onclick="planRename('+lg.id+')">✏️</button>'
+      +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
     for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
       body+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
@@ -1607,12 +1638,25 @@ async function planDel(id){
   if(q.error){toast(q.error.message);return;}
   await planLoad();planRender();
 }
-async function planRename(id){
+function planEditLine(id){
   const lg=planLignes.find(l=>l.id===id);if(!lg)return;
-  const nv=prompt('Nom de la ligne :',lg.nom);if(nv==null)return;const nom=nv.trim();if(!nom)return;
-  const q=await supa.from('fab_planning_lignes').update({nom}).eq('id',id);
+  const esc=s=>String(s==null?'':s).replace(/"/g,'&quot;');
+  const pates=[...new Set(planLignes.map(l=>l.pate).filter(Boolean))];
+  document.getElementById('modal').innerHTML='<h3>Modifier la ligne</h3>'
+    +'<label>Nom</label><input id="ple_nom" value="'+esc(lg.nom)+'">'
+    +'<label>Unité</label><input id="ple_unite" value="'+esc(lg.unite)+'">'
+    +'<label>Pâte de base <span style="font-weight:400;color:var(--grey-light)">(pour regrouper au pétrin — ex : Tradition, Viennoise, Essentiel)</span></label><input id="ple_pate" list="plePates" value="'+esc(lg.pate)+'"><datalist id="plePates">'+pates.map(p=>'<option value="'+esc(p)+'">').join('')+'</datalist>'
+    +'<label>Kg de farine pour 1 '+esc(lg.unite||'unité')+' <span style="font-weight:400;color:var(--grey-light)">(la calculette multiplie par la quantité du jour)</span></label><input type="text" inputmode="decimal" id="ple_far" value="'+(lg.kg_farine_unite!=null?String(lg.kg_farine_unite).replace('.',','):'')+'">'
+    +'<div class="btn-row"><button class="btn" onclick="planSaveLine('+id+')">Enregistrer</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
+  document.getElementById('modalBg').classList.add('show');
+}
+async function planSaveLine(id){
+  const v=x=>{const e=document.getElementById(x);return e?e.value:'';};
+  const row={nom:v('ple_nom').trim(),unite:v('ple_unite').trim(),pate:v('ple_pate').trim()||null,kg_farine_unite:parseFloat(v('ple_far').replace(',','.'))||null};
+  if(!row.nom){toast('Mets un nom');return;}
+  const q=await supa.from('fab_planning_lignes').update(row).eq('id',id);
   if(q.error){toast(q.error.message);return;}
-  await planLoad();planRender();
+  closeModal();await planLoad();planRender();toast('Ligne mise à jour ✓');
 }
 async function planMove(k,dir){
   const j=k+dir;if(j<0||j>=planLignes.length)return;
