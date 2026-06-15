@@ -343,6 +343,12 @@
     </div>
     <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody></tbody></table></div>
   </div>
+  <div class="card">
+    <h2>🏷️ Solde par lot (FIFO)</h2>
+    <p class="hint">Exigence Bureau Veritas. Pour chaque lot reçu : <b>reçu − consommé − pertes = restant</b>. Méthode <b>FIFO</b> (le lot le plus ancien est consommé en premier). Conso calculée via les recettes ; calcul global par farine bio (tous sites).</p>
+    <div class="btn-row" style="margin-bottom:8px"><button class="btn sm" onclick="lotSoldeRender()">↻ Calculer le solde par lot</button><button class="btn dark sm" onclick="lotSoldeExport()">📄 Exporter (PDF)</button></div>
+    <div id="lotSoldeTable" style="overflow-x:auto"></div>
+  </div>
 </section>
 
 <!-- GESTION -->
@@ -942,6 +948,68 @@ async function lotExport(){
   document.body.classList.add('mode-lots');window.print();
 }
 
+/* ---------- SOLDE PAR LOT (FIFO) — exigence BV ---------- */
+// Pour chaque lot reçu : reçu − consommé − pertes = restant. FIFO (lot le plus ancien vidé en premier).
+// Conso = via recettes (fab_production) ; calcul global par farine bio (tous sites).
+function lotSoldeCompute(){
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
+  const byDate=(a,b)=>(a<b?-1:a>b?1:0);
+  bio.forEach(ing=>{
+    const lots=bilLivr.filter(l=>l.ingredient_id===ing.id)
+      .map(l=>({date:l.date_livraison,lot:l.numero_lot||'',bon:l.numero_bon||'',four:l.fournisseur_id,site:l.site,recu:+l.quantite_kg,cons:0,pert:0}))
+      .sort((a,b)=>byDate(a.date,b.date));
+    if(!lots.length)return;
+    const events=[];
+    bilProd.forEach(p=>{const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+      let qty=0;const base=(+rl.quantite)*(+p.quantite/rb);
+      if(rl.ingredient_id===ing.id)qty+=base;
+      const li=_ingById[rl.ingredient_id];
+      if(li&&li.categorie==='levain'&&li.farine_levain_id===ing.id){const r=(+li.eau_ratio)||0;qty+=base/(1+r);}
+      if(qty>0)events.push({date:p.date_prod,qty,type:'c'});
+    });});
+    bilPertes.forEach(pe=>{if(pe.ingredient_id===ing.id)events.push({date:pe.date_perte,qty:+pe.quantite_kg,type:'p'});});
+    events.sort((a,b)=>byDate(a.date,b.date));
+    let li=0;
+    events.forEach(ev=>{let q=ev.qty;
+      while(q>0.0001&&li<lots.length){
+        const lot=lots[li];const dispo=lot.recu-lot.cons-lot.pert;
+        if(dispo<=0.0001){li++;continue;}
+        const take=Math.min(q,dispo);
+        if(ev.type==='c')lot.cons+=take;else lot.pert+=take;
+        q-=take;
+        if(lot.recu-lot.cons-lot.pert<=0.0001)li++;
+      }
+    });
+    lots.forEach(lot=>out.push({ing:ing.nom,bio:ing.bio,date:lot.date,lot:lot.lot,bon:lot.bon,
+      four:(fournisseurs.find(f=>f.id===lot.four)||{}).nom||'',site:lot.site,
+      recu:lot.recu,cons:lot.cons,pert:lot.pert,rest:lot.recu-lot.cons-lot.pert}));
+  });
+  return out;
+}
+async function lotSoldeRender(){
+  setSync('calcul…');await bilLoadRaw();setSync('🟢 connecté');
+  const rows=lotSoldeCompute();const sn=c=>(SITES.find(s=>s[0]===c)||['',c])[1];
+  const fr=d=>{if(!d)return'';const p=String(d).split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const box=document.getElementById('lotSoldeTable');
+  if(!rows.length){box.innerHTML='<div class="hint">Aucun lot reçu. Enregistre des livraisons d\'abord.</div>';return;}
+  box.innerHTML='<table><thead><tr><th>Date</th><th>Lot</th><th>Farine</th><th>Fournisseur</th><th>Reçu</th><th>Conso</th><th>Pertes</th><th>Restant</th></tr></thead><tbody>'
+    +rows.map(r=>'<tr><td>'+fr(r.date)+'</td><td>'+(r.lot||'—')+'</td><td>'+r.ing+'</td><td style="font-size:11px;color:var(--grey-light)">'+(r.four||'')+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.cons)+'</td><td'+(r.pert>0.005?' style="color:var(--red)"':'')+'>'+k2(r.pert)+'</td><td style="font-weight:bold">'+k2(r.rest)+'</td></tr>').join('')
+    +'</tbody></table>';
+}
+function lotSoldeExport(){
+  const rows=lotSoldeCompute();
+  const fr=d=>{if(!d)return'';const p=String(d).split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const today=new Date().toLocaleDateString('fr-FR');
+  let html='<div class="rx-head">Les Blés de Demain — Solde par lot (matières bio, méthode FIFO)</div>'
+    +'<div class="rx-meta">'+rows.length+' lots · reçu − consommé − pertes = restant · document généré le '+today+'</div>'
+    +'<table class="bx"><thead><tr><th>Date</th><th>Lot</th><th>Farine</th><th>Fournisseur</th><th>Reçu (kg)</th><th>Conso (kg)</th><th>Pertes (kg)</th><th>Restant (kg)</th></tr></thead><tbody>'
+    +(rows.length?rows.map(r=>'<tr><td>'+fr(r.date)+'</td><td>'+(r.lot||'—')+'</td><td>'+r.ing+'</td><td>'+(r.four||'')+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.cons)+'</td><td>'+k2(r.pert)+'</td><td>'+k2(r.rest)+'</td></tr>').join('')
+       :'<tr><td colspan="8" style="text-align:center">Aucun lot.</td></tr>')
+    +'</tbody></table>';
+  document.getElementById('lotexport').innerHTML=html;
+  document.body.classList.add('mode-lots');window.print();
+}
+
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
 function recExportAll(){
   const today=new Date().toLocaleDateString('fr-FR');
@@ -1157,7 +1225,7 @@ const INVOPTS=(function(){let o='<option value="">—</option>';for(let v=0;v<=1
 function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
 async function bilLoadRaw(){
   const [lv,pr,pe,mv,inv,so]=await Promise.all([
-    supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg'),
+    supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg,numero_lot,numero_bon,fournisseur_id'),
     supa.from('fab_production').select('site,date_prod,quantite,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
     supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
