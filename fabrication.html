@@ -956,7 +956,7 @@ function pdEtiq(pid,batchIdx){
   let lines='',reste=false;
   c.lines.forEach((l,k)=>{if(!fabChecked[k0+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
   if(c.bassinage>0&&!fabChecked[k0+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
-  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
+  document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div><div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
   document.body.classList.add('mode-etiq');window.print();
 }
 window.addEventListener('afterprint',()=>{['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));});
