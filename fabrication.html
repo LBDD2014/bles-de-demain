@@ -130,6 +130,16 @@
   .scan-line input[type=number]{flex:1 1 80px}
   .scan-line input[type=text]{flex:1 1 100px}
   .scan-line input[type=date]{flex:1 1 130px}
+  .sor-row{padding:9px 0;border-bottom:1px solid #e3ddcf}
+  .sor-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .sor-tot{font-weight:bold;color:var(--gold-dark);white-space:nowrap;font-size:13px}
+  .sor-chips{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
+  .sor-chip{background:#eee;border-radius:20px;padding:2px 9px;font-size:12px}
+  .sor-chip.v{background:var(--green);color:#fff}
+  .sor-chip b{cursor:pointer;color:var(--red);margin-left:3px;font-weight:bold}
+  .sor-chip.v b{color:#fff}
+  .sor-add{display:flex;gap:6px;align-items:center;margin-top:3px}
+  .sor-add input{flex:1}
 </style>
 </head>
 <body>
@@ -291,6 +301,19 @@
 </section>
 
 <!-- INVENTAIRE (comptage physique) -->
+<!-- PESÉES DU JOUR (sorties farines non-bio) -->
+<section id="sor" class="page">
+  <div class="card">
+    <h2>Pesées du jour — farines non-bio</h2>
+    <p class="hint">⚖️ Ajoute tes pesées de farine non-bio au fil de la journée (elles s'additionnent par farine). Rien n'est déduit tant que tu n'as pas validé. <b>« Valider la journée »</b> déduit les totaux de ton stock. Les farines bio sont déduites automatiquement par les recettes.</p>
+    <label>Site</label><div class="seg" id="sorSite"></div>
+    <label>Date</label><input type="date" id="sorDate" onchange="sorRender()">
+    <div id="sorList" style="margin-top:6px"></div>
+    <div class="btn-row"><button class="btn" onclick="sorValider()">✓ Valider la journée (déduire du stock)</button></div>
+  </div>
+</section>
+
+<!-- INVENTAIRE -->
 <section id="inv" class="page">
   <div class="card">
     <h2>Comptage physique</h2>
@@ -372,6 +395,7 @@ const TABS=[
   {id:'liv',label:'📦 Livraisons'},
   {id:'mov',label:'🚚 Dispatch'},
   {id:'per',label:'🗑️ Pertes'},
+  {id:'sor',label:'⚖️ Pesées'},
   {id:'inv',label:'📋 Inventaire'},
   {id:'bil',label:'📊 Bilan bio'},
   {id:'ges',label:'⚙️ Gérer'}
@@ -395,7 +419,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='sor')sorEnter();
 }
 let _fabDragInit=false;
 function initTabDrag(){
@@ -1112,20 +1136,21 @@ async function movDel(id){
 }
 
 /* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
-let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[],_ingById={};
+let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[],bilSorties=[],_ingById={};
 const k2=x=>Math.round(x*100)/100;
 const INVOPTS=(function(){let o='<option value="">—</option>';for(let v=0;v<=1000;v+=5)o+='<option value="'+v+'">'+v+'</option>';return o;})();
 function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
 async function bilLoadRaw(){
-  const [lv,pr,pe,mv,inv]=await Promise.all([
+  const [lv,pr,pe,mv,inv,so]=await Promise.all([
     supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg'),
     supa.from('fab_production').select('site,date_prod,quantite,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
     supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
-    supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false})
+    supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false}),
+    supa.from('fab_sorties').select('ingredient_id,site,date_sortie,quantite_kg,valide')
   ]);
-  if(lv.error||pr.error||pe.error||mv.error||inv.error){setSync('⚠️');toast('Erreur de chargement (Supabase en pause ?)');}
-  bilLivr=lv.data||[];bilProd=pr.data||[];bilPertes=pe.data||[];bilMouv=mv.data||[];bilInv=inv.data||[];
+  if(lv.error||pr.error||pe.error||mv.error||inv.error||so.error){setSync('⚠️');toast('Erreur de chargement (Supabase en pause ?)');}
+  bilLivr=lv.data||[];bilProd=pr.data||[];bilPertes=pe.data||[];bilMouv=mv.data||[];bilInv=inv.data||[];bilSorties=so.data||[];
   _ingById={};ingredients.forEach(i=>_ingById[i.id]=i);
 }
 // mouvements (from exclusif, to inclusif ; null = pas de borne)
@@ -1134,6 +1159,7 @@ function movWin(ing,site,from,to){
   const inW=d=>(from==null||d>from)&&(to==null||d<=to);
   bilLivr.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_livraison))recu+=+l.quantite_kg;});
   bilPertes.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_perte))pertes+=+l.quantite_kg;});
+  bilSorties.forEach(s=>{if(s.ingredient_id===ing&&s.site===site&&s.valide&&inW(s.date_sortie))conso+=+s.quantite_kg;}); // pesées non-bio validées
   bilMouv.forEach(m=>{if(m.ingredient_id===ing){if(m.site_arrivee===site&&inW(m.date_mouvement))dispIn+=+m.quantite_kg;if(m.site_depart===site&&inW(m.date_mouvement))dispOut+=+m.quantite_kg;}});
   bilProd.forEach(p=>{if(p.site===site&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
     const qty=(+rl.quantite)*(+p.quantite/rb);
@@ -1231,6 +1257,58 @@ async function invDel(id){if(!confirm('Supprimer ce comptage ? (le stock reparti
   const q=await supa.from('fab_inventaires').delete().eq('id',id);
   if(q.error){toast(q.error.message);return;}
   toast('Comptage supprimé');await bilLoadRaw();invRender();invHist();
+}
+
+/* ---------- PESÉES DU JOUR (sorties farines non-bio) ---------- */
+let sorSite='local',sorRows=[];
+function sorEnter(){
+  document.getElementById('sorSite').innerHTML=SITES.map(s=>'<button class="'+(s[0]===sorSite?'on':'')+'" onclick="sorSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
+  if(!document.getElementById('sorDate').value)document.getElementById('sorDate').value=new Date().toISOString().slice(0,10);
+  sorLoad().then(sorRender);
+}
+function sorSetSite(s,btn){sorSite=s;[...document.getElementById('sorSite').children].forEach(c=>c.className='');btn.className='on';sorRender();}
+async function sorLoad(){const q=await supa.from('fab_sorties').select('*').order('created_at',{ascending:false});sorRows=q.data||[];bilSorties=sorRows;}
+function sorRender(){
+  const date=document.getElementById('sorDate').value||new Date().toISOString().slice(0,10);
+  const farines=ingredients.filter(x=>x.categorie==='farine'&&!x.bio);
+  const box=document.getElementById('sorList');
+  if(!farines.length){box.innerHTML='<div class="hint">Aucune farine non-bio. Ajoute-les dans Gérer (catégorie « farine », case Bio décochée).</div>';return;}
+  box.innerHTML=farines.map(ing=>{
+    const rows=sorRows.filter(s=>s.ingredient_id===ing.id&&s.site===sorSite&&s.date_sortie===date);
+    const total=rows.reduce((a,r)=>a+(+r.quantite_kg),0);
+    const allValid=rows.length>0&&rows.every(r=>r.valide);
+    const chips=rows.map(r=>'<span class="sor-chip'+(r.valide?' v':'')+'">'+k2(r.quantite_kg)+(r.valide?'':' <b onclick="sorDel('+r.id+')">✕</b>')+'</span>').join('');
+    return '<div class="sor-row">'
+      +'<div class="sor-head"><b>'+ing.nom+'</b><span class="sor-tot">'+k2(total)+' kg'+(allValid?' · ✓ validé':(rows.length?' · à valider':''))+'</span></div>'
+      +(chips?'<div class="sor-chips">'+chips+'</div>':'')
+      +'<div class="sor-add"><input type="number" step="0.1" id="so_'+ing.id+'" placeholder="+ kg pesés" onkeydown="if(event.key===\'Enter\')sorAdd(\''+ing.id+'\')"><button class="btn sm" onclick="sorAdd(\''+ing.id+'\')">➕ Ajouter</button></div>'
+      +'</div>';
+  }).join('');
+}
+async function sorAdd(ingId){
+  const el=document.getElementById('so_'+ingId);const q=parseFloat(el.value)||0;
+  if(!q){toast('Mets une quantité');return;}
+  const date=document.getElementById('sorDate').value||new Date().toISOString().slice(0,10);
+  setSync('ajout pesée…');
+  const ins=await supa.from('fab_sorties').insert({ingredient_id:ingId,site:sorSite,date_sortie:date,quantite_kg:q,valide:false});
+  if(ins.error){setSync('⚠️');toast(ins.error.message);return;}
+  setSync('🟢 connecté');el.value='';await sorLoad();sorRender();
+}
+async function sorDel(id){
+  const q=await supa.from('fab_sorties').delete().eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  await sorLoad();sorRender();
+}
+async function sorValider(){
+  const date=document.getElementById('sorDate').value||new Date().toISOString().slice(0,10);
+  const pend=sorRows.filter(s=>s.site===sorSite&&s.date_sortie===date&&!s.valide);
+  if(!pend.length){toast('Rien de nouveau à valider pour ce jour');return;}
+  if(!confirm('Valider '+pend.length+' pesée(s) du '+date+' ? Elles seront déduites du stock.'))return;
+  setSync('validation…');
+  const q=await supa.from('fab_sorties').update({valide:true}).eq('site',sorSite).eq('date_sortie',date).eq('valide',false);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast(pend.length+' pesée(s) validée(s) — déduites du stock ✓');
+  await sorLoad();sorRender();
 }
 
 /* ---------- PIN D'ACCÈS (mêmes codes que l'app principale) ---------- */
