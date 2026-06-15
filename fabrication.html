@@ -165,6 +165,16 @@
   .calc-pill.petit{background:var(--blue);color:#fff}.calc-pill.gros{background:var(--green);color:#fff}.calc-pill.multi{background:var(--orange);color:#fff}.calc-pill.warn{background:var(--red);color:#fff}
   .calc-tot{padding:12px 16px;border-top:2px solid var(--gold);display:flex;justify-content:space-between;align-items:center;font-family:"Playfair Display",Georgia,serif}
   .calc-tot .clbl{font-size:.95rem}.calc-tot .cval{font-size:1.5rem;font-weight:bold;color:var(--gold)}
+  /* Planning semaine */
+  .plan-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .plan-tbl th,.plan-tbl td{border:1px solid #e3ddcf;padding:3px;text-align:center}
+  .plan-tbl th{background:var(--gold-light);color:var(--brown);font-size:11.5px;line-height:1.2}
+  .plan-tbl td.pname{text-align:left;min-width:130px;font-weight:bold;font-size:12.5px}
+  .plan-tbl .pu{font-size:10px;color:var(--grey-light);font-weight:normal}
+  .plan-ctrls{display:flex;gap:1px;margin-top:2px}
+  .pcell{width:52px;border:1px solid #ddd;border-radius:5px;padding:6px 2px;text-align:center;font-size:13px}
+  .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .plan-add input,.plan-add select{padding:8px;border:1px solid var(--gold-light);border-radius:8px}
 </style>
 </head>
 <body>
@@ -221,6 +231,26 @@
     <div style="height:46vh"></div>
   </div>
   <div id="calcResults" class="calc-results"></div>
+</section>
+
+<!-- PLANNING SEMAINE -->
+<section id="plan" class="page">
+  <div class="card">
+    <h2>📅 Planning semaine</h2>
+    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. L'équipe la voit et anticipe les pesées. (Géré au fournil — purement visuel, non relié au stock.)</p>
+    <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
+      <button class="btn ghost sm" onclick="planSetWeek(-1)">◀</button>
+      <b id="planWeekLbl" style="flex:1;text-align:center;font-size:13px"></b>
+      <button class="btn ghost sm" onclick="planSetWeek(1)">▶</button>
+      <button class="btn ghost sm" onclick="planSetWeek(0)">Auj.</button>
+    </div>
+    <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
+    <div class="plan-add" style="margin-top:12px">
+      <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
+      <select id="planNewUnite" style="flex:1"><option>bacs</option><option>pièces</option><option>moules</option><option>kg</option></select>
+      <button class="btn sm" onclick="planAddLigne()">+ Ajouter une ligne</button>
+    </div>
+  </div>
 </section>
 
 <!-- RECETTES -->
@@ -433,6 +463,7 @@ function setSync(s){document.getElementById('sync').textContent=s;}
 /* ---------- ONGLETS (réordonnables par appui long, mémorisés par appareil) ---------- */
 const TABS=[
   {id:'fab',label:'🍞 Prod. du jour'},
+  {id:'plan',label:'📅 Planning'},
   {id:'calc',label:'🧮 Calculette'},
   {id:'rec',label:'📖 Recettes'},
   {id:'liv',label:'📦 Livraisons'},
@@ -462,7 +493,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();/* if(id==='sor')sorEnter(); — onglet Pesées masqué */
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();if(id==='plan')planEnter();/* if(id==='sor')sorEnter(); — onglet Pesées masqué */
 }
 let _fabDragInit=false;
 function initTabDrag(){
@@ -1509,6 +1540,85 @@ function calcRender(){
       +'<div class="crr"><div class="cf">'+calcR05(farine)+'<small> kg farine</small></div></div></div>';});
   const totHtml=all.length?'<div class="calc-tot"><span class="clbl">Total farine</span><span class="cval">'+calcR05(tot)+' kg</span></div>':'';
   body.innerHTML='<div class="ch"><h3>À peser ce matin</h3><button class="reset btn ghost sm" onclick="calcResetAll()">Tout remettre à 0</button></div>'+rows+totHtml;
+}
+
+/* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
+let planWeekStart='',planLignes=[],planVals={};
+const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
+function planEnter(){
+  if(!planWeekStart){const t=new Date();t.setHours(0,0,0,0);planWeekStart=pdISO(pdMonday(t));}
+  planLoad().then(planRender);
+}
+function planSetWeek(d){
+  if(d===0){const t=new Date();t.setHours(0,0,0,0);planWeekStart=pdISO(pdMonday(t));}
+  else planWeekStart=pdAddDays(planWeekStart,d*7);
+  planLoad().then(planRender);
+}
+async function planLoad(){
+  const end=pdAddDays(planWeekStart,6);setSync('chargement…');
+  const [lg,vl]=await Promise.all([
+    supa.from('fab_planning_lignes').select('*').eq('actif',true).order('ordre').order('id'),
+    supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end)
+  ]);
+  if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
+  setSync('🟢 connecté');
+  planLignes=lg.data||[];planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
+}
+function planRender(){
+  const end=pdAddDays(planWeekStart,6);
+  document.getElementById('planWeekLbl').textContent='Semaine du '+planFr(planWeekStart)+' au '+planFr(end);
+  const today=new Date().toISOString().slice(0,10);
+  let head='<thead><tr><th style="text-align:left">Produit</th>';
+  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const d=pdParse(iso);head+='<th'+(iso===today?' style="background:var(--gold);color:#fff"':'')+'>'+PD_DAYS[i]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</th>';}
+  head+='</tr></thead>';
+  let body='<tbody>';
+  if(!planLignes.length){body+='<tr><td colspan="8" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
+  planLignes.forEach((lg,k)=>{
+    body+='<tr><td class="pname">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span><div class="plan-ctrls">'
+      +'<button class="ico-btn" onclick="planMove('+k+',-1)"'+(k===0?' disabled':'')+'>↑</button>'
+      +'<button class="ico-btn" onclick="planMove('+k+',1)"'+(k===planLignes.length-1?' disabled':'')+'>↓</button>'
+      +'<button class="ico-btn" onclick="planRename('+lg.id+')">✏️</button>'
+      +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
+    for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
+      body+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
+    body+='</tr>';
+  });
+  body+='</tbody>';
+  document.getElementById('planTbl').innerHTML=head+body;
+}
+async function planSetVal(ligneId,iso,value){
+  planVals[ligneId+'_'+iso]=value;setSync('enregistrement…');
+  const q=await supa.from('fab_planning_valeurs').upsert({ligne_id:ligneId,date_jour:iso,valeur:value},{onConflict:'ligne_id,date_jour'});
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');
+}
+async function planAddLigne(){
+  const nom=document.getElementById('planNewNom').value.trim();if(!nom){toast('Mets un nom');return;}
+  const unite=document.getElementById('planNewUnite').value;
+  const ordre=planLignes.length?Math.max.apply(null,planLignes.map(l=>l.ordre||0))+1:0;
+  const q=await supa.from('fab_planning_lignes').insert({nom,unite,ordre});
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  document.getElementById('planNewNom').value='';
+  await planLoad();planRender();toast('Ligne ajoutée ✓');
+}
+async function planDel(id){
+  if(!confirm('Supprimer cette ligne et toutes ses valeurs ?'))return;
+  const q=await supa.from('fab_planning_lignes').delete().eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  await planLoad();planRender();
+}
+async function planRename(id){
+  const lg=planLignes.find(l=>l.id===id);if(!lg)return;
+  const nv=prompt('Nom de la ligne :',lg.nom);if(nv==null)return;const nom=nv.trim();if(!nom)return;
+  const q=await supa.from('fab_planning_lignes').update({nom}).eq('id',id);
+  if(q.error){toast(q.error.message);return;}
+  await planLoad();planRender();
+}
+async function planMove(k,dir){
+  const j=k+dir;if(j<0||j>=planLignes.length)return;
+  const arr=planLignes.slice();const t=arr[k];arr[k]=arr[j];arr[j]=t;
+  for(let i=0;i<arr.length;i++){if((arr[i].ordre||0)!==i){await supa.from('fab_planning_lignes').update({ordre:i}).eq('id',arr[i].id);}}
+  await planLoad();planRender();
 }
 
 /* ---------- PIN D'ACCÈS (mêmes codes que l'app principale) ---------- */
