@@ -205,7 +205,7 @@
       <div class="hint" style="margin-top:4px">Ajoute une ligne <strong>Eau</strong> = ton eau de coulage (fixe). Le bassinage est calculé tout seul sur la fiche.</div>
       <label>Ingrédients (pour la quantité de référence)</label>
       <div id="recLignes"></div>
-      <button class="btn ghost sm" onclick="recAddLigne()">+ Ajouter un ingrédient</button>
+      <div class="btn-row"><button class="btn ghost sm" onclick="recAddLigne()">+ Ajouter un ingrédient</button><button class="btn ghost sm" onclick="recNewIng()">✚ Créer un nouvel ingrédient</button></div>
       <label>Procédé (imprimé sur la fiche)</label>
       <textarea id="recProc" placeholder="Pétrissage, pointage, division, cuisson…"></textarea>
       <div class="btn-row"><button class="btn" onclick="recSave()">✓ Enregistrer la recette</button></div>
@@ -525,7 +525,7 @@ function gesRender(){
 }
 const CATS=['farine','levain','eau','sel','levure','sucre','beurre','oeuf','graine','epice','autre'];
 const PCATS=['pain','viennoiserie','brioches_special','patisserie_petits','patisserie_gros','gateaux_secs','traiteur'];
-function closeModal(){document.getElementById('modalBg').classList.remove('show');}
+function closeModal(){document.getElementById('modalBg').classList.remove('show');_recAfterNewIng=null;}
 function gesOpenAdd(){gesForm(gesCur,null);}
 function gesEdit(t,id){const arr=t==='ing'?ingredients:t==='prod'?produits:fournisseurs;gesForm(t,arr.find(x=>x.id===id));}
 function gesForm(t,obj){
@@ -556,6 +556,7 @@ function gesForm(t,obj){
 async function gesSave(t,isNew,id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:null;};
   const chk=x=>{const e=document.getElementById(x);return e?e.checked:false;};
+  const recBack=(t==='ing')?_recAfterNewIng:null; // capturé avant closeModal (qui le réinitialise)
   let table,row;
   if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null,code_fournisseur:v('m_code')||null};}
   else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
@@ -565,6 +566,7 @@ async function gesSave(t,isNew,id){
   const q=isNew?await supa.from(table).insert(row):await supa.from(table).update(row).eq('id',id);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   closeModal();await loadAll();toast('Enregistré ✓');
+  if(recBack){document.getElementById('recProd').value=recBack;if(isNew&&row.id)recLignesData.push({ingredient_id:row.id,quantite:0});recRenderLignes();}
 }
 async function gesDel(t,id){
   if(!confirm('Supprimer ?'))return;
@@ -583,6 +585,14 @@ async function gesToggleActif(id){
 
 /* ---------- RECETTES ---------- */
 let recLignesData=[]; // {ingredient_id, quantite}
+let _recAfterNewIng=null; // produit dont on édite la recette quand on crée un ingrédient à la volée
+// Crée un nouvel ingrédient SANS quitter la recette : ouvre le formulaire de Gérer, et à l'enregistrement
+// on restaure la recette en cours + on ajoute l'ingrédient comme nouvelle ligne.
+function recNewIng(){
+  const pid=document.getElementById('recProd').value;
+  if(!pid){toast('Choisis d\'abord un produit');return;}
+  _recAfterNewIng=pid;gesForm('ing',null);
+}
 let recRefPrev=null;  // valeur précédente de la quantité de référence (pour recalcul proportionnel)
 // Quand on change la "Quantité de référence", toutes les lignes se recalculent (× facteur).
 function recRefChange(){
