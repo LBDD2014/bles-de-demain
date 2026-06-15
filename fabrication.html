@@ -123,6 +123,13 @@
   .etq{border:2px solid #000;border-radius:6px;padding:9px 11px;width:62mm}
   .etq .tt{font-family:"Playfair Display",Georgia,serif;font-size:15px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:4px;margin-bottom:6px}
   .etq .ln{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+  .scan-line{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid #e3ddcf}
+  .scan-line .scan-chk{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--grey-light)}
+  .scan-line .scan-detected{flex:1 1 100%;font-size:12.5px;color:#444}
+  .scan-line select{flex:2 1 160px}
+  .scan-line input[type=number]{flex:1 1 80px}
+  .scan-line input[type=text]{flex:1 1 100px}
+  .scan-line input[type=date]{flex:1 1 130px}
 </style>
 </head>
 <body>
@@ -202,7 +209,9 @@
     <h2>Enregistrer une livraison</h2>
     <p class="hint">📷 Photographie le bon, indique la farine et la quantité — c'est tout.</p>
     <label>📷 Photo du bon de livraison <span style="font-weight:400;color:var(--grey-light)">(l'essentiel : lot, date, fournisseur y figurent)</span></label>
-    <input type="file" id="livPhoto" accept="image/*" capture="environment">
+    <input type="file" id="livPhoto" accept="image/*" capture="environment" onchange="livScanReset()">
+    <div class="btn-row" style="margin-top:6px"><button class="btn sm" id="livScanBtn" onclick="livScanPhoto()">🤖 Lire la photo automatiquement</button></div>
+    <div id="livScanResult"></div>
     <label>🧾 Photo de la facture <span style="font-weight:400;color:var(--grey-light)">(optionnel — pour le contrôle BV)</span></label>
     <input type="file" id="livFacture" accept="image/*" capture="environment">
     <div class="row">
@@ -942,6 +951,77 @@ async function livSave(){
   document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
   ['livPhoto','livFacture'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   livRenderList();
+}
+/* ---------- SCAN IA DU BON DE LIVRAISON ---------- */
+let livScanLignes=[]; // lignes proposées par l'IA, en cours de validation
+function livScanReset(){livScanLignes=[];const e=document.getElementById('livScanResult');if(e)e.innerHTML='';}
+function fileToBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
+function livMatieres(){return ingredients.filter(x=>x.bio&&x.categorie!=='levain');}
+async function livScanPhoto(){
+  const fi=document.getElementById('livPhoto');
+  if(!(fi&&fi.files&&fi.files[0])){toast('Prends d\'abord la photo du bon');return;}
+  const f=fi.files[0];const btn=document.getElementById('livScanBtn');const old=btn.textContent;
+  btn.disabled=true;btn.textContent='⏳ Lecture en cours…';setSync('lecture du bon par l\'IA…');
+  try{
+    const image=await fileToBase64(f);
+    const matieres=livMatieres().map(x=>({id:x.id,nom:x.nom,code:x.code_fournisseur||''}));
+    // NB : la fonction Edge a été déployée sous le slug 'rapid-worker' (nom auto Supabase, figé) — c'est bien le scan du bon de livraison.
+    const {data,error}=await supa.functions.invoke('rapid-worker',{body:{image,mimeType:f.type||'image/jpeg',matieres}});
+    if(error)throw new Error(error.message||'Erreur fonction');
+    if(data&&data.error)throw new Error(data.error);
+    const lignes=(data&&data.lignes)||[];
+    if(!lignes.length){toast('Aucune ligne lue — saisie manuelle');return;}
+    const gdate=(data&&data.date_livraison)||document.getElementById('livDate').value;
+    livScanLignes=lignes.map(l=>({
+      ingredient_id:l.ingredient_id||'',nom_detecte:l.nom_detecte||'',quantite_kg:l.quantite_kg||0,
+      numero_lot:l.numero_lot||'',numero_bon:l.numero_bon||'',date_livraison:l.date_livraison||gdate,
+      confidence:l.confidence||'',include:true}));
+    livScanRender();toast('Lu ✓ — vérifie puis enregistre');
+  }catch(e){setSync('⚠️');toast('Lecture : '+e.message);}
+  finally{btn.disabled=false;btn.textContent=old;setSync('🟢 connecté');}
+}
+function livScanRender(){
+  const matOpts=sel=>'<option value="">— à choisir —</option>'+livMatieres().map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+x.nom+'</option>').join('');
+  const rows=livScanLignes.map((l,k)=>{
+    const warn=!l.ingredient_id?' style="border-left:3px solid var(--orange);padding-left:6px"':'';
+    const conf=l.confidence==='basse'?' ⚠️ à vérifier':'';
+    return '<div class="scan-line"'+warn+'>'
+      +'<label class="scan-chk"><input type="checkbox" '+(l.include?'checked':'')+' onchange="livScanLignes['+k+'].include=this.checked"> garder</label>'
+      +'<div class="scan-detected">Lu sur le bon : <b>'+(l.nom_detecte||'?')+'</b>'+conf+'</div>'
+      +'<select onchange="livScanLignes['+k+'].ingredient_id=this.value">'+matOpts(l.ingredient_id)+'</select>'
+      +'<input type="number" step="0.1" value="'+l.quantite_kg+'" oninput="livScanLignes['+k+'].quantite_kg=parseFloat(this.value)||0" placeholder="kg">'
+      +'<input type="text" value="'+(l.numero_lot||'')+'" oninput="livScanLignes['+k+'].numero_lot=this.value" placeholder="n° lot">'
+      +'<input type="text" value="'+(l.numero_bon||'')+'" oninput="livScanLignes['+k+'].numero_bon=this.value" placeholder="n° bon">'
+      +'<input type="date" value="'+(l.date_livraison||'')+'" oninput="livScanLignes['+k+'].date_livraison=this.value">'
+      +'<button class="ico-btn" onclick="livScanLignes.splice('+k+',1);livScanRender()">🗑</button>'
+      +'</div>';
+  }).join('');
+  document.getElementById('livScanResult').innerHTML=
+    '<div class="card" style="margin:10px 0;background:var(--cream)">'
+    +'<h3 style="margin:0 0 4px">🤖 Lignes lues — vérifie et corrige</h3>'
+    +'<p class="hint">Trait orange = farine non reconnue, choisis-la. Décoche « garder » pour ignorer une ligne.</p>'
+    +rows
+    +'<div class="row" style="margin-top:8px"><div><label>Site de réception (toutes les lignes)</label><select id="livScanSite">'+SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('')+'</select></div></div>'
+    +'<div class="btn-row" style="margin-top:8px"><button class="btn" onclick="livScanSaveAll()">✓ Tout enregistrer</button></div>'
+    +'</div>';
+}
+async function livScanSaveAll(){
+  const lignes=livScanLignes.filter(l=>l.include);
+  if(!lignes.length){toast('Aucune ligne cochée');return;}
+  if(lignes.some(l=>!l.ingredient_id||!l.quantite_kg)){toast('Chaque ligne gardée a besoin d\'une farine + une quantité');return;}
+  const site=document.getElementById('livScanSite').value;
+  setSync('envoi de la photo…');
+  let photo_url=null;
+  try{photo_url=await uploadPhoto('livPhoto','bon');}catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
+  setSync('enregistrement…');
+  const rows=lignes.map(l=>({ingredient_id:l.ingredient_id,quantite_kg:l.quantite_kg,
+    numero_lot:l.numero_lot||null,numero_bon:l.numero_bon||null,site,
+    date_livraison:l.date_livraison||new Date().toISOString().slice(0,10),note:'Saisi par scan IA',
+    fournisseur_id:(ingredients.find(i=>i.id===l.ingredient_id)||{}).fournisseur_id||null,photo_url}));
+  const q=await supa.from('fab_livraisons').insert(rows);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');toast(rows.length+' livraison(s) enregistrée(s) ✓');
+  livScanReset();document.getElementById('livPhoto').value='';livRenderList();
 }
 async function livRenderList(filtered){
   let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false});
