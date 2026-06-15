@@ -459,7 +459,7 @@ async function loadRecettesMap(){
 function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
-  document.getElementById('livIng').innerHTML=ingredients.filter(x=>x.bio&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
+  document.getElementById('livIng').innerHTML=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?'':' (non bio)')+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
@@ -956,7 +956,7 @@ async function livSave(){
 let livScanLignes=[]; // lignes proposées par l'IA, en cours de validation
 function livScanReset(){livScanLignes=[];const e=document.getElementById('livScanResult');if(e)e.innerHTML='';}
 function fileToBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
-function livMatieres(){return ingredients.filter(x=>x.bio&&x.categorie!=='levain');}
+function livMatieres(){return ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain');}
 async function livScanPhoto(){
   const fi=document.getElementById('livPhoto');
   if(!(fi&&fi.files&&fi.files[0])){toast('Prends d\'abord la photo du bon');return;}
