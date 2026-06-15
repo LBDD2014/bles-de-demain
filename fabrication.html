@@ -1195,11 +1195,11 @@ function invSetSite(s,btn){invCurSite=s;[...document.getElementById('invSite').c
 async function invEnter(){await bilLoadRaw();if(!document.getElementById('invDate').value)document.getElementById('invDate').value=new Date().toISOString().slice(0,10);invRender();invHist();}
 function invRender(){
   const date=document.getElementById('invDate').value||new Date().toISOString().slice(0,10);
-  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const box=document.getElementById('invList');
-  if(!bio.length){box.innerHTML='<div class="hint">Aucune matière bio. Ajoute-les dans Gérer.</div>';return;}
-  box.innerHTML='<table><thead><tr><th>Matière bio</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
+  const bio=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain');const box=document.getElementById('invList');
+  if(!bio.length){box.innerHTML='<div class="hint">Aucune matière à compter. Ajoute-les dans Gérer.</div>';return;}
+  box.innerHTML='<table><thead><tr><th>Matière</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'+
     bio.map(ing=>{const theo=k2(theoAt(ing.id,invCurSite,date));
-      return '<tr><td>'+ing.nom+'</td><td style="color:var(--grey-light)">'+theo+'</td>'+
+      return '<tr><td>'+ing.nom+(ing.bio?'':' <span style="font-size:10px;color:var(--grey-light)">(non bio)</span>')+'</td><td style="color:var(--grey-light)">'+theo+'</td>'+
         '<td>'+(ing.categorie==='farine'
           ?'<select id="iv_'+ing.id+'" data-theo="'+theo+'" onchange="invUpd(\''+ing.id+'\')" style="padding:8px">'+INVOPTS+'</select>'
           :'<input type="number" step="0.1" id="iv_'+ing.id+'" data-theo="'+theo+'" oninput="invUpd(\''+ing.id+'\')" style="padding:7px;text-align:right" placeholder="—">')+'</td>'+
@@ -1213,7 +1213,7 @@ function invUpd(ing){const el=document.getElementById('iv_'+ing);const ec=docume
 }
 async function invSave(){
   const date=document.getElementById('invDate').value;if(!date){toast('Mets une date');return;}
-  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const rows=[];
+  const bio=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain');const rows=[];
   bio.forEach(ing=>{const el=document.getElementById('iv_'+ing.id);if(el&&el.value!==''){rows.push({ingredient_id:ing.id,site:invCurSite,date_inv:date,qte_reelle_kg:parseFloat(el.value)||0});}});
   if(!rows.length){toast('Compte au moins une matière');return;}
   setSync('enregistrement…');
