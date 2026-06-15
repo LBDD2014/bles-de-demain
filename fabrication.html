@@ -401,7 +401,7 @@ const TABS=[
   {id:'liv',label:'📦 Livraisons'},
   {id:'mov',label:'🚚 Dispatch'},
   {id:'per',label:'🗑️ Pertes'},
-  {id:'sor',label:'⚖️ Pesées'},
+  // {id:'sor',label:'⚖️ Pesées'},  // masqué à la demande de Phil (2026-06-15) — section + fonctions conservées, réactivable en décommentant
   {id:'inv',label:'📋 Inventaire'},
   {id:'bil',label:'📊 Bilan bio'},
   {id:'ges',label:'⚙️ Gérer'}
@@ -425,7 +425,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='sor')sorEnter();
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();/* if(id==='sor')sorEnter(); — onglet Pesées masqué */
 }
 let _fabDragInit=false;
 function initTabDrag(){
