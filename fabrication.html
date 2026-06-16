@@ -216,6 +216,7 @@
       <button class="btn dark" style="flex:1" onclick="printFiche()">🖨️ Tout imprimer</button>
       <button class="btn ghost" onclick="fabReset()">↺ Coches</button>
     </div>
+    <div id="pdValidBar" style="margin-top:10px"></div>
   </div>
   <div class="card" id="pdLevain" style="display:none"></div>
   <div class="card" id="pdMatieres" style="display:none"></div>
@@ -457,7 +458,7 @@ const SITES=[['local','Le Local'],['veigne','Veigné'],['tours','Tours']];
 let fournisseurs=[],ingredients=[],produits=[];
 let gesCur='ing', fabUnitMode='auto', fabSite='local', fabChecked={};
 let recettesMap={}, pdDay={}; // recettes actives par produit + pains cochés du jour (pid -> {qte,unit,hydra})
-let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}; // planning semaine
+let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}, pdDayValide=false; // planning semaine + état validé du jour
 let pdMelange={}; // melangePid -> nb bacs (du jour)
 let pdHydraPref={}; try{pdHydraPref=JSON.parse(localStorage.getItem('pdHydraPref')||'{}')}catch(e){} // % eau mémorisé par produit
 function pdSaveHydraPref(pid,h){if(h==null)return;pdHydraPref[pid]=h;try{localStorage.setItem('pdHydraPref',JSON.stringify(pdHydraPref))}catch(e){}}
@@ -801,14 +802,16 @@ async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
 /* --- jour : charge / sauve (auto-save) --- */
 async function pdLoadDay(){
   const lab=document.getElementById('pdDayLabel');if(lab)lab.textContent='📅 '+pdLabel(pdDate);
-  const r=await supa.from('fab_production').select('produit_id,quantite').eq('site',fabSite).eq('date_prod',pdDate);
+  const r=await supa.from('fab_production').select('produit_id,quantite,valide').eq('site',fabSite).eq('date_prod',pdDate);
+  const _rows=r.data||[];pdDayValide=_rows.length>0&&_rows.every(x=>x.valide);
   pdDay={};pdMelange={};
-  (r.data||[]).filter(x=>recettesMap[x.produit_id]).forEach(x=>{
+  _rows.filter(x=>recettesMap[x.produit_id]).forEach(x=>{
     const prod=produits.find(p=>p.id===x.produit_id)||{};
     if(prod.categorie==='melange'){pdMelange[x.produit_id]=r2(x.quantite);}                 // mélange : quantite = nb bacs
     else{if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:r2(x.quantite),hydra:(pdHydraPref[x.produit_id]!=null?pdHydraPref[x.produit_id]:undefined)});}
   });
   fabChecked={};pdRenderAll();
+  if(pdDayValide&&!bilProd.length){bilLoadRaw().then(pdRenderValidBar);}else{pdRenderValidBar();}
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
 async function pdDoSave(){
@@ -820,7 +823,39 @@ async function pdDoSave(){
   const rows=entries.map(e=>({produit_id:e.pid,recette_id:recettesMap[e.pid].id,site:fabSite,date_prod:pdDate,quantite:r2(pdRowKgFlour(e))}))
     .concat(mel.map(m=>({produit_id:m,recette_id:recettesMap[m].id,site:fabSite,date_prod:pdDate,quantite:r2(parseFloat(pdMelange[m])||0)})));
   if(rows.length){const q=await supa.from('fab_production').insert(rows);if(q.error){setSync('⚠️');toast(q.error.message);return;}}
-  setSync('🟢 connecté');pdLoadWeek();
+  setSync('🟢 connecté');pdDayValide=false;pdRenderValidBar();pdLoadWeek();
+}
+async function pdValiderJour(){
+  clearTimeout(_pdSaveTimer);await pdDoSave();          // on enregistre d'abord la saisie en cours (en brouillon)
+  if(!pdEntries().some(e=>(parseFloat(e.qte)||0)>0)&&!Object.keys(pdMelange).some(m=>(parseFloat(pdMelange[m])||0)>0)){toast('Rien à valider pour ce jour');return;}
+  setSync('validation…');
+  const q=await supa.from('fab_production').update({valide:true}).eq('site',fabSite).eq('date_prod',pdDate);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');pdDayValide=true;
+  await bilLoadRaw();pdRenderValidBar();
+  toast('Journée validée — farines décomptées ✓');
+}
+function pdDayFarineRecap(){
+  const acc={};
+  bilProd.forEach(p=>{if(p.site===fabSite&&p.date_prod===pdDate&&p.valide){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+    const base=(+rl.quantite)*(+p.quantite/rb);const ing=_ingById[rl.ingredient_id];
+    if(ing&&ing.categorie==='farine')acc[rl.ingredient_id]=(acc[rl.ingredient_id]||0)+base;
+    if(ing&&ing.categorie==='levain'&&ing.farine_levain_id){const r=(+ing.eau_ratio)||0;acc[ing.farine_levain_id]=(acc[ing.farine_levain_id]||0)+base/(1+r);}
+  });}});
+  return Object.keys(acc).map(id=>({nom:ingNom(id),kg:acc[id]})).sort((a,b)=>b.kg-a.kg);
+}
+function pdRenderValidBar(){
+  const box=document.getElementById('pdValidBar');if(!box)return;
+  let h='<button class="btn" style="width:100%;'+(pdDayValide?'background:var(--green)':'')+'" onclick="pdValiderJour()">'+(pdDayValide?'✓ Journée validée — re-valider si rajout':'✓ Valider ma journée (décompter les farines)')+'</button>';
+  if(pdDayValide){
+    const recap=pdDayFarineRecap();
+    h+='<div style="margin-top:8px;background:var(--cream);border-radius:10px;padding:10px"><b style="color:var(--green)">✓ Farines décomptées — '+pdLabel(pdDate)+'</b>';
+    h+=recap.length?'<table class="plan-tbl" style="margin-top:6px"><tbody>'+recap.map(r=>'<tr><td class="pname">'+r.nom+'</td><td><b>'+k2(r.kg)+' kg</b></td></tr>').join('')+'</tbody></table>':'<div class="hint">Aucune farine décomptée (pas de recette sur ces pains ?).</div>';
+    h+='</div>';
+  }else{
+    h+='<p class="hint" style="color:var(--orange);margin-top:6px">⚠️ Non validé — tes farines ne sont pas encore décomptées du stock.</p>';
+  }
+  box.innerHTML=h;
 }
 /* --- mélanges (variantes d'une pâte de base) --- */
 function melangesForBase(basePid){const ing=BASE_PATE[basePid];if(!ing)return [];
@@ -1300,7 +1335,7 @@ function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);ret
 async function bilLoadRaw(){
   const [lv,pr,pe,mv,inv,so]=await Promise.all([
     supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg,numero_lot,numero_bon,fournisseur_id'),
-    supa.from('fab_production').select('site,date_prod,quantite,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
+    supa.from('fab_production').select('site,date_prod,quantite,valide,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
     supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
     supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false}),
@@ -1318,7 +1353,7 @@ function movWin(ing,site,from,to){
   bilPertes.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_perte))pertes+=+l.quantite_kg;});
   bilSorties.forEach(s=>{if(s.ingredient_id===ing&&s.site===site&&s.valide&&inW(s.date_sortie))conso+=+s.quantite_kg;}); // pesées non-bio validées
   bilMouv.forEach(m=>{if(m.ingredient_id===ing){if(m.site_arrivee===site&&inW(m.date_mouvement))dispIn+=+m.quantite_kg;if(m.site_depart===site&&inW(m.date_mouvement))dispOut+=+m.quantite_kg;}});
-  bilProd.forEach(p=>{if(p.site===site&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+  bilProd.forEach(p=>{if(p.site===site&&p.valide&&inW(p.date_prod)){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
     const qty=(+rl.quantite)*(+p.quantite/rb);
     if(rl.ingredient_id===ing)conso+=qty; // farine/ingrédient utilisé directement
     const li=_ingById[rl.ingredient_id]; // si la ligne est un LEVAIN, on compte sa farine bio (total ÷ (1+eau_ratio))
