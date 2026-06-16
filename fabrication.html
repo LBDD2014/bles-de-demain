@@ -263,6 +263,13 @@
 <!-- RECETTES -->
 <section id="rec" class="page">
   <div class="card">
+    <h2>🤖 Importer une recette (coller du texte)</h2>
+    <p class="hint">Colle le texte d'une recette (ou de plusieurs) depuis ton Word. L'IA la lit et <b>pré-remplit l'éditeur</b> ci-dessous — tu vérifies, tu corriges, puis « Enregistrer la recette ».</p>
+    <textarea id="recImportText" rows="5" style="width:100%;padding:8px;border:1px solid var(--gold-light);border-radius:8px;font-family:Georgia,serif" placeholder="Ex : Pain de campagne — pour 10 kg de farine T80, 7 L d'eau, 200 g de sel, 2 kg de levain. Hydratation 72 %. Pétrissage 5 min, pointage 1 h, cuisson 240 °C…"></textarea>
+    <div class="btn-row" style="margin-top:6px"><button class="btn sm" id="recImportBtn" onclick="recImportParse()">🤖 Lire le texte</button></div>
+    <div id="recImportResult"></div>
+  </div>
+  <div class="card">
     <h2>Recettes</h2>
     <p class="hint">Choisis un produit, compose sa recette, enregistre. Modifiable à tout moment.</p>
     <div class="btn-row" style="margin:0 0 10px"><button class="btn dark sm" onclick="recExportAll()">📄 Exporter toutes les recettes (PDF)</button></div>
@@ -736,6 +743,7 @@ function recRenderLignes(){
   const n=recLignesData.length;
   document.getElementById('recLignes').innerHTML=recLignesData.map((l,k)=>
     '<div class="lg-line"><select onchange="recLignesData['+k+'].ingredient_id=this.value">'+
+    '<option value="" '+(!l.ingredient_id?'selected':'')+'>— à choisir —</option>'+
     ingredients.map(i=>'<option value="'+i.id+'" '+(l.ingredient_id===i.id?'selected':'')+'>'+i.nom+(i.bio?' (bio)':'')+'</option>').join('')+
     '</select><input type="text" inputmode="decimal" value="'+String(l.quantite).replace('.',',')+'" oninput="recLignesData['+k+'].quantite=parseFloat((this.value||\'\').replace(\',\',\'.\'))||0" placeholder="kg">'+
     '<button class="ico-btn" onclick="recMoveLigne('+k+',-1)"'+(k===0?' disabled':'')+'>↑</button>'+
@@ -746,6 +754,47 @@ function recRenderLignes(){
 function recMoveLigne(k,dir){const j=k+dir;if(j<0||j>=recLignesData.length)return;const t=recLignesData[k];recLignesData[k]=recLignesData[j];recLignesData[j]=t;recRenderLignes();}
 function recAddLigne(){recLignesData.push({ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0});recRenderLignes();}
 function recDelLigne(k){recLignesData.splice(k,1);recRenderLignes();}
+/* ---------- IMPORT DE RECETTES (texte → IA) ---------- */
+let recImportData=[];
+async function recImportParse(){
+  const text=document.getElementById('recImportText').value.trim();
+  if(!text){toast('Colle d\'abord le texte d\'une recette');return;}
+  const btn=document.getElementById('recImportBtn');const old=btn.textContent;btn.disabled=true;btn.textContent='⏳ Lecture…';
+  setSync('lecture de la recette par l\'IA…');
+  try{
+    const ings=ingredients.map(x=>({id:x.id,nom:x.nom}));
+    const prods=produits.map(x=>({id:x.id,nom:x.nom}));
+    const {data,error}=await supa.functions.invoke('rapid-worker',{body:{mode:'recette',text,ingredients:ings,produits:prods}});
+    if(error)throw new Error(error.message||'Erreur fonction');
+    if(data&&data.error)throw new Error(data.error);
+    recImportData=(data&&data.recettes)||[];
+    if(!recImportData.length){toast('Aucune recette lue dans ce texte');return;}
+    recImportRender();toast(recImportData.length+' recette(s) lue(s) — choisis-en une');
+  }catch(e){setSync('⚠️');toast('Lecture : '+e.message);}
+  finally{btn.disabled=false;btn.textContent=old;setSync('🟢 connecté');}
+}
+function recImportRender(){
+  document.getElementById('recImportResult').innerHTML='<div style="margin-top:8px;background:var(--cream);border-radius:10px;padding:10px"><b>Recettes détectées</b><p class="hint" style="margin:4px 0 8px">Clique pour charger dans l\'éditeur ci-dessous, vérifie, puis « Enregistrer la recette ».</p>'
+    +recImportData.map((r,k)=>'<div class="btn-row" style="margin-bottom:4px"><button class="btn ghost sm" style="flex:1;text-align:left" onclick="recImportApply('+k+')">📥 '+((r.produit_nom||'Recette '+(k+1)).replace(/[<>]/g,''))+' — '+((r.lignes||[]).length)+' ingrédient(s)</button></div>').join('')
+    +'</div>';
+}
+function recImportApply(k){
+  const r=recImportData[k];if(!r)return;
+  if(r.produit_id&&produits.find(p=>p.id===r.produit_id))document.getElementById('recProd').value=r.produit_id;
+  else{document.getElementById('recProd').value='';toast('⚠️ Produit non reconnu — choisis-le dans la liste « Produit »');}
+  document.getElementById('recEditor').style.display='block';
+  document.getElementById('recUnite').value=r.unite_base||'kg de farine';
+  document.getElementById('recRef').value=r.rendement_base||10;
+  document.getElementById('recHydra').value=(r.hydratation_pct!=null?r.hydratation_pct:'');
+  document.getElementById('recProc').value=r.procede||'';
+  let unmatched=0;
+  recLignesData=(r.lignes||[]).map(l=>{const ok=l.ingredient_id&&ingredients.find(i=>i.id===l.ingredient_id);if(!ok)unmatched++;return{ingredient_id:ok?l.ingredient_id:'',quantite:parseFloat(l.quantite)||0};});
+  if(!recLignesData.length)recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
+  recRefPrev=parseFloat(document.getElementById('recRef').value)||1;
+  recRenderLignes();
+  document.getElementById('recEditor').scrollIntoView({behavior:'smooth'});
+  toast(unmatched?('Chargé — '+unmatched+' ingrédient(s) à choisir/créer'):'Chargé — vérifie puis enregistre');
+}
 async function recSave(){
   const pid=document.getElementById('recProd').value;if(!pid)return;
   const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,hydratation_pct:parseFloat(document.getElementById('recHydra').value)||null,procede:document.getElementById('recProc').value||null};
