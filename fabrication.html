@@ -282,6 +282,8 @@
       </div>
       <label>💧 Hydratation par défaut (%) <span style="font-weight:400;color:var(--grey-light)">(la ligne « Eau » = coulage fixe ; le bassinage s'ajuste au %)</span></label>
       <input type="number" id="recHydra" placeholder="ex 94">
+      <label>📦 Poids du bac (kg) <span style="font-weight:400;color:var(--grey-light)">(optionnel — si renseigné, ce produit se saisit EN BACS dans Prod. du jour. Ex : Châtaigne 7, Petit Automne 8)</span></label>
+      <input type="number" step="0.1" id="recBac" placeholder="laisse vide pour saisie en kg de farine">
       <div class="hint" style="margin-top:4px">Ajoute une ligne <strong>Eau</strong> = ton eau de coulage (fixe). Le bassinage est calculé tout seul sur la fiche.</div>
       <label>Ingrédients (pour la quantité de référence)</label>
       <div id="recLignes"></div>
@@ -731,9 +733,10 @@ async function recLoad(){
     document.getElementById('recRef').value=r.data.rendement_base||10;
     document.getElementById('recHydra').value=r.data.hydratation_pct!=null?r.data.hydratation_pct:'';
     document.getElementById('recProc').value=r.data.procede||'';
+    document.getElementById('recBac').value=(r.data.poids_bac!=null?r.data.poids_bac:'');
     recLignesData=(r.data.fab_recette_lignes||[]).map(l=>({ingredient_id:l.ingredient_id,quantite:l.quantite}));
   }else{
-    document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recHydra').value='';document.getElementById('recProc').value='';
+    document.getElementById('recUnite').value='kg de farine';document.getElementById('recRef').value=10;document.getElementById('recHydra').value='';document.getElementById('recProc').value='';document.getElementById('recBac').value='';
     recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
   }
   recRefPrev=parseFloat(document.getElementById('recRef').value)||1; // base pour le recalcul
@@ -787,6 +790,7 @@ function recImportApply(k){
   document.getElementById('recRef').value=r.rendement_base||10;
   document.getElementById('recHydra').value=(r.hydratation_pct!=null?r.hydratation_pct:'');
   document.getElementById('recProc').value=r.procede||'';
+  document.getElementById('recBac').value='';
   let unmatched=0;
   recLignesData=(r.lignes||[]).map(l=>{const ok=l.ingredient_id&&ingredients.find(i=>i.id===l.ingredient_id);if(!ok)unmatched++;return{ingredient_id:ok?l.ingredient_id:'',quantite:parseFloat(l.quantite)||0};});
   if(!recLignesData.length)recLignesData=[{ingredient_id:ingredients[0]?ingredients[0].id:'',quantite:0}];
@@ -797,7 +801,7 @@ function recImportApply(k){
 }
 async function recSave(){
   const pid=document.getElementById('recProd').value;if(!pid)return;
-  const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,hydratation_pct:parseFloat(document.getElementById('recHydra').value)||null,procede:document.getElementById('recProc').value||null};
+  const fields={unite_base:document.getElementById('recUnite').value,rendement_base:parseFloat(document.getElementById('recRef').value)||1,hydratation_pct:parseFloat(document.getElementById('recHydra').value)||null,procede:document.getElementById('recProc').value||null,poids_bac:parseFloat(document.getElementById('recBac').value)||null};
   const lignes=recLignesData.filter(l=>l.ingredient_id&&l.quantite>0);
   if(!lignes.length){toast('Ajoute au moins un ingrédient');return;}
   setSync('enregistrement recette…');
@@ -849,7 +853,7 @@ function doughPerKgFlourH(pid,hydra){
 function pdHasBac(pid){const rec=recettesMap[pid];return !!(rec&&rec.poids_bac>0&&doughPerKgFlour(pid)>0);}
 function pdRowKgFlour(row){
   const rec=recettesMap[row.pid];if(!rec)return 0;const q=parseFloat(row.qte)||0;
-  if(row.unit==='bac'&&pdHasBac(row.pid))return q*rec.poids_bac/doughPerKgFlour(row.pid);
+  if(pdHasBac(row.pid))return q*rec.poids_bac/doughPerKgFlour(row.pid); // qte en BACS → kg de farine
   return q;
 }
 function pdKgToBac(pid,kg){const rec=recettesMap[pid];if(!pdHasBac(pid))return null;return kg*doughPerKgFlour(pid)/rec.poids_bac;}
@@ -882,7 +886,8 @@ async function pdLoadDay(){
   _rows.filter(x=>recettesMap[x.produit_id]).forEach(x=>{
     const prod=produits.find(p=>p.id===x.produit_id)||{};
     if(prod.categorie==='melange'){pdMelange[x.produit_id]=r2(x.quantite);}                 // mélange : quantite = nb bacs
-    else{if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:r2(x.quantite),hydra:(pdHydraPref[x.produit_id]!=null?pdHydraPref[x.produit_id]:undefined)});}
+    else{const qv=pdHasBac(x.produit_id)?Math.round(pdKgToBac(x.produit_id,x.quantite)*2)/2:r2(x.quantite); // bac : on reconvertit les kg stockés en bacs
+      if(!pdDay[x.produit_id])pdDay[x.produit_id]=[];pdDay[x.produit_id].push({qte:qv,hydra:(pdHydraPref[x.produit_id]!=null?pdHydraPref[x.produit_id]:undefined)});}
   });
   fabChecked={};pdRenderAll();
   if(pdDayValide&&!bilProd.length){bilLoadRaw().then(pdRenderValidBar);}else{pdRenderValidBar();}
@@ -1007,12 +1012,18 @@ function pdRenderAll(){pdRenderRows();pdRenderLevain();pdRenderMatieres();pdRend
 
 // Options du menu quantité : 5→75 (pas de 5), Tradition 25→75 (pas de 25)
 function pdQtyOptions(pid,cur){
+  if(pdHasBac(pid)){ // produit en BACS
+    let o='',inList=false;
+    for(let q=1;q<=12;q++){if(q==cur)inList=true;o+='<option value="'+q+'"'+(q==cur?' selected':'')+'>'+q+' bac'+(q>1?'s':'')+'</option>';}
+    if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+cur+' bac(s)</option>'+o;
+    return o;
+  }
   const step=(pid==='pr_tradition')?25:5;let o='',inList=false;
   for(let q=step;q<=75;q+=step){if(q==cur)inList=true;o+='<option value="'+q+'"'+(q==cur?' selected':'')+'>'+q+' kg</option>';}
   if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+cur+' kg</option>'+o; // garde une valeur hors liste
   return o;
 }
-function pdDefaultQte(pid){return pid==='pr_tradition'?25:10;}
+function pdDefaultQte(pid){if(pdHasBac(pid))return 1;return pid==='pr_tradition'?25:10;}
 
 function pdRenderRows(){
   const el=document.getElementById('pdRows');if(!el)return;
