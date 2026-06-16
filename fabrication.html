@@ -24,8 +24,8 @@
   header .sub{font-size:11px;opacity:.7}
   #sync{font-size:11px;opacity:.8}
 
-  nav.tabs{display:flex;background:var(--grey);position:sticky;top:0;z-index:10;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-  nav.tabs button{flex:1 0 auto;background:none;border:none;color:var(--cream);padding:13px 14px;font-size:13.5px;font-family:Georgia,serif;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;opacity:.65;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  nav.tabs{display:flex;flex-wrap:wrap;background:var(--grey);position:sticky;top:0;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  nav.tabs button{flex:1 0 auto;background:none;border:none;color:var(--cream);padding:13px 14px;font-size:13.5px;font-family:Georgia,serif;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;opacity:.65;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
   nav.tabs button.active{opacity:1;border-bottom-color:var(--gold);background:rgba(206,171,82,.12)}
   nav.tabs button.dragging{opacity:.55;background:rgba(206,171,82,.25);transform:scale(.96);touch-action:none}
 
@@ -436,6 +436,11 @@
     <div class="btn-row"><button class="btn" id="gesAdd" onclick="gesOpenAdd()">+ Ajouter</button></div>
   </div>
   <div class="card">
+    <h2>↕️ Ordre des onglets</h2>
+    <p class="hint">Réorganise l'ordre des onglets de l'app avec les flèches (plus simple que le glisser-déposer).</p>
+    <div class="btn-row"><button class="btn sm" onclick="navReorderOpen()">↕️ Réorganiser les onglets</button></div>
+  </div>
+  <div class="card">
     <h2>🔑 Sécurité — code d'accès</h2>
     <p class="hint">Change le code d'accès de l'app Fabrication (ex : un employé quitte l'entreprise). Les appareils avec l'ancien code seront <b>rebloqués</b> à la prochaine ouverture. Protégé par le code maître.</p>
     <div class="btn-row"><button class="btn dark sm" onclick="changeFabCode()">Changer le code d'accès Fabrication</button></div>
@@ -501,6 +506,26 @@ function show(id){
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
   if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();/* if(id==='plan')planEnter(); — onglet Planning masqué */ /* if(id==='sor')sorEnter(); — onglet Pesées masqué */
+}
+/* Réorganiser les onglets avec des flèches (fiable, sans glisser-déposer) */
+function navReorderRows(tabs){
+  return tabs.map((t,k)=>'<div class="lg-line" style="background:#fff;border:1px solid var(--gold-light);border-radius:8px;padding:6px 10px"><span style="flex:1">'+t.label+'</span>'
+    +'<button class="ico-btn" onclick="navReorderMove('+k+',-1)"'+(k===0?' disabled':'')+'>↑</button>'
+    +'<button class="ico-btn" onclick="navReorderMove('+k+',1)"'+(k===tabs.length-1?' disabled':'')+'>↓</button></div>').join('');
+}
+function navReorderOpen(){
+  document.getElementById('modal').innerHTML='<h3>↕️ Ordre des onglets</h3><p class="hint">Monte ou descends chaque onglet avec les flèches. C\'est enregistré tout de suite.</p><div id="navReorderList">'+navReorderRows(orderedTabs())+'</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost sm" onclick="navReorderReset()">↺ Ordre par défaut</button><button class="btn" onclick="closeModal()">Fermer</button></div>';
+  document.getElementById('modalBg').classList.add('show');
+}
+function navReorderMove(k,dir){
+  const tabs=orderedTabs();const j=k+dir;if(j<0||j>=tabs.length)return;
+  const t=tabs[k];tabs[k]=tabs[j];tabs[j]=t;
+  try{localStorage.setItem('fabNavOrder',JSON.stringify(tabs.map(x=>x.id)));}catch(e){}
+  renderTabs();const l=document.getElementById('navReorderList');if(l)l.innerHTML=navReorderRows(orderedTabs());
+}
+function navReorderReset(){
+  try{localStorage.removeItem('fabNavOrder');}catch(e){}
+  renderTabs();const l=document.getElementById('navReorderList');if(l)l.innerHTML=navReorderRows(orderedTabs());
 }
 let _fabDragInit=false;
 function initTabDrag(){
