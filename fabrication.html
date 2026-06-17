@@ -246,7 +246,8 @@
 <section id="plan" class="page">
   <div class="card">
     <h2>📅 Planning semaine</h2>
-    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. L'équipe la voit et anticipe les pesées. (Géré au fournil — purement visuel, non relié au stock.)</p>
+    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. Chaque site a sa propre liste.</p>
+    <label>Site</label><div class="seg" id="planSite" style="margin-bottom:8px"></div>
     <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
       <button class="btn ghost sm" onclick="planSetWeek(-1)">◀</button>
       <b id="planWeekLbl" style="flex:1;text-align:center;font-size:13px"></b>
@@ -603,6 +604,7 @@ function fillSelectors(){
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
   document.getElementById('livIng').innerHTML=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?'':' (non bio)')+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
   document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
+  document.getElementById('planSite').innerHTML=SITES.map((s,k)=>'<button class="'+(s[0]===planSite?'on':'')+'" onclick="planSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('lotSite').innerHTML='<option value="">Tous les sites</option>'+SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
@@ -1681,7 +1683,7 @@ async function calcFromPlan(){
   const date=document.getElementById('calcPlanDate').value;if(!date){toast('Choisis un jour');return;}
   setSync('lecture du planning…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('id,nom,pate,kg_farine_unite,actif').eq('actif',true),
+    supa.from('fab_planning_lignes').select('id,nom,pate,kg_farine_unite,actif,site').eq('actif',true).eq('site',planSite),
     supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',date)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
@@ -1692,15 +1694,17 @@ async function calcFromPlan(){
     const p=l.pate||l.nom;byPate[p]=(byPate[p]||0)+num*(+l.kg_farine_unite);});
   const pates=Object.keys(byPate).sort((a,b)=>a.localeCompare(b));
   const box=document.getElementById('calcPlanResult');
-  if(!pates.length){box.innerHTML='<div class="hint">Rien de planifié ce jour (ou pâtes/conversions à renseigner dans le Planning).</div>';return;}
+  const siteLbl='<div class="hint" style="margin:0 0 4px">📍 '+((SITES.find(s=>s[0]===planSite)||['','?'])[1])+'</div>';
+  if(!pates.length){box.innerHTML=siteLbl+'<div class="hint">Rien de planifié ce jour (ou pâtes/conversions à renseigner dans le Planning).</div>';return;}
   let tot=0;
-  box.innerHTML='<table class="plan-tbl"><thead><tr><th style="text-align:left">Pâte</th><th>Farine</th><th>Pétrin</th></tr></thead><tbody>'
+  box.innerHTML=siteLbl+'<table class="plan-tbl"><thead><tr><th style="text-align:left">Pâte</th><th>Farine</th><th>Pétrin</th></tr></thead><tbody>'
     +pates.map(p=>{const f=byPate[p];tot+=f;const pet=calcPetrin(f);return '<tr><td class="pname">'+p+'</td><td><b>'+calcR05(f)+' kg</b></td><td><span class="calc-pill '+pet.cls+'">'+pet.txt+'</span></td></tr>';}).join('')
     +'<tr style="background:var(--gold-light)"><td class="pname">TOTAL farine</td><td><b>'+calcR05(tot)+' kg</b></td><td></td></tr></tbody></table>';
 }
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
-let planWeekStart='',planLignes=[],planVals={};
+let planWeekStart='',planLignes=[],planVals={},planSite='local';
+function planSetSite(s,btn){planSite=s;[...document.getElementById('planSite').children].forEach(c=>c.className='');if(btn)btn.className='on';planLoad().then(planRender);}
 const PLAN_SECTIONS=[
   {key:'pains',label:'PAINS',color:'var(--blue)'},
   {key:'speciaux',label:'SPÉCIAUX',color:'var(--orange)'},
@@ -1723,7 +1727,7 @@ function planSetWeek(d){
 async function planLoad(){
   const end=pdAddDays(planWeekStart,6);setSync('chargement…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('*').eq('actif',true).order('ordre').order('id'),
+    supa.from('fab_planning_lignes').select('*').eq('actif',true).eq('site',planSite).order('ordre').order('id'),
     supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
@@ -1772,7 +1776,7 @@ async function planAddLigne(){
   const sibs=planLignes.filter(l=>planSecOf(l)===section);
   const base=(sibs.length?sibs:planLignes);
   const ordre=(base.length?Math.max.apply(null,base.map(l=>l.ordre||0)):0)+1;
-  const q=await supa.from('fab_planning_lignes').insert({nom,unite,section,ordre});
+  const q=await supa.from('fab_planning_lignes').insert({nom,unite,section,ordre,site:planSite});
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   document.getElementById('planNewNom').value='';
   await planLoad();planRender();toast('Ligne ajoutée ✓');
