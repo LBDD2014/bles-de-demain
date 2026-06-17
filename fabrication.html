@@ -1282,6 +1282,8 @@ async function livScanPhoto(){
   finally{btn.disabled=false;btn.textContent=old;setSync('🟢 connecté');}
 }
 function livScanRender(){
+  // Classe les lignes lues par date (au cas où le bon en couvre plusieurs / scans dans le désordre).
+  livScanLignes.sort((a,b)=>String(a.date_livraison||'').localeCompare(String(b.date_livraison||'')));
   const matOpts=sel=>'<option value="">— à choisir —</option>'+livMatieres().map(x=>'<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+x.nom+'</option>').join('');
   const rows=livScanLignes.map((l,k)=>{
     const warn=!l.ingredient_id?' style="border-left:3px solid var(--orange);padding-left:6px"':'';
@@ -1325,7 +1327,8 @@ async function livScanSaveAll(){
   livScanReset();document.getElementById('livPhoto').value='';livRenderList();
 }
 async function livRenderList(filtered){
-  let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:false});
+  // Liste filtrée (registre) = chronologique (plus ancien en haut). Liste « dernières » = plus récent en haut.
+  let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:!!filtered}).order('id',{ascending:!!filtered});
   if(filtered){
     const site=document.getElementById('lotSite').value,d1=document.getElementById('lotD1').value,d2=document.getElementById('lotD2').value;
     if(site)qb=qb.eq('site',site);
