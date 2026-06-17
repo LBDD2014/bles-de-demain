@@ -225,7 +225,7 @@
 
 <!-- CALCULETTE DE PÉTRISSAGE -->
 <section id="calc" class="page">
-  <div class="card" style="display:none"><!-- masqué avec le Planning (2026-06-15) — réactivable -->
+  <div class="card"><!-- réactivé 2026-06-17 avec le Planning -->
     <h2>📅 Depuis le planning</h2>
     <p class="hint">Choisis un jour : la calculette lit ton planning, <b>regroupe par pâte</b> et te donne la farine à peser + le pétrin. (Les « 75+75 » sont additionnés.)</p>
     <div class="btn-row" style="align-items:center;gap:8px"><input type="date" id="calcPlanDate" style="flex:1"><button class="btn sm" onclick="calcFromPlan()">↻ Calculer</button></div>
@@ -484,7 +484,7 @@ function setSync(s){document.getElementById('sync').textContent=s;}
 /* ---------- ONGLETS (réordonnables par appui long, mémorisés par appareil) ---------- */
 const TABS=[
   {id:'fab',label:'🍞 Prod. du jour'},
-  // {id:'plan',label:'📅 Planning'},  // masqué à la demande de Phil (2026-06-15) — section + fonctions conservées, réactivable en décommentant
+  {id:'plan',label:'📅 Planning'},  // réactivé 2026-06-17 — réceptacle de la saisie hebdo (à la main puis par photo)
   {id:'calc',label:'🧮 Calculette'},
   {id:'rec',label:'📖 Recettes'},
   {id:'liv',label:'📦 Livraisons'},
@@ -514,7 +514,7 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
-  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();/* if(id==='plan')planEnter(); — onglet Planning masqué */ /* if(id==='sor')sorEnter(); — onglet Pesées masqué */
+  if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();if(id==='plan')planEnter(); /* if(id==='sor')sorEnter(); — onglet Pesées masqué */
 }
 /* Réorganiser les onglets avec des flèches (fiable, sans glisser-déposer) */
 function navReorderRows(tabs){
