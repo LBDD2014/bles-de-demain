@@ -192,13 +192,13 @@
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
+<div id="siteBar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--grey-dark);position:sticky;top:0;z-index:5"><span style="color:#fff;font-size:12px;font-weight:bold">🏠 Magasin</span><div class="seg" id="siteSel" style="flex:1"></div></div>
 
 <!-- PRODUCTION DU JOUR -->
 <section id="fab" class="page active">
   <div class="card print-hide">
     <h2>Production du jour</h2>
     <p class="hint">Choisis le jour, ajoute tes pains (en bacs ou kg de farine). Tout est enregistré automatiquement.</p>
-    <label>Site</label><div class="seg" id="fabSite"></div>
     <label>Semaine</label>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <button class="ico-btn" onclick="pdChangeWeek(-1)">‹</button>
@@ -246,8 +246,7 @@
 <section id="plan" class="page">
   <div class="card">
     <h2>📅 Planning semaine</h2>
-    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. Chaque site a sa propre liste.</p>
-    <label>Site</label><div class="seg" id="planSite" style="margin-bottom:8px"></div>
+    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. Chaque magasin a sa propre liste (choisi en haut).</p>
     <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
       <button class="btn ghost sm" onclick="planSetWeek(-1)">◀</button>
       <b id="planWeekLbl" style="flex:1;text-align:center;font-size:13px"></b>
@@ -392,7 +391,6 @@
   <div class="card">
     <h2>Pesées du jour — farines non-bio</h2>
     <p class="hint">⚖️ Ajoute tes pesées de farine non-bio au fil de la journée (elles s'additionnent par farine). Rien n'est déduit tant que tu n'as pas validé. <b>« Valider la journée »</b> déduit les totaux de ton stock. Les farines bio sont déduites automatiquement par les recettes.</p>
-    <label>Site</label><div class="seg" id="sorSite"></div>
     <label>Date</label><input type="date" id="sorDate" onchange="sorRender()">
     <div id="sorList" style="margin-top:6px"></div>
     <div class="btn-row"><button class="btn" onclick="sorValider()">✓ Valider la journée (déduire du stock)</button></div>
@@ -404,7 +402,6 @@
   <div class="card">
     <h2>Comptage physique</h2>
     <p class="hint">📋 Compte ce qu'il reste réellement. Ça devient la nouvelle base du stock : tout ce qui a été saisi avant (essais, formation) n'a plus d'impact. L'écart avec le théorique s'affiche.</p>
-    <label>Site</label><div class="seg" id="invSite"></div>
     <label>Date du comptage</label><input type="date" id="invDate" onchange="invRender()">
     <div id="invList" style="margin-top:6px"></div>
     <div class="btn-row"><button class="btn" onclick="invSave()">✓ Enregistrer le comptage</button></div>
@@ -518,6 +515,9 @@ function show(id){
   const sec=document.getElementById(id);if(sec)sec.classList.add('active');
   document.querySelectorAll('#fabNav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   window.scrollTo(0,0);
+  // Réception + Pertes : le site du formulaire suit le magasin courant (modifiable)
+  const lv=document.getElementById('livSite');if(lv)lv.value=fabSite;
+  const pv=document.getElementById('perSite');if(pv)pv.value=fabSite;
   if(id==='bil')bilEnter();if(id==='liv')livRenderList();if(id==='per')perRenderList();if(id==='inv')invEnter();if(id==='mov')movRenderList();if(id==='calc')calcInit();if(id==='plan')planEnter(); /* if(id==='sor')sorEnter(); — onglet Pesées masqué */
 }
 /* Réorganiser les onglets avec des flèches (fiable, sans glisser-déposer) */
@@ -603,15 +603,13 @@ function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
   document.getElementById('livIng').innerHTML=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?'':' (non bio)')+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
-  document.getElementById('fabSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="fabSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
-  document.getElementById('planSite').innerHTML=SITES.map((s,k)=>'<button class="'+(s[0]===planSite?'on':'')+'" onclick="planSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
+  document.getElementById('siteSel').innerHTML=SITES.map(s=>'<button data-site="'+s[0]+'" class="'+(s[0]===fabSite?'on':'')+'" onclick="setSite(\''+s[0]+'\')">'+s[1]+'</button>').join('');
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('livDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('lotSite').innerHTML='<option value="">Tous les sites</option>'+SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('perIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
   document.getElementById('perSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
-  document.getElementById('invSite').innerHTML=SITES.map((s,k)=>'<button class="'+(k===0?'on':'')+'" onclick="invSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('movIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
   document.getElementById('movFrom').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
@@ -822,7 +820,12 @@ async function recSave(){
 }
 
 /* ---------- PRODUCTION DU JOUR / PLANNING SEMAINE ---------- */
-function fabSetSite(s,btn){fabSite=s;[...document.getElementById('fabSite').children].forEach(c=>c.className='');btn.className='on';pdLoadWeek();pdLoadDay();}
+// Sélecteur de magasin GLOBAL : un seul choix en haut pilote tous les onglets (sauf Bilan/Dispatch qui restent multi-sites).
+function setSite(s){
+  fabSite=s;invCurSite=s;sorSite=s;planSite=s;
+  const sel=document.getElementById('siteSel');if(sel)[...sel.children].forEach(c=>c.classList.toggle('on',c.dataset.site===s));
+  if(currentTab==='fab'){pdLoadWeek();pdLoadDay();}else show(currentTab);
+}
 function fabSetUnit(m,btn){fabUnitMode=m;[...document.getElementById('fabUnit').children].forEach(c=>c.className='');btn.className='on';pdRenderAll();}
 function fabReset(){fabChecked={};pdRenderFiches();}
 function fmt(x){if(fabUnitMode==='g')return Math.round(x*1000).toLocaleString('fr-FR')+' g';if(fabUnitMode==='kg')return (Math.round(x*1000)/1000).toLocaleString('fr-FR')+' kg';return x<1?Math.round(x*1000).toLocaleString('fr-FR')+' g':(Math.round(x*100)/100).toLocaleString('fr-FR')+' kg';}
@@ -1501,8 +1504,7 @@ async function bilEnter(){await bilLoadRaw();const y=new Date().getFullYear();
   bilLoad();}
 
 /* ---------- INVENTAIRE ---------- */
-let invCurSite='local';
-function invSetSite(s,btn){invCurSite=s;[...document.getElementById('invSite').children].forEach(c=>c.className='');btn.className='on';invRender();}
+let invCurSite='local'; // piloté par le sélecteur de magasin global (setSite)
 async function invEnter(){await bilLoadRaw();if(!document.getElementById('invDate').value)document.getElementById('invDate').value=new Date().toISOString().slice(0,10);invRender();invHist();}
 function invRender(){
   const date=document.getElementById('invDate').value||new Date().toISOString().slice(0,10);
@@ -1547,11 +1549,9 @@ async function invDel(id){if(!confirm('Supprimer ce comptage ? (le stock reparti
 /* ---------- PESÉES DU JOUR (sorties farines non-bio) ---------- */
 let sorSite='local',sorRows=[];
 function sorEnter(){
-  document.getElementById('sorSite').innerHTML=SITES.map(s=>'<button class="'+(s[0]===sorSite?'on':'')+'" onclick="sorSetSite(\''+s[0]+'\',this)">'+s[1]+'</button>').join('');
   if(!document.getElementById('sorDate').value)document.getElementById('sorDate').value=new Date().toISOString().slice(0,10);
   sorLoad().then(sorRender);
 }
-function sorSetSite(s,btn){sorSite=s;[...document.getElementById('sorSite').children].forEach(c=>c.className='');btn.className='on';sorRender();}
 async function sorLoad(){const q=await supa.from('fab_sorties').select('*').order('created_at',{ascending:false});sorRows=q.data||[];bilSorties=sorRows;}
 function sorRender(){
   const date=document.getElementById('sorDate').value||new Date().toISOString().slice(0,10);
@@ -1704,7 +1704,7 @@ async function calcFromPlan(){
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planVals={},planSite='local';
-function planSetSite(s,btn){planSite=s;[...document.getElementById('planSite').children].forEach(c=>c.className='');if(btn)btn.className='on';planLoad().then(planRender);}
+// planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
   {key:'pains',label:'PAINS',color:'var(--blue)'},
   {key:'speciaux',label:'SPÉCIAUX',color:'var(--orange)'},
