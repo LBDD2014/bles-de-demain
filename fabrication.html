@@ -173,6 +173,8 @@
   .plan-tbl .pu{font-size:10px;color:var(--grey-light);font-weight:normal}
   .plan-ctrls{display:flex;gap:1px;margin-top:2px}
   .pcell{width:52px;border:1px solid #ddd;border-radius:5px;padding:6px 2px;text-align:center;font-size:13px}
+  .plan-tbl tr.plan-sec td{text-align:left;color:#fff;font-weight:bold;font-size:11.5px;letter-spacing:.6px;padding:5px 8px;border-color:rgba(0,0,0,.08)}
+  .plan-tbl td.pname{border-left-width:4px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .plan-add input,.plan-add select{padding:8px;border:1px solid var(--gold-light);border-radius:8px}
 </style>
@@ -254,7 +256,8 @@
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
-      <select id="planNewUnite" style="flex:1"><option>bacs</option><option>pièces</option><option>moules</option><option>kg</option></select>
+      <select id="planNewSection" style="flex:1"><option value="pains">Pains</option><option value="speciaux">Spéciaux</option><option value="bio">Pains bio</option><option value="levains">Levains</option><option value="viennoiserie">Viennoiserie</option></select>
+      <select id="planNewUnite" style="flex:1"><option>bacs</option><option>kg</option><option>pièces</option><option>moules</option></select>
       <button class="btn sm" onclick="planAddLigne()">+ Ajouter une ligne</button>
     </div>
   </div>
@@ -1698,6 +1701,15 @@ async function calcFromPlan(){
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planVals={};
+const PLAN_SECTIONS=[
+  {key:'pains',label:'PAINS',color:'var(--blue)'},
+  {key:'speciaux',label:'SPÉCIAUX',color:'var(--orange)'},
+  {key:'bio',label:'PAINS BIO / SPÉCIAUX',color:'var(--green)'},
+  {key:'levains',label:'LEVAINS',color:'var(--gold-dark)'},
+  {key:'viennoiserie',label:'VIENNOISERIE / PÂTE SUCRÉE',color:'var(--brown-mid)'}
+];
+const planSecOf=lg=>{const k=lg&&lg.section;return PLAN_SECTIONS.some(s=>s.key===k)?k:'pains';};
+const planSecColor=k=>(PLAN_SECTIONS.find(s=>s.key===k)||{}).color||'var(--grey)';
 const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
 function planEnter(){
   if(!planWeekStart){const t=new Date();t.setHours(0,0,0,0);planWeekStart=pdISO(pdMonday(t));}
@@ -1727,15 +1739,22 @@ function planRender(){
   head+='</tr></thead>';
   let body='<tbody>';
   if(!planLignes.length){body+='<tr><td colspan="8" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
-  planLignes.forEach((lg,k)=>{
-    body+='<tr><td class="pname">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span><div class="plan-ctrls">'
-      +'<button class="ico-btn" onclick="planMove('+k+',-1)"'+(k===0?' disabled':'')+'>↑</button>'
-      +'<button class="ico-btn" onclick="planMove('+k+',1)"'+(k===planLignes.length-1?' disabled':'')+'>↓</button>'
+  const renderLine=(lg,sibs)=>{
+    const idx=sibs.indexOf(lg),col=planSecColor(planSecOf(lg));
+    let r='<tr><td class="pname" style="border-left-color:'+col+'">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span><div class="plan-ctrls">'
+      +'<button class="ico-btn" onclick="planMove('+lg.id+',-1)"'+(idx===0?' disabled':'')+'>↑</button>'
+      +'<button class="ico-btn" onclick="planMove('+lg.id+',1)"'+(idx===sibs.length-1?' disabled':'')+'>↓</button>'
       +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
     for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
-      body+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
-    body+='</tr>';
+      r+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
+    return r+'</tr>';
+  };
+  PLAN_SECTIONS.forEach(sec=>{
+    const sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
+    if(!sibs.length)return;
+    body+='<tr class="plan-sec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
+    sibs.forEach(lg=>body+=renderLine(lg,sibs));
   });
   body+='</tbody>';
   document.getElementById('planTbl').innerHTML=head+body;
@@ -1749,8 +1768,11 @@ async function planSetVal(ligneId,iso,value){
 async function planAddLigne(){
   const nom=document.getElementById('planNewNom').value.trim();if(!nom){toast('Mets un nom');return;}
   const unite=document.getElementById('planNewUnite').value;
-  const ordre=planLignes.length?Math.max.apply(null,planLignes.map(l=>l.ordre||0))+1:0;
-  const q=await supa.from('fab_planning_lignes').insert({nom,unite,ordre});
+  const section=document.getElementById('planNewSection').value;
+  const sibs=planLignes.filter(l=>planSecOf(l)===section);
+  const base=(sibs.length?sibs:planLignes);
+  const ordre=(base.length?Math.max.apply(null,base.map(l=>l.ordre||0)):0)+1;
+  const q=await supa.from('fab_planning_lignes').insert({nom,unite,section,ordre});
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   document.getElementById('planNewNom').value='';
   await planLoad();planRender();toast('Ligne ajoutée ✓');
@@ -1767,6 +1789,7 @@ function planEditLine(id){
   const pates=[...new Set(planLignes.map(l=>l.pate).filter(Boolean))];
   document.getElementById('modal').innerHTML='<h3>Modifier la ligne</h3>'
     +'<label>Nom</label><input id="ple_nom" value="'+esc(lg.nom)+'">'
+    +'<label>Section</label><select id="ple_section">'+PLAN_SECTIONS.map(s=>'<option value="'+s.key+'"'+(planSecOf(lg)===s.key?' selected':'')+'>'+s.label+'</option>').join('')+'</select>'
     +'<label>Unité</label><input id="ple_unite" value="'+esc(lg.unite)+'">'
     +'<label>Pâte de base <span style="font-weight:400;color:var(--grey-light)">(pour regrouper au pétrin — ex : Tradition, Viennoise, Essentiel)</span></label><input id="ple_pate" list="plePates" value="'+esc(lg.pate)+'"><datalist id="plePates">'+pates.map(p=>'<option value="'+esc(p)+'">').join('')+'</datalist>'
     +'<label>Kg de farine pour 1 '+esc(lg.unite||'unité')+' <span style="font-weight:400;color:var(--grey-light)">(la calculette multiplie par la quantité du jour)</span></label><input type="text" inputmode="decimal" id="ple_far" value="'+(lg.kg_farine_unite!=null?String(lg.kg_farine_unite).replace('.',','):'')+'">'
@@ -1775,16 +1798,19 @@ function planEditLine(id){
 }
 async function planSaveLine(id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:'';};
-  const row={nom:v('ple_nom').trim(),unite:v('ple_unite').trim(),pate:v('ple_pate').trim()||null,kg_farine_unite:parseFloat(v('ple_far').replace(',','.'))||null};
+  const row={nom:v('ple_nom').trim(),section:v('ple_section')||'pains',unite:v('ple_unite').trim(),pate:v('ple_pate').trim()||null,kg_farine_unite:parseFloat(v('ple_far').replace(',','.'))||null};
   if(!row.nom){toast('Mets un nom');return;}
   const q=await supa.from('fab_planning_lignes').update(row).eq('id',id);
   if(q.error){toast(q.error.message);return;}
   closeModal();await planLoad();planRender();toast('Ligne mise à jour ✓');
 }
-async function planMove(k,dir){
-  const j=k+dir;if(j<0||j>=planLignes.length)return;
-  const arr=planLignes.slice();const t=arr[k];arr[k]=arr[j];arr[j]=t;
-  for(let i=0;i<arr.length;i++){if((arr[i].ordre||0)!==i){await supa.from('fab_planning_lignes').update({ordre:i}).eq('id',arr[i].id);}}
+async function planMove(id,dir){
+  const lg=planLignes.find(l=>l.id===id);if(!lg)return;
+  const sibs=planLignes.filter(l=>planSecOf(l)===planSecOf(lg));
+  const k=sibs.indexOf(lg),j=k+dir;if(j<0||j>=sibs.length)return;
+  const a=sibs[k],b=sibs[j];
+  await supa.from('fab_planning_lignes').update({ordre:b.ordre||0}).eq('id',a.id);
+  await supa.from('fab_planning_lignes').update({ordre:a.ordre||0}).eq('id',b.id);
   await planLoad();planRender();
 }
 
