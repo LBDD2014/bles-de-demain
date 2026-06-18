@@ -1143,7 +1143,7 @@ window.addEventListener('afterprint',()=>{['mode-etiq','mode-recettes','mode-bil
 
 /* ---------- REGISTRE DES LOTS (export PDF des réceptions bio) ---------- */
 async function lotExport(){
-  const site=document.getElementById('lotSite').value;
+  let site=document.getElementById('lotSite').value;if(_lockedSite)site=_lockedSite;
   const d1=document.getElementById('lotD1').value,d2=document.getElementById('lotD2').value;
   setSync('chargement…');
   const q=await supa.from('fab_livraisons').select('*').order('date_livraison');
@@ -1172,19 +1172,19 @@ function lotSoldeCompute(){
   const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
   const byDate=(a,b)=>(a<b?-1:a>b?1:0);
   bio.forEach(ing=>{
-    const lots=bilLivr.filter(l=>l.ingredient_id===ing.id)
+    const lots=bilLivr.filter(l=>l.ingredient_id===ing.id&&(!_lockedSite||l.site===_lockedSite))
       .map(l=>({date:l.date_livraison,lot:l.numero_lot||'',bon:l.numero_bon||'',four:l.fournisseur_id,site:l.site,recu:+l.quantite_kg,cons:0,pert:0}))
       .sort((a,b)=>byDate(a.date,b.date));
     if(!lots.length)return;
     const events=[];
-    bilProd.forEach(p=>{const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+    bilProd.forEach(p=>{if(_lockedSite&&p.site!==_lockedSite)return;const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
       let qty=0;const base=(+rl.quantite)*(+p.quantite/rb);
       if(rl.ingredient_id===ing.id)qty+=base;
       const li=_ingById[rl.ingredient_id];
       if(li&&li.categorie==='levain'&&li.farine_levain_id===ing.id){const r=(+li.eau_ratio)||0;qty+=base/(1+r);}
       if(qty>0)events.push({date:p.date_prod,qty,type:'c'});
     });});
-    bilPertes.forEach(pe=>{if(pe.ingredient_id===ing.id)events.push({date:pe.date_perte,qty:+pe.quantite_kg,type:'p'});});
+    bilPertes.forEach(pe=>{if(pe.ingredient_id===ing.id&&(!_lockedSite||pe.site===_lockedSite))events.push({date:pe.date_perte,qty:+pe.quantite_kg,type:'p'});});
     events.sort((a,b)=>byDate(a.date,b.date));
     let li=0;
     events.forEach(ev=>{let q=ev.qty;
@@ -1352,6 +1352,7 @@ async function livScanSaveAll(){
 async function livRenderList(filtered){
   // Liste filtrée (registre) = chronologique (plus ancien en haut). Liste « dernières » = plus récent en haut.
   let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:!!filtered}).order('id',{ascending:!!filtered});
+  if(_lockedSite)qb=qb.eq('site',_lockedSite); // boutique verrouillée : ses réceptions seulement
   if(filtered){
     const site=document.getElementById('lotSite').value,d1=document.getElementById('lotD1').value,d2=document.getElementById('lotD2').value;
     if(site)qb=qb.eq('site',site);
@@ -1398,7 +1399,9 @@ async function perSave(){
   perRenderList();
 }
 async function perRenderList(){
-  const q=await supa.from('fab_pertes').select('*').order('date_perte',{ascending:false}).limit(15);
+  let pq=supa.from('fab_pertes').select('*').order('date_perte',{ascending:false}).limit(15);
+  if(_lockedSite)pq=pq.eq('site',_lockedSite);
+  const q=await pq;
   const box=document.getElementById('perList');
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
   box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🗑️</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.motif?l.motif+' · ':'')+l.date_perte+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+'<button class="ico-btn" onclick="perDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucune perte enregistrée.</div>';
@@ -1480,7 +1483,8 @@ function bilPreset(p){const t=new Date();const y=t.getFullYear();
   document.getElementById('bilD2').value=t.toISOString().slice(0,10);bilLoad();}
 function bilComputeRows(d1,d2){
   const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
-  bio.forEach(ing=>SITES.forEach(s=>{
+  const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES; // boutique verrouillée = son site seulement ; maître = tous
+  bio.forEach(ing=>sites.forEach(s=>{
     const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,prevDay(d1),d2);
     const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
     const tot=Math.abs(dep)+m.recu+m.dispIn+m.dispOut+m.conso+m.pertes+Math.abs(fin);
