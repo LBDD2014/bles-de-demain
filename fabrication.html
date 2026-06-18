@@ -192,7 +192,7 @@
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
-<div id="siteBar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--grey-dark);position:sticky;top:0;z-index:5"><span style="color:#fff;font-size:12px;font-weight:bold">🏠 Magasin</span><div class="seg" id="siteSel" style="flex:1"></div></div>
+<div id="siteBar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--grey-dark);position:sticky;top:0;z-index:5"><span style="color:#fff;font-size:12px;font-weight:bold">🏠 Magasin</span><div class="seg" id="siteSel" style="flex:1"></div><button onclick="pinLogout()" title="Verrouiller (redemande le code)" style="background:none;border:1px solid #777;border-radius:8px;color:#fff;padding:5px 9px;font-size:13px;cursor:pointer">🔒</button></div>
 
 <!-- PRODUCTION DU JOUR -->
 <section id="fab" class="page active">
@@ -1844,6 +1844,12 @@ async function pinLoadCodes(){
     }}catch(e){_codesFail=true;}
 }
 function pinDots(){const d=document.getElementById('pinDots');let h='';for(let i=0;i<4;i++)h+='<span class="dot'+(i<_pin.length?' on':'')+'"></span>';d.innerHTML=h;}
+function pinLogout(){ // efface le code mémorisé et réaffiche l'écran de saisie
+  try{localStorage.removeItem('fabUnlockCode');}catch(e){}
+  _lockedSite=null;_pin='';pinDots();
+  const e=document.getElementById('pinErr');if(e)e.textContent='';
+  document.getElementById('pinov').classList.remove('hidden');
+}
 function lockDefaults(){ // listes de réception/pertes par défaut sur le magasin verrouillé
   if(!_lockedSite)return;
   ['livSite','perSite'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_lockedSite;});
