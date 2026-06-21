@@ -1011,7 +1011,7 @@ function pdToggle(pid){
 }
 function pdAddBatch(pid){if(!pdDay[pid])pdDay[pid]=[];pdDay[pid].push({qte:pdDefaultQte(pid),hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)});pdRenderAll();pdAutoSave();}
 function pdDelBatch(pid,idx){const a=pdDay[pid];if(!a)return;a.splice(idx,1);if(!a.length)delete pdDay[pid];fabChecked={};pdRenderAll();pdAutoSave();}
-function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(val)||0;else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();pdAutoSave();}
+function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(val)||0;else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();requestAnimationFrame(pdRenderAll);pdAutoSave();}
 // Pesées + agrégats d'une ligne du jour
 function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
@@ -1129,7 +1129,14 @@ function pdRenderFiches(){
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
 
-function printFiche(){document.body.classList.remove('mode-etiq');window.print();}
+// iOS Safari : il faut laisser la classe d'impression s'appliquer AVANT window.print(),
+// sinon l'iPad capture la page écran entière (et imprime toute la recette au lieu de l'étiquette).
+function modePrint(cls){
+  ['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));
+  if(cls)document.body.classList.add(cls);
+  setTimeout(function(){window.print();},150);
+}
+function printFiche(){modePrint(null);}
 function pdEtiq(pid,batchIdx){
   const b=(pdDay[pid]||[])[batchIdx];if(!b)return;const row={pid,batchIdx,qte:b.qte,hydra:b.hydra};const c=pdCompute(row);if(!c)return;
   const k0=pid+'_'+batchIdx;const nb=(pdDay[pid]||[]).length;
@@ -1137,7 +1144,7 @@ function pdEtiq(pid,batchIdx){
   c.lines.forEach((l,k)=>{if(!fabChecked[k0+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
   if(c.bassinage>0&&!fabChecked[k0+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
   document.getElementById('etiq').innerHTML='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+' kg far.</div><div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
-  document.body.classList.add('mode-etiq');window.print();
+  modePrint('mode-etiq');
 }
 window.addEventListener('afterprint',()=>{['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));});
 
@@ -1162,7 +1169,7 @@ async function lotExport(){
        :'<tr><td colspan="7" style="text-align:center">Aucune réception enregistrée.</td></tr>')
     +'</tbody></table>';
   document.getElementById('lotexport').innerHTML=html;
-  document.body.classList.add('mode-lots');window.print();
+  modePrint('mode-lots');
 }
 
 /* ---------- SOLDE PAR LOT (FIFO) — exigence BV ---------- */
@@ -1224,7 +1231,7 @@ function lotSoldeExport(){
        :'<tr><td colspan="8" style="text-align:center">Aucun lot.</td></tr>')
     +'</tbody></table>';
   document.getElementById('lotexport').innerHTML=html;
-  document.body.classList.add('mode-lots');window.print();
+  modePrint('mode-lots');
 }
 
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
@@ -1243,7 +1250,7 @@ function recExportAll(){
     html+='<div class="rx-item"><h3>'+it.nom+(prod.bio?' 🌱':'')+'</h3><div class="rx-sub">'+sub+'</div><table>'+lignes+'</table>'+proc+'</div>';
   });
   document.getElementById('recexport').innerHTML=html;
-  document.body.classList.add('mode-recettes');window.print();
+  modePrint('mode-recettes');
 }
 
 /* ---------- LIVRAISONS ---------- */
@@ -1515,7 +1522,7 @@ function bilExport(){
        :'<tr><td colspan="9" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
     +'</tbody></table>';
   document.getElementById('bilexport').innerHTML=html;
-  document.body.classList.add('mode-bilan');window.print();
+  modePrint('mode-bilan');
 }
 async function bilEnter(){await bilLoadRaw();const y=new Date().getFullYear();
   if(!document.getElementById('bilD1').value)document.getElementById('bilD1').value=y+'-01-01';
