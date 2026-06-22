@@ -898,7 +898,7 @@ function pdRenderWeekStrip(){
   const el=document.getElementById('pdWeek');if(!el)return;let h='';
   for(let i=0;i<7;i++){const iso=pdAddDays(pdWeekStart,i);const d=pdParse(iso);const cnt=pdWeekData[iso]||0;const sel=iso===pdDate;
     h+='<button onclick="pdSetDate(\''+iso+'\')" style="flex:1;min-width:42px;padding:6px 2px;border-radius:8px;border:1.5px solid '+(sel?'var(--gold)':'#E8DCC2')+';background:'+(sel?'var(--gold)':'#fff')+';color:'+(sel?'#3a2c10':'var(--grey)')+';font-family:Georgia,serif;cursor:pointer;font-size:12px">'
-      +'<div style="font-weight:bold">'+PD_DAYS[i]+'</div><div style="font-size:11px">'+d.getDate()+'</div>'
+      +'<div style="font-weight:bold">'+PD_DAYS[i]+'</div><div style="font-size:11px">'+d.getDate()+'/'+(d.getMonth()+1)+'</div>'
       +(cnt?'<div style="font-size:10px;color:'+(sel?'#3a2c10':'var(--green)')+';font-weight:bold">'+cnt+'</div>':'<div style="font-size:10px;color:#ccc">—</div>')
       +'</button>';}
   el.innerHTML=h;
