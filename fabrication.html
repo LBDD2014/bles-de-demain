@@ -977,7 +977,7 @@ function pdMelangeSection(basePid){
   // Pâte produite calculée à l'HYDRATATION RÉELLE du pétrin (pas le défaut recette)
   const batches=pdDay[basePid]||[];const li=batches.length-1;
   let produced=0,petLabel='le pétrin';
-  if(li>=0){const b=batches[li];const eh=(b.hydra!==undefined&&b.hydra!==null)?b.hydra:rec.hydratation_pct;produced=(parseFloat(b.qte)||0)*doughPerKgFlourH(basePid,eh);petLabel=batches.length>1?'Pétrin '+(li+1):'Pétrin';}
+  if(li>=0){const b=batches[li];const eh=(b.hydra!==undefined&&b.hydra!==null)?b.hydra:rec.hydratation_pct;const flourKg=pdRowKgFlour({pid:basePid,qte:b.qte});produced=flourKg*doughPerKgFlourH(basePid,eh);petLabel=batches.length>1?'Pétrin '+(li+1):'Pétrin';}
   let needed=0;const add={};
   mels.forEach(p=>{const bacs=parseFloat(pdMelange[p.id])||0;if(!bacs)return;
     (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;else add[l.ingredient_id]=(add[l.ingredient_id]||0)+l.quantite*bacs;});});
