@@ -1046,9 +1046,9 @@ function pdQtyOptions(pid,cur){
     if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+cur+' bac(s)</option>'+o;
     return o;
   }
-  const step=(pid==='pr_tradition')?25:5;let o='',inList=false;
-  for(let q=step;q<=75;q+=step){if(q==cur)inList=true;o+='<option value="'+q+'"'+(q==cur?' selected':'')+'>'+q+' kg</option>';}
-  if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+cur+' kg</option>'+o; // garde une valeur hors liste
+  const step=(pid==='pr_tradition')?25:2.5;let o='',inList=false;
+  for(let q=step;q<=75.001;q+=step){const v=Math.round(q*100)/100;if(v==cur)inList=true;o+='<option value="'+v+'"'+(v==cur?' selected':'')+'>'+String(v).replace('.',',')+' kg</option>';}
+  if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+String(cur).replace('.',',')+' kg</option>'+o; // garde une valeur hors liste
   return o;
 }
 function pdDefaultQte(pid){if(pdHasBac(pid))return 1;return pid==='pr_tradition'?25:10;}
