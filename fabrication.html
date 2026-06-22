@@ -327,7 +327,7 @@
       <div><label>Date</label><input type="date" id="livDate"></div>
     </div>
     <label>Note (optionnel)</label><input type="text" id="livNote" placeholder="">
-    <div class="btn-row"><button class="btn" onclick="livSave()">✓ Enregistrer</button></div>
+    <div class="btn-row"><button class="btn" id="livSaveBtn" onclick="livSave()">✓ Enregistrer</button></div>
   </div>
   <div class="card">
     <h2>Registre des lots</h2>
@@ -1269,24 +1269,29 @@ async function uploadPhoto(inputId,prefix){
   return supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
 }
 async function livSave(){
+  if(_livSaving)return;
   const row={ingredient_id:document.getElementById('livIng').value,quantite_kg:parseFloat(document.getElementById('livQte').value)||0,
     numero_lot:document.getElementById('livLot').value||null,numero_bon:document.getElementById('livBon').value||null,
     site:document.getElementById('livSite').value,date_livraison:document.getElementById('livDate').value,
     note:document.getElementById('livNote').value||null,
     fournisseur_id:(ingredients.find(i=>i.id===document.getElementById('livIng').value)||{}).fournisseur_id||null};
   if(!row.quantite_kg){toast('Mets une quantité');return;}
+  const btn=document.getElementById('livSaveBtn');
+  _livSaving=true;if(btn){btn.disabled=true;btn.textContent='⏳ Enregistrement…';}
   try{
-    setSync('envoi des photos…');
-    const bon=await uploadPhoto('livPhoto','bon');if(bon)row.photo_url=bon;
-    const fac=await uploadPhoto('livFacture','facture');if(fac)row.photo_facture_url=fac;
-  }catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
-  setSync('enregistrement…');
-  const q=await supa.from('fab_livraisons').insert(row);
-  if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast('Livraison enregistrée ✓');
-  document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
-  ['livPhoto','livFacture'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  livRenderList();
+    try{
+      setSync('envoi des photos…');
+      const bon=await uploadPhoto('livPhoto','bon');if(bon)row.photo_url=bon;
+      const fac=await uploadPhoto('livFacture','facture');if(fac)row.photo_facture_url=fac;
+    }catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
+    setSync('enregistrement…');
+    const q=await supa.from('fab_livraisons').insert(row);
+    if(q.error){setSync('⚠️');toast(q.error.message);return;}
+    setSync('🟢 connecté');toast('Livraison enregistrée ✓');
+    document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
+    ['livPhoto','livFacture'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    livRenderList();
+  }finally{_livSaving=false;const b=document.getElementById('livSaveBtn');if(b){b.disabled=false;b.textContent='✓ Enregistrer';}}
 }
 /* ---------- SCAN IA DU BON DE LIVRAISON ---------- */
 let livScanLignes=[]; // lignes proposées par l'IA, en cours de validation
@@ -1340,26 +1345,32 @@ function livScanRender(){
     +'<p class="hint">Trait orange = farine non reconnue, choisis-la. Décoche « garder » pour ignorer une ligne.</p>'
     +rows
     +'<div class="row" style="margin-top:8px"><div><label>Site de réception (toutes les lignes)</label><select id="livScanSite">'+SITES.map(s=>'<option value="'+s[0]+'"'+(s[0]===fabSite?' selected':'')+'>'+s[1]+'</option>').join('')+'</select></div></div>'
-    +'<div class="btn-row" style="margin-top:8px"><button class="btn" onclick="livScanSaveAll()">✓ Tout enregistrer</button></div>'
+    +'<div class="btn-row" style="margin-top:8px"><button class="btn" id="livScanSaveBtn" onclick="livScanSaveAll()">✓ Tout enregistrer</button></div>'
     +'</div>';
 }
+let _livSaving=false; // anti double-clic : empêche d'enregistrer 2× le même bon
 async function livScanSaveAll(){
+  if(_livSaving)return; // déjà en cours → on ignore les clics suivants
   const lignes=livScanLignes.filter(l=>l.include);
   if(!lignes.length){toast('Aucune ligne cochée');return;}
   if(lignes.some(l=>!l.ingredient_id||!l.quantite_kg)){toast('Chaque ligne gardée a besoin d\'une farine + une quantité');return;}
   const site=document.getElementById('livScanSite').value;
-  setSync('envoi de la photo…');
-  let photo_url=null;
-  try{photo_url=await uploadPhoto('livPhoto','bon');}catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
-  setSync('enregistrement…');
-  const rows=lignes.map(l=>({ingredient_id:l.ingredient_id,quantite_kg:l.quantite_kg,
-    numero_lot:l.numero_lot||null,numero_bon:l.numero_bon||null,site,
-    date_livraison:l.date_livraison||new Date().toISOString().slice(0,10),note:'Saisi par scan IA',
-    fournisseur_id:(ingredients.find(i=>i.id===l.ingredient_id)||{}).fournisseur_id||null,photo_url}));
-  const q=await supa.from('fab_livraisons').insert(rows);
-  if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast(rows.length+' livraison(s) enregistrée(s) ✓');
-  livScanReset();document.getElementById('livPhoto').value='';livRenderList();
+  const btn=document.getElementById('livScanSaveBtn');
+  _livSaving=true;if(btn){btn.disabled=true;btn.textContent='⏳ Enregistrement…';}
+  try{
+    setSync('envoi de la photo…');
+    let photo_url=null;
+    try{photo_url=await uploadPhoto('livPhoto','bon');}catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
+    setSync('enregistrement…');
+    const rows=lignes.map(l=>({ingredient_id:l.ingredient_id,quantite_kg:l.quantite_kg,
+      numero_lot:l.numero_lot||null,numero_bon:l.numero_bon||null,site,
+      date_livraison:l.date_livraison||new Date().toISOString().slice(0,10),note:'Saisi par scan IA',
+      fournisseur_id:(ingredients.find(i=>i.id===l.ingredient_id)||{}).fournisseur_id||null,photo_url}));
+    const q=await supa.from('fab_livraisons').insert(rows);
+    if(q.error){setSync('⚠️');toast(q.error.message);return;}
+    setSync('🟢 connecté');toast(rows.length+' livraison(s) enregistrée(s) ✓');
+    livScanReset();document.getElementById('livPhoto').value='';livRenderList();
+  }finally{_livSaving=false;const b=document.getElementById('livScanSaveBtn');if(b){b.disabled=false;b.textContent='✓ Tout enregistrer';}}
 }
 async function livRenderList(filtered){
   // Liste filtrée (registre) = chronologique (plus ancien en haut). Liste « dernières » = plus récent en haut.
