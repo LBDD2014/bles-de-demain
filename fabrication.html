@@ -1016,7 +1016,7 @@ function pdToggle(pid){
 }
 function pdAddBatch(pid){if(!pdDay[pid])pdDay[pid]=[];pdDay[pid].push({qte:pdDefaultQte(pid),hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)});pdRenderAll();pdAutoSave();}
 function pdDelBatch(pid,idx){const a=pdDay[pid];if(!a)return;a.splice(idx,1);if(!a.length)delete pdDay[pid];fabChecked={};pdRenderAll();pdAutoSave();}
-function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(val)||0;else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();requestAnimationFrame(pdRenderAll);pdAutoSave();}
+function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(String(val).replace(',','.'))||0;else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();requestAnimationFrame(pdRenderAll);pdAutoSave();}
 // Pesées + agrégats d'une ligne du jour
 function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
@@ -1063,7 +1063,9 @@ function pdProdRow(p){
     +'</div>';
   if(on){
     arr.forEach((b,idx)=>{
-      const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>';
+      const qtySel=pdHasBac(p.id)
+        ? '<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>'
+        : '<input type="text" inputmode="decimal" value="'+(b.qte!=null&&b.qte!==''?String(b.qte).replace('.',','):'')+'" onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="width:80px;text-align:center" placeholder="kg"><span class="hint" style="margin:0;font-size:12px">kg far.</span>';
       let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
       const lbl=arr.length>1?'<span class="hint" style="font-size:12px;margin:0;min-width:58px;font-weight:bold">Pétrin '+(idx+1)+'</span>':'';
       const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
