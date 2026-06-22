@@ -1334,7 +1334,7 @@ function livScanRender(){
     +'<h3 style="margin:0 0 4px">🤖 Lignes lues — vérifie et corrige</h3>'
     +'<p class="hint">Trait orange = farine non reconnue, choisis-la. Décoche « garder » pour ignorer une ligne.</p>'
     +rows
-    +'<div class="row" style="margin-top:8px"><div><label>Site de réception (toutes les lignes)</label><select id="livScanSite">'+SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('')+'</select></div></div>'
+    +'<div class="row" style="margin-top:8px"><div><label>Site de réception (toutes les lignes)</label><select id="livScanSite">'+SITES.map(s=>'<option value="'+s[0]+'"'+(s[0]===fabSite?' selected':'')+'>'+s[1]+'</option>').join('')+'</select></div></div>'
     +'<div class="btn-row" style="margin-top:8px"><button class="btn" onclick="livScanSaveAll()">✓ Tout enregistrer</button></div>'
     +'</div>';
 }
