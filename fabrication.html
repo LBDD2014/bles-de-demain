@@ -1364,20 +1364,45 @@ async function livScanSaveAll(){
 async function livRenderList(filtered){
   // Liste filtrée (registre) = chronologique (plus ancien en haut). Liste « dernières » = plus récent en haut.
   let qb=supa.from('fab_livraisons').select('*').order('date_livraison',{ascending:!!filtered}).order('id',{ascending:!!filtered});
-  if(_lockedSite)qb=qb.eq('site',_lockedSite); // boutique verrouillée : ses réceptions seulement
   if(filtered){
+    if(_lockedSite)qb=qb.eq('site',_lockedSite); // boutique verrouillée : ses réceptions seulement
     const site=document.getElementById('lotSite').value,d1=document.getElementById('lotD1').value,d2=document.getElementById('lotD2').value;
     if(site)qb=qb.eq('site',site);
     if(d1)qb=qb.gte('date_livraison',d1);
     if(d2)qb=qb.lte('date_livraison',d2);
     qb=qb.limit(500);
-  }else{qb=qb.limit(15);}
+  }else{qb=qb.eq('site',fabSite).limit(120);} // liste courte = magasin courant uniquement
   const q=await qb;
   const box=document.getElementById('livList');
-  const t=document.getElementById('livListTitle');if(t)t.textContent=filtered?('Livraisons filtrées ('+((q.data||[]).length)+')'):'Dernières livraisons';
+  const t=document.getElementById('livListTitle');if(t)t.textContent=filtered?'Livraisons filtrées':'Dernières livraisons';
   if(q.error||!q.data){box.innerHTML='<div class="hint">—</div>';return;}
-  box.innerHTML=q.data.map(l=>'<div class="item"><span style="font-size:20px">🌾</span><div class="meta"><div class="t">'+ingNom(l.ingredient_id)+' — '+l.quantite_kg+' kg</div><div class="s">'+(l.numero_lot?'lot '+l.numero_lot+' · ':'')+(l.numero_bon?'bon '+l.numero_bon+' · ':'')+l.date_livraison+' · '+(SITES.find(s=>s[0]===l.site)||['','?'])[1]+'</div></div>'+(l.photo_url?'<a class="ico-btn" href="'+l.photo_url+'" target="_blank">📷</a>':'')+(l.photo_facture_url?'<a class="ico-btn" href="'+l.photo_facture_url+'" target="_blank">🧾</a>':'')+'<button class="ico-btn" onclick="livDel('+l.id+')">🗑</button></div>').join('')||'<div class="hint">Aucune livraison.</div>';
+  // Regroupe par bon de livraison (sinon par photo, sinon par date+site)
+  const groups=[],byKey={};
+  q.data.forEach(l=>{
+    const key=l.numero_bon?('b:'+l.numero_bon):(l.photo_url?('p:'+l.photo_url):('d:'+l.date_livraison+'_'+l.site));
+    let g=byKey[key];
+    if(!g){g={lignes:[],bon:l.numero_bon,date:l.date_livraison,site:l.site,photo:l.photo_url,facture:l.photo_facture_url};byKey[key]=g;groups.push(g);}
+    g.lignes.push(l);if(l.photo_url&&!g.photo)g.photo=l.photo_url;if(l.photo_facture_url&&!g.facture)g.facture=l.photo_facture_url;
+  });
+  const shown=filtered?groups:groups.slice(0,15);
+  const frD=d=>{if(!d)return'';const p=String(d).split('-');return p[2]+'/'+p[1];};
+  box.innerHTML=shown.map((g,gi)=>{
+    const total=g.lignes.reduce((s,l)=>s+(+l.quantite_kg||0),0);
+    const sn=(SITES.find(s=>s[0]===g.site)||['','?'])[1];
+    const head='<div class="item" style="cursor:pointer" onclick="livTog('+gi+')"><span style="font-size:20px">📦</span>'
+      +'<div class="meta"><div class="t">'+(g.bon?'BL n°'+g.bon:'Réception')+' · '+r2(total)+' kg</div>'
+      +'<div class="s">'+frD(g.date)+' · '+g.lignes.length+' farine'+(g.lignes.length>1?'s':'')+(filtered?' · '+sn:'')+'</div></div>'
+      +(g.photo?'<a class="ico-btn" href="'+g.photo+'" target="_blank" onclick="event.stopPropagation()">📷</a>':'')
+      +(g.facture?'<a class="ico-btn" href="'+g.facture+'" target="_blank" onclick="event.stopPropagation()">🧾</a>':'')
+      +'<span class="ico-btn" id="livcar_'+gi+'" style="pointer-events:none">▾</span></div>';
+    const det='<div id="livg_'+gi+'" style="display:none;padding:2px 0 8px 30px">'
+      +g.lignes.map(l=>'<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid #f0ece0">'
+        +'<div style="flex:1">'+ingNom(l.ingredient_id)+' — <b>'+l.quantite_kg+' kg</b>'+(l.numero_lot?' <span class="hint" style="margin:0">· lot '+l.numero_lot+'</span>':'')+'</div>'
+        +'<button class="ico-btn" onclick="livDel('+l.id+')">🗑</button></div>').join('')+'</div>';
+    return head+det;
+  }).join('')||'<div class="hint">Aucune livraison pour ce magasin.</div>';
 }
+function livTog(gi){const e=document.getElementById('livg_'+gi);const c=document.getElementById('livcar_'+gi);if(!e)return;const open=e.style.display==='none';e.style.display=open?'block':'none';if(c)c.textContent=open?'▴':'▾';}
 async function livDel(id){
   if(!confirm('Supprimer cette livraison ? (corrige le bilan en conséquence)'))return;
   setSync('suppression…');
