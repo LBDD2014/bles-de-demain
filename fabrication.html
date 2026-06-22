@@ -1883,15 +1883,17 @@ function planScanRender(){
   document.getElementById('modalBg').classList.add('show');
 }
 async function planScanApply(){
-  const rows=[];
+  const map={}; // dédoublonne par ligne+jour (l'IA peut lire 2× le même jour) → la dernière valeur gagne
   planScanData.forEach(r=>{
     const lg=planLignes.find(l=>String(l.id)===String(r.ligne_id));if(!lg)return;
     (r.valeurs||[]).forEach(v=>{
       const off=PLAN_JOUR_OFF[String(v&&v.jour||'').toLowerCase()];if(off==null)return;
       const val=String(v.valeur||'').trim();if(!val)return;
-      rows.push({ligne_id:lg.id,date_jour:pdAddDays(planWeekStart,off),valeur:val});
+      const iso=pdAddDays(planWeekStart,off);
+      map[lg.id+'_'+iso]={ligne_id:lg.id,date_jour:iso,valeur:val};
     });
   });
+  const rows=Object.values(map);
   if(!rows.length){toast('Aucune valeur à écrire');return;}
   setSync('remplissage…');
   const q=await supa.from('fab_planning_valeurs').upsert(rows,{onConflict:'ligne_id,date_jour'});
