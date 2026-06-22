@@ -1046,8 +1046,9 @@ function pdQtyOptions(pid,cur){
     if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+cur+' bac(s)</option>'+o;
     return o;
   }
-  const step=(pid==='pr_tradition')?25:2.5;let o='',inList=false;
-  for(let q=step;q<=75.001;q+=step){const v=Math.round(q*100)/100;if(v==cur)inList=true;o+='<option value="'+v+'"'+(v==cur?' selected':'')+'>'+String(v).replace('.',',')+' kg</option>';}
+  const list=(pid==='pr_tradition')?[25,50,75]:[1,2,2.5,3,4,5,6,7,7.5,8,9,10,11,12,12.5,13,14,15,17.5,20,22.5,25,30,35,40,50,60,75];
+  let o='',inList=false;
+  list.forEach(v=>{if(v==cur)inList=true;o+='<option value="'+v+'"'+(v==cur?' selected':'')+'>'+String(v).replace('.',',')+' kg</option>';});
   if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+String(cur).replace('.',',')+' kg</option>'+o; // garde une valeur hors liste
   return o;
 }
@@ -1063,9 +1064,7 @@ function pdProdRow(p){
     +'</div>';
   if(on){
     arr.forEach((b,idx)=>{
-      const qtySel=pdHasBac(p.id)
-        ? '<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>'
-        : '<input type="text" inputmode="decimal" value="'+(b.qte!=null&&b.qte!==''?String(b.qte).replace('.',','):'')+'" onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="width:80px;text-align:center" placeholder="kg"><span class="hint" style="margin:0;font-size:12px">kg far.</span>';
+      const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>'+(pdHasBac(p.id)?'':'<span class="hint" style="margin:0;font-size:12px">kg far.</span>');
       let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
       const lbl=arr.length>1?'<span class="hint" style="font-size:12px;margin:0;min-width:58px;font-weight:bold">Pétrin '+(idx+1)+'</span>':'';
       const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
