@@ -253,6 +253,11 @@
       <button class="btn ghost sm" onclick="planSetWeek(1)">▶</button>
       <button class="btn ghost sm" onclick="planSetWeek(0)">Auj.</button>
     </div>
+    <div class="btn-row" style="margin-bottom:8px">
+      <input type="file" id="planPhoto" accept="image/*" capture="environment" style="display:none" onchange="planScanFile()">
+      <button class="btn" id="planScanBtn" onclick="document.getElementById('planPhoto').click()">📷 Scanner la feuille</button>
+      <span class="hint" style="margin:0">remplit la semaine affichée</span>
+    </div>
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
@@ -1729,7 +1734,7 @@ async function calcFromPlan(){
 }
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
-let planWeekStart='',planLignes=[],planVals={},planSite='local';
+let planWeekStart='',planLignes=[],planVals={},planSite='local',planScanData=[];
 // planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
   {key:'pains',label:'PAINS',color:'var(--blue)'},
@@ -1842,6 +1847,57 @@ async function planMove(id,dir){
   await supa.from('fab_planning_lignes').update({ordre:b.ordre||0}).eq('id',a.id);
   await supa.from('fab_planning_lignes').update({ordre:a.ordre||0}).eq('id',b.id);
   await planLoad();planRender();
+}
+
+/* ---------- SCAN PHOTO DE LA FEUILLE (IA → remplit le planning) ---------- */
+const PLAN_JOUR_OFF={lundi:0,mardi:1,mercredi:2,jeudi:3,vendredi:4,samedi:5,dimanche:6};
+async function planScanFile(){
+  const inp=document.getElementById('planPhoto');const f=inp&&inp.files&&inp.files[0];if(!f)return;
+  const btn=document.getElementById('planScanBtn');const old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ Lecture…';}
+  setSync("lecture de la feuille par l'IA…");
+  try{
+    const image=await fileToBase64(f);
+    const lignes=planLignes.map(l=>({id:l.id,nom:l.nom,unite:l.unite}));
+    const {data,error}=await supa.functions.invoke('rapid-worker',{body:{mode:'planning',image,mimeType:f.type||'image/jpeg',lignes}});
+    if(error)throw new Error(error.message||'Erreur fonction');
+    if(data&&data.error)throw new Error(data.error);
+    planScanData=(data&&data.lignes)||[];
+    if(!planScanData.length){toast('Rien lu sur la feuille');return;}
+    planScanRender();
+  }catch(e){setSync('⚠️');toast('Lecture : '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent=old;}if(inp)inp.value='';setSync('🟢 connecté');}
+}
+function planScanRender(){
+  let matched=0,rows='';
+  planScanData.forEach(r=>{
+    const lg=planLignes.find(l=>String(l.id)===String(r.ligne_id));if(lg)matched++;
+    const vals=(r.valeurs||[]).filter(v=>v&&v.valeur&&String(v.valeur).trim())
+      .map(v=>{const off=PLAN_JOUR_OFF[String(v.jour||'').toLowerCase()];return (off!=null?PD_DAYS[off]:v.jour)+' : '+v.valeur;}).join('  ·  ');
+    const tgt=lg?'<b>'+lg.nom+'</b>':'<span style="color:var(--orange)">⚠️ non reconnu (ignoré)</span>';
+    rows+='<div style="padding:6px 0;border-bottom:1px solid #eee;font-size:13px"><div>'+(r.nom_detecte||'?')+' → '+tgt+'</div>'+(vals?'<div class="hint" style="margin:2px 0 0">'+vals+'</div>':'')+'</div>';
+  });
+  document.getElementById('modal').innerHTML='<h3>📷 Lecture de la feuille</h3>'
+    +'<p class="hint"><b>'+matched+'/'+planScanData.length+'</b> lignes reconnues. Les valeurs vont remplir la <b>semaine du '+planFr(planWeekStart)+'</b>. Les lignes non reconnues sont ignorées (à saisir à la main).</p>'
+    +'<div style="max-height:48vh;overflow:auto;margin:8px 0;border:1px solid var(--gold-light);border-radius:8px;padding:0 10px">'+rows+'</div>'
+    +'<div class="btn-row"><button class="btn" onclick="planScanApply()">✓ Remplir la semaine</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
+  document.getElementById('modalBg').classList.add('show');
+}
+async function planScanApply(){
+  const rows=[];
+  planScanData.forEach(r=>{
+    const lg=planLignes.find(l=>String(l.id)===String(r.ligne_id));if(!lg)return;
+    (r.valeurs||[]).forEach(v=>{
+      const off=PLAN_JOUR_OFF[String(v&&v.jour||'').toLowerCase()];if(off==null)return;
+      const val=String(v.valeur||'').trim();if(!val)return;
+      rows.push({ligne_id:lg.id,date_jour:pdAddDays(planWeekStart,off),valeur:val});
+    });
+  });
+  if(!rows.length){toast('Aucune valeur à écrire');return;}
+  setSync('remplissage…');
+  const q=await supa.from('fab_planning_valeurs').upsert(rows,{onConflict:'ligne_id,date_jour'});
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');closeModal();
+  await planLoad();planRender();toast(rows.length+' cases remplies ✓');
 }
 
 /* ---------- PIN D'ACCÈS (mêmes codes que l'app principale) ---------- */

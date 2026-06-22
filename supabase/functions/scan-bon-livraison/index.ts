@@ -1,7 +1,8 @@
 // Edge Function : rapid-worker (déployée sous ce slug)
-// 2 modes :
-//   - défaut  : lit la photo d'un BON DE LIVRAISON de farine bio → lignes reçues
-//   - recette : lit du TEXTE de recette(s) de boulangerie → recettes structurées
+// 3 modes :
+//   - défaut   : lit la photo d'un BON DE LIVRAISON de farine bio → lignes reçues
+//   - recette  : lit du TEXTE de recette(s) de boulangerie → recettes structurées
+//   - planning : lit la photo d'une FEUILLE DE PLANNING hebdo → valeurs par produit × jour
 // Clé Anthropic lue depuis le secret ANTHROPIC_API_KEY — jamais exposée au front.
 
 const CORS = {
@@ -18,6 +19,7 @@ Deno.serve(async (req) => {
     if (!apiKey) return json({ error: "Clé API manquante côté serveur (secret ANTHROPIC_API_KEY)" }, 500);
     const body = await req.json();
     if (body.mode === "recette") return await parseRecette(body, apiKey);
+    if (body.mode === "planning") return await parsePlanning(body, apiKey);
     return await parseBon(body, apiKey);
   } catch (e: any) {
     return json({ error: String(e?.message || e) }, 500);
@@ -141,6 +143,65 @@ ${ingCat || "(vide)"}`;
     },
   };
   const res = await callClaude(apiKey, [{ type: "text", text: prompt + "\n\nTEXTE À LIRE :\n" + text }], tool);
+  return res.error ? json({ error: res.error }, 502) : json(res.input, 200);
+}
+
+async function parsePlanning(body: any, apiKey: string) {
+  const { image, mimeType, lignes } = body;
+  if (!image) return json({ error: "Aucune image reçue" }, 400);
+  const catalogue = (lignes || [])
+    .map((l: any) => `- id="${l.id}" · nom="${l.nom}"${l.unite ? ` · unité=${l.unite}` : ""}`)
+    .join("\n");
+  const prompt = `Tu lis une FEUILLE DE PLANNING HEBDOMADAIRE de production d'une boulangerie.
+C'est une GRILLE : chaque LIGNE = un produit/pain ; chaque COLONNE = un jour de la semaine (souvent de Mardi à Dimanche, parfois Lundi inclus).
+
+Pour CHAQUE ligne de produit, donne :
+- ligne_id : choisis l'id qui correspond le mieux dans le CATALOGUE ci-dessous (par le nom). Si AUCUN ne correspond, mets null.
+- nom_detecte : le libellé EXACT lu à gauche de la ligne.
+- valeurs : un tableau d'objets { jour, valeur } pour CHAQUE jour qui a un contenu.
+    * jour ∈ "lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"
+    * valeur = le CONTENU EXACT de la case, recopié TEL QUEL en texte (ex : "75+75+50", "3+8", "1+2fredeville", "15 pièces", "12,5").
+
+RÈGLES IMPORTANTES :
+- RECOPIE le texte des cases. NE CALCULE PAS, NE CONVERTIS PAS, n'additionne pas.
+- Une case VIDE ou BARRÉE (rature, gribouillage) → ne la mets pas dans valeurs (ignore-la).
+- IGNORE les lignes de titre/section ("PAINS", "Pains bio"…) et les lignes de TOTAL ("total bacs de mélanges"…).
+- N'invente jamais une ligne ou une valeur.
+
+CATALOGUE des produits du planning (pour le matching) :
+${catalogue || "(vide — ligne_id à null partout)"}`;
+  const tool = {
+    name: "enregistrer_planning",
+    description: "Renvoie les lignes du planning hebdo avec les valeurs par jour",
+    input_schema: {
+      type: "object",
+      properties: {
+        semaine: { type: ["string", "null"] },
+        lignes: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              ligne_id: { type: ["string", "null"] },
+              nom_detecte: { type: ["string", "null"] },
+              valeurs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { jour: { type: "string" }, valeur: { type: "string" } },
+                  required: ["jour", "valeur"],
+                },
+              },
+            }, required: ["nom_detecte", "valeurs"],
+          },
+        },
+      }, required: ["lignes"],
+    },
+  };
+  const res = await callClaude(apiKey, [
+    { type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: image } },
+    { type: "text", text: prompt },
+  ], tool);
   return res.error ? json({ error: res.error }, 502) : json(res.input, 200);
 }
 
