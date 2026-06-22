@@ -1053,33 +1053,41 @@ function pdQtyOptions(pid,cur){
 }
 function pdDefaultQte(pid){if(pdHasBac(pid))return 1;return pid==='pr_tradition'?25:10;}
 
+// Recettes mises en avant par magasin (Tours/Veigné produisent surtout celles-ci)
+const PD_FAVORIS={veigne:['pr_integral','pr_essentiel','pr_engrain'],tours:['pr_integral','pr_essentiel','pr_engrain']};
+function pdProdRow(p){
+  const arr=pdDay[p.id];const on=!!arr;const rec=recettesMap[p.id];const hasHydra=rec.hydratation_pct!=null;
+  let html='<div style="margin-bottom:5px;'+(on?'background:#FBF6EA;border-radius:8px;padding:6px 8px':'padding:1px 8px')+'">';
+  html+='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
+    +'<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:115px;cursor:pointer;font-size:14px"><input type="checkbox" '+(on?'checked':'')+' onchange="pdToggle(\''+p.id+'\')" style="width:auto;transform:scale(1.3)"> '+p.nom+'</label>'
+    +'</div>';
+  if(on){
+    arr.forEach((b,idx)=>{
+      const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>';
+      let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
+      const lbl=arr.length>1?'<span class="hint" style="font-size:12px;margin:0;min-width:58px;font-weight:bold">Pétrin '+(idx+1)+'</span>':'';
+      const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
+      html+='<div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;padding-left:30px">'+lbl+qtySel+hyHtml+del+'</div>';
+    });
+    html+='<div style="padding-left:30px;margin-top:6px"><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="pdAddBatch(\''+p.id+'\')">＋ Ajouter un pétrin</button></div>';
+    if(BASE_PATE[p.id])html+=pdMelangeSection(p.id);
+  }
+  return html+'</div>';
+}
 function pdRenderRows(){
   const el=document.getElementById('pdRows');if(!el)return;
   const withRec=produits.filter(p=>recettesMap[p.id]&&p.actif!==false);
   if(!withRec.length){el.innerHTML='<p class="hint">Aucune recette.</p>';return;}
   let html='';
+  const catTitle=t=>'<div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin:8px 0 3px">'+t+'</div>';
+  // Favoris du magasin (Tours/Veigné) : remontés en haut, pas cochés
+  const favProds=(PD_FAVORIS[fabSite]||[]).map(id=>withRec.find(p=>p.id===id)).filter(Boolean);
+  const favSet=new Set(favProds.map(p=>p.id));
+  if(favProds.length){html+=catTitle('⭐ Favoris du magasin');favProds.forEach(p=>html+=pdProdRow(p));}
   PD_CAT_ORDER.forEach(cat=>{
-    const list=withRec.filter(p=>p.categorie===cat);if(!list.length)return;
-    html+='<div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin:8px 0 3px">'+(PD_CAT_NAME[cat]||cat)+'</div>';
-    list.forEach(p=>{
-      const arr=pdDay[p.id];const on=!!arr;const rec=recettesMap[p.id];const hasHydra=rec.hydratation_pct!=null;
-      html+='<div style="margin-bottom:5px;'+(on?'background:#FBF6EA;border-radius:8px;padding:6px 8px':'padding:1px 8px')+'">';
-      html+='<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
-        +'<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:115px;cursor:pointer;font-size:14px"><input type="checkbox" '+(on?'checked':'')+' onchange="pdToggle(\''+p.id+'\')" style="width:auto;transform:scale(1.3)"> '+p.nom+'</label>'
-        +'</div>';
-      if(on){
-        arr.forEach((b,idx)=>{
-          const qtySel='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'qte\',this.value)" style="min-width:86px">'+pdQtyOptions(p.id,b.qte)+'</select>';
-          let hyHtml='';if(hasHydra){const cur=(b.hydra!=null)?b.hydra:Math.round(rec.hydratation_pct);let o='';for(let pct=60;pct<=110;pct++)o+='<option value="'+pct+'"'+(pct==cur?' selected':'')+'>'+pct+'%</option>';hyHtml='<select onchange="pdSetBatch(\''+p.id+'\','+idx+',\'hydra\',this.value)" style="max-width:74px" title="hydratation">'+o+'</select>';}
-          const lbl=arr.length>1?'<span class="hint" style="font-size:12px;margin:0;min-width:58px;font-weight:bold">Pétrin '+(idx+1)+'</span>':'';
-          const del=arr.length>1?'<button class="ico-btn" onclick="pdDelBatch(\''+p.id+'\','+idx+')">🗑</button>':'';
-          html+='<div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;padding-left:30px">'+lbl+qtySel+hyHtml+del+'</div>';
-        });
-        html+='<div style="padding-left:30px;margin-top:6px"><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="pdAddBatch(\''+p.id+'\')">＋ Ajouter un pétrin</button></div>';
-        if(BASE_PATE[p.id])html+=pdMelangeSection(p.id);
-      }
-      html+='</div>';
-    });
+    const list=withRec.filter(p=>p.categorie===cat&&!favSet.has(p.id));if(!list.length)return;
+    html+=catTitle(PD_CAT_NAME[cat]||cat);
+    list.forEach(p=>html+=pdProdRow(p));
   });
   el.innerHTML=html;
 }
