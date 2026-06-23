@@ -188,7 +188,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.132</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.133</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -941,8 +941,11 @@ async function pdValiderJour(){
   const q=await supa.from('fab_production').update({valide:true}).eq('site',fabSite).eq('date_prod',pdDate);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   setSync('🟢 connecté');pdDayValide=true;
-  await bilLoadRaw();pdRenderValidBar();
-  toast('Journée validée — farines décomptées ✓');
+  await bilLoadRaw();
+  await pdSaveFleurage();   // fleurage 5% en Tradition Bio
+  await bilLoadRaw();
+  pdRenderValidBar();
+  toast('Journée validée — farines décomptées (fleurage inclus) ✓');
 }
 function pdDayFarineRecap(){
   const acc={};
@@ -953,13 +956,33 @@ function pdDayFarineRecap(){
   });}});
   return Object.keys(acc).map(id=>({nom:ingNom(id),kg:acc[id]})).sort((a,b)=>b.kg-a.kg);
 }
+// FLEURAGE : farine pour diviser/fariner, ~5% du total farine du jour, en Tradition Bio (toujours actif)
+const FLEURAGE_PCT=5;
+function pdDayFlourTotal(){
+  let t=0;
+  bilProd.forEach(p=>{if(p.site===fabSite&&p.date_prod===pdDate&&p.valide){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+    const base=(+rl.quantite)*(+p.quantite/rb);const ing=_ingById[rl.ingredient_id];
+    if(ing&&ing.categorie==='farine')t+=base;
+    if(ing&&ing.categorie==='levain'&&ing.farine_levain_id){const r=(+ing.eau_ratio)||0;t+=base/(1+r);}
+  });}});
+  return t;
+}
+function pdFleurageKg(){return Math.round(pdDayFlourTotal()*FLEURAGE_PCT/100*100)/100;}
+async function pdSaveFleurage(){ // remplace la sortie fleurage du jour (recalcul à chaque validation)
+  await supa.from('fab_sorties').delete().eq('site',fabSite).eq('date_sortie',pdDate);
+  const fleur=pdFleurageKg();
+  if(fleur>0)await supa.from('fab_sorties').insert({ingredient_id:'ing_trad_bio',site:fabSite,date_sortie:pdDate,quantite_kg:fleur,valide:true});
+}
 function pdRenderValidBar(){
   const box=document.getElementById('pdValidBar');if(!box)return;
   let h='<button class="btn" style="width:100%;'+(pdDayValide?'background:var(--green)':'')+'" onclick="pdValiderJour()">'+(pdDayValide?'✓ Journée validée — re-valider si rajout':'✓ Valider ma journée (décompter les farines)')+'</button>';
   if(pdDayValide){
     const recap=pdDayFarineRecap();
     h+='<div style="margin-top:8px;background:var(--cream);border-radius:10px;padding:10px"><b style="color:var(--green)">✓ Farines décomptées — '+pdLabel(pdDate)+'</b>';
-    h+=recap.length?'<table class="plan-tbl" style="margin-top:6px"><tbody>'+recap.map(r=>'<tr><td class="pname">'+r.nom+'</td><td><b>'+k2(r.kg)+' kg</b></td></tr>').join('')+'</tbody></table>':'<div class="hint">Aucune farine décomptée (pas de recette sur ces pains ?).</div>';
+    const fleur=pdFleurageKg();
+    h+=recap.length?'<table class="plan-tbl" style="margin-top:6px"><tbody>'+recap.map(r=>'<tr><td class="pname">'+r.nom+'</td><td><b>'+k2(r.kg)+' kg</b></td></tr>').join('')
+      +(fleur>0?'<tr><td class="pname">🌾 Fleurage ('+FLEURAGE_PCT+'% → Tradition Bio)</td><td><b>'+k2(fleur)+' kg</b></td></tr>':'')
+      +'</tbody></table>':'<div class="hint">Aucune farine décomptée (pas de recette sur ces pains ?).</div>';
     h+='</div>';
   }else{
     h+='<p class="hint" style="color:var(--orange);margin-top:6px">⚠️ Non validé — tes farines ne sont pas encore décomptées du stock.</p>';
