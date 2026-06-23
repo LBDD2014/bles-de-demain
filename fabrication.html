@@ -188,7 +188,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.131</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.132</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -482,6 +482,8 @@ let pdDate='', pdWeekStart='', pdWeekData={}, _pdSaveTimer=null, _dpfCache={}, p
 let pdMelange={}; // melangePid -> nb bacs (du jour)
 let pdHydraPref={}; try{pdHydraPref=JSON.parse(localStorage.getItem('pdHydraPref')||'{}')}catch(e){} // % eau mémorisé par produit
 function pdSaveHydraPref(pid,h){if(h==null)return;pdHydraPref[pid]=h;try{localStorage.setItem('pdHydraPref',JSON.stringify(pdHydraPref))}catch(e){}}
+let pdQtePref={}; try{pdQtePref=JSON.parse(localStorage.getItem('pdQtePref')||'{}')}catch(e){} // quantité mémorisée PAR MAGASIN + produit (clé "site:pid")
+function pdSaveQtePref(pid,q){if(q==null||isNaN(q)||q<=0)return;pdQtePref[fabSite+':'+pid]=q;try{localStorage.setItem('pdQtePref',JSON.stringify(pdQtePref))}catch(e){}}
 // Pâtes de base qui ont des mélanges : produit de base -> ingrédient "pâte de X"
 const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_essentiel'};
 
@@ -1016,7 +1018,7 @@ function pdToggle(pid){
 }
 function pdAddBatch(pid){if(!pdDay[pid])pdDay[pid]=[];pdDay[pid].push({qte:pdDefaultQte(pid),hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)});pdRenderAll();pdAutoSave();}
 function pdDelBatch(pid,idx){const a=pdDay[pid];if(!a)return;a.splice(idx,1);if(!a.length)delete pdDay[pid];fabChecked={};pdRenderAll();pdAutoSave();}
-function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte')a[idx].qte=parseFloat(String(val).replace(',','.'))||0;else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();requestAnimationFrame(pdRenderAll);pdAutoSave();}
+function pdSetBatch(pid,idx,field,val){const a=pdDay[pid];if(!a||!a[idx])return;if(field==='qte'){a[idx].qte=parseFloat(String(val).replace(',','.'))||0;pdSaveQtePref(pid,a[idx].qte);}else if(field==='hydra'){a[idx].hydra=(val===''?null:parseFloat(val));pdSaveHydraPref(pid,a[idx].hydra);}pdRenderAll();requestAnimationFrame(pdRenderAll);pdAutoSave();}
 // Pesées + agrégats d'une ligne du jour
 function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
@@ -1052,7 +1054,7 @@ function pdQtyOptions(pid,cur){
   if(cur!=null&&cur!==''&&!inList)o='<option value="'+cur+'" selected>'+String(cur).replace('.',',')+' kg</option>'+o; // garde une valeur hors liste
   return o;
 }
-function pdDefaultQte(pid){if(pdHasBac(pid))return 1;return pid==='pr_tradition'?25:10;}
+function pdDefaultQte(pid){const k=fabSite+':'+pid;if(pdQtePref[k]!=null)return pdQtePref[k];if(pdHasBac(pid))return 1;return pid==='pr_tradition'?25:10;}
 
 // Recettes mises en avant par magasin (Tours/Veigné produisent surtout celles-ci)
 const PD_FAVORIS={veigne:['pr_integral','pr_essentiel','pr_engrain'],tours:['pr_integral','pr_essentiel','pr_engrain']};
