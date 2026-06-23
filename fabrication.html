@@ -188,7 +188,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.133</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.134</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -419,6 +419,12 @@
   <div class="card">
     <h2>Bilan matière bio</h2>
     <p class="hint">Départ + reçu + dispatch − conso − pertes = stock fin, par farine bio × site. Le « départ » repart du dernier comptage physique.</p>
+    <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
+      <button class="btn ghost sm" onclick="bilSetMonth(-1)">◀</button>
+      <b id="bilMonthLbl" style="flex:1;text-align:center;font-size:14px"></b>
+      <button class="btn ghost sm" onclick="bilSetMonth(1)">▶</button>
+      <button class="btn ghost sm" onclick="bilSetMonth(0)">Ce mois</button>
+    </div>
     <div class="row">
       <div><label>Du</label><input type="date" id="bilD1"></div>
       <div><label>Au</label><input type="date" id="bilD2"></div>
@@ -1563,6 +1569,21 @@ function theoAt(ing,site,date){const v=lastInv(ing,site,date);const base=v?+v.qt
 function bilPreset(p){const t=new Date();const y=t.getFullYear();
   document.getElementById('bilD1').value=(p==='all')?'2000-01-01':y+'-01-01';
   document.getElementById('bilD2').value=t.toISOString().slice(0,10);bilLoad();}
+const MOIS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+let bilMonthY=null,bilMonthM=null;
+function bilSetMonth(delta){
+  const t=new Date();
+  if(bilMonthY==null||delta===0){bilMonthY=t.getFullYear();bilMonthM=t.getMonth();}
+  else{bilMonthM+=delta;while(bilMonthM<0){bilMonthM+=12;bilMonthY--;}while(bilMonthM>11){bilMonthM-=12;bilMonthY++;}}
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const d1=new Date(bilMonthY,bilMonthM,1);
+  const isCur=(bilMonthY===t.getFullYear()&&bilMonthM===t.getMonth());
+  const d2=isCur?t:new Date(bilMonthY,bilMonthM+1,0); // mois en cours borné à aujourd'hui, sinon dernier jour du mois
+  document.getElementById('bilD1').value=iso(d1);
+  document.getElementById('bilD2').value=iso(d2);
+  const lbl=document.getElementById('bilMonthLbl');if(lbl)lbl.textContent=MOIS_FR[bilMonthM]+' '+bilMonthY+(isCur?' (en cours)':'');
+  bilLoad();
+}
 function bilComputeRows(d1,d2){
   const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
   const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES; // boutique verrouillée = son site seulement ; maître = tous
@@ -1599,10 +1620,9 @@ function bilExport(){
   document.getElementById('bilexport').innerHTML=html;
   modePrint('mode-bilan');
 }
-async function bilEnter(){await bilLoadRaw();const y=new Date().getFullYear();
-  if(!document.getElementById('bilD1').value)document.getElementById('bilD1').value=y+'-01-01';
-  if(!document.getElementById('bilD2').value)document.getElementById('bilD2').value=new Date().toISOString().slice(0,10);
-  bilLoad();}
+async function bilEnter(){await bilLoadRaw();
+  if(bilMonthY==null)bilSetMonth(0); // démarre sur le mois en cours
+  else bilLoad();}
 
 /* ---------- INVENTAIRE ---------- */
 let invCurSite='local'; // piloté par le sélecteur de magasin global (setSite)
