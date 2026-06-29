@@ -1,8 +1,9 @@
 {
+  "id": "/bles-de-demain/index-cloud-test.html",
   "name": "Les Blés de Demain",
   "short_name": "Les Blés de Demain",
   "start_url": "index-cloud-test.html",
-  "scope": "./",
+  "scope": "index-cloud-test.html",
   "display": "standalone",
   "background_color": "#2E3044",
   "theme_color": "#2E3044",

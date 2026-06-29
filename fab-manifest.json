@@ -1,8 +1,9 @@
 {
+  "id": "/bles-de-demain/fabrication.html",
   "name": "LBDD — Fabrication & Bio",
   "short_name": "Fabrication",
   "start_url": "fabrication.html",
-  "scope": "./",
+  "scope": "fabrication.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#2E3044",
