@@ -188,7 +188,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.134</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.135</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1179,7 +1179,9 @@ function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElement
 function modePrint(cls){
   ['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));
   if(cls)document.body.classList.add(cls);
-  setTimeout(function(){window.print();},150);
+  // double rAF + délai : laisse iPad ET Android appliquer le style d'impression AVANT la capture
+  // (sinon ils impriment la page écran entière au lieu de l'étiquette)
+  requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){window.print();},350);});});
 }
 function printFiche(){modePrint(null);}
 function pdEtiq(pid,batchIdx){
