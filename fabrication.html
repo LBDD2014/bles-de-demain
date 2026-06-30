@@ -197,7 +197,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.137</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.138</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1205,12 +1205,13 @@ function pdEtiq(pid,batchIdx){
 // Impression ISOLÉE : un iframe invisible qui ne contient QUE l'étiquette
 // → marche partout (Android compris), car le reste de la page n'existe pas dans ce document.
 function printIsolated(inner){
+  // Calé pour rouleau Brother 62 mm CONTINU : page 62 mm de large, hauteur auto (coupe à la fin du contenu)
   const css='*{margin:0;padding:0;box-sizing:border-box}'
-    +'body{font-family:Georgia,serif;padding:6mm;color:#000;background:#fff}'
-    +'.etq{border:2px solid #000;border-radius:6px;padding:9px 11px;width:62mm}'
-    +'.etq .tt{font-size:15px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:4px;margin-bottom:6px}'
-    +'.etq .ln{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}'
-    +'@page{margin:6mm}';
+    +'@page{size:62mm auto;margin:0}'
+    +'body{font-family:Georgia,serif;color:#000;background:#fff;width:62mm;padding:2mm}'
+    +'.etq{border:1.5px solid #000;border-radius:5px;padding:3mm;width:58mm}'
+    +'.etq .tt{font-size:13px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:3px;margin-bottom:5px;line-height:1.2}'
+    +'.etq .ln{display:flex;justify-content:space-between;gap:6px;font-size:12px;padding:1.5px 0;line-height:1.25}';
   let f=document.getElementById('printFrame');if(f)f.remove();
   f=document.createElement('iframe');f.id='printFrame';
   f.style.cssText='position:fixed;left:-9999px;top:0;width:80mm;height:200mm;border:0';
