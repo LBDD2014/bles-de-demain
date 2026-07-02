@@ -12960,7 +12960,11 @@ function getProductionShopForProduct(productId, originShop, dateISO) {
 const p = products.find(function(x) { return x.id === productId; });
 if (!p) return originShop; // fallback
 const cat = p.category;
-if (cat === 'patisserie_gros') return 'veigne';
+// v20.141 — gros gâteaux : piloté par le supply (local si supply=local, sinon Veigné)
+if (cat === 'patisserie_gros') {
+  const sup = getProductSupply(p, originShop);
+  return sup === 'local' ? 'local' : 'veigne';
+}
 if (cat === 'patisserie_petits') {
   if (originShop === 'saint-avertin' && dateISO &&
       new Date(dateISO + 'T12:00').getDay() === 2) return 'veigne'; // mardi
