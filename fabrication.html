@@ -102,14 +102,11 @@
   #pinpad button.ghost{border-color:transparent;pointer-events:none}
 
   @media print{
+    /* À l'impression on cache TOUT le body ; printDoc() injecte le seul bloc à imprimer (#printwrap). */
     nav.tabs,header,.btn-row,.print-hide,#pinov{display:none!important}
-    .page{display:none!important}body{background:#fff;padding:0}
-    body:not(.mode-etiq):not(.mode-recettes):not(.mode-bilan):not(.mode-lots) #fab{display:block!important}
-    body.mode-etiq #etiq{display:block!important}
-    body.mode-recettes #recexport{display:block!important}
-    body.mode-bilan #bilexport{display:block!important}
-    body.mode-lots #lotexport{display:block!important}
-    @page{margin:8mm}
+    body{background:#fff;padding:0}
+    body>*{display:none!important}
+    body>#printwrap{display:block!important}
   }
   #etiq{display:none}
   #recexport{display:none}
@@ -197,7 +194,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.139</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.140</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1183,16 +1180,37 @@ function pdRenderFiches(){
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
 
-// iOS Safari : il faut laisser la classe d'impression s'appliquer AVANT window.print(),
-// sinon l'iPad capture la page écran entière (et imprime toute la recette au lieu de l'étiquette).
-function modePrint(cls){
-  ['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));
-  if(cls)document.body.classList.add(cls);
-  // double rAF + délai : laisse iPad ET Android appliquer le style d'impression AVANT la capture
-  // (sinon ils impriment la page écran entière au lieu de l'étiquette)
-  requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){window.print();},350);});});
+// IMPRESSION UNIVERSELLE — marche iPad + iPhone + Android (Samsung, Logicom…).
+// On masque physiquement tout le <body> et on n'imprime qu'un seul bloc injecté (#printwrap),
+// puis on restaure. Pas d'iframe (iOS/Samsung impriment la page entière à la place).
+// html = contenu à imprimer ; pageCSS = règles @page + ajustements (injectées en @media print).
+function printDoc(html,pageCSS){
+  const rm=function(id){const e=document.getElementById(id);if(e)e.remove();};
+  rm('printwrap');rm('printstyle');
+  const wrap=document.createElement('div');wrap.id='printwrap';wrap.style.display='none';wrap.innerHTML=html;
+  document.body.appendChild(wrap);
+  const st=document.createElement('style');st.id='printstyle';
+  st.textContent='@media print{'+(pageCSS||'@page{size:A4;margin:10mm}')+'}';
+  document.head.appendChild(st);
+  const cleanup=function(){
+    rm('printwrap');rm('printstyle');
+    window.removeEventListener('afterprint',cleanup);
+  };
+  window.addEventListener('afterprint',cleanup);
+  // double rAF + délai : laisse iPad ET Android appliquer le style AVANT la capture
+  requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){
+    try{window.print();}catch(e){toast('Impression : '+e.message);cleanup();}
+  },300);});});
 }
-function printFiche(){modePrint(null);}
+// CSS calé pour le rouleau Brother 62 mm continu (largeur 62 mm, hauteur auto).
+const ETIQ_CSS='@page{size:62mm auto;margin:0}'
+  +'#printwrap{width:62mm;padding:2mm;font-family:Georgia,serif;color:#000;background:#fff}'
+  +'#printwrap .etq{width:auto;border:1.5px solid #000;border-radius:5px;padding:3mm}';
+function printFiche(){
+  const fiches=(document.getElementById('pdFiches')||{}).innerHTML||'';
+  if(!fiches.trim()){toast('Rien à imprimer pour ce jour');return;}
+  printDoc('<div class="rx-head" style="margin-bottom:10px">Fiches de fabrication — '+pdLabel(pdDate)+'</div>'+fiches,'@page{size:A4;margin:10mm}');
+}
 function pdEtiq(pid,batchIdx){
   const b=(pdDay[pid]||[])[batchIdx];if(!b)return;const row={pid,batchIdx,qte:b.qte,hydra:b.hydra};const c=pdCompute(row);if(!c)return;
   const k0=pid+'_'+batchIdx;const nb=(pdDay[pid]||[]).length;
@@ -1200,28 +1218,8 @@ function pdEtiq(pid,batchIdx){
   c.lines.forEach((l,k)=>{if(!fabChecked[k0+'_'+k]){reste=true;lines+='<div class="ln"><span>'+l.nom+'</span><b>'+fmt(l.q)+'</b></div>';}});
   if(c.bassinage>0&&!fabChecked[k0+'_bass']){reste=true;lines+='<div class="ln"><span>Eau de bassinage</span><b>'+fmt(c.bassinage)+'</b></div>';}
   const inner='<div class="etq"><div class="tt">'+prodNom(pid)+(nb>1?' P'+(batchIdx+1):'')+' — '+r2(b.qte)+(pdHasBac(pid)?' bac'+(b.qte>1?'s':''):' kg far.')+'</div><div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'+(reste?lines:'<div>✓ Tout est mis</div>')+'</div>';
-  printIsolated(inner);
+  printDoc(inner,ETIQ_CSS);
 }
-// Impression ISOLÉE : un iframe invisible qui ne contient QUE l'étiquette
-// → marche partout (Android compris), car le reste de la page n'existe pas dans ce document.
-function printIsolated(inner){
-  // Calé pour rouleau Brother 62 mm CONTINU : page 62 mm de large, hauteur auto (coupe à la fin du contenu)
-  const css='*{margin:0;padding:0;box-sizing:border-box}'
-    +'@page{size:62mm auto;margin:0}'
-    +'body{font-family:Georgia,serif;color:#000;background:#fff;width:62mm;padding:2mm}'
-    +'.etq{border:1.5px solid #000;border-radius:5px;padding:3mm;width:58mm}'
-    +'.etq .tt{font-size:13px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:3px;margin-bottom:5px;line-height:1.2}'
-    +'.etq .ln{display:flex;justify-content:space-between;gap:6px;font-size:12px;padding:1.5px 0;line-height:1.25}';
-  let f=document.getElementById('printFrame');if(f)f.remove();
-  f=document.createElement('iframe');f.id='printFrame';
-  f.style.cssText='position:fixed;left:-9999px;top:0;width:80mm;height:200mm;border:0';
-  document.body.appendChild(f);
-  const d=f.contentWindow.document;
-  d.open();d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Étiquette</title><style>'+css+'</style></head><body>'+inner+'</body></html>');d.close();
-  const go=function(){try{f.contentWindow.focus();f.contentWindow.print();}catch(e){toast('Impression : '+e.message);}};
-  setTimeout(go,400);
-}
-window.addEventListener('afterprint',()=>{['mode-etiq','mode-recettes','mode-bilan','mode-lots'].forEach(c=>document.body.classList.remove(c));});
 
 /* ---------- REGISTRE DES LOTS (export PDF des réceptions bio) ---------- */
 async function lotExport(){
@@ -1243,8 +1241,7 @@ async function lotExport(){
     +(data.length?data.map(l=>'<tr><td>'+fr(l.date_livraison)+'</td><td>'+ingNom(l.ingredient_id)+'</td><td>'+(l.numero_lot||'—')+'</td><td>'+(l.numero_bon||'—')+'</td><td>'+l.quantite_kg+'</td><td>'+fn(l.fournisseur_id)+'</td><td>'+sn(l.site)+'</td></tr>').join('')
        :'<tr><td colspan="7" style="text-align:center">Aucune réception enregistrée.</td></tr>')
     +'</tbody></table>';
-  document.getElementById('lotexport').innerHTML=html;
-  modePrint('mode-lots');
+  printDoc(html);
 }
 
 /* ---------- SOLDE PAR LOT (FIFO) — exigence BV ---------- */
@@ -1305,8 +1302,7 @@ function lotSoldeExport(){
     +(rows.length?rows.map(r=>'<tr><td>'+fr(r.date)+'</td><td>'+(r.lot||'—')+'</td><td>'+r.ing+'</td><td>'+(r.four||'')+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.cons)+'</td><td>'+k2(r.pert)+'</td><td>'+k2(r.rest)+'</td></tr>').join('')
        :'<tr><td colspan="8" style="text-align:center">Aucun lot.</td></tr>')
     +'</tbody></table>';
-  document.getElementById('lotexport').innerHTML=html;
-  modePrint('mode-lots');
+  printDoc(html);
 }
 
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
@@ -1324,8 +1320,7 @@ function recExportAll(){
     const proc=r.procede?'<div class="rx-proc">'+String(r.procede).replace(/[<>]/g,'')+'</div>':'';
     html+='<div class="rx-item"><h3>'+it.nom+(prod.bio?' 🌱':'')+'</h3><div class="rx-sub">'+sub+'</div><table>'+lignes+'</table>'+proc+'</div>';
   });
-  document.getElementById('recexport').innerHTML=html;
-  modePrint('mode-recettes');
+  printDoc(html);
 }
 
 /* ---------- LIVRAISONS ---------- */
@@ -1647,8 +1642,7 @@ function bilExport(){
     +(rows.length?rows.map(r=>'<tr><td>'+r.nom+'</td><td>'+r.site+'</td><td>'+k2(r.dep)+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.dispIn)+'</td><td>'+k2(r.dispOut)+'</td><td>'+k2(r.conso)+'</td><td>'+k2(r.pertes)+'</td><td>'+k2(r.fin)+'</td></tr>').join('')
        :'<tr><td colspan="9" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
     +'</tbody></table>';
-  document.getElementById('bilexport').innerHTML=html;
-  modePrint('mode-bilan');
+  printDoc(html);
 }
 async function bilEnter(){await bilLoadRaw();
   if(bilMonthY==null)bilSetMonth(0); // démarre sur le mois en cours
