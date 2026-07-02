@@ -1351,6 +1351,8 @@ background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 .v-inp:focus { outline: none; border-color: var(--gold); background: white; }
 .v-inp.matin.has    { background: #EEF7F2; border-color: var(--green); color: var(--green); }
 .v-inp.aprem.has    { background: #FEF3EC; border-color: var(--orange); color: var(--orange); }
+/* v20.139 — Sortie jour auto (gâteaux) : suggérée, bordure pointillée */
+.v-inp.aprem.is-auto { background: #FEF7F0; border-color: var(--orange); color: var(--orange); border-style: dashed; opacity: .85; }
 .v-inp.reste_j1.has { background: #FFF9ED; border-color: var(--gold-dark); color: var(--gold-dark); }
 .v-inp.reste_j2.has { background: #FBF1E2; border-color: var(--brown-mid); color: var(--brown-mid); }
 .v-inp.perte.has    { background: #FEF2F2; border-color: var(--red); color: var(--red); }
@@ -4190,6 +4192,14 @@ input.classList.add('just-updated');
 }
 
 let _ventesPrevisCache = {};
+// v20.139 — Gâteaux : "Sortie jour" = Prévis − (reste J-1 + J-2 de la veille)
+let restesVeille = {}; // { pid: reste J-1 + J-2 de la veille } (rempli au render)
+function isCakeCat(cat) { return cat === 'patisserie_petits' || cat === 'patisserie_gros'; }
+function _catOf(pid) { const p = (products || []).find(function(x) { return x.id === pid; }); return p ? p.category : null; }
+function computeSortieJour(pid, previs) {
+  const pv = typeof previs === 'string' ? parseFloat(previs.replace(',', '.')) : Number(previs);
+  return Math.max(0, (isNaN(pv) ? 0 : pv) - (restesVeille[pid] || 0));
+}
 
 function updateVendu(pid) {
 const prev = _ventesPrevisCache[pid] || 0;
@@ -4237,6 +4247,8 @@ return ventesProducts.some(function(p) { return p.category === c; });
 // v20.1 : charger previs du jour pour affichage lecture seule
 const previsRaw = await loadPrevisRaw(currentBoutique, currentDate);
 _ventesPrevisCache = previsRaw;
+// v20.139 — restes de la veille (J-1 + J-2) pour la "Sortie jour" des gâteaux
+restesVeille = await loadRestesJ1(currentBoutique, currentDate);
 
 // v20.74 — bande de dates cliquable (comme les commandes spéciales)
 if (!currentVentesWeekStart || currentDate < currentVentesWeekStart || currentDate > addDaysISO(currentVentesWeekStart, 6)) {
@@ -4299,8 +4311,8 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">Matin</span>'
-+ '<span class="col-lbl" style="color:var(--orange)">Après-midi</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">' + (isCakeCat(cat) ? 'Prévis' : 'Matin') + '</span>'
++ '<span class="col-lbl" style="color:var(--orange)">' + (isCakeCat(cat) ? 'Sortie jour' : 'Après-midi') + '</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">Reste J-1</span>'
 + '<span class="col-lbl" style="color:var(--brown-mid)">J-2</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
@@ -4334,6 +4346,15 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const rj = d.reste_j1 === '' || d.reste_j1 === undefined ? '' : d.reste_j1;
   const rj2 = d.reste_j2 === '' || d.reste_j2 === undefined || d.reste_j2 === null ? '' : d.reste_j2;
   const pe = d.perte === '' || d.perte === undefined ? '' : d.perte;
+  // v20.139 — Gâteaux : "Sortie jour" (colonne aprem) auto = Prévis − reste veille, éditable
+  const isCakeP = isCakeCat(p.category);
+  const effPrevis = prevDisplay !== '' ? (parseFloat(String(prevDisplay).replace(',', '.')) || 0) : prev;
+  let apremVal = a, apremAuto = false;
+  if (isCakeP) {
+    const manualA = (a !== '' && String(a) !== '0');
+    if (manualA) { apremVal = String(a); }
+    else { apremVal = String(computeSortieJour(p.id, effPrevis)); apremAuto = true; }
+  }
   const vendu = calcVenduV201(p.id, prev);
   const perte = calcPerteV201(p.id, prev);
   const ruptH = d.rupture_heure || '';
@@ -4357,7 +4378,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (a  !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="Après-midi — ' + escapeHtml(p.name) + '" value="' + a  + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (apremAuto ? 'is-auto' : (apremVal !== '' ? 'has' : '')) + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="' + (isCakeP ? 'Sortie jour' : 'Après-midi') + ' — ' + escapeHtml(p.name) + '" value="' + apremVal + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + rj2 + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
@@ -4521,6 +4542,8 @@ const rj = d.reste_j1 === '' ? 0 : parseInt(d.reste_j1) || 0;
 const rj2 = d.reste_j2 === '' || d.reste_j2 == null ? 0 : parseInt(d.reste_j2) || 0;
 const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 const pv = previs || 0;
+// v20.139 — Gâteaux : la Sortie jour (aprem) est déjà comprise dans le Prévis → on ne l'ajoute pas
+if (isCakeCat(_catOf(pid))) return Math.max(0, pv - rj - rj2 - pe);
 return Math.max(0, pv + a - rj - rj2 - pe);
 }
 
@@ -4529,7 +4552,8 @@ const d = salesData[pid] || {};
 if (!d.day_closed) return null;
 const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
 const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
-const total = (previs || 0) + a;
+// v20.139 — Gâteaux : base = Prévis seul (la Sortie jour est déjà dans le Prévis)
+const total = isCakeCat(_catOf(pid)) ? (previs || 0) : ((previs || 0) + a);
 if (total === 0) return null;
 return Math.round((pe / total) * 100);
 }
@@ -4547,15 +4571,20 @@ async function validateDay() {
   });
   if (!ventesProducts.length) { showToast('Aucun produit a valider', 'error'); return; }
   function hasVal(v) { return v != null && v !== ''; }
-  function realActivity(d) {
+  function realActivity(d, p) {
+    // v20.139 — Gâteaux : le "Matin" est le Prévis (table séparée), pas salesData.matin
+    if (p && isCakeCat(p.category)) {
+      const prev = _ventesPrevisCache[p.id] || 0;
+      return prev > 0 || hasVal(d.reste_j1) || hasVal(d.reste_j2) || hasVal(d.perte) || (parseInt(d.aprem) || 0) > 0;
+    }
     return (parseInt(d.matin) || 0) > 0 || (parseInt(d.aprem) || 0) > 0;
   }
   const productsToValidate = ventesProducts.filter(function(p) {
-    return realActivity(salesData[p.id] || {});
+    return realActivity(salesData[p.id] || {}, p);
   });
   const productsToUnvalidate = ventesProducts.filter(function(p) {
     const d = salesData[p.id] || {};
-    return d.day_closed === true && !realActivity(d);
+    return d.day_closed === true && !realActivity(d, p);
   });
   if (!productsToValidate.length && !productsToUnvalidate.length) {
     showToast('Aucune saisie a valider (tout est vide)', 'error');
@@ -4670,6 +4699,7 @@ const pid = el.dataset.pid, field = el.dataset.field, val = el.value;
 if (!salesData[pid]) salesData[pid] = { matin: '', aprem: '', reste_j1: '', reste_j2: '', perte: '', rupture_heure: '', day_closed: false };
 salesData[pid][field] = val;
 el.classList.toggle('has', val !== '');
+el.classList.remove('is-auto'); // v20.139 — saisie manuelle : plus "auto"
 updateVendu(pid);
 clearTimeout(updateTimers['s_' + pid]);
 updateTimers['s_' + pid] = setTimeout(function() { upsertSale(pid); }, 400);
@@ -4689,6 +4719,15 @@ function handleVentesPrevisInput(el) {
   el.classList.remove('is-default');
   // Mise à jour live de Vendu et %P (qui dépendent de Prévis)
   updateVendu(pid);
+  // v20.139 — Gâteaux : recalcule la "Sortie jour" affichée si pas de saisie manuelle
+  if (isCakeCat(_catOf(pid))) {
+    const d = salesData[pid] || {};
+    const manualA = (d.aprem != null && d.aprem !== '' && String(d.aprem) !== '0');
+    if (!manualA) {
+      const inp = document.querySelector('.v-inp.aprem[data-pid="' + pid + '"]');
+      if (inp) { inp.value = String(computeSortieJour(pid, _ventesPrevisCache[pid] || 0)); inp.classList.add('is-auto'); inp.classList.remove('has'); }
+    }
+  }
   clearTimeout(updateTimers['vp_' + pid]);
   updateTimers['vp_' + pid] = setTimeout(function() {
     upsertPrevis(pid, currentBoutique, currentDate, val);
