@@ -4192,9 +4192,11 @@ input.classList.add('just-updated');
 }
 
 let _ventesPrevisCache = {};
-// v20.139 — Gâteaux : "Sortie jour" = Prévis − (reste J-1 + J-2 de la veille)
+// v20.139 — Modèle "Prévis / Sortie jour" : Matin→Prévis, Après-midi→Sortie jour auto = Prévis − (reste J-1 + J-2 de la veille)
+// Catégories concernées : Petits/Gros Gâteaux + Traiteur + Gâteaux Secs (pas le pain/viennoiserie)
 let restesVeille = {}; // { pid: reste J-1 + J-2 de la veille } (rempli au render)
-function isCakeCat(cat) { return cat === 'patisserie_petits' || cat === 'patisserie_gros'; }
+const SORTIE_MODEL_CATS = ['patisserie_petits', 'patisserie_gros', 'traiteur', 'gateaux_secs'];
+function usesSortieModel(cat) { return SORTIE_MODEL_CATS.indexOf(cat) !== -1; }
 function _catOf(pid) { const p = (products || []).find(function(x) { return x.id === pid; }); return p ? p.category : null; }
 function computeSortieJour(pid, previs) {
   const pv = typeof previs === 'string' ? parseFloat(previs.replace(',', '.')) : Number(previs);
@@ -4311,8 +4313,8 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">' + (isCakeCat(cat) ? 'Prévis' : 'Matin') + '</span>'
-+ '<span class="col-lbl" style="color:var(--orange)">' + (isCakeCat(cat) ? 'Sortie jour' : 'Après-midi') + '</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">' + (usesSortieModel(cat) ? 'Prévis' : 'Matin') + '</span>'
++ '<span class="col-lbl" style="color:var(--orange)">' + (usesSortieModel(cat) ? 'Sortie jour' : 'Après-midi') + '</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">Reste J-1</span>'
 + '<span class="col-lbl" style="color:var(--brown-mid)">J-2</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
@@ -4347,7 +4349,7 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const rj2 = d.reste_j2 === '' || d.reste_j2 === undefined || d.reste_j2 === null ? '' : d.reste_j2;
   const pe = d.perte === '' || d.perte === undefined ? '' : d.perte;
   // v20.139 — Gâteaux : "Sortie jour" (colonne aprem) auto = Prévis − reste veille, éditable
-  const isCakeP = isCakeCat(p.category);
+  const isCakeP = usesSortieModel(p.category);
   const effPrevis = prevDisplay !== '' ? (parseFloat(String(prevDisplay).replace(',', '.')) || 0) : prev;
   let apremVal = a, apremAuto = false;
   if (isCakeP) {
@@ -4543,7 +4545,7 @@ const rj2 = d.reste_j2 === '' || d.reste_j2 == null ? 0 : parseInt(d.reste_j2) |
 const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 const pv = previs || 0;
 // v20.139 — Gâteaux : la Sortie jour (aprem) est déjà comprise dans le Prévis → on ne l'ajoute pas
-if (isCakeCat(_catOf(pid))) return Math.max(0, pv - rj - rj2 - pe);
+if (usesSortieModel(_catOf(pid))) return Math.max(0, pv - rj - rj2 - pe);
 return Math.max(0, pv + a - rj - rj2 - pe);
 }
 
@@ -4553,7 +4555,7 @@ if (!d.day_closed) return null;
 const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
 const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 // v20.139 — Gâteaux : base = Prévis seul (la Sortie jour est déjà dans le Prévis)
-const total = isCakeCat(_catOf(pid)) ? (previs || 0) : ((previs || 0) + a);
+const total = usesSortieModel(_catOf(pid)) ? (previs || 0) : ((previs || 0) + a);
 if (total === 0) return null;
 return Math.round((pe / total) * 100);
 }
@@ -4573,7 +4575,7 @@ async function validateDay() {
   function hasVal(v) { return v != null && v !== ''; }
   function realActivity(d, p) {
     // v20.139 — Gâteaux : le "Matin" est le Prévis (table séparée), pas salesData.matin
-    if (p && isCakeCat(p.category)) {
+    if (p && usesSortieModel(p.category)) {
       const prev = _ventesPrevisCache[p.id] || 0;
       return prev > 0 || hasVal(d.reste_j1) || hasVal(d.reste_j2) || hasVal(d.perte) || (parseInt(d.aprem) || 0) > 0;
     }
@@ -4720,7 +4722,7 @@ function handleVentesPrevisInput(el) {
   // Mise à jour live de Vendu et %P (qui dépendent de Prévis)
   updateVendu(pid);
   // v20.139 — Gâteaux : recalcule la "Sortie jour" affichée si pas de saisie manuelle
-  if (isCakeCat(_catOf(pid))) {
+  if (usesSortieModel(_catOf(pid))) {
     const d = salesData[pid] || {};
     const manualA = (d.aprem != null && d.aprem !== '' && String(d.aprem) !== '0');
     if (!manualA) {
