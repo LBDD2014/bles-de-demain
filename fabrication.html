@@ -108,6 +108,8 @@
     body>*{display:none!important}
     body>#printwrap{display:block!important}
   }
+  /* #printwrap n'existe qu'à l'impression : caché à l'écran (règle @media screen → jamais active en impression, donc pas de conflit). */
+  @media screen{ #printwrap{display:none!important} }
   #etiq{display:none}
   #recexport{display:none}
   #bilexport{display:none}
@@ -194,7 +196,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.140</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.141</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1187,7 +1189,7 @@ function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElement
 function printDoc(html,pageCSS){
   const rm=function(id){const e=document.getElementById(id);if(e)e.remove();};
   rm('printwrap');rm('printstyle');
-  const wrap=document.createElement('div');wrap.id='printwrap';wrap.style.display='none';wrap.innerHTML=html;
+  const wrap=document.createElement('div');wrap.id='printwrap';wrap.innerHTML=html;
   document.body.appendChild(wrap);
   const st=document.createElement('style');st.id='printstyle';
   st.textContent='@media print{'+(pageCSS||'@page{size:A4;margin:10mm}')+'}';
@@ -1205,7 +1207,9 @@ function printDoc(html,pageCSS){
 // CSS calé pour le rouleau Brother 62 mm continu (largeur 62 mm, hauteur auto).
 const ETIQ_CSS='@page{size:62mm auto;margin:0}'
   +'#printwrap{width:62mm;padding:2mm;font-family:Georgia,serif;color:#000;background:#fff}'
-  +'#printwrap .etq{width:auto;border:1.5px solid #000;border-radius:5px;padding:3mm}';
+  +'#printwrap .etq{width:auto;border:1.5px solid #000;border-radius:5px;padding:3mm}'
+  +'#printwrap .etq .tt{font-size:13px;font-weight:700;line-height:1.2;padding-bottom:3px;margin-bottom:5px}'
+  +'#printwrap .etq .ln{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:12px;padding:1.5px 0;line-height:1.25}';
 function printFiche(){
   const fiches=(document.getElementById('pdFiches')||{}).innerHTML||'';
   if(!fiches.trim()){toast('Rien à imprimer pour ce jour');return;}
