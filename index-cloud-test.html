@@ -6003,7 +6003,9 @@ function manageSetField(f, v) { manageAddDraft[f] = v; }
 // Contexte selon l'écran : pré-règle usage + supply du nouveau produit pour qu'il apparaisse là où on l'ajoute
 function manageProductsCtx() {
   const v = currentVue, b = currentBoutique;
-  if (v === 'ventes') return { usage: 'ventes', boutique: b, supply: null };
+  // v20.146 — un produit créé depuis l'écran Ventes est fabriqué SUR PLACE par défaut
+  // (sinon supply_by_boutique reste vide → pas de pré-remplissage du Matin depuis le Prévis)
+  if (v === 'ventes') return { usage: 'ventes', boutique: b, supply: 'on_site' };
   if (v === 'reappro_pat') {
     if (b === 'veigne') return { usage: 'reappro', boutique: 'veigne', supply: 'on_site' };
     return { usage: 'reappro', boutique: b, supply: 'veigne' };
