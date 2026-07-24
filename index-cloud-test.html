@@ -11466,8 +11466,12 @@ mc.innerHTML = html;
 }
 
 // === VALORISATION DES FLUX ===
-let currentValoWeek = null; // lundi de la semaine sélectionnée (ISO YYYY-MM-DD)
-let valoData = {}; // { boutique_id: { product_id: { qty, p_name, p_cat } } }
+// v20.145 — vue « Entités » par MOIS : Tours = société séparée (revente),
+// Veigné + St-Avertin + Le Local + marchés = LBDD. Les flux vers Tours sont « à facturer »,
+// les autres sont internes (pour info). + Relevé imprimable sur période libre (Marc-Antoine).
+let currentValoMonth = null; // 'YYYY-MM'
+let valoData = {}; // { boutique_id: { product_id: { qty, name, cat, prix } } }
+let valoReleveFrom = null, valoReleveTo = null;
 
 function getMondayOf(dateStr) {
 const d = new Date(dateStr + 'T12:00');
@@ -11477,151 +11481,218 @@ d.setDate(d.getDate() + shift);
 return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-function changeValoWeek(delta) {
-const d = new Date(currentValoWeek + 'T12:00');
-d.setDate(d.getDate() + delta * 7);
-currentValoWeek = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-(async function() {
-await loadValorisation();
-renderValorisation();
-})();
+function valoMonthBounds(ym) {
+  const y = parseInt(ym.slice(0, 4), 10), m = parseInt(ym.slice(5, 7), 10);
+  const last = new Date(y, m, 0).getDate();
+  return { start: ym + '-01', end: ym + '-' + String(last).padStart(2, '0') };
+}
+
+function changeValoMonth(delta) {
+  const y = parseInt(currentValoMonth.slice(0, 4), 10), m = parseInt(currentValoMonth.slice(5, 7), 10);
+  const d = new Date(y, m - 1 + delta, 1);
+  currentValoMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  (async function() {
+    await loadValorisation();
+    renderValorisation();
+  })();
+}
+
+// Agrège les réassorts ENVOYÉS d'une période en { boutique: { product: {qty, name, cat, prix} } }
+// (qty livrée si le livreur l'a corrigée, sinon quantité commandée — fix v20.145 : l'ancienne
+// version lisait la colonne legacy `qty`, toujours vide → écran « Aucune livraison » à tort)
+async function loadValoRange(start, end) {
+  const { data, error } = await supa.from('reappros').select('*')
+    .eq('tenant_id', TENANT_ID).gte('service_date', start).lte('service_date', end)
+    .not('sent_at', 'is', null);
+  if (error) { showToast('Erreur: ' + error.message, 'error'); return {}; }
+  if (!adminProducts.length) await loadAdminProducts();
+  const prodMap = {};
+  adminProducts.forEach(function(p) { prodMap[p.id] = p; });
+  const out = {};
+  (data || []).forEach(function(r) {
+    const q = (r.qty_livree != null && r.qty_livree !== '') ? parseQty(r.qty_livree) : parseQty(r.commander);
+    if (!(q > 0)) return;
+    if (!out[r.boutique_id]) out[r.boutique_id] = {};
+    if (!out[r.boutique_id][r.product_id]) {
+      const p = prodMap[r.product_id];
+      out[r.boutique_id][r.product_id] = {
+        qty: 0,
+        name: p ? p.name : r.product_id,
+        cat: p ? (p.category || 'autre') : 'autre',
+        prix: p ? p.prix_cession : null
+      };
+    }
+    out[r.boutique_id][r.product_id].qty += q;
+  });
+  return out;
 }
 
 async function loadValorisation() {
-if (!currentValoWeek) currentValoWeek = getMondayOf(todayISO());
-const start = currentValoWeek;
-const d = new Date(start + 'T12:00');
-d.setDate(d.getDate() + 6);
-const end = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-// Charger tous les reappros de la semaine
-const { data, error } = await supa.from('reappros').select('*')
-.eq('tenant_id', TENANT_ID).gte('service_date', start).lte('service_date', end);
-if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
-// Charger aussi produits si pas déjà dispo
-if (!adminProducts.length) await loadAdminProducts();
-const prodMap = {};
-adminProducts.forEach(function(p) { prodMap[p.id] = p; });
-valoData = {};
-(data || []).forEach(function(r) {
-if (r.qty == null) return;
-if (!valoData[r.boutique_id]) valoData[r.boutique_id] = {};
-if (!valoData[r.boutique_id][r.product_id]) {
-const p = prodMap[r.product_id];
-valoData[r.boutique_id][r.product_id] = {
-qty: 0,
-name: p ? p.name : r.product_id,
-cat: p ? (p.category || 'autre') : 'autre',
-prix: p ? p.prix_cession : null
-};
+  if (!currentValoMonth) currentValoMonth = todayISO().slice(0, 7);
+  const b = valoMonthBounds(currentValoMonth);
+  valoData = await loadValoRange(b.start, b.end);
 }
-valoData[r.boutique_id][r.product_id].qty += Number(r.qty);
-});
+
+// Entité de chaque boutique : Tours = société séparée, le reste = LBDD
+const VALO_ENTITE_SEPAREE = ['tours'];
+
+function valoTotaux(data, boutiquesFilter) {
+  let tot = 0, totNV = 0, nbLignes = 0;
+  Object.keys(data).forEach(function(b) {
+    if (boutiquesFilter && boutiquesFilter.indexOf(b) === -1) return;
+    Object.keys(data[b]).forEach(function(pid) {
+      const e = data[b][pid];
+      if (e.prix != null && e.prix > 0) tot += e.qty * Number(e.prix);
+      else totNV += e.qty;
+      nbLignes++;
+    });
+  });
+  return { tot: tot, totNV: totNV, nbLignes: nbLignes };
+}
+
+function valoEuros(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
+
+function valoBoutiqueCardHtml(b, badge) {
+  const rows = Object.keys(valoData[b]).map(function(pid) { return Object.assign({ pid: pid }, valoData[b][pid]); });
+  rows.sort(function(a, c) {
+    const ao = Object.keys(CAT_LABELS).indexOf(a.cat);
+    const co = Object.keys(CAT_LABELS).indexOf(c.cat);
+    if (ao !== co) return (ao === -1 ? 999 : ao) - (co === -1 ? 999 : co);
+    return a.name.localeCompare(c.name);
+  });
+  const t = valoTotaux(valoData, [b]);
+  let html = '<div class="valo-boutique-card">'
+    + '<div class="valo-boutique-head">'
+    + '<div class="valo-boutique-name">' + escapeHtml(BOUTIQUE_NAMES[b] || b) + (badge ? ' ' + badge : '') + '</div>'
+    + '<div class="valo-boutique-total">' + valoEuros(t.tot)
+    + (t.totNV > 0 ? ' <span style="color:var(--red);font-size:11px">+ ' + formatQty(t.totNV) + ' sans prix</span>' : '')
+    + '</div>'
+    + '</div>'
+    + '</div>';
+  html += '<div class="valo-table">';
+  html += '<div class="valo-row valo-row-head"><span>Produit</span><span>Qty</span><span>PU</span><span>Total</span></div>';
+  rows.forEach(function(r) {
+    const hasPrice = r.prix != null && r.prix > 0;
+    const total = hasPrice ? (r.qty * Number(r.prix)) : 0;
+    html += '<div class="valo-row ' + (hasPrice ? '' : 'valo-row-nopx') + '">'
+      + '<span class="valo-prod">' + escapeHtml(r.name) + '</span>'
+      + '<span class="valo-qty">' + formatQty(r.qty) + '</span>'
+      + '<span class="valo-pu">' + (hasPrice ? Number(r.prix).toFixed(2).replace('.', ',') : '-') + '</span>'
+      + '<span class="valo-tot">' + (hasPrice ? valoEuros(total) : '<em style="color:var(--red);font-size:11px">sans prix</em>') + '</span>'
+      + '</div>';
+  });
+  html += '</div>';
+  return html;
 }
 
 function renderValorisation() {
-const mc = document.getElementById('main-content');
-const start = currentValoWeek;
-const d = new Date(start + 'T12:00');
-d.setDate(d.getDate() + 6);
-const endISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const mc = document.getElementById('main-content');
+  const moisLbl = FINSTOCK_MOIS[parseInt(currentValoMonth.slice(5, 7), 10) - 1] + ' ' + currentValoMonth.slice(0, 4);
 
-// Boutiques concernees (ont des reappros)
-const boutiques = Object.keys(valoData).sort();
+  const boutiques = Object.keys(valoData).sort();
+  const externes = boutiques.filter(function(b) { return VALO_ENTITE_SEPAREE.indexOf(b) !== -1; });
+  const internes = boutiques.filter(function(b) { return VALO_ENTITE_SEPAREE.indexOf(b) === -1; });
+  const tExt = valoTotaux(valoData, externes);
+  const tInt = valoTotaux(valoData, internes);
 
-// Totaux par boutique + grand total
-const totalParBoutique = {};
-const totalParBoutiqueNonValorise = {};
-let grandTotal = 0;
-let grandTotalLignes = 0;
-let grandTotalNonValorise = 0;
+  let html = '<div class="date-bar">'
+    + '<button class="date-nav" onclick="changeValoMonth(-1)">←</button>'
+    + '<div class="date-title">Mois de <strong>' + escapeHtml(moisLbl) + '</strong>'
+    + '<div class="date-sub">Flux valorisés (réassorts envoyés × prix de cession HT)</div>'
+    + '</div>'
+    + '<button class="date-nav" onclick="changeValoMonth(1)">→</button>'
+    + '</div>';
 
-boutiques.forEach(function(b) {
-let tot = 0, totNV = 0, nbLignes = 0;
-Object.keys(valoData[b]).forEach(function(pid) {
-const e = valoData[b][pid];
-if (e.prix != null && e.prix > 0) {
-tot += e.qty * Number(e.prix);
-} else {
-totNV += e.qty;
-}
-nbLignes++;
-});
-totalParBoutique[b] = tot;
-totalParBoutiqueNonValorise[b] = totNV;
-grandTotal += tot;
-grandTotalNonValorise += totNV;
-grandTotalLignes += nbLignes;
-});
+  html += '<div class="prod-kpi-bar">'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + valoEuros(tExt.tot) + '</div><div class="prod-kpi-lbl">À facturer à Tours</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + valoEuros(tInt.tot) + '</div><div class="prod-kpi-lbl">Flux internes LBDD</div></div>'
+    + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + ((tExt.totNV + tInt.totNV) > 0 ? 'var(--red)' : 'var(--brown-mid)') + '">' + formatQty(tExt.totNV + tInt.totNV) + '</div><div class="prod-kpi-lbl">Qty sans prix</div></div>'
+    + '</div>';
 
-let html = '<div class="date-bar">'
+  // Relevé sur période libre (préparation de facture — tous les 2-3 mois)
+  if (!valoReleveFrom) {
+    const d = new Date(); d.setMonth(d.getMonth() - 2);
+    valoReleveFrom = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+  }
+  if (!valoReleveTo) valoReleveTo = todayISO();
+  html += '<div class="info-banner" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+    + '<strong>🧾 Relevé Tours</strong> <span style="font-size:12px">(préparation de facture, période libre)</span> '
+    + 'du <input type="date" id="valo-releve-from" value="' + valoReleveFrom + '" onchange="valoReleveFrom=this.value" style="padding:4px"> '
+    + 'au <input type="date" id="valo-releve-to" value="' + valoReleveTo + '" onchange="valoReleveTo=this.value" style="padding:4px"> '
+    + '<button class="btn-gold-sm" onclick="printReleveTours()">Imprimer le relevé</button>'
+    + '</div>';
 
-+ '<button class="date-nav" onclick="changeValoWeek(-1)">←</button>'
-+ '<div class="date-title">Semaine du <strong>' + escapeHtml(formatDateFr(start)) + '</strong> au <strong>' + escapeHtml(formatDateFr(endISO)) + '</strong>'
-+ '<div class="date-sub">Valorisation des flux Local vers Boutiques</div>'
-+ '</div>'
-+ '<button class="date-nav" onclick="changeValoWeek(1)">→</button>'
-+ '</div>';
+  html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
 
-html += '<div style="margin:10px 0"><button class="btn-gold" onclick="exportBackOfficeToXlsx()">📊 Export Excel (BackOffice complet)</button></div>';
-
-html += '<div class="prod-kpi-bar">'
-
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + grandTotal.toFixed(2).replace('.', ',') + ' EUR</div><div class="prod-kpi-lbl">Total valorise</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val">' + grandTotalLignes + '</div><div class="prod-kpi-lbl">Produits livres</div></div>'
-+ '<div class="prod-kpi"><div class="prod-kpi-val" style="color:' + (grandTotalNonValorise > 0 ? 'var(--red)' : 'var(--brown-mid)') + '">' + formatQty(grandTotalNonValorise) + '</div><div class="prod-kpi-lbl">Qty sans prix</div></div>'
-+ '</div>';
-
-if (!boutiques.length) {
-html += '<div class="prod-empty">Aucune livraison enregistree cette semaine.</div>';
-mc.innerHTML = html;
-return;
-}
-
-if (grandTotalNonValorise > 0) {
-html += '<div class="info-banner" style="background:#FEF2F2;border-left:3px solid var(--red)">'
-
-+ '<strong>Produits sans prix</strong><br>Certains produits livres n ont pas de prix de cession renseigne. Va dans l onglet Produits pour les renseigner.</div>';
+  if (!boutiques.length) {
+    html += '<div class="prod-empty">Aucun réassort envoyé sur ce mois.</div>';
+    mc.innerHTML = html;
+    return;
   }
 
-// Tableau par boutique
-boutiques.forEach(function(b) {
-const rows = Object.keys(valoData[b]).map(function(pid) {
-return Object.assign({ pid: pid }, valoData[b][pid]);
-});
-rows.sort(function(a, c) {
-const ao = Object.keys(CAT_LABELS).indexOf(a.cat);
-const co = Object.keys(CAT_LABELS).indexOf(c.cat);
-if (ao !== co) return (ao === -1 ? 999 : ao) - (co === -1 ? 999 : co);
-return a.name.localeCompare(c.name);
-});
+  if ((tExt.totNV + tInt.totNV) > 0) {
+    html += '<div class="info-banner" style="background:#FEF2F2;border-left:3px solid var(--red)">'
+      + '<strong>Produits sans prix</strong><br>Certains produits livrés n\'ont pas de prix de cession (colonne PRIX HT de l\'onglet Produits). Les lignes concernées sont marquées en rouge ci-dessous — priorité à celles de Tours.</div>';
+  }
 
-html += '<div class="valo-boutique-card">'
+  if (externes.length) {
+    html += '<div class="prod-cat-title" style="color:var(--blue)">Société séparée — à facturer</div>';
+    externes.forEach(function(b) { html += valoBoutiqueCardHtml(b, '<span style="font-size:10px;background:var(--blue);color:white;border-radius:8px;padding:2px 8px;vertical-align:middle">À FACTURER</span>'); });
+  }
+  if (internes.length) {
+    html += '<div class="prod-cat-title">Flux internes LBDD (pour info)</div>';
+    internes.forEach(function(b) { html += valoBoutiqueCardHtml(b, ''); });
+  }
 
-+ '<div class="valo-boutique-head">'
-+ '<div class="valo-boutique-name">' + escapeHtml(BOUTIQUE_NAMES[b] || b) + '</div>'
-+ '<div class="valo-boutique-total">' + totalParBoutique[b].toFixed(2).replace('.', ',') + ' EUR'
-+ (totalParBoutiqueNonValorise[b] > 0 ? ' <span style="color:var(--red);font-size:11px">+ ' + formatQty(totalParBoutiqueNonValorise[b]) + ' sans prix</span>' : '')
-+ '</div>'
-+ '</div>';
+  mc.innerHTML = html;
+}
 
-html += '<div class="valo-table">';
-html += '<div class="valo-row valo-row-head"><span>Produit</span><span>Qty</span><span>PU</span><span>Total</span></div>';
-rows.forEach(function(r) {
-const hasPrice = r.prix != null && r.prix > 0;
-const total = hasPrice ? (r.qty * Number(r.prix)) : 0;
-html += '<div class="valo-row ' + (hasPrice ? '' : 'valo-row-nopx') + '">'
-+ '<span class="valo-prod">' + escapeHtml(r.name) + '</span>'
-+ '<span class="valo-qty">' + formatQty(r.qty) + '</span>'
-+ '<span class="valo-pu">' + (hasPrice ? Number(r.prix).toFixed(2).replace('.', ',') : '-') + '</span>'
-+ '<span class="valo-tot">' + (hasPrice ? total.toFixed(2).replace('.', ',') + ' EUR' : '<em style="color:var(--red);font-size:11px">sans prix</em>') + '</span>'
-+ '</div>';
-});
-html += '</div>';
-html += '</div>';
-
-});
-
-mc.innerHTML = html;
+// 🧾 Relevé imprimable des flux LBDD → Tours sur période libre (squelette de facture)
+async function printReleveTours() {
+  if (!valoReleveFrom || !valoReleveTo || valoReleveFrom > valoReleveTo) { showToast('Période invalide', 'error'); return; }
+  setSyncStatus('syncing');
+  const data = await loadValoRange(valoReleveFrom, valoReleveTo);
+  setSyncStatus('ok');
+  const tours = data['tours'] || {};
+  const pids = Object.keys(tours);
+  if (!pids.length) { showToast('Aucun flux vers Tours sur cette période', 'error'); return; }
+  const rows = pids.map(function(pid) { return tours[pid]; }).sort(function(a, c) { return a.name.localeCompare(c.name); });
+  let total = 0, qtySansPrix = 0;
+  let body = '';
+  rows.forEach(function(r) {
+    const hasPrice = r.prix != null && r.prix > 0;
+    const tot = hasPrice ? r.qty * Number(r.prix) : 0;
+    total += tot;
+    if (!hasPrice) qtySansPrix += r.qty;
+    body += '<tr><td style="padding:4px 8px;border-bottom:1px solid #ddd">' + escapeHtml(r.name) + '</td>'
+      + '<td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">' + formatQty(r.qty) + '</td>'
+      + '<td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">' + (hasPrice ? Number(r.prix).toFixed(2).replace('.', ',') : '—') + '</td>'
+      + '<td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">' + (hasPrice ? tot.toFixed(2).replace('.', ',') : 'sans prix') + '</td></tr>';
+  });
+  let printDiv = document.getElementById('print-ticket');
+  if (!printDiv) {
+    printDiv = document.createElement('div');
+    printDiv.id = 'print-ticket';
+    printDiv.className = 'print-only-ticket';
+    document.body.appendChild(printDiv);
+  }
+  printDiv.innerHTML = '<div style="font-family:Georgia,serif;color:#000;padding:20px">'
+    + '<h2 style="margin:0 0 4px">Les Blés de Demain — Relevé de livraisons</h2>'
+    + '<div style="font-size:13px;margin-bottom:2px"><strong>Destinataire : Tours</strong> (société séparée)</div>'
+    + '<div style="font-size:13px;margin-bottom:12px">Période du <strong>' + escapeHtml(formatDateFr(valoReleveFrom)) + '</strong> au <strong>' + escapeHtml(formatDateFr(valoReleveTo)) + '</strong></div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="background:#f0ead9"><th style="padding:6px 8px;text-align:left">Produit</th><th style="padding:6px 8px;text-align:right">Quantité</th><th style="padding:6px 8px;text-align:right">PU HT (€)</th><th style="padding:6px 8px;text-align:right">Total HT (€)</th></tr></thead>'
+    + '<tbody>' + body + '</tbody>'
+    + '<tfoot><tr><td colspan="3" style="padding:8px;text-align:right;font-weight:bold">TOTAL HT</td><td style="padding:8px;text-align:right;font-weight:bold">' + total.toFixed(2).replace('.', ',') + ' €</td></tr></tfoot>'
+    + '</table>'
+    + (qtySansPrix > 0 ? '<div style="margin-top:8px;font-size:11px;color:#B83232">⚠️ ' + formatQty(qtySansPrix) + ' unités sans prix de cession — non comptées dans le total.</div>' : '')
+    + '<div style="margin-top:14px;font-size:10px;color:#666">Document préparatoire établi depuis l\'app LBDD (réassorts envoyés × prix de cession HT). Ce n\'est pas une facture.</div>'
+    + '</div>';
+  document.body.classList.add('printing-ticket');
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() { document.body.classList.remove('printing-ticket'); }, 300);
+  }, 50);
 }
 
 // === STOCK LOCAL (v20.1) ===
