@@ -885,14 +885,18 @@ padding: 10px 14px; display: flex; gap: 8px;
 }
 .stock-col-header {
 display: grid !important;
-grid-template-columns: 1.3fr 55px 70px 55px 55px !important;
+grid-template-columns: 1.3fr 55px 70px 55px 55px 76px !important;
 gap: 4px;
 }
 .stock-row {
 display: grid !important;
-grid-template-columns: 1.3fr 55px 70px 55px 55px !important;
+grid-template-columns: 1.3fr 55px 70px 55px 55px 76px !important;
 gap: 4px; align-items: center;
 }
+/* v20.143 — colonne « Fin stock » */
+.finstock-cell { text-align: center; font-size: 12px; font-family: Georgia, serif; font-weight: 700; line-height: 1.25; }
+.finstock-cell .fs-edit { text-decoration: none; font-size: 11px; opacity: 0.6; }
+.finstock-cell .fs-sub { font-size: 10px; font-weight: 400; color: #999; }
 .stock-cell {
 text-align: center; font-size: 13px;
 font-family: Georgia, serif;
@@ -3194,6 +3198,7 @@ if (v === 'reappro_pat' && currentBoutique === 'tours') {
 } else if (v === 'stock' || v === 'stock_tour') {
 // v20.81 : Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir)
 await loadTourierStock();
+await loadStockConso28();
 renderStock();
 } else if (v === 'stock_boul_pro') {
 // v21.2 — Stock congelé Boulangers (refactor v21.2.1)
@@ -3209,6 +3214,7 @@ renderStockBoulangerPro();
 } else if (v === 'stock_pat') {
 // v20.47 — Stock pâtisserie Veigné
 await loadVeignePatStock();
+await loadStockConso28();
 renderStockVeignePat();
 }
 }
@@ -5808,6 +5814,7 @@ function renderStockVeignePat() {
     + '<span class="col-lbl">Stock</span>'
     + '<span class="col-lbl">Mini</span>'
     + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
+    + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span>'
     + '</div>';
 
   cats.forEach(function(cat) {
@@ -5841,6 +5848,7 @@ function renderStockVeignePat() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
       html += '</div>';
     });
   });
@@ -11775,6 +11783,88 @@ async function applyTourierPrepared(rows) {
   setSyncStatus('ok'); showToast('Réassort préparé · stock décompté', 'sync');
 }
 
+// ===== v20.143 — Colonne « Fin stock » : le stock tient-il jusqu'à la fin du mois ? =====
+// Conso auto = réassorts ENVOYÉS par les boutiques sur les 28 derniers jours (table reappros).
+// (sent_at plutôt que prepared_at : le « ✓ préparé » n'est pas toujours cliqué par les équipes.)
+// Prévision manuelle possible par produit (products.conso_mois_manuel), prioritaire sur l'auto.
+// Seuil « trop d'avance » = products.stock_avance_max_jours (NULL → 21 jours).
+let stockConso28 = {};
+
+async function loadStockConso28() {
+  const cutoff = addDays(todayISO(), -28);
+  const { data, error } = await supa.from('reappros')
+    .select('product_id,commander')
+    .eq('tenant_id', TENANT_ID)
+    .gte('service_date', cutoff)
+    .not('sent_at', 'is', null);
+  stockConso28 = {};
+  if (error) return;
+  (data || []).forEach(function(r) {
+    const q = parseQty(r.commander);
+    if (q > 0) stockConso28[r.product_id] = (stockConso28[r.product_id] || 0) + q;
+  });
+}
+
+// Conso Boul. Pro : mouvements négatifs (préparé/livraison) sur ~30 j (proStockMovements déjà chargé)
+function proConsoWindow(pid) {
+  let s = 0;
+  (proStockMovements || []).forEach(function(m) {
+    if (m.product_id !== pid) return;
+    const d = Number(m.qty_delta);
+    if (d < 0 && (m.reason === 'preparation' || m.reason === 'delivery')) s += -d;
+  });
+  return s;
+}
+
+const FINSTOCK_MOIS = ['jan', 'fév', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+
+function consoJourProduit(p, consoFenetre, joursFenetre) {
+  const manuel = (p && p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0) ? Number(p.conso_mois_manuel) : null;
+  if (manuel != null) return manuel / 30.4;
+  return (consoFenetre || 0) / (joursFenetre || 28);
+}
+
+function stockFinCell(p, stockVal, consoFenetre, joursFenetre) {
+  const pen = ' <a href="#" class="fs-edit" onclick="editConsoMois(\'' + p.id + '\');return false;" title="prévision mensuelle">✏️</a>';
+  const consoJour = consoJourProduit(p, consoFenetre, joursFenetre);
+  if (!(consoJour > 0)) return '<div class="finstock-cell" style="color:#bbb">—' + pen + '</div>';
+  const joursRestants = Math.floor((Number(stockVal) || 0) / consoJour);
+  const now = new Date();
+  const dFin = new Date(now.getFullYear(), now.getMonth(), now.getDate() + joursRestants);
+  const finMois = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const seuilAvance = (p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21);
+  let color = 'var(--green)', sub = 'ok fin de mois';
+  if (dFin < finMois) { color = 'var(--red)'; sub = 'manque avant fin de mois'; }
+  else if (joursRestants > seuilAvance) { color = 'var(--orange)'; sub = 'avance > ' + seuilAvance + ' j'; }
+  const lbl = (joursRestants > 180) ? '&gt; 6 mois' : (dFin.getDate() + ' ' + FINSTOCK_MOIS[dFin.getMonth()]);
+  const manuel = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0);
+  return '<div class="finstock-cell" style="color:' + color + '" title="' + (manuel ? 'prévision manuelle' : 'conso réelle 4 dernières semaines') + '">'
+    + lbl + pen + '<div class="fs-sub">' + sub + (manuel ? ' · ✍️' : '') + '</div></div>';
+}
+
+async function editConsoMois(pid) {
+  const p = products.find(function(x) { return x.id === pid; })
+    || (typeof adminProducts !== 'undefined' && (adminProducts || []).find(function(x) { return x.id === pid; }));
+  if (!p) return;
+  const fenetre = (currentVue === 'stock_boul_pro') ? proConsoWindow(pid) : (stockConso28[pid] || 0);
+  const joursF = (currentVue === 'stock_boul_pro') ? 30 : 28;
+  const autoMois = Math.round((fenetre / joursF) * 30.4);
+  const cur = (p.conso_mois_manuel != null ? p.conso_mois_manuel : '');
+  const val = prompt('Prévision de conso PAR MOIS pour « ' + p.name + ' »\n(calcul auto actuel ≈ ' + autoMois + '/mois — laisse VIDE pour rester en auto)', cur);
+  if (val === null) return;
+  const v = (String(val).trim() === '' ? null : parseQty(val));
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ conso_mois_manuel: v }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) {
+    const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) x.conso_mois_manuel = v;
+  });
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
+}
+
 // ===== v20.82 — tri (↑/↓) + conditionnement éditable sur les écrans stock =====
 function stockSortCmp(a, b) {
   const sa = a.stock_sort, sb = b.stock_sort;
@@ -11882,7 +11972,7 @@ function renderStock() {
   }
   const byCat = {}; entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
   html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
-    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span></div>';
+    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
   ['viennoiserie', 'brioches_special'].forEach(function(cat) {
     if (!byCat[cat] || !byCat[cat].length) return;
     const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
@@ -11902,6 +11992,7 @@ function renderStock() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
       html += '</div>';
     });
   });
@@ -12426,6 +12517,7 @@ function renderStockBoulangerPro() {
     + '<span class="col-lbl">Stock</span>'
     + '<span class="col-lbl">Mini</span>'
     + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
+    + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso ~30 derniers jours ou prévision manuelle ✏️)">Fin stock</span>'
     + '</div>';
 
   cats.forEach(function(cat) {
@@ -12455,6 +12547,7 @@ function renderStockBoulangerPro() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="proSelectField(\'' + p.id + '\', \'qty\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectField(\'' + p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockFinCell(p, stock, proConsoWindow(p.id), 30);
       html += '</div>';
     });
   });
