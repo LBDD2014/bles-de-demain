@@ -6822,7 +6822,7 @@ const horizonTxt = activeMarkets.length
 : 'Commandes boutiques';
 const modeLabel = productionSupplierMode === 'veigne'
   ? 'Prod. Veigné'
-  : (isLocalBoul ? 'Prod. Boulangers' : (isLocalTour ? 'Prod. Touriers' : 'Production Local'));
+  : (isLocalBoul ? 'Prod. Boulangers' : (isLocalTour ? 'Prod. Touriers' : (isToursProd ? 'Prod. Tours' : 'Production Local')));
 
 // v20.61 — Boulangers/Touriers : la bande 7j sert à choisir le jour, les flèches changent de semaine
 const prodNavDelta = (isLocalBoul || isLocalTour) ? 7 : 1;
