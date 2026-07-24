@@ -4253,6 +4253,16 @@ btn.classList.remove('has');
 }
 }
 
+// v20.147 — Ventes : cacher les lignes non remplies (ex. Pain au Sarrasin en semaine),
+// simple filtre d'affichage mémorisé par appareil — les produits restent actifs en BackOffice
+let ventesHideEmpty = false;
+try { ventesHideEmpty = localStorage.getItem('lbdd_ventes_hide_empty') === '1'; } catch (e) {}
+function toggleVentesHideEmpty() {
+  ventesHideEmpty = !ventesHideEmpty;
+  try { localStorage.setItem('lbdd_ventes_hide_empty', ventesHideEmpty ? '1' : '0'); } catch (e) {}
+  renderVentes();
+}
+
 async function renderVentes() {
 const mc = document.getElementById('main-content');
 if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
@@ -4321,13 +4331,18 @@ renderMeteoBar(currentBoutique);
 return;
 }
 
+let sectionsHtml = '';
+let nbLignesMasquees = 0;
+
 presentCats.forEach(function(cat) {
 const ps = ventesProducts.filter(function(p) {
 if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
 return p.category === cat;
 });
 if (!ps.length) return;
-html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
+let secRows = '';
+let nbVisibles = 0;
+const secHeader = '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
@@ -4382,6 +4397,11 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   const perteTxt = perte === null ? '-' : (perte + '%');
   const ruptCls = ruptH ? 'has' : '';
   const ruptTxt = ruptH ? ruptH : '⏳';
+  // v20.147 — ligne « non remplie » = rien de saisi aujourd'hui → masquable via la case en haut
+  if (ventesHideEmpty && prevDisplay === '' && a === '' && rj === '' && rj2 === '' && pe === '' && !ruptH) {
+    nbLignesMasquees++;
+    return;
+  }
   // Cellule Prévis : input éditable si on_site, sinon span lecture seule (commandée externe)
   let prevCell;
   if (prevEditable) {
@@ -4393,7 +4413,8 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
   } else {
     prevCell = '<div class="v-prev-ro" title="Quantité commandée (externe)">' + (prevDisplay ? '<span class="ro-arrow">↳</span> ' + escapeHtml(prevDisplay) : '<span style="color:#bbb">-</span>') + '</div>';
   }
-  html += '<div class="ventes-row v201">'
+  nbVisibles++;
+  secRows += '<div class="ventes-row v201">'
 + '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
@@ -4407,8 +4428,13 @@ html += '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] |
 + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
 + '</div>';
   });
-  html += '</div>';
+  if (nbVisibles > 0) sectionsHtml += secHeader + secRows + '</div>';
   });
+  // v20.147 — case en haut des tableaux : cacher les lignes non remplies
+  html += '<div class="prod-filter-bar"><label>'
+    + '<input type="checkbox" ' + (ventesHideEmpty ? 'checked' : '') + ' onchange="toggleVentesHideEmpty()">'
+    + '<span>Cacher les produits non remplis' + (nbLignesMasquees > 0 ? ' <strong>(' + nbLignesMasquees + ' masqué' + (nbLignesMasquees > 1 ? 's' : '') + ')</strong>' : '') + '</span></label></div>';
+  html += sectionsHtml;
   mc.innerHTML = html;
   renderMeteoBar(currentBoutique);
   }
