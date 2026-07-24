@@ -885,14 +885,23 @@ padding: 10px 14px; display: flex; gap: 8px;
 }
 .stock-col-header {
 display: grid !important;
-grid-template-columns: 1.3fr 55px 70px 55px 55px 76px !important;
+grid-template-columns: 1.3fr 55px 70px 55px 55px 62px 76px !important;
 gap: 4px;
 }
 .stock-row {
 display: grid !important;
-grid-template-columns: 1.3fr 55px 70px 55px 55px 76px !important;
+grid-template-columns: 1.3fr 55px 70px 55px 55px 62px 76px !important;
 gap: 4px; align-items: center;
 }
+/* v20.144 — sélecteur période Semaine/Mois + colonne Produit */
+.stock-period-bar { display: flex; gap: 6px; justify-content: center; margin: 8px 14px; }
+.stock-period-btn {
+  padding: 6px 18px; border-radius: 999px; border: 1.5px solid var(--gold);
+  background: white; color: var(--gold-dark); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.stock-period-btn.on { background: var(--gold); color: white; }
+.produit-mois-cell { text-align: center; font-size: 13px; font-family: Georgia, serif; font-weight: 700; line-height: 1.25; }
+.produit-mois-cell .pm-obj { font-size: 10px; font-weight: 400; color: #999; }
 /* v20.143 — colonne « Fin stock » */
 .finstock-cell { text-align: center; font-size: 12px; font-family: Georgia, serif; font-weight: 700; line-height: 1.25; }
 .finstock-cell .fs-edit { text-decoration: none; font-size: 11px; opacity: 0.6; }
@@ -3199,6 +3208,7 @@ if (v === 'reappro_pat' && currentBoutique === 'tours') {
 // v20.81 : Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir)
 await loadTourierStock();
 await loadStockConso28();
+await loadStockEntries();
 renderStock();
 } else if (v === 'stock_boul_pro') {
 // v21.2 — Stock congelé Boulangers (refactor v21.2.1)
@@ -3209,12 +3219,14 @@ proStockDate = todayISO();
 await loadProStock();
 await loadProStockMovements();
 await loadProStockDayOrders();
+await loadStockEntries();
 subscribeRealtimeProStock();
 renderStockBoulangerPro();
 } else if (v === 'stock_pat') {
 // v20.47 — Stock pâtisserie Veigné
 await loadVeignePatStock();
 await loadStockConso28();
+await loadStockEntries();
 renderStockVeignePat();
 }
 }
@@ -5777,7 +5789,8 @@ function renderStockVeignePat() {
   }
 
   // SECTION 2 — Mon stock
-  html += '<div class="info-banner"><strong>Mon stock</strong><br>L\'<strong>Entrée</strong> ajoute ta production du jour. Le stock baisse quand tu marques un réassort « préparé » ci-dessus. Alerte 🔴 sous le Mini. La colonne <strong>À partir</strong> = réassorts Tours/St-Av à préparer pour la prochaine livraison.</div>';
+  html += stockPeriodToggleHtml();
+  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse quand tu marques un réassort « préparé ». <strong>À partir</strong> = réassorts Tours/St-Av à préparer pour la prochaine livraison.');
 
   // v20.75 — réassorts qui vont partir, par produit (somme Tours + St-Av)
   const outByProduct = {};
@@ -5814,6 +5827,7 @@ function renderStockVeignePat() {
     + '<span class="col-lbl">Stock</span>'
     + '<span class="col-lbl">Mini</span>'
     + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
+    + '<span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span>'
     + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span>'
     + '</div>';
 
@@ -5848,6 +5862,7 @@ function renderStockVeignePat() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockProduitCell(e.p, stockConso28[e.p.id], 28);
       html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
       html += '</div>';
     });
@@ -5917,6 +5932,7 @@ async function addVeignePatEntreeVal(pid, val) {
     .update({ stock: newStock, updated_at: new Date().toISOString(), updated_by: DEVICE_ID })
     .eq('tenant_id', TENANT_ID).eq('product_id', pid);
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  await logStockEntry(pid, add, 'veigne_pat'); // v20.144 — colonne « Produit »
   setSyncStatus('ok');
   st.stock = newStock;
   renderStockVeignePat();
@@ -11755,6 +11771,7 @@ async function addTourierEntreeVal(pid, val) {
   setSyncStatus('syncing');
   const { error } = await supa.from('tourier_stock').update({ stock: ns, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid);
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  await logStockEntry(pid, add, 'tourier'); // v20.144 — colonne « Produit »
   setSyncStatus('ok'); st.stock = ns; renderStock();
 }
 async function prepareTourierLine(boutique, productId) {
@@ -11824,22 +11841,133 @@ function consoJourProduit(p, consoFenetre, joursFenetre) {
   return (consoFenetre || 0) / (joursFenetre || 28);
 }
 
+// v20.144 — période de lecture Semaine / Mois (mémorisée par appareil)
+let stockPeriodMode = localStorage.getItem('lbdd_stock_period') || 'mois';
+let stockEntriesPeriod = {};   // { product_id: { sem: qty, mois: qty } }
+
+function stockPeriodEnd() {
+  const now = new Date();
+  if (stockPeriodMode === 'semaine') {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    d.setDate(d.getDate() + (6 - (d.getDay() + 6) % 7)); // dimanche de la semaine en cours
+    return d;
+  }
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0);
+}
+function stockPeriodDays() { return stockPeriodMode === 'semaine' ? 7 : 30.4; }
+function stockPeriodLabel() { return stockPeriodMode === 'semaine' ? 'semaine' : 'mois'; }
+
+function setStockPeriodMode(m) {
+  stockPeriodMode = m;
+  try { localStorage.setItem('lbdd_stock_period', m); } catch (e) {}
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
+}
+function stockPeriodToggleHtml() {
+  return '<div class="stock-period-bar">'
+    + '<button class="stock-period-btn' + (stockPeriodMode === 'semaine' ? ' on' : '') + '" onclick="setStockPeriodMode(\'semaine\')">Semaine</button>'
+    + '<button class="stock-period-btn' + (stockPeriodMode === 'mois' ? ' on' : '') + '" onclick="setStockPeriodMode(\'mois\')">Mois</button>'
+    + '</div>';
+}
+
+// Cumul des Entrées de production (table stock_entries) depuis le début de semaine ET de mois
+async function loadStockEntries() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  weekStart.setDate(weekStart.getDate() - (weekStart.getDay() + 6) % 7); // lundi
+  const from = (monthStart < weekStart ? monthStart : weekStart);
+  const { data, error } = await supa.from('stock_entries')
+    .select('product_id,qty,entered_at')
+    .eq('tenant_id', TENANT_ID)
+    .gte('entered_at', from.toISOString());
+  stockEntriesPeriod = {};
+  if (error) return;
+  const mISO = monthStart.toISOString(), wISO = weekStart.toISOString();
+  (data || []).forEach(function(r) {
+    const q = Number(r.qty) || 0; if (!q) return;
+    const e = stockEntriesPeriod[r.product_id] = stockEntriesPeriod[r.product_id] || { sem: 0, mois: 0 };
+    if (r.entered_at >= mISO) e.mois += q;
+    if (r.entered_at >= wISO) e.sem += q;
+  });
+}
+
+// Trace une Entrée de production (appelé par les 3 écrans stock)
+async function logStockEntry(pid, qty, screen) {
+  if (!(qty > 0)) return;
+  await supa.from('stock_entries').insert({
+    tenant_id: TENANT_ID, product_id: pid, screen: screen, qty: qty, entered_by: DEVICE_ID
+  });
+  const e = stockEntriesPeriod[pid] = stockEntriesPeriod[pid] || { sem: 0, mois: 0 };
+  e.sem += qty; e.mois += qty;
+}
+
+// Colonne « Produit » : déjà produit sur la période, avec objectif (prévision ou conso auto) si connu
+function stockProduitCell(p, consoFenetre, joursFenetre) {
+  const e = stockEntriesPeriod[p.id] || { sem: 0, mois: 0 };
+  const fait = (stockPeriodMode === 'semaine') ? e.sem : e.mois;
+  const consoJour = consoJourProduit(p, consoFenetre, joursFenetre);
+  const objectif = (consoJour > 0) ? Math.round(consoJour * stockPeriodDays()) : null;
+  if (objectif == null) {
+    return '<div class="produit-mois-cell"' + (fait > 0 ? '' : ' style="color:#bbb"') + '>' + (fait > 0 ? formatQty(fait) : '—') + '</div>';
+  }
+  const okColor = fait >= objectif ? 'var(--green)' : 'var(--brown)';
+  return '<div class="produit-mois-cell" style="color:' + okColor + '">' + formatQty(fait)
+    + '<div class="pm-obj">/ ' + formatQty(objectif) + ' prévu</div></div>';
+}
+
 function stockFinCell(p, stockVal, consoFenetre, joursFenetre) {
-  const pen = ' <a href="#" class="fs-edit" onclick="editConsoMois(\'' + p.id + '\');return false;" title="prévision mensuelle">✏️</a>';
+  const pen = ' <a href="#" class="fs-edit" onclick="editConsoMois(\'' + p.id + '\');return false;" title="prévision mensuelle">✏️</a>'
+    + '<a href="#" class="fs-edit" onclick="editAvanceMax(\'' + p.id + '\');return false;" title="tolérance congélateur">❄️</a>';
   const consoJour = consoJourProduit(p, consoFenetre, joursFenetre);
   if (!(consoJour > 0)) return '<div class="finstock-cell" style="color:#bbb">—' + pen + '</div>';
   const joursRestants = Math.floor((Number(stockVal) || 0) / consoJour);
   const now = new Date();
   const dFin = new Date(now.getFullYear(), now.getMonth(), now.getDate() + joursRestants);
-  const finMois = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const finPeriode = stockPeriodEnd();
   const seuilAvance = (p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21);
-  let color = 'var(--green)', sub = 'ok fin de mois';
-  if (dFin < finMois) { color = 'var(--red)'; sub = 'manque avant fin de mois'; }
+  let color = 'var(--green)', sub = 'ok fin de ' + stockPeriodLabel();
+  if (dFin < finPeriode) { color = 'var(--red)'; sub = 'manque avant fin de ' + stockPeriodLabel(); }
   else if (joursRestants > seuilAvance) { color = 'var(--orange)'; sub = 'avance > ' + seuilAvance + ' j'; }
   const lbl = (joursRestants > 180) ? '&gt; 6 mois' : (dFin.getDate() + ' ' + FINSTOCK_MOIS[dFin.getMonth()]);
   const manuel = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0);
   return '<div class="finstock-cell" style="color:' + color + '" title="' + (manuel ? 'prévision manuelle' : 'conso réelle 4 dernières semaines') + '">'
     + lbl + pen + '<div class="fs-sub">' + sub + (manuel ? ' · ✍️' : '') + '</div></div>';
+}
+
+// ❄️ — tolérance congélateur par produit (avant de passer à l'orange)
+async function editAvanceMax(pid) {
+  const p = products.find(function(x) { return x.id === pid; })
+    || (typeof adminProducts !== 'undefined' && (adminProducts || []).find(function(x) { return x.id === pid; }));
+  if (!p) return;
+  const cur = (p.stock_avance_max_jours != null ? p.stock_avance_max_jours : 21);
+  const val = prompt('Combien de temps « ' + p.name + ' » supporte-t-il le congélateur ? (en JOURS)\n'
+    + '3 semaines = 21 · 1 mois = 30 · 2 mois = 60 · 3 mois = 90 · 4 mois = 120\n(vide = retour au défaut 21 j)', cur);
+  if (val === null) return;
+  const v = (String(val).trim() === '' ? null : (parseInt(val, 10) || null));
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ stock_avance_max_jours: v }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) {
+    const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) x.stock_avance_max_jours = v;
+  });
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
+}
+
+// v20.144 — légende commune des couleurs sur les écrans stock (demande Phil : dire POURQUOI rouge/vert/orange)
+function stockLegendHtml(contextLine) {
+  return '<div class="info-banner"><strong>Mon stock</strong><br>'
+    + contextLine
+    + '<div style="margin-top:6px;line-height:1.5">'
+    + '🔴 <strong>Rouge</strong> = sous le Mini, ou stock fini avant la fin de ' + stockPeriodLabel() + ' → <strong>à produire</strong><br>'
+    + '🟢 <strong>Vert</strong> = ça tient jusqu\'à la fin de ' + stockPeriodLabel() + ', rien à faire<br>'
+    + '🟠 <strong>Orange</strong> = trop d\'avance au congélateur (+ de 3 semaines · 2 mois pour cannelés/tartes/nougats) → <strong>qualité en jeu, lever le pied</strong><br>'
+    + '— = pas encore d\'historique : appuie sur ✏️ (colonne Fin stock) pour donner ta prévision du mois'
+    + '</div></div>';
 }
 
 async function editConsoMois(pid) {
@@ -11961,7 +12089,8 @@ function renderStock() {
   if (!anyR) html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes des magasins apparaissent ici une fois envoyées.)</div>';
 
   // SECTION 2 — Mon stock
-  html += '<div class="info-banner"><strong>Mon stock</strong><br>L\'<strong>Entrée</strong> ajoute ta production du jour (la réception fournisseur aussi). Le stock baisse au « préparé » ci-dessus. Alerte 🔴 sous le Mini. <strong>À partir</strong> = ce qui est commandé, pas encore préparé.</div>';
+  html += stockPeriodToggleHtml();
+  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse au « préparé ». <strong>À partir</strong> = ce qui est commandé, pas encore préparé.');
   const outBy = {};
   ['veigne', 'tours', 'saint-avertin'].forEach(function(b) { (tourierReassort[b] || []).forEach(function(r) { if (r.prepared_at) return; outBy[r.product_id] = (outBy[r.product_id] || 0) + (parseQty(r.commander) || 0); }); });
   const entries = Object.keys(tourierStockData).map(function(pid) { return { st: tourierStockData[pid], p: products.find(function(x) { return x.id === pid; }) }; }).filter(function(e) { return e.p; });
@@ -11972,7 +12101,7 @@ function renderStock() {
   }
   const byCat = {}; entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
   html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
-    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
+    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
   ['viennoiserie', 'brioches_special'].forEach(function(cat) {
     if (!byCat[cat] || !byCat[cat].length) return;
     const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
@@ -11992,6 +12121,7 @@ function renderStock() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockProduitCell(e.p, stockConso28[e.p.id], 28);
       html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
       html += '</div>';
     });
@@ -12131,6 +12261,7 @@ async function proAddEntree(pid, val) {
   }, { onConflict: 'tenant_id,product_id' });
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
   await applyProStockMovement(pid, add, 'production', null); // trace pour l'historique
+  await logStockEntry(pid, add, 'boul_pro'); // v20.144 — colonne « Produit »
   setSyncStatus('ok');
   proStockData[pid] = { qty: ns, mini: cur.mini, updated_at: now };
   await loadProStockMovements();
@@ -12484,7 +12615,8 @@ function renderStockBoulangerPro() {
   }
 
   // SECTION 2 — Mon stock
-  html += '<div class="info-banner"><strong>Mon stock</strong> (pain congelé pour les pros)<br>L\'<strong>Entrée</strong> ajoute ta production du jour. Le stock baisse au « préparé » ci-dessus. Alerte 🔴 sous le Mini. <strong>À partir</strong> = commandes pros à venir, pas encore préparées.<br><em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → coche <strong>« Suivi stock pro »</strong>.</em></div>';
+  html += stockPeriodToggleHtml();
+  html += stockLegendHtml('(pain congelé pour les pros) <strong>Entrée</strong> = ta production du jour. Le stock baisse au « préparé ». <strong>À partir</strong> = commandes pros à venir, pas encore préparées.<br><em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → coche <strong>« Suivi stock pro »</strong>.</em>');
 
   if (!suiviProducts.length) {
     html += '<div class="empty-state">Aucun produit configuré en suivi stock pro.<br><span style="font-size:12px;color:var(--brown-mid)">Va dans BackOffice et coche « Suivi stock pro » sur les produits concernés.</span></div>';
@@ -12517,6 +12649,7 @@ function renderStockBoulangerPro() {
     + '<span class="col-lbl">Stock</span>'
     + '<span class="col-lbl">Mini</span>'
     + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
+    + '<span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span>'
     + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso ~30 derniers jours ou prévision manuelle ✏️)">Fin stock</span>'
     + '</div>';
 
@@ -12547,6 +12680,7 @@ function renderStockBoulangerPro() {
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="proSelectField(\'' + p.id + '\', \'qty\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectField(\'' + p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
       html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
+      html += stockProduitCell(p, proConsoWindow(p.id), 30);
       html += stockFinCell(p, stock, proConsoWindow(p.id), 30);
       html += '</div>';
     });
