@@ -198,7 +198,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.148</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.150</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1033,7 +1033,7 @@ function pdMelangeSection(basePid){
     (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;else add[l.ingredient_id]=(add[l.ingredient_id]||0)+l.quantite*bacs;});});
   let rows='';
   mels.forEach(p=>{const bacs=pdMelange[p.id]||0;const ppb=((recettesMap[p.id].lignes||[]).find(l=>l.ingredient_id===pateIng)||{}).quantite||0;
-    let opts='';for(let q=0;q<=12;q++)opts+='<option value="'+q+'"'+(q==bacs?' selected':'')+'>'+q+'</option>';
+    let opts='';for(let q=0;q<=12;q+=0.5)opts+='<option value="'+q+'"'+(q==bacs?' selected':'')+'>'+String(q).replace('.',',')+'</option>';
     rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span></div>';});
   let summary='';
   if(needed>0){const reste=produced-needed,tol=Math.max(0.5,needed*0.02),ok=reste>=-tol;
