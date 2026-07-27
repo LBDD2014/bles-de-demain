@@ -198,7 +198,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.153</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.154</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1202,7 +1202,11 @@ function pdRenderFiches(){
     const sub='Pour '+r2(c.kgFlour)+' kg de farine · '+siteName+(c.hydra!=null?' · hydratation '+c.hydra+'%':'');
     const proc=c.rec.procede?'<div class="procede">'+String(c.rec.procede).replace(/[<>]/g,'')+'</div>':'';
     return '<div class="card"><h2>'+title+'</h2><p class="hint">'+sub+'</p>'+body+proc
-      +'<div class="btn-row print-hide"><button class="btn ghost" onclick="pdEtiq(\''+pid+'\','+row.batchIdx+')">🏷️ Étiquette (reste)</button></div></div>';
+      +'<div class="btn-row print-hide" style="gap:6px;align-items:center;flex-wrap:wrap">'
+        +'<select id="etiqn_f_'+pid+'_'+row.batchIdx+'" title="Nombre de copies" style="width:52px;padding:4px">'+[1,2,3,4,5,6].map(function(x){return '<option value="'+x+'">×'+x+'</option>';}).join('')+'</select>'
+        +'<button class="btn ghost" onclick="pdEtiqGroupes(\''+pid+'\','+row.batchIdx+')">🏷️ Étiquettes</button>'
+        +'<button class="btn ghost" onclick="pdEtiq(\''+pid+'\','+row.batchIdx+')">🏷️ Reste</button>'
+      +'</div></div>';
   }).join('');
 }
 function pdTog(key){fabChecked[key]=!fabChecked[key];const e=document.getElementById('pz_'+key);if(e)e.classList.toggle('done');}
@@ -1258,6 +1262,35 @@ function pdEtiqMelange(mpid){
       +'<div class="tt">'+p.nom+' — '+r2(bacs)+' bac'+(bacs>1?'s':'')+(n>1?' <span style="font-weight:400">('+i+'/'+n+')</span>':'')+'</div>'
       +'<div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'
       +lines+'</div>';
+  }
+  printDoc(all,ETIQ_CSS);
+}
+// v20.154 — étiquettes PAR GROUPE d'une recette (beurre manié / détrempe / …), avec ×N copies.
+// Sans groupe (pas de note) : une seule étiquette avec toute la recette.
+function pdEtiqGroupes(pid,batchIdx){
+  const b=(pdDay[pid]||[])[batchIdx];if(!b)return;const row={pid,batchIdx,qte:b.qte,hydra:b.hydra};const c=pdCompute(row);if(!c)return;
+  const groups=[],gidx={};
+  c.lines.forEach(l=>{
+    const g=(l.note||'').toLowerCase().replace(/^pour\s+(?:le|la|les|l')?\s*/,'').trim();
+    const key=g||'__base';
+    if(gidx[key]==null){gidx[key]=groups.length;groups.push({label:g,items:[]});}
+    groups[gidx[key]].items.push({nom:l.nom,q:l.q});
+  });
+  if(c.bassinage>0){const key='__base';if(gidx[key]==null){gidx[key]=groups.length;groups.push({label:'',items:[]});}groups[gidx[key]].items.push({nom:'Eau de bassinage',q:c.bassinage});}
+  if(!groups.length){toast('Rien à étiqueter');return;}
+  const nEl=document.getElementById('etiqn_f_'+pid+'_'+batchIdx);const n=Math.max(1,parseInt((nEl?nEl.value:1),10)||1);
+  const nb=(pdDay[pid]||[]).length;const base=prodNom(pid)+(nb>1?' P'+(batchIdx+1):'');
+  const total=n*groups.length;let done=0,all='';
+  for(let copy=1;copy<=n;copy++){
+    groups.forEach(grp=>{
+      done++;const isLast=done===total;
+      let lines='';grp.items.forEach(it=>{lines+='<div class="ln"><span>'+it.nom+'</span><b>'+fmt(it.q)+'</b></div>';});
+      const gtitle=grp.label?' — '+grp.label.toUpperCase():'';
+      all+='<div class="etq"'+(!isLast?' style="page-break-after:always"':'')+'>'
+        +'<div class="tt">'+base+gtitle+(n>1?' <span style="font-weight:400">('+copy+'/'+n+')</span>':'')+'</div>'
+        +'<div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'
+        +lines+'</div>';
+    });
   }
   printDoc(all,ETIQ_CSS);
 }
