@@ -198,7 +198,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.150</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.151</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1028,24 +1028,33 @@ function pdMelangeSection(basePid){
   const batches=pdDay[basePid]||[];const li=batches.length-1;
   let produced=0,petLabel='le pétrin';
   if(li>=0){const b=batches[li];const eh=(b.hydra!==undefined&&b.hydra!==null)?b.hydra:rec.hydratation_pct;const flourKg=pdRowKgFlour({pid:basePid,qte:b.qte});produced=flourKg*doughPerKgFlourH(basePid,eh);petLabel=batches.length>1?'Pétrin '+(li+1):'Pétrin';}
-  let needed=0;const add={};
+  let needed=0;
   mels.forEach(p=>{const bacs=parseFloat(pdMelange[p.id])||0;if(!bacs)return;
-    (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;else add[l.ingredient_id]=(add[l.ingredient_id]||0)+l.quantite*bacs;});});
+    (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)needed+=l.quantite*bacs;});});
   let rows='';
   mels.forEach(p=>{const bacs=pdMelange[p.id]||0;const ppb=((recettesMap[p.id].lignes||[]).find(l=>l.ingredient_id===pateIng)||{}).quantite||0;
+    const hasAdd=(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id!==pateIng); // ajouts (huile/olives/graines…)
     let opts='';for(let q=0;q<=12;q+=0.5)opts+='<option value="'+q+'"'+(q==bacs?' selected':'')+'>'+String(q).replace('.',',')+'</option>';
-    rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span></div>';});
+    rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span>'+(hasAdd?'<button onclick="pdEtiqMelange(\''+p.id+'\')" title="Étiquette des ajouts (à coller sur le bac pesé)" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:3px 6px;cursor:pointer;font-size:13px">🏷️</button>':'')+'</div>';});
   let summary='';
   if(needed>0){const reste=produced-needed,tol=Math.max(0.5,needed*0.02),ok=reste>=-tol;
     summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · '+petLabel+' : '+r2(produced)+' kg → '+(ok?(reste>=0?'reste <b>'+r2(reste)+' kg</b> ✅':'<b>tout juste</b> ✅'):'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
-    const aKeys=Object.keys(add);
-    if(aKeys.length){
-      const soak=aKeys.filter(id=>id==='ing_eau'||id.indexOf('ing_graines')===0);
-      const other=aKeys.filter(id=>!(id==='ing_eau'||id.indexOf('ing_graines')===0));
+    // v20.151 — ajouts regroupés PAR mélange (on sait dans quoi ça va) ; trempage gardé combiné (un seul bol)
+    const soakAgg={};const perMel=[];
+    mels.forEach(p=>{const bacs=parseFloat(pdMelange[p.id])||0;if(!bacs)return;
+      const items=[];
+      (recettesMap[p.id].lignes||[]).forEach(l=>{if(l.ingredient_id===pateIng)return;
+        if(l.ingredient_id==='ing_eau'||l.ingredient_id.indexOf('ing_graines')===0)soakAgg[l.ingredient_id]=(soakAgg[l.ingredient_id]||0)+l.quantite*bacs;
+        else items.push({id:l.ingredient_id,q:l.quantite*bacs});});
+      if(items.length)perMel.push({nom:p.nom,bacs:bacs,items:items});});
+    const sk=Object.keys(soakAgg);
+    if(sk.length||perMel.length){
       let al='';
-      if(soak.length){const parts=soak.map(id=>{const ing=ingredients.find(x=>x.id===id)||{};return fmt(add[id])+' '+(ing.nom||id)+(ing.bio?' (bio)':'');}).join(' + ');
-        al+='<div class="pesee" style="padding:5px 0"><div class="nom" style="font-size:13px">🫧 <b>À faire tremper</b></div><div class="q" style="font-size:12px;text-align:right;font-weight:bold">'+parts+'</div></div>';}
-      other.forEach(id=>{const ing=ingredients.find(x=>x.id===id)||{};al+='<div class="pesee" style="padding:4px 0"><div class="nom" style="font-size:13px">'+(ing.nom||id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(add[id])+'</div></div>';});
+      if(sk.length){const parts=sk.map(id=>{const ing=ingredients.find(x=>x.id===id)||{};return fmt(soakAgg[id])+' '+(ing.nom||id)+(ing.bio?' (bio)':'');}).join(' + ');
+        al+='<div class="pesee" style="padding:5px 0"><div class="nom" style="font-size:13px">🫧 <b>À faire tremper</b> <span class="hint" style="font-size:10px;margin:0">(tous mélanges)</span></div><div class="q" style="font-size:12px;text-align:right;font-weight:bold">'+parts+'</div></div>';}
+      perMel.forEach(m=>{
+        al+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--brown-mid)">🧩 '+m.nom+' <span class="hint" style="font-size:10px;margin:0;font-weight:normal">('+r2(m.bacs)+' bac'+(m.bacs>1?'s':'')+')</span></div>';
+        m.items.forEach(it=>{const ing=ingredients.find(x=>x.id===it.id)||{};al+='<div class="pesee" style="padding:3px 0 3px 12px"><div class="nom" style="font-size:13px">'+(ing.nom||it.id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(it.q)+'</div></div>';});});
       summary+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--gold-dark)">À préparer (ajouts)</div>'+al;}}
   return '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #D9C9a4"><div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin-bottom:2px">🧩 Mélanges</div>'+rows+summary+'</div>';
 }
@@ -1225,6 +1234,22 @@ function printFiche(){
   const fiches=(document.getElementById('pdFiches')||{}).innerHTML||'';
   if(!fiches.trim()){toast('Rien à imprimer pour ce jour');return;}
   printDoc('<div class="rx-head" style="margin-bottom:10px">Fiches de fabrication — '+pdLabel(pdDate)+'</div>'+fiches,'@page{size:A4;margin:10mm}');
+}
+// v20.151 — étiquette 62 mm des AJOUTS d'un mélange (à coller sur le bac pesé la veille)
+function pdEtiqMelange(mpid){
+  const p=produits.find(x=>x.id===mpid);const rec=recettesMap[mpid];if(!p||!rec)return;
+  const bacs=parseFloat(pdMelange[mpid])||0;if(!bacs){toast('Choisis d\'abord un nombre de bacs');return;}
+  const pateL=(rec.lignes||[]).find(l=>l.ingredient_id&&l.ingredient_id.indexOf('ing_pate_')===0);
+  const pateId=pateL?pateL.ingredient_id:null;
+  let lines='';
+  (rec.lignes||[]).forEach(l=>{if(l.ingredient_id===pateId)return;
+    const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};
+    lines+='<div class="ln"><span>'+(ing.nom||l.ingredient_id)+'</span><b>'+fmt(l.quantite*bacs)+'</b></div>';});
+  if(!lines){toast('Pas d\'ajout à étiqueter');return;}
+  const inner='<div class="etq"><div class="tt">'+p.nom+' — '+r2(bacs)+' bac'+(bacs>1?'s':'')+'</div>'
+    +'<div class="ln" style="font-weight:bold;border-bottom:1px solid #000;margin-bottom:4px;padding-bottom:3px"><span>📅 Pour le</span><b>'+pdLabel(pdDate)+'</b></div>'
+    +lines+'</div>';
+  printDoc(inner,ETIQ_CSS);
 }
 function pdEtiq(pid,batchIdx){
   const b=(pdDay[pid]||[])[batchIdx];if(!b)return;const row={pid,batchIdx,qte:b.qte,hydra:b.hydra};const c=pdCompute(row);if(!c)return;
