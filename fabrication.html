@@ -198,7 +198,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.151</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.152</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -1186,10 +1186,15 @@ function pdRenderFiches(){
     const pid=row.pid;const k0=pid+'_'+row.batchIdx;const nb=(pdDay[pid]||[]).length;
     const title=prodNom(pid)+(nb>1?' · Pétrin '+(row.batchIdx+1):'');
     let body='';
+    let prevGroup=null;
     c.lines.forEach((l,k)=>{
       const key=k0+'_'+k,done=fabChecked[key]?' done':'';
       const noteTxt=(l.note||'').replace(/[<>&]/g,'');
       const noteHtml=noteTxt?' <span style="font-size:11px;color:var(--red);font-weight:600">⟶ '+noteTxt+'</span>':'';
+      // v20.152 — séparation visuelle entre groupes d'une recette (ex. beurre manié / détrempe), d'après la note
+      const grp=(l.note||'').toLowerCase().replace(/^pour\s+(?:le|la|les|l')?\s*/,'').trim();
+      if(grp&&prevGroup!==null&&grp!==prevGroup)body+='<div style="margin:11px 0 4px;border-top:1px dashed #C9B78A"></div>';
+      if(grp)prevGroup=grp;
       body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">'+l.nom+(l.bio?'<span class="leaf">bio</span>':'')+noteHtml+'</div><div class="q">'+fmt(l.q)+'</div></div>';
     });
     if(c.bassinage>0){const key=k0+'_bass',done=fabChecked[key]?' done':'';body+='<div class="pesee'+done+'" id="pz_'+key+'"><div class="chk" onclick="pdTog(\''+key+'\')">✓</div><div class="nom">Eau de bassinage <span style="font-size:11px;color:var(--grey-light)">(à '+c.hydra+'%)</span></div><div class="q">'+fmt(c.bassinage)+'</div></div>';}
