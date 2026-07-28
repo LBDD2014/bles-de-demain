@@ -2314,6 +2314,7 @@ const NAV_ITEMS = {
 let supa, currentBoutique = null, currentVue = 'reappro';
 let products = [], reapprosData = {}, salesData = {};
 let veignePatStockData = {}; // v20.47 — stock pâtisserie Veigné { product_id: {stock, mini, maxi, stock_unit, unit_pieces} }
+let stockPatUnlocked = false; // v20.155 — code d'accès onglet Stock Pât. (débloqué 1× par session)
 let realtimeChannelReappro = null, realtimeChannelSales = null;
 let updateTimers = {}, currentDate = todayISO();
 let rupturePid = null;
@@ -3064,6 +3065,13 @@ nav.addEventListener('pointercancel', endPress);
 }
 
 async function setVue(v) {
+// v20.155 — onglet Stock Pât. protégé par code (0811, ou maître). Débloqué 1× par session.
+if (v === 'stock_pat' && !stockPatUnlocked) {
+const master = (typeof boutiqueCodes !== 'undefined' && boutiqueCodes['master']) || '2412';
+const ok = await askCodeModal('Stock Pâtissier — code d\'accès', ['0811', String(master).trim()]);
+if (!ok) return; // annulé → on reste sur l'onglet actuel
+stockPatUnlocked = true;
+}
 currentVue = v;
 productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
 renderNav();
