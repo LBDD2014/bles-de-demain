@@ -225,7 +225,7 @@
     <label>Coche les pains du jour</label>
     <div id="pdRows"></div>
     <div class="btn-row">
-      <button class="btn dark" style="flex:1" onclick="printFiche()">🖨️ Tout imprimer</button>
+      <button class="btn dark" style="flex:1" onclick="printFiche()">📄 Tout imprimer (A4 bureau)</button>
       <button class="btn ghost" onclick="fabReset()">↺ Coches</button>
     </div>
     <div id="pdValidBar" style="margin-top:10px"></div>
@@ -1035,7 +1035,7 @@ function pdMelangeSection(basePid){
   mels.forEach(p=>{const bacs=pdMelange[p.id]||0;const ppb=((recettesMap[p.id].lignes||[]).find(l=>l.ingredient_id===pateIng)||{}).quantite||0;
     const hasAdd=(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id!==pateIng); // ajouts (huile/olives/graines…)
     let opts='';for(let q=0;q<=12;q+=0.5)opts+='<option value="'+q+'"'+(q==bacs?' selected':'')+'>'+String(q).replace('.',',')+'</option>';
-    rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span>'+(hasAdd?'<select id="etiqn_'+p.id+'" title="Nombre d\'étiquettes" style="width:48px;padding:2px">'+[1,2,3,4,5,6].map(function(n){return '<option value="'+n+'">×'+n+'</option>';}).join('')+'</select><button onclick="pdEtiqMelange(\''+p.id+'\')" title="Imprimer l\'étiquette des ajouts (à coller sur le bac pesé)" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:3px 6px;cursor:pointer;font-size:13px">🏷️</button>':'')+'</div>';});
+    rows+='<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13px">'+p.nom+' <span class="hint" style="font-size:10.5px;margin:0">('+r2(ppb)+' kg/bac)</span></span><select onchange="pdSetMelange(\''+p.id+'\',this.value)" style="width:60px">'+opts+'</select><span class="hint" style="font-size:11px;margin:0">bac</span>'+(hasAdd?'<select id="etiqn_'+p.id+'" title="Nombre d\'étiquettes" style="width:48px;padding:2px">'+[1,2,3,4,5,6].map(function(n){return '<option value="'+n+'">×'+n+'</option>';}).join('')+'</select><button onclick="pdEtiqMelange(\''+p.id+'\')" title="Imprimer l\'étiquette des ajouts sur la Brother (à coller sur le bac pesé)" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:3px 6px;cursor:pointer;font-size:13px">🏷️</button>':'')+'</div>';});
   let summary='';
   if(needed>0){const reste=produced-needed,tol=Math.max(0.5,needed*0.02),ok=reste>=-tol;
     summary='<div style="margin-top:8px;padding:8px;border-radius:8px;font-size:13px;background:'+(ok?'#EAF3EC':'#FBE9E9')+'"><b>Pâte mélanges : '+r2(needed)+' kg</b> · '+petLabel+' : '+r2(produced)+' kg → '+(ok?(reste>=0?'reste <b>'+r2(reste)+' kg</b> ✅':'<b>tout juste</b> ✅'):'<b style="color:var(--red)">manque '+r2(-reste)+' kg ❌</b>')+'</div>';
@@ -1204,8 +1204,8 @@ function pdRenderFiches(){
     return '<div class="card"><h2>'+title+'</h2><p class="hint">'+sub+'</p>'+body+proc
       +'<div class="btn-row print-hide" style="gap:6px;align-items:center;flex-wrap:wrap">'
         +'<select id="etiqn_f_'+pid+'_'+row.batchIdx+'" title="Nombre de copies" style="width:52px;padding:4px">'+[1,2,3,4,5,6].map(function(x){return '<option value="'+x+'">×'+x+'</option>';}).join('')+'</select>'
-        +'<button class="btn ghost" onclick="pdEtiqGroupes(\''+pid+'\','+row.batchIdx+')">🏷️ Étiquettes</button>'
-        +'<button class="btn ghost" onclick="pdEtiq(\''+pid+'\','+row.batchIdx+')">🏷️ Reste</button>'
+        +'<button class="btn ghost" onclick="pdEtiqGroupes(\''+pid+'\','+row.batchIdx+')">🏷️ Étiquettes (Brother)</button>'
+        +'<button class="btn ghost" onclick="pdEtiq(\''+pid+'\','+row.batchIdx+')">🏷️ Reste (Brother)</button>'
       +'</div></div>';
   }).join('');
 }
