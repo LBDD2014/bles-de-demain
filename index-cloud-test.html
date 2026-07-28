@@ -2128,6 +2128,7 @@ outline: none; border-color: var(--gold); background: white;
     </div>
     <div class="header-right">
       <button class="print-btn" id="print-btn" style="display:none" onclick="printCurrentView()" title="Imprimer">&#128424;</button>
+      <button class="change-btn" onclick="openAide()" title="Aide — guide de l'app">&#10067;</button>
       <button class="change-btn" onclick="goSplash()">Changer</button>
     </div>
   </div>
@@ -2139,6 +2140,17 @@ outline: none; border-color: var(--gold); background: white;
     <div class="loading">Chargement...</div>
   </div>
   <nav class="bottom-nav" id="bottom-nav"></nav>
+</div>
+
+<!-- Aide : guide de l'app (métier par métier), chargé depuis aide.html -->
+<div id="aide-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45)">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:var(--cream,#FAF6EE)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:var(--grey-dark,#2E3044);color:#fff;flex:0 0 auto">
+      <strong style="font-size:16px">&#10067; Aide — Guide de l'app</strong>
+      <button onclick="closeAide()" style="background:none;border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:9px;padding:7px 14px;font-size:15px;font-weight:600;cursor:pointer">&#10006; Fermer</button>
+    </div>
+    <iframe id="aide-frame" title="Guide de l'app" style="flex:1 1 auto;border:0;width:100%;background:var(--cream,#FAF6EE)"></iframe>
+  </div>
 </div>
 
 <div class="modal-overlay" id="rupture-modal">
@@ -2820,6 +2832,10 @@ function showInitError(err) {
 }
 
 // === BACK OFFICE / PIN PAD ===
+// Aide — ouvre/ferme le guide de l'app (aide.html chargé dans une iframe, à la 1re ouverture)
+function openAide(){ var f=document.getElementById('aide-frame'); if(f && !f.getAttribute('src')) f.setAttribute('src','aide.html'); var o=document.getElementById('aide-overlay'); if(o) o.style.display='block'; }
+function closeAide(){ var o=document.getElementById('aide-overlay'); if(o) o.style.display='none'; }
+
 const BACKOFFICE_PIN = '2412';
 let pinEntered = '';
 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aide — L'app métier par métier · Les Blés de Demain</title>
+<style>
+  html,body{margin:0}
+  :root{
+    --ground:#FAF6EE; --surface:#FFFFFF; --surface-2:#F4EEE0;
+    --ink:#2E3044; --ink-soft:#66646E; --line:#E7DDC7;
+    --gold:#CEAB52; --gold-dark:#8B6914;
+    --warn-bg:#F7E3E0; --warn:#B83232;
+    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59;
+    --shadow:0 1px 2px rgba(46,48,68,.05), 0 8px 22px rgba(46,48,68,.07);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#22232D; --surface:#2C2E3A; --surface-2:#33354355;
+      --ink:#F3EEE2; --ink-soft:#AEA99D; --line:#3D3F4D;
+      --gold:#E8D5A3; --gold-dark:#E8D5A3;
+      --warn-bg:#3A2723; --warn:#E58A7E;
+      --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C;
+      --shadow:0 1px 2px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.30);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#FAF6EE; --surface:#FFFFFF; --surface-2:#F4EEE0;
+    --ink:#2E3044; --ink-soft:#66646E; --line:#E7DDC7;
+    --gold:#CEAB52; --gold-dark:#8B6914;
+    --warn-bg:#F7E3E0; --warn:#B83232;
+    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59;
+    --shadow:0 1px 2px rgba(46,48,68,.05), 0 8px 22px rgba(46,48,68,.07);
+  }
+  :root[data-theme="dark"]{
+    --ground:#22232D; --surface:#2C2E3A; --surface-2:#33354355;
+    --ink:#F3EEE2; --ink-soft:#AEA99D; --line:#3D3F4D;
+    --gold:#E8D5A3; --gold-dark:#E8D5A3;
+    --warn-bg:#3A2723; --warn:#E58A7E;
+    --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.30);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground)}
+  .wrap{
+    max-width:660px; margin:0 auto; padding:28px 20px 72px;
+    color:var(--ink); background:var(--ground);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .eyebrow{font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-dark); font-weight:700; margin:0 0 8px}
+  h1{font-family:Georgia,"Times New Roman",serif; font-weight:700;
+    font-size:clamp(28px,7vw,38px); line-height:1.08; margin:0 0 10px; text-wrap:balance}
+  .lede{color:var(--ink-soft); margin:0 0 22px}
+
+  /* role picker */
+  .picker{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:8px}
+  @media (min-width:560px){.picker{grid-template-columns:repeat(4,1fr)}}
+  .role-btn{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:14px 8px; border-radius:14px; cursor:pointer;
+    background:var(--surface); border:1.5px solid var(--line);
+    color:var(--ink); font-size:14.5px; font-weight:650;
+    font-family:inherit; transition:transform .12s, border-color .12s, background .12s;
+  }
+  .role-btn .rico{font-size:26px; line-height:1}
+  .role-btn:hover{transform:translateY(-1px)}
+  .role-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+  .role-btn[aria-selected="true"]{
+    border-color:var(--role); background:color-mix(in srgb,var(--role) 12%,var(--surface));
+    color:var(--role); box-shadow:var(--shadow);
+  }
+  .role-btn[data-role="vendeur"]{--role:var(--vendeur)}
+  .role-btn[data-role="boulanger"]{--role:var(--boulanger)}
+  .role-btn[data-role="tourier"]{--role:var(--tourier)}
+  .role-btn[data-role="patissier"]{--role:var(--patissier)}
+
+  /* panels */
+  .panel{display:none; margin-top:18px}
+  .panel.active{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion:reduce){.panel.active{animation:none}}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    padding:22px 20px; box-shadow:var(--shadow); border-top:4px solid var(--role)}
+  .p-head{display:flex; align-items:center; gap:12px; margin-bottom:4px}
+  .p-emoji{font-size:30px; line-height:1}
+  .p-title{font-family:Georgia,serif; font-size:23px; line-height:1.1; margin:0}
+  .p-where{display:inline-flex; align-items:center; gap:7px; margin-top:12px;
+    background:color-mix(in srgb,var(--role) 12%,var(--surface));
+    color:var(--role); font-weight:650; font-size:14.5px;
+    padding:7px 13px; border-radius:999px; border:1px solid color-mix(in srgb,var(--role) 35%,transparent)}
+
+  .lbl-mini{font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-soft); font-weight:700; margin:22px 0 2px}
+
+  ol.steps{list-style:none; counter-reset:s; margin:10px 0 0; padding:0}
+  ol.steps>li{counter-increment:s; position:relative; padding:0 0 16px 42px; margin:0}
+  ol.steps>li:last-child{padding-bottom:0}
+  ol.steps>li::before{content:counter(s); position:absolute; left:0; top:-1px;
+    width:28px; height:28px; border-radius:50%; background:var(--role); color:#fff;
+    font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center}
+  :root[data-theme="dark"] ol.steps>li::before{color:#22232D}
+  @media (prefers-color-scheme:dark){ol.steps>li::before{color:#22232D}}
+  ol.steps>li::after{content:""; position:absolute; left:13.5px; top:28px; bottom:6px;
+    width:2px; background:var(--line)}
+  ol.steps>li:last-child::after{display:none}
+  .st-t{font-weight:650; display:block}
+  .st-t .tab{background:var(--surface-2); border:1px solid var(--line); border-radius:6px;
+    padding:1px 7px; font-size:14.5px; font-weight:650; white-space:nowrap; display:inline-block}
+  .st-d{color:var(--ink-soft); font-size:15px; margin-top:3px; display:block}
+
+  .golden{display:flex; gap:12px; align-items:flex-start; margin-top:20px;
+    background:color-mix(in srgb,var(--role) 12%,var(--surface));
+    border:1px solid color-mix(in srgb,var(--role) 40%,transparent);
+    border-radius:13px; padding:14px 16px; font-size:15.5px}
+  .golden .ic{font-size:20px; line-height:1.1; flex:0 0 auto}
+  .golden b{color:var(--role)}
+
+  .common{margin-top:26px; padding:16px 18px; border-radius:14px;
+    background:var(--surface-2); font-size:15px; color:var(--ink-soft)}
+  .common b{color:var(--ink)}
+  .foot{margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+    color:var(--ink-soft); font-size:13.5px; text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Les Blés de Demain · Guide de l'app</p>
+  <h1>L'app, métier par métier</h1>
+  <p class="lede">Choisis ton métier ci-dessous : tu as l'essentiel de ta journée dans l'app, en quelques étapes.</p>
+
+  <div class="picker" role="tablist" aria-label="Choisis ton métier">
+    <button class="role-btn" data-role="vendeur"   role="tab" aria-selected="true"  aria-controls="p-vendeur"><span class="rico">🧑‍💼</span>Vendeur</button>
+    <button class="role-btn" data-role="boulanger" role="tab" aria-selected="false" aria-controls="p-boulanger"><span class="rico">🥖</span>Boulanger</button>
+    <button class="role-btn" data-role="tourier"   role="tab" aria-selected="false" aria-controls="p-tourier"><span class="rico">🥐</span>Tourier</button>
+    <button class="role-btn" data-role="patissier" role="tab" aria-selected="false" aria-controls="p-patissier"><span class="rico">🍰</span>Pâtissier</button>
+  </div>
+
+  <!-- VENDEUR -->
+  <section class="panel active" id="p-vendeur" style="--role:var(--vendeur)">
+    <div class="card">
+      <div class="p-head"><span class="p-emoji">🧑‍💼</span><h2 class="p-title">Vendeur / Vendeuse</h2></div>
+      <span class="p-where">📱 App principale → choisis ta boutique (avec ton code)</span>
+
+      <p class="lbl-mini">Ta journée</p>
+      <ol class="steps">
+        <li><span class="st-t"><span class="tab">Ventes</span> — le cœur du métier</span><span class="st-d">Saisis ce que tu vends au fil de la journée. Le soir, appuie sur <b>« Valider ma journée »</b>.</span></li>
+        <li><span class="st-t"><span class="tab">Cmd Local</span> &amp; <span class="tab">Cmd Veigné Pât.</span></span><span class="st-d">Commande ce qu'il te manque : viennoiserie &amp; brioches au Local, gâteaux à Veigné Pâtissier.</span></li>
+        <li><span class="st-t"><span class="tab">Spéciales</span></span><span class="st-d">Note les commandes clients (gâteaux, pièces) <b>avant l'heure limite</b> (J-2).</span></li>
+        <li><span class="st-t"><span class="tab">Récap</span> &amp; <span class="tab">Messages</span></span><span class="st-d">Ton bilan de la semaine, et les infos de l'équipe.</span></li>
+      </ol>
+      <div class="golden"><span class="ic">⭐</span><span><b>La règle d'or :</b> valide ta journée <b>chaque soir</b>. Sinon les chiffres faussent et l'alerte « pas de saisie » se déclenche.</span></div>
+    </div>
+  </section>
+
+  <!-- BOULANGER -->
+  <section class="panel" id="p-boulanger" style="--role:var(--boulanger)">
+    <div class="card">
+      <div class="p-head"><span class="p-emoji">🥖</span><h2 class="p-title">Boulanger</h2></div>
+      <span class="p-where">📱 App Suivi bio (traçabilité) &nbsp;·&nbsp; App principale au Local</span>
+
+      <p class="lbl-mini">Ta journée</p>
+      <ol class="steps">
+        <li><span class="st-t"><span class="tab">🍞 Prod. du jour</span> — dans Suivi bio</span><span class="st-d">Saisis ta production <b>validée</b> (tradition, pains…). C'est ça qui trace le bio pour Bureau Veritas.</span></li>
+        <li><span class="st-t"><span class="tab">📦 Livraisons</span></span><span class="st-d">Tu reçois de la farine bio ? Enregistre le bon — tu peux le <b>scanner en photo</b>.</span></li>
+        <li><span class="st-t"><span class="tab">📋 Inventaire</span> &amp; <span class="tab">🗑️ Pertes</span></span><span class="st-d">Au comptage, saisis le stock réel. Note la farine perdue.</span></li>
+        <li><span class="st-t">Au Local : <span class="tab">Prod. Boulangers</span></span><span class="st-d">Le pain à faire pour St-Avertin, les pros et les marchés.</span></li>
+      </ol>
+      <div class="golden"><span class="ic">⭐</span><span><b>La règle d'or :</b> saisis <b>TOUTE</b> ta prod, même conventionnelle. Sinon le bilan bio ressort en négatif (le levain puise dans la farine bio).</span></div>
+    </div>
+  </section>
+
+  <!-- TOURIER -->
+  <section class="panel" id="p-tourier" style="--role:var(--tourier)">
+    <div class="card">
+      <div class="p-head"><span class="p-emoji">🥐</span><h2 class="p-title">Tourier</h2></div>
+      <span class="p-where">📱 App principale → Le Local</span>
+
+      <p class="lbl-mini">Ta journée</p>
+      <ol class="steps">
+        <li><span class="st-t"><span class="tab">Prod. Touriers</span></span><span class="st-d">La viennoiserie &amp; les brioches à cuire (pour St-Avertin + les réassorts).</span></li>
+        <li><span class="st-t"><span class="tab">Stock Tourier</span></span><span class="st-d">Gère ton stock : à préparer / entrée / mini.</span></li>
+        <li><span class="st-t">Farine bio ? → App <span class="tab">Suivi bio</span></span><span class="st-d">Pour le <span class="tab">🚚 Dispatch</span> et les pesées de matière bio.</span></li>
+      </ol>
+      <div class="golden"><span class="ic">⭐</span><span><b>À retenir :</b> tu fais la <b>viennoiserie cuite fraîche</b> pour St-Avertin chaque jour, + les <b>fonds de tartes surgelés</b> pour les pâtissiers de Veigné.</span></div>
+    </div>
+  </section>
+
+  <!-- PATISSIER -->
+  <section class="panel" id="p-patissier" style="--role:var(--patissier)">
+    <div class="card">
+      <div class="p-head"><span class="p-emoji">🍰</span><h2 class="p-title">Pâtissier</h2></div>
+      <span class="p-where">📱 App principale → Veigné (centrale de production)</span>
+
+      <p class="lbl-mini">Ta journée</p>
+      <ol class="steps">
+        <li><span class="st-t"><span class="tab">À produire</span></span><span class="st-d">Ce qu'il faut fabriquer aujourd'hui : petits + gros gâteaux, <b>consolidé</b> Veigné + St-Avertin + commandes spéciales.</span></li>
+        <li><span class="st-t"><span class="tab">Stock Pât.</span> <span style="opacity:.7">🔒 verrouillé</span></span><span class="st-d">Ton catalogue et ton stock pâtisserie. Entrée par <b>le code pâtissier</b> (celui que vous connaissez — il reste entre vous).</span></li>
+        <li><span class="st-t"><span class="tab">Spéciales</span></span><span class="st-d">Les gâteaux de commande à préparer pour la date demandée.</span></li>
+      </ol>
+      <div class="golden"><span class="ic">⭐</span><span><b>À retenir :</b> tu fabriques la pâtisserie (surgelée) pour <b>Veigné + Tours + St-Avertin</b>, + le <b>traiteur</b> pour Veigné + St-Avertin.</span></div>
+    </div>
+  </section>
+
+  <div class="common">💬 <b>Pour tout le monde :</b> l'onglet <b>Messages</b> sert à se parler entre équipes (daté, tous sites). Et le principe de base de l'app : <b>ce que tu saisis chez toi devient visible pour ceux qui produisent ou livrent pour toi.</b></div>
+
+  <p class="foot">Les Blés de Demain — guide de l'app. Un doute ? Demande à Phil. 🍞</p>
+</div>
+
+<script>
+  (function(){
+    var btns = Array.prototype.slice.call(document.querySelectorAll('.role-btn'));
+    var panels = {
+      vendeur:'p-vendeur', boulanger:'p-boulanger', tourier:'p-tourier', patissier:'p-patissier'
+    };
+    function select(role){
+      btns.forEach(function(b){ b.setAttribute('aria-selected', b.dataset.role===role ? 'true':'false'); });
+      Object.keys(panels).forEach(function(r){
+        var el = document.getElementById(panels[r]);
+        if(el) el.classList.toggle('active', r===role);
+      });
+    }
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){ select(b.dataset.role); });
+    });
+  })();
+</script>
+</body>
+</html>

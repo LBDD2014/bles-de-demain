@@ -202,7 +202,18 @@
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
-<div id="siteBar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--grey-dark);position:sticky;top:0;z-index:5"><span style="color:#fff;font-size:12px;font-weight:bold">🏠 Magasin</span><div class="seg" id="siteSel" style="flex:1"></div><button onclick="pinLogout()" title="Verrouiller (redemande le code)" style="background:none;border:1px solid #777;border-radius:8px;color:#fff;padding:5px 9px;font-size:13px;cursor:pointer">🔒</button></div>
+<div id="siteBar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--grey-dark);position:sticky;top:0;z-index:5"><span style="color:#fff;font-size:12px;font-weight:bold">🏠 Magasin</span><div class="seg" id="siteSel" style="flex:1"></div><button onclick="openAide()" title="Aide — guide de l'app" style="background:none;border:1px solid #777;border-radius:8px;color:#fff;padding:5px 9px;font-size:13px;cursor:pointer">❓</button><button onclick="pinLogout()" title="Verrouiller (redemande le code)" style="background:none;border:1px solid #777;border-radius:8px;color:#fff;padding:5px 9px;font-size:13px;cursor:pointer">🔒</button></div>
+
+<!-- Aide : guide de l'app (métier par métier), chargé depuis aide.html -->
+<div id="aide-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45)">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:#FAF6EE">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:var(--grey-dark,#2E3044);color:#fff;flex:0 0 auto">
+      <strong style="font-size:16px">❓ Aide — Guide de l'app</strong>
+      <button onclick="closeAide()" style="background:none;border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:9px;padding:7px 14px;font-size:15px;font-weight:600;cursor:pointer">✖ Fermer</button>
+    </div>
+    <iframe id="aide-frame" title="Guide de l'app" style="flex:1 1 auto;border:0;width:100%;background:#FAF6EE"></iframe>
+  </div>
+</div>
 
 <!-- PRODUCTION DU JOUR -->
 <section id="fab" class="page active">
@@ -2144,6 +2155,10 @@ function pinLogout(){ // efface le code mémorisé et réaffiche l'écran de sai
   const e=document.getElementById('pinErr');if(e)e.textContent='';
   document.getElementById('pinov').classList.remove('hidden');
 }
+
+// Aide — ouvre/ferme le guide de l'app (aide.html chargé dans une iframe, à la 1re ouverture)
+function openAide(){ var f=document.getElementById('aide-frame'); if(f && !f.getAttribute('src')) f.setAttribute('src','aide.html'); var o=document.getElementById('aide-overlay'); if(o) o.style.display='block'; }
+function closeAide(){ var o=document.getElementById('aide-overlay'); if(o) o.style.display='none'; }
 function lockDefaults(){ // listes de réception/pertes par défaut sur le magasin verrouillé
   if(!_lockedSite)return;
   ['livSite','perSite'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_lockedSite;});
