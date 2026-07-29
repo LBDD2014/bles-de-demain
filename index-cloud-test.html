@@ -1212,6 +1212,51 @@ border-bottom: 2px solid #333; margin-bottom: 16px;
 }
 }
 
+/* === v20.158 — Commande Metro === */
+.metro-switch { display:flex; gap:8px; margin-bottom:12px; }
+.metro-switch button { flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--gold-light); background:white; font-family:inherit; font-size:14px; font-weight:700; color:var(--grey); cursor:pointer; }
+.metro-switch button.on { background:var(--gold); border-color:var(--gold); color:white; }
+.metro-remind { display:flex; gap:10px; align-items:flex-start; background:#fff8e7; border-left:3px solid var(--gold); border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:13px; color:var(--brown); }
+.metro-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 10px; font-size:13px; color:var(--grey-light); }
+.metro-toolbar .sp { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+.metro-btn { padding:7px 11px; border-radius:9px; border:1px solid #ddd; background:white; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; color:var(--grey); }
+.metro-btn.warn { color:var(--red); border-color:#e8bcbc; }
+.metro-btn.on { background:var(--orange); border-color:var(--orange); color:white; }
+.metro-cat { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--orange); font-weight:700; margin:16px 0 6px; }
+.metro-row { display:flex; align-items:center; gap:10px; background:white; border:1px solid #eee; border-radius:12px; padding:8px 10px; margin-bottom:7px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.metro-row.done { opacity:.5; }
+.metro-row.done .metro-name { text-decoration:line-through; }
+.metro-ph { width:46px; height:46px; border-radius:9px; flex:0 0 auto; object-fit:cover; border:1px solid #eee; cursor:pointer; background:var(--cream); }
+.metro-ph.none { display:flex; align-items:center; justify-content:center; border:1.5px dashed #ccc; color:#bbb; font-size:17px; }
+.metro-info { flex:1 1 auto; min-width:0; }
+.metro-name { font-weight:600; font-size:14.5px; line-height:1.15; }
+.metro-cond { font-size:12px; color:var(--grey-light); }
+.metro-qty { display:flex; align-items:center; border:1px solid #ddd; border-radius:9px; overflow:hidden; background:var(--cream); flex:0 0 auto; }
+.metro-qty button { width:36px; height:38px; border:none; background:transparent; color:var(--gold-dark); font-size:20px; font-weight:700; cursor:pointer; line-height:1; }
+.metro-qty button:active { background:var(--gold); color:white; }
+.metro-qty .mq { width:34px; text-align:center; font-weight:700; font-size:15px; }
+.metro-qty.mq-zero .mq { color:#bbb; }
+.metro-total { text-align:center; min-width:44px; flex:0 0 auto; }
+.metro-total .t { font-weight:800; font-size:19px; color:var(--orange); line-height:1; }
+.metro-total .l { font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--grey-light); }
+.metro-check { flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:2px solid #ddd; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; color:transparent; font-size:15px; font-weight:800; }
+.metro-row.done .metro-check { background:var(--green); border-color:var(--green); color:white; }
+.metro-split { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+.metro-st { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:650; padding:2px 8px; border-radius:999px; background:var(--cream); border:1px solid #eee; }
+.metro-st .d { width:7px; height:7px; border-radius:50%; }
+.metro-mbtns { display:flex; gap:6px; flex:0 0 auto; }
+.metro-mbtns button { width:34px; height:34px; border-radius:9px; border:1px solid #ddd; background:var(--cream); font-size:15px; cursor:pointer; }
+.metro-mbtns .del { color:var(--red); border-color:#e8bcbc; }
+.metro-add { margin-top:12px; width:100%; padding:12px; border-radius:11px; border:1.5px dashed var(--orange); background:transparent; color:var(--orange); font-weight:650; font-size:14px; cursor:pointer; font-family:inherit; }
+#metro-photo-view { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:2000; display:none; align-items:center; justify-content:center; padding:20px; }
+#metro-photo-view.show { display:flex; }
+#metro-photo-view img { max-width:100%; max-height:85vh; border-radius:12px; background:white; }
+@media print {
+  .metro-switch, .metro-toolbar, .metro-qty, .metro-mbtns, .metro-add, .metro-remind, .metro-ph { display:none !important; }
+  .metro-row { border:none !important; border-bottom:1px solid #ddd !important; border-radius:0; box-shadow:none !important; page-break-inside:avoid; }
+  .metro-check { display:flex !important; width:22px; height:22px; border:1.5px solid #333 !important; border-radius:4px; background:white !important; color:transparent !important; }
+}
+
 /* === Badges marche dans Le Local === */
 .market-header-badge {
 display: block; font-size: 9px; color: #888; font-weight: 500;
@@ -2142,6 +2187,10 @@ outline: none; border-color: var(--gold); background: white;
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
+<!-- v20.158 — Metro : prise de photo produit (mode Gérer) + visionneuse -->
+<input type="file" id="metro-photo-input" accept="image/*" style="display:none" onchange="metroPhotoChosen(this)">
+<div id="metro-photo-view" onclick="this.classList.remove('show')"><img id="metro-photo-view-img" alt="Photo produit"></div>
+
 <!-- Aide : guide de l'app (métier par métier), chargé depuis aide.html -->
 <div id="aide-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45)">
   <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:var(--cream,#FAF6EE)">
@@ -2268,6 +2317,7 @@ const NAV_ITEMS = {
     { id: 'ventes',       lbl: 'Ventes' },
     { id: 'reappro',      lbl: 'Cmd Local' },
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
+    { id: 'metro',        lbl: 'Metro' },
     { id: 'specials',     lbl: 'Spéciales' },
     { id: 'production',   lbl: 'À produire' },
     { id: 'stock_pat',    lbl: 'Stock Pât.' },
@@ -2279,6 +2329,7 @@ const NAV_ITEMS = {
     { id: 'ventes',       lbl: 'Ventes' },
     { id: 'reappro',      lbl: 'Cmd Local' },
     { id: 'reappro_pat',  lbl: 'Cmd Veigné Pât.' },
+    { id: 'metro',        lbl: 'Metro' },
     { id: 'specials',     lbl: 'Spéciales' },
     { id: 'production',   lbl: 'À produire' },
     { id: 'pros_orders',  lbl: 'Pros' },
@@ -2288,6 +2339,7 @@ const NAV_ITEMS = {
   'saint-avertin': [
     { id: 'ventes',           lbl: 'Ventes' },
     { id: 'reappro_pat',      lbl: 'Cmd Veigné Pât.' },
+    { id: 'metro',            lbl: 'Metro' },
     { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
     { id: 'specials',         lbl: 'Spéciales' },
     { id: 'recap',            lbl: 'Récap' },
@@ -2310,6 +2362,7 @@ const NAV_ITEMS = {
     { id: 'prod_tour',      lbl: 'Prod. Touriers' },
     { id: 'stock_tour',     lbl: 'Stock Tourier' },
     { id: 'stock_boul_pro', lbl: 'Stock Boul. Pro' },
+    { id: 'metro',          lbl: 'Metro' },
     { id: 'specials',       lbl: 'Spéciales' },
     { id: 'pros_orders',    lbl: 'Pros' },
     { id: 'messages',       lbl: 'Messages' }
@@ -3092,7 +3145,7 @@ currentVue = v;
 productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
 renderNav();
 const pbtn = document.getElementById('print-btn');
-if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison' || v === 'specials') ? 'flex' : 'none';
+if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison' || v === 'specials' || v === 'metro') ? 'flex' : 'none';
 document.getElementById('main-content').innerHTML = '<div class="loading">Chargement...</div>';
 if (v === 'reappro') {
 await loadReappros(currentBoutique);
@@ -3252,6 +3305,10 @@ await loadVeignePatStock();
 await loadStockConso28();
 await loadStockEntries();
 renderStockVeignePat();
+} else if (v === 'metro') {
+// v20.158 — Commande Metro (courses grossiste du lundi)
+await loadMetro();
+renderMetro();
 }
 }
 
@@ -7971,7 +8028,7 @@ adminNewProductDraft[field] = val;
 // v20.68 — génère un id TEXT unique à partir du nom (la table products.id n'a pas de défaut)
 function genProductId(name) {
   const slug = (name || 'prod').toString().toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24);
   return (slug || 'prod') + '_' + Date.now().toString(36).slice(-4) + Math.floor(Math.random() * 1296).toString(36);
 }
@@ -14278,6 +14335,7 @@ let title = boutiqueLabel;
 if (currentVue === 'production') title += ' - Production du ' + formatDateFr(currentReapproDate);
 else if (currentVue === 'recap') title += ' - Recap semaine du ' + formatDateFr(currentWeekStart);
 else if (currentVue === 'livraison') title += ' - Feuille de route ' + formatDateFr(currentDate);
+else if (currentVue === 'metro') title = 'Courses Metro';
 document.title = 'LBDD - ' + title;
 window.print();
 setTimeout(function() { document.title = 'LBDD Cloud'; }, 500);
@@ -14285,6 +14343,266 @@ setTimeout(function() { document.title = 'LBDD Cloud'; }, 500);
 
 function canPrintCurrent() {
 return currentVue === 'production' || currentVue === 'recap' || currentVue === 'livraison';
+}
+
+// ===================== v20.158 — COMMANDE METRO =====================
+// Metro = grossiste (courses le lundi en général). Chaque site saisit ses
+// besoins dans "Ma boutique" ; la vue "Récap courses" agrège le total à
+// acheter + la répartition par magasin (pastilles couleur). Gestion du
+// catalogue (ajout/modif/suppression/photo) protégée par le code maître.
+// Photos = data URL JPEG compressée côté client, stockée en base.
+let metroProducts = [], metroNeedsAll = [], metroChecks = {};
+let metroView = 'saisie'; // 'saisie' | 'recap'
+let metroManage = false, metroManageUnlocked = false, metroHideDone = false;
+const METRO_SITES = [
+  ['veigne', 'Veigné', '#4A7C59'],
+  ['tours', 'Tours', '#2C5F8A'],
+  ['saint-avertin', 'St-Av', '#D4701A'],
+  ['local', 'Local', '#8B6914']
+];
+
+async function loadMetro() {
+  setSyncStatus('syncing');
+  const [p, n, c] = await Promise.all([
+    supa.from('metro_products').select('*').eq('tenant_id', TENANT_ID).order('ordre', { ascending: true }).order('nom', { ascending: true }),
+    supa.from('metro_needs').select('*').eq('tenant_id', TENANT_ID),
+    supa.from('metro_checks').select('*').eq('tenant_id', TENANT_ID)
+  ]);
+  if (p.error || n.error || c.error) {
+    setSyncStatus('error');
+    showToast('Erreur Metro : ' + (p.error || n.error || c.error).message, 'error');
+    metroProducts = []; metroNeedsAll = []; metroChecks = {};
+    return;
+  }
+  metroProducts = (p.data || []).filter(function(x) { return x.actif !== false; });
+  metroNeedsAll = n.data || [];
+  metroChecks = {};
+  (c.data || []).forEach(function(r) { metroChecks[r.product_id] = !!r.checked; });
+  setSyncStatus('ok');
+}
+
+function metroQty(b, pid) {
+  const r = metroNeedsAll.find(function(x) { return x.boutique_id === b && x.product_id === pid; });
+  return r ? (parseInt(r.qty) || 0) : 0;
+}
+function metroTotal(pid) {
+  return METRO_SITES.reduce(function(a, s) { return a + metroQty(s[0], pid); }, 0);
+}
+function metroCats() {
+  const seen = [];
+  metroProducts.forEach(function(p) { if (seen.indexOf(p.categorie) === -1) seen.push(p.categorie); });
+  return seen;
+}
+function metroSetView(v) { metroView = v; metroManage = false; renderMetro(); }
+
+function metroPhotoHtml(p) {
+  if (p.photo) return '<img class="metro-ph" src="' + p.photo + '" alt="" onclick="metroPhotoTap(\'' + p.id + '\')">';
+  return '<div class="metro-ph none" onclick="metroPhotoTap(\'' + p.id + '\')">📷</div>';
+}
+
+function renderMetro() {
+  const el = document.getElementById('main-content');
+  const isRecap = metroView === 'recap';
+  let h = '<div class="metro-switch">'
+    + '<button class="' + (!isRecap ? 'on' : '') + '" onclick="metroSetView(\'saisie\')">Ma boutique</button>'
+    + '<button class="' + (isRecap ? 'on' : '') + '" onclick="metroSetView(\'recap\')">🛒 Récap courses</button>'
+    + '</div>';
+  h += isRecap ? renderMetroRecap() : renderMetroSaisie();
+  el.innerHTML = h;
+}
+
+function renderMetroSaisie() {
+  const b = currentBoutique;
+  let h = '<div class="metro-remind">🔔 <div>Saisis ici ce qu\'il te faut de Metro (courses <b>le lundi</b> en général). Rappel automatique le <b>samedi matin</b> dans les Messages.</div></div>';
+  if (!metroProducts.length) return h + '<div class="loading">Catalogue Metro vide — ajoute des produits via 🛠️ Gérer (vue Récap courses).</div>';
+  metroCats().forEach(function(cat) {
+    const items = metroProducts.filter(function(p) { return p.categorie === cat; });
+    if (!items.length) return;
+    h += '<div class="metro-cat">' + escapeHtml(cat) + '</div>';
+    items.forEach(function(p) {
+      const q = metroQty(b, p.id);
+      h += '<div class="metro-row">' + metroPhotoHtml(p)
+        + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div></div>'
+        + '<div class="metro-qty' + (q === 0 ? ' mq-zero' : '') + '"><button onclick="metroStep(\'' + p.id + '\',-1)">−</button><span class="mq" id="mq_' + p.id + '">' + q + '</span><button onclick="metroStep(\'' + p.id + '\',1)">＋</button></div>'
+        + '</div>';
+    });
+  });
+  return h;
+}
+
+function renderMetroRecap() {
+  const lignes = metroProducts.filter(function(p) { return metroTotal(p.id) > 0; });
+  const todo = lignes.filter(function(p) { return !metroChecks[p.id]; }).length;
+  const done = lignes.length - todo;
+  let h = '<div class="metro-toolbar"><span><b>' + todo + '</b> à prendre · <b>' + done + '</b> cochés</span>'
+    + '<span class="sp">'
+    + '<button class="metro-btn' + (metroHideDone ? ' on' : '') + '" onclick="metroHideDone=!metroHideDone;renderMetro()">Masquer cochés</button>'
+    + '<button class="metro-btn" onclick="printCurrentView()">🖨️ A4</button>'
+    + '<button class="metro-btn' + (metroManage ? ' on' : '') + '" onclick="metroToggleManage()">🛠️ Gérer</button>'
+    + '<button class="metro-btn warn" onclick="metroResetRun()">✅ Course faite</button>'
+    + '</span></div>';
+  if (!metroProducts.length) return h + '<div class="loading">Catalogue vide — 🛠️ Gérer pour ajouter des produits.</div>';
+  const src = metroManage ? metroProducts : lignes;
+  if (!src.length) return h + '<div class="loading">Aucun besoin saisi pour l\'instant. Les boutiques remplissent leur onglet Metro, et tout apparaît ici.</div>';
+  metroCats().forEach(function(cat) {
+    const items = src.filter(function(p) { return p.categorie === cat; });
+    if (!items.length) return;
+    let block = '';
+    items.forEach(function(p) {
+      const isDone = !!metroChecks[p.id];
+      if (!metroManage && metroHideDone && isDone) return;
+      const chips = METRO_SITES.map(function(s) {
+        const q = metroQty(s[0], p.id);
+        if (!q) return '';
+        return '<span class="metro-st" style="color:' + s[2] + '"><span class="d" style="background:' + s[2] + '"></span>' + s[1] + ' ' + q + '</span>';
+      }).join('');
+      block += '<div class="metro-row' + (isDone && !metroManage ? ' done' : '') + '">' + metroPhotoHtml(p)
+        + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div>'
+        + (chips ? '<div class="metro-split">' + chips + '</div>' : '')
+        + '</div>'
+        + '<div class="metro-total"><div class="t">' + metroTotal(p.id) + '</div><div class="l">total</div></div>'
+        + (metroManage
+          ? '<div class="metro-mbtns"><button onclick="metroEditProduct(\'' + p.id + '\')" title="Modifier">✏️</button><button class="del" onclick="metroDeleteProduct(\'' + p.id + '\')" title="Supprimer">🗑️</button></div>'
+          : '<div class="metro-check" onclick="metroToggleCheck(\'' + p.id + '\')">✓</div>')
+        + '</div>';
+    });
+    if (block) h += '<div class="metro-cat">' + escapeHtml(cat) + '</div>' + block;
+  });
+  if (metroManage) h += '<button class="metro-add" onclick="metroAddProduct()">＋ Ajouter un produit</button>';
+  return h;
+}
+
+async function metroStep(pid, delta) {
+  const b = currentBoutique;
+  const v = Math.max(0, metroQty(b, pid) + delta);
+  let row = metroNeedsAll.find(function(x) { return x.boutique_id === b && x.product_id === pid; });
+  if (row) row.qty = v; else metroNeedsAll.push({ tenant_id: TENANT_ID, boutique_id: b, product_id: pid, qty: v });
+  const el = document.getElementById('mq_' + pid);
+  if (el) { el.textContent = v; el.parentElement.classList.toggle('mq-zero', v === 0); }
+  const { error } = await supa.from('metro_needs').upsert({
+    tenant_id: TENANT_ID, boutique_id: b, product_id: pid, qty: v,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); } else setSyncStatus('ok');
+}
+
+async function metroToggleCheck(pid) {
+  metroChecks[pid] = !metroChecks[pid];
+  renderMetro();
+  const { error } = await supa.from('metro_checks').upsert({
+    tenant_id: TENANT_ID, product_id: pid, checked: !!metroChecks[pid], updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,product_id' });
+  if (error) showToast(error.message, 'error');
+}
+
+async function metroResetRun() {
+  if (!confirm('Course faite ?\nRemet tous les besoins à zéro et décoche tout (prêt pour la semaine prochaine).')) return;
+  setSyncStatus('syncing');
+  const r1 = await supa.from('metro_needs').update({ qty: 0, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('qty', 0);
+  const r2 = await supa.from('metro_checks').update({ checked: false, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).eq('checked', true);
+  if (r1.error || r2.error) { setSyncStatus('error'); showToast((r1.error || r2.error).message, 'error'); return; }
+  await loadMetro(); renderMetro(); showToast('Course remise à zéro', 'sync');
+}
+
+async function metroToggleManage() {
+  if (metroManage) { metroManage = false; renderMetro(); return; }
+  if (!metroManageUnlocked) {
+    if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
+    const master = boutiqueCodes['master'] || '2412';
+    const ok = await askCodeModal('Gérer les produits Metro', [String(master).trim()]);
+    if (!ok) return;
+    metroManageUnlocked = true;
+  }
+  metroManage = true; renderMetro();
+}
+
+function metroSlug(nom) {
+  return 'mt_' + String(nom).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+}
+
+async function metroAddProduct() {
+  const nom = prompt('Nom du produit :'); if (!nom || !nom.trim()) return;
+  const cond = prompt('Conditionnement (ex : 1 kg, sceau 5 kg, carton, pièce) :') || '';
+  const cats = metroCats();
+  const cat = (prompt('Catégorie :\n(existantes : ' + cats.join(' · ') + ')', cats[0] || 'Divers') || 'Divers').trim() || 'Divers';
+  let id = metroSlug(nom);
+  if (metroProducts.some(function(p) { return p.id === id; })) id += '_' + Date.now().toString(36).slice(-4);
+  const maxOrdre = metroProducts.reduce(function(a, p) { return Math.max(a, p.ordre || 0); }, 0);
+  const { error } = await supa.from('metro_products').insert({
+    id: id, tenant_id: TENANT_ID, nom: nom.trim(), conditionnement: cond.trim() || null,
+    categorie: cat, actif: true, ordre: maxOrdre + 10
+  });
+  if (error) { showToast(error.message, 'error'); return; }
+  await loadMetro(); renderMetro(); showToast('Produit ajouté', 'sync');
+}
+
+async function metroEditProduct(pid) {
+  const p = metroProducts.find(function(x) { return x.id === pid; }); if (!p) return;
+  const nom = prompt('Nom du produit :', p.nom); if (nom === null) return;
+  const cond = prompt('Conditionnement :', p.conditionnement || ''); if (cond === null) return;
+  const cat = prompt('Catégorie :', p.categorie || 'Divers'); if (cat === null) return;
+  const { error } = await supa.from('metro_products').update({
+    nom: (nom.trim() || p.nom), conditionnement: cond.trim() || null,
+    categorie: cat.trim() || p.categorie, updated_at: new Date().toISOString()
+  }).eq('id', pid);
+  if (error) { showToast(error.message, 'error'); return; }
+  await loadMetro(); renderMetro(); showToast('Produit modifié', 'sync');
+}
+
+async function metroDeleteProduct(pid) {
+  const p = metroProducts.find(function(x) { return x.id === pid; }); if (!p) return;
+  if (!confirm('Supprimer « ' + p.nom + ' » ?\n(Ses besoins saisis seront supprimés aussi.)')) return;
+  const { error } = await supa.from('metro_products').delete().eq('id', pid);
+  if (error) { showToast(error.message, 'error'); return; }
+  await loadMetro(); renderMetro(); showToast('Produit supprimé', 'sync');
+}
+
+// Photo : en mode Gérer on (re)prend la photo ; sinon on l'affiche en grand.
+let _metroPhotoPid = null;
+function metroPhotoTap(pid) {
+  const p = metroProducts.find(function(x) { return x.id === pid; }); if (!p) return;
+  if (metroManage && metroView === 'recap') {
+    _metroPhotoPid = pid;
+    document.getElementById('metro-photo-input').click();
+    return;
+  }
+  if (p.photo) {
+    document.getElementById('metro-photo-view-img').src = p.photo;
+    document.getElementById('metro-photo-view').classList.add('show');
+  } else {
+    showToast('Pas encore de photo pour ce produit', 'error');
+  }
+}
+function metroResizeImage(file, maxDim, quality) {
+  return new Promise(function(res, rej) {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = function() {
+      const r = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * r));
+      c.height = Math.max(1, Math.round(img.height * r));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); rej(new Error('image illisible')); };
+    img.src = url;
+  });
+}
+async function metroPhotoChosen(input) {
+  const f = input.files && input.files[0]; input.value = '';
+  const pid = _metroPhotoPid; _metroPhotoPid = null;
+  if (!f || !pid) return;
+  setSyncStatus('syncing');
+  let data;
+  try { data = await metroResizeImage(f, 480, 0.65); }
+  catch (e) { setSyncStatus('error'); showToast('Photo illisible', 'error'); return; }
+  const { error } = await supa.from('metro_products').update({ photo: data, updated_at: new Date().toISOString() }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  const p = metroProducts.find(function(x) { return x.id === pid; }); if (p) p.photo = data;
+  setSyncStatus('ok'); renderMetro(); showToast('Photo enregistrée', 'sync');
 }
 
 // === HELPERS ===
