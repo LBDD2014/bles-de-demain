@@ -1251,8 +1251,18 @@ border-bottom: 2px solid #333; margin-bottom: 16px;
 #metro-photo-view { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:2000; display:none; align-items:center; justify-content:center; padding:20px; }
 #metro-photo-view.show { display:flex; }
 #metro-photo-view img { max-width:100%; max-height:85vh; border-radius:12px; background:white; }
+/* v20.161 — notes par site + rupture */
+.metro-note-inp { width:100%; min-height:46px; padding:9px 11px; border:1.5px solid var(--gold-light); border-radius:10px; font-size:13.5px; color:var(--brown); background:white; font-family:inherit; resize:vertical; line-height:1.35; margin-bottom:12px; }
+.metro-note-inp:focus { outline:none; border-color:var(--gold); }
+.metro-notes-box { background:#fff8e7; border-left:3px solid var(--orange); border-radius:10px; padding:9px 12px; margin:0 0 10px; font-size:13.5px; color:var(--brown); }
+.metro-notes-box .n { display:flex; align-items:baseline; gap:8px; padding:2px 0; }
+.metro-notes-box .n b { white-space:nowrap; }
+.metro-rupt-btn { flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:2px solid #ddd; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; filter:grayscale(1); opacity:.5; padding:0; }
+.metro-row.rupture .metro-rupt-btn { border-color:var(--red); background:#fdeeee; filter:none; opacity:1; }
+.metro-row.rupture { border-color:#e8bcbc; background:#fff7f7; }
+.metro-badge-rupt { display:inline-block; margin-top:4px; font-size:11px; font-weight:700; color:var(--red); background:#fdeeee; border:1px solid #e8bcbc; border-radius:999px; padding:2px 8px; }
 @media print {
-  .metro-switch, .metro-toolbar, .metro-qty, .metro-mbtns, .metro-add, .metro-remind, .metro-ph { display:none !important; }
+  .metro-switch, .metro-toolbar, .metro-qty, .metro-mbtns, .metro-add, .metro-remind, .metro-ph, .metro-rupt-btn, .metro-note-inp { display:none !important; }
   .metro-row { border:none !important; border-bottom:1px solid #ddd !important; border-radius:0; box-shadow:none !important; page-break-inside:avoid; }
   .metro-check { display:flex !important; width:22px; height:22px; border:1.5px solid #333 !important; border-radius:4px; background:white !important; color:transparent !important; }
 }
@@ -14378,6 +14388,8 @@ return currentVue === 'production' || currentVue === 'recap' || currentVue === '
 // catalogue (ajout/modif/suppression/photo) protégée par le code maître.
 // Photos = data URL JPEG compressée côté client, stockée en base.
 let metroProducts = [], metroNeedsAll = [], metroChecks = {};
+// v20.161 — note libre par site + ruptures Metro (produit non trouvé, Phil y retourne)
+let metroNotes = {}, metroRuptures = {};
 let metroView = 'saisie'; // 'saisie' | 'recap'
 let metroManage = false, metroManageUnlocked = false, metroHideDone = false;
 const METRO_SITES = [
@@ -14389,21 +14401,24 @@ const METRO_SITES = [
 
 async function loadMetro() {
   setSyncStatus('syncing');
-  const [p, n, c] = await Promise.all([
+  const [p, n, c, nt] = await Promise.all([
     supa.from('metro_products').select('*').eq('tenant_id', TENANT_ID).order('ordre', { ascending: true }).order('nom', { ascending: true }),
     supa.from('metro_needs').select('*').eq('tenant_id', TENANT_ID),
-    supa.from('metro_checks').select('*').eq('tenant_id', TENANT_ID)
+    supa.from('metro_checks').select('*').eq('tenant_id', TENANT_ID),
+    supa.from('metro_notes').select('*').eq('tenant_id', TENANT_ID)
   ]);
-  if (p.error || n.error || c.error) {
+  if (p.error || n.error || c.error || nt.error) {
     setSyncStatus('error');
-    showToast('Erreur Metro : ' + (p.error || n.error || c.error).message, 'error');
-    metroProducts = []; metroNeedsAll = []; metroChecks = {};
+    showToast('Erreur Metro : ' + (p.error || n.error || c.error || nt.error).message, 'error');
+    metroProducts = []; metroNeedsAll = []; metroChecks = {}; metroNotes = {}; metroRuptures = {};
     return;
   }
   metroProducts = (p.data || []).filter(function(x) { return x.actif !== false; });
   metroNeedsAll = n.data || [];
-  metroChecks = {};
-  (c.data || []).forEach(function(r) { metroChecks[r.product_id] = !!r.checked; });
+  metroChecks = {}; metroRuptures = {};
+  (c.data || []).forEach(function(r) { metroChecks[r.product_id] = !!r.checked; metroRuptures[r.product_id] = !!r.rupture; });
+  metroNotes = {};
+  (nt.data || []).forEach(function(r) { metroNotes[r.boutique_id] = r.note || ''; });
   setSyncStatus('ok');
 }
 
@@ -14440,6 +14455,8 @@ function renderMetro() {
 function renderMetroSaisie() {
   const b = currentBoutique;
   let h = '<div class="metro-remind">🔔 <div>Saisis ici ce qu\'il te faut de Metro (courses <b>le lundi</b> en général). Rappel automatique le <b>samedi matin</b> dans les Messages.</div></div>';
+  // v20.161 — note libre du site (produit spécifique hors catalogue, etc.)
+  h += '<textarea class="metro-note-inp" placeholder="📝 Note pour la course (ex : un produit spécifique à prendre)…" onchange="metroSaveNote(this.value)">' + escapeHtml(metroNotes[b] || '') + '</textarea>';
   if (!metroProducts.length) return h + '<div class="loading">Catalogue Metro vide — ajoute des produits via 🛠️ Gérer (vue Récap courses).</div>';
   metroCats().forEach(function(cat) {
     const items = metroProducts.filter(function(p) { return p.categorie === cat; });
@@ -14448,7 +14465,9 @@ function renderMetroSaisie() {
     items.forEach(function(p) {
       const q = metroQty(b, p.id);
       h += '<div class="metro-row">' + metroPhotoHtml(p)
-        + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div></div>'
+        + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div>'
+        + (metroRuptures[p.id] ? '<div><span class="metro-badge-rupt">🚫 Rupture Metro — Phil y retourne, en attendant on se débrouille</span></div>' : '')
+        + '</div>'
         + '<div class="metro-qty' + (q === 0 ? ' mq-zero' : '') + '"><button onclick="metroStep(\'' + p.id + '\',-1)">−</button><span class="mq" id="mq_' + p.id + '">' + q + '</span><button onclick="metroStep(\'' + p.id + '\',1)">＋</button></div>'
         + '</div>';
     });
@@ -14467,6 +14486,13 @@ function renderMetroRecap() {
     + '<button class="metro-btn' + (metroManage ? ' on' : '') + '" onclick="metroToggleManage()">🛠️ Gérer</button>'
     + '<button class="metro-btn warn" onclick="metroResetRun()">✅ Course faite</button>'
     + '</span></div>';
+  // v20.161 — notes des sites (nom du site + pastille couleur devant chaque note)
+  const sitesAvecNote = METRO_SITES.filter(function(s) { return (metroNotes[s[0]] || '').trim() !== ''; });
+  if (sitesAvecNote.length) {
+    h += '<div class="metro-notes-box">' + sitesAvecNote.map(function(s) {
+      return '<div class="n"><b style="color:' + s[2] + '">📝 ' + s[1] + '</b><span>' + escapeHtml(metroNotes[s[0]]) + '</span></div>';
+    }).join('') + '</div>';
+  }
   if (!metroProducts.length) return h + '<div class="loading">Catalogue vide — 🛠️ Gérer pour ajouter des produits.</div>';
   const src = metroManage ? metroProducts : lignes;
   if (!src.length) return h + '<div class="loading">Aucun besoin saisi pour l\'instant. Les boutiques remplissent leur onglet Metro, et tout apparaît ici.</div>';
@@ -14482,14 +14508,17 @@ function renderMetroRecap() {
         if (!q) return '';
         return '<span class="metro-st" style="color:' + s[2] + '"><span class="d" style="background:' + s[2] + '"></span>' + s[1] + ' ' + q + '</span>';
       }).join('');
-      block += '<div class="metro-row' + (isDone && !metroManage ? ' done' : '') + '">' + metroPhotoHtml(p)
+      const isRupt = !!metroRuptures[p.id];
+      block += '<div class="metro-row' + (isDone && !metroManage ? ' done' : '') + (isRupt && !metroManage ? ' rupture' : '') + '">' + metroPhotoHtml(p)
         + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div>'
+        + (isRupt && !metroManage ? '<div><span class="metro-badge-rupt">🚫 Rupture Metro</span></div>' : '')
         + (chips ? '<div class="metro-split">' + chips + '</div>' : '')
         + '</div>'
         + '<div class="metro-total"><div class="t">' + metroTotal(p.id) + '</div><div class="l">total</div></div>'
         + (metroManage
           ? '<div class="metro-mbtns"><button onclick="metroEditProduct(\'' + p.id + '\')" title="Modifier">✏️</button><button class="del" onclick="metroDeleteProduct(\'' + p.id + '\')" title="Supprimer">🗑️</button></div>'
-          : '<div class="metro-check" onclick="metroToggleCheck(\'' + p.id + '\')">✓</div>')
+          : '<button class="metro-rupt-btn" onclick="metroToggleRupture(\'' + p.id + '\')" title="Rupture chez Metro (garde la quantité, prévient les boutiques)">🚫</button>'
+            + '<div class="metro-check" onclick="metroToggleCheck(\'' + p.id + '\')">✓</div>')
         + '</div>';
     });
     if (block) h += '<div class="metro-cat">' + escapeHtml(cat) + '</div>' + block;
@@ -14514,19 +14543,52 @@ async function metroStep(pid, delta) {
 
 async function metroToggleCheck(pid) {
   metroChecks[pid] = !metroChecks[pid];
+  // v20.161 — cocher un produit en rupture = acheté au retour → la rupture s'enlève
+  if (metroChecks[pid] && metroRuptures[pid]) metroRuptures[pid] = false;
   renderMetro();
   const { error } = await supa.from('metro_checks').upsert({
-    tenant_id: TENANT_ID, product_id: pid, checked: !!metroChecks[pid], updated_at: new Date().toISOString()
+    tenant_id: TENANT_ID, product_id: pid, checked: !!metroChecks[pid],
+    rupture: !!metroRuptures[pid], updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,product_id' });
   if (error) showToast(error.message, 'error');
 }
 
+// v20.161 — rupture chez Metro : le produit garde sa quantité au "Course faite"
+// (Phil y retourne) + badge visible dans l'onglet Metro des boutiques.
+async function metroToggleRupture(pid) {
+  metroRuptures[pid] = !metroRuptures[pid];
+  if (metroRuptures[pid]) metroChecks[pid] = false; // en rupture = pas acheté
+  renderMetro();
+  const { error } = await supa.from('metro_checks').upsert({
+    tenant_id: TENANT_ID, product_id: pid, checked: !!metroChecks[pid],
+    rupture: !!metroRuptures[pid], updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,product_id' });
+  if (error) showToast(error.message, 'error');
+}
+
+// v20.161 — note libre du site (upsert, effacée par "Course faite")
+async function metroSaveNote(val) {
+  const b = currentBoutique;
+  metroNotes[b] = val;
+  const { error } = await supa.from('metro_notes').upsert({
+    tenant_id: TENANT_ID, boutique_id: b, note: val,
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,boutique_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); } else setSyncStatus('ok');
+}
+
 async function metroResetRun() {
-  if (!confirm('Course faite ?\nRemet tous les besoins à zéro et décoche tout (prêt pour la semaine prochaine).')) return;
+  const ruptIds = Object.keys(metroRuptures).filter(function(k) { return metroRuptures[k]; });
+  let msg = 'Course faite ?\nRemet les besoins à zéro, décoche tout et efface les notes (prêt pour la semaine prochaine).';
+  if (ruptIds.length) msg += '\n' + ruptIds.length + ' produit(s) en rupture gardent leur quantité pour le prochain passage.';
+  if (!confirm(msg)) return;
   setSyncStatus('syncing');
-  const r1 = await supa.from('metro_needs').update({ qty: 0, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('qty', 0);
+  let q1 = supa.from('metro_needs').update({ qty: 0, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('qty', 0);
+  if (ruptIds.length) q1 = q1.not('product_id', 'in', '("' + ruptIds.join('","') + '")');
+  const r1 = await q1;
   const r2 = await supa.from('metro_checks').update({ checked: false, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).eq('checked', true);
-  if (r1.error || r2.error) { setSyncStatus('error'); showToast((r1.error || r2.error).message, 'error'); return; }
+  const r3 = await supa.from('metro_notes').update({ note: '', updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('note', '');
+  if (r1.error || r2.error || r3.error) { setSyncStatus('error'); showToast((r1.error || r2.error || r3.error).message, 'error'); return; }
   await loadMetro(); renderMetro(); showToast('Course remise à zéro', 'sync');
 }
 
