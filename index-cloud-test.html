@@ -4704,7 +4704,12 @@ async function validateDay() {
       const prev = _ventesPrevisCache[p.id] || 0;
       return prev > 0 || hasVal(d.reste_j1) || hasVal(d.reste_j2) || hasVal(d.perte) || (parseInt(d.aprem) || 0) > 0;
     }
-    return (parseInt(d.matin) || 0) > 0 || (parseInt(d.aprem) || 0) > 0;
+    // v20.159 — Viennoiserie & co : le "Matin" affiché vient du Prévis (table séparée),
+    // pas forcément de salesData.matin (rempli seulement via réappro envoyé ou auto J-1).
+    // Sans ça, une ligne avec Prévis + pertes saisies échappe à la validation → Vendu reste "-".
+    const prevNC = Number(p ? _ventesPrevisCache[p.id] : 0) || 0;
+    return (parseInt(d.matin) || 0) > 0 || (parseInt(d.aprem) || 0) > 0
+      || prevNC > 0 || hasVal(d.reste_j1) || hasVal(d.reste_j2) || hasVal(d.perte);
   }
   const productsToValidate = ventesProducts.filter(function(p) {
     return realActivity(salesData[p.id] || {}, p);
