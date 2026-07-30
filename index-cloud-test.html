@@ -2386,6 +2386,7 @@ let rupturePid = null;
 let currentReapproDate = serviceDateISO();
 
 let recapWeekData = {};
+let recapPrevisWeek = {}; // v20.160 — prévis de la semaine { date: { product_id: qty } } (fallback Matin du Récap)
 let currentWeekStart = mondayOfWeek(todayISO());
 let recapMode = 'global';
 let recapCategory = 'all';
@@ -4894,6 +4895,16 @@ const { data, error } = await supa.from('sales').select('*')
 .eq('tenant_id', TENANT_ID).eq('boutique_id', b)
 .gte('date', monday).lte('date', sunday);
 if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
+// v20.160 — prévis de la semaine : sert de "Matin" quand sales.matin est vide
+// (viennoiserie & produits dont le Matin affiché vient du Prévis, comme l'écran Ventes)
+const previsRes = await supa.from('previs').select('product_id,service_date,qty')
+.eq('tenant_id', TENANT_ID).eq('boutique_id', b)
+.gte('service_date', monday).lte('service_date', sunday);
+recapPrevisWeek = {};
+(previsRes.data || []).forEach(function(r) {
+if (!recapPrevisWeek[r.service_date]) recapPrevisWeek[r.service_date] = {};
+recapPrevisWeek[r.service_date][r.product_id] = Number(r.qty) || 0;
+});
 recapWeekData = {};
 const days = weekDaysFromMonday(monday);
 days.forEach(function(d) { recapWeekData[d] = []; });
@@ -4901,6 +4912,16 @@ days.forEach(function(d) { recapWeekData[d] = []; });
 if (!recapWeekData[r.date]) recapWeekData[r.date] = [];
 recapWeekData[r.date].push(r);
 });
+}
+
+// v20.160 — "Matin" d'une ligne pour le Récap : sales.matin, sinon le Prévis du jour
+// (viennoiserie & co, dont le Matin affiché sur Ventes vient du Prévis). Les catégories
+// en modèle "Sortie jour" (gâteaux) sont exclues : leur Sortie (aprem) est déjà comptée.
+function _recapMatin(r) {
+if (r.matin != null) return r.matin;
+if (usesSortieModel(_catOf(r.product_id))) return 0;
+const pw = recapPrevisWeek[r.date] || {};
+return pw[r.product_id] || 0;
 }
 
 function calcDayStats(dayISO) {
@@ -4913,7 +4934,7 @@ if (recapMode === 'category' && recapCategory !== 'all') {
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p || p.category !== recapCategory) return;
 }
-const m  = r.matin == null ? 0 : r.matin;
+const m  = _recapMatin(r);
 const a  = r.aprem == null ? 0 : r.aprem;
 const rj = r.reste_j1 == null ? 0 : r.reste_j1;
 const rj2 = r.reste_j2 == null ? 0 : r.reste_j2;
@@ -4945,7 +4966,7 @@ if (recapMode === 'category' && recapCategory !== 'all') {
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p || p.category !== recapCategory) return;
 }
-const m  = r.matin == null ? 0 : r.matin;
+const m  = _recapMatin(r);
 const a  = r.aprem == null ? 0 : r.aprem;
 const rj = r.reste_j1 == null ? 0 : r.reste_j1;
 const rj2 = r.reste_j2 == null ? 0 : r.reste_j2;
