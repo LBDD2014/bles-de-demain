@@ -34,6 +34,16 @@ Phil, propriétaire de Les Blés de Demain. Boulangerie artisanale multi-sites e
 `product_id` est stocké en **TEXT** (ex : `vt_fou`, `vp_ord`), **pas en UUID**.
 Toute nouvelle table doit utiliser `product_id TEXT`.
 
+## Sécurité BDD (migration-securite-v1b, 2026-07-30)
+
+- La clé publique n'a **plus le droit DELETE** sauf sur ~20 tables où l'app supprime
+  réellement (liste dans `migration-securite-v1b.sql`). Les nouvelles tables n'ont
+  **pas** DELETE par défaut : si une nouvelle fonctionnalité fait du `.delete()`,
+  ajouter `GRANT DELETE ON public.ma_table TO anon;` dans sa migration.
+- **Sauvegarde nocturne** (pg_cron, 1h30 UTC) : toutes les tables → `db_backups`
+  (jsonb, rétention 10 jours). Table append-only : l'app peut lire, jamais modifier.
+  Restauration = régénérer les lignes depuis `db_backups.data`.
+
 ## Convention "supply" par produit × boutique
 
 Chaque produit a une origine par boutique destinataire :
