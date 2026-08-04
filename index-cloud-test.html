@@ -3199,6 +3199,8 @@ if (currentBoutique === 'local') {
 await loadStAvSalesForProduction(currentReapproDate);
 // v20.18 — sales St-Av complètes (matin/aprem/reste_j1) pour Prod. Boulangers
 await loadStAvSalesFromTable(currentReapproDate);
+// v20.165 — pop-up (1×/jour) + bandeau : réassorts surgelés en attente → Stock Tourier
+checkTourierReassortAlert(true);
 }
 // v21.0.4.3 — Charger les commandes pros du jour pour cette boutique
 // Aussi adminPros + adminProducts pour les noms / catégories
@@ -6900,7 +6902,7 @@ const fixedColsBefore = '1.3fr'
   + (showMatinSA ? ' 0.65fr' : '')
   + (showApremSA ? ' 0.65fr' : '')
   + (showResteJ1 ? ' 0.65fr' : '')
-  + (showVTS ? (isLocalBoul ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
+  + (showVTS ? ((isLocalBoul || isLocalTour) ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
   + (showSpe ? ' 0.55fr' : '')
   + (showProsCol ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
@@ -6931,6 +6933,10 @@ cV = (supV === 'on_site') ? parseQty(vV && vV.previs) : 0;
 cT = (supT === 'veigne') ? parseQty(vT && vT.commander) : 0;
 cS = (supS === 'veigne') ? parseQty(vS && vS.commander) : 0;
 }
+
+// v20.165 — Touriers : les réassorts Veigné/Tours sont du SURGELÉ pioché au congélo
+// (Stock Tourier → À préparer ❄️), pas de la production → exclus du plan et du total.
+if (isLocalTour) { cV = 0; cT = 0; }
 
 const marketVals = {};
 let marketSum = 0;
@@ -7012,6 +7018,8 @@ let html = '<div class="date-bar">'
 // v20.42 — Bande "Pros à anticiper sur 7 jours" (Le Local prod_boul/prod_tour uniquement)
 if (isLocalBoul || isLocalTour) {
   html += renderProductionWeekStrip(currentVue);
+  // v20.165 — bandeau réassorts surgelés en attente (tant que tout n'est pas préparé)
+  html += tourierReassortBannerHtml();
 }
 
 // v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
@@ -7122,8 +7130,9 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Reste J-1 St-Av (déduit du Total)">Reste J-1</span>';
   }
   if (showVTS) {
-    if (isLocalBoul) {
+    if (isLocalBoul || isLocalTour) {
       // v20.17 — Boulangers Local : seul SA est pertinent (Veigné + Tours autonomes pour le pain)
+      // v20.165 — Touriers Local : idem, les réassorts V/T = surgelé → Stock Tourier ❄️
       headerHtml += '<span class="col-c">SA</span>';
     } else {
       headerHtml += '<span class="col-c">V</span>'
@@ -7177,7 +7186,8 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
 // v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
-+ (formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
+// v20.165 — Touriers : production comptée en PIÈCES (les caisses = réalité du congélo, Stock Tourier)
++ (!isLocalTour && formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
 + '</div>';
   if (showMatinV) {
     // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
@@ -7206,8 +7216,8 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input reste-j1-input' + (r.reste > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(resteDisp) + '" placeholder="-" oninput="handleResteJ1FromLocal(this)" onfocus="this.select()" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:700">';
   }
   if (showVTS) {
-    if (isLocalBoul) {
-      // v20.17 — Boulangers Local : afficher uniquement SA
+    if (isLocalBoul || isLocalTour) {
+      // v20.17 — Boulangers Local : afficher uniquement SA · v20.165 — Touriers idem
       rowHtml += '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
     } else {
       rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
@@ -11980,6 +11990,78 @@ async function loadTourierReassort() {
   });
 }
 function changeTourierDate(delta) { tourierDate = addDays(tourierDate, delta); loadTourierStock().then(renderStock); }
+
+// v20.165 — Réassorts surgelés en attente (envoyés, pas préparés, aujourd'hui + demain)
+// → bandeau permanent sur Prod. Boulangers/Touriers + pop-up 1×/jour à l'arrivée au Local.
+let tourierPendingReassort = null; // { total, parts: ['Veigné : 18 produits (aujourd hui)', …] }
+async function checkTourierReassortAlert(showPopup) {
+  if (currentBoutique !== 'local') return;
+  const d0 = todayISO(), d1 = addDays(d0, 1);
+  const { data, error } = await supa.from('reappros')
+    .select('boutique_id,product_id,service_date,commander,sent_at,prepared_at')
+    .eq('tenant_id', TENANT_ID)
+    .in('boutique_id', ['veigne', 'tours', 'saint-avertin'])
+    .in('service_date', [d0, d1])
+    .not('sent_at', 'is', null)
+    .is('prepared_at', null);
+  if (error || !data) return;
+  const catsT = ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs', 'bases_patisserie'];
+  const agg = {}; let total = 0;
+  data.forEach(function(r) {
+    if (!(parseQty(r.commander) > 0)) return;
+    const p = products.find(function(x) { return x.id === r.product_id; });
+    if (!p || catsT.indexOf(p.category) === -1) return;
+    if (getProductSupply(p, r.boutique_id) !== 'local') return;
+    const k = r.boutique_id + '|' + r.service_date;
+    agg[k] = (agg[k] || 0) + 1; total++;
+  });
+  if (!total) {
+    const hadBefore = !!tourierPendingReassort;
+    tourierPendingReassort = null;
+    if (hadBefore && (currentVue === 'prod_boul' || currentVue === 'prod_tour')) renderProduction();
+    return;
+  }
+  const parts = Object.keys(agg).sort().map(function(k) {
+    const b = k.split('|')[0], d = k.split('|')[1];
+    const when = d === d0 ? 'aujourd hui' : 'demain';
+    return (BOUTIQUE_NAMES[b] || b) + ' : ' + agg[k] + ' produit' + (agg[k] > 1 ? 's' : '') + ' (' + when + ')';
+  });
+  tourierPendingReassort = { total: total, parts: parts };
+  if (currentVue === 'prod_boul' || currentVue === 'prod_tour') renderProduction();
+  if (showPopup) {
+    const key = 'lbdd_reassort_popup_' + d0;
+    let seen = false;
+    try { seen = !!localStorage.getItem(key); } catch (e) {}
+    if (!seen) {
+      openTourierReassortPopup();
+      try { localStorage.setItem(key, '1'); } catch (e) {}
+    }
+  }
+}
+
+function tourierReassortBannerHtml() {
+  if (!tourierPendingReassort) return '';
+  return '<div class="metro-remind" style="border-left-color:var(--orange);cursor:pointer" onclick="setVue(\'stock_tour\')">📦 <div><strong>Réassort surgelé à préparer</strong> — '
+    + tourierPendingReassort.parts.map(escapeHtml).join(' · ')
+    + ' → appuie ici pour ouvrir le Stock Tourier ❄️</div></div>';
+}
+
+function openTourierReassortPopup() {
+  if (!tourierPendingReassort) return;
+  closeTourierReassortPopup();
+  const div = document.createElement('div');
+  div.id = 'reassort-popup';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(46,48,68,.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML = '<div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+    + '<div style="font-size:34px">📦</div>'
+    + '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:20px;font-weight:700;color:var(--brown);margin:6px 0 10px">Réassort à préparer</div>'
+    + '<div style="font-size:14.5px;color:var(--grey);line-height:1.6;margin-bottom:16px">' + tourierPendingReassort.parts.map(escapeHtml).join('<br>') + '</div>'
+    + '<button class="btn-gold" style="width:100%;margin-bottom:8px" onclick="closeTourierReassortPopup();setVue(\'stock_tour\')">Voir Stock Tourier ❄️</button>'
+    + '<button class="metro-btn" style="width:100%" onclick="closeTourierReassortPopup()">J ai vu</button>'
+    + '</div>';
+  document.body.appendChild(div);
+}
+function closeTourierReassortPopup() { const e = document.getElementById('reassort-popup'); if (e) e.remove(); }
 function tourierUnitLabel(p) { const c = formatConditioning(p); return c || (p && p.unit) || 'pièce'; }
 
 async function saveTourierField(pid, field, val) {
@@ -12015,12 +12097,14 @@ async function prepareTourierLine(boutique, productId) {
   const rows = (tourierReassort[boutique] || []).filter(function(r) { return r.product_id === productId && !r.prepared_at; });
   if (!rows.length) return;
   await applyTourierPrepared(rows); await loadTourierReassort(); renderStock();
+  checkTourierReassortAlert(false); // v20.165 — met à jour le bandeau réassort
 }
 async function prepareTourierBoutique(boutique) {
   const rows = (tourierReassort[boutique] || []).filter(function(r) { return !r.prepared_at; });
   if (!rows.length) return;
   if (!confirm('Marquer TOUT le réassort ' + (BOUTIQUE_NAMES[boutique] || boutique) + ' comme préparé ?\nLe stock sera décompté.')) return;
   await applyTourierPrepared(rows); await loadTourierReassort(); renderStock();
+  checkTourierReassortAlert(false); // v20.165 — met à jour le bandeau réassort
 }
 async function applyTourierPrepared(rows) {
   setSyncStatus('syncing'); const now = new Date().toISOString();
