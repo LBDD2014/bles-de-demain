@@ -6331,7 +6331,8 @@ if (!productionData[r.boutique_id]) productionData[r.boutique_id] = {};
 productionData[r.boutique_id][r.product_id] = {
 avoir: r.avoir || '',
 commander: r.commander || '',
-previs: r.previs == null ? '' : r.previs
+previs: r.previs == null ? '' : r.previs,
+sent_at: r.sent_at || null  // v20.163 — pour afficher la pâtisserie commandée au Local
 };
 });
 }
@@ -6832,13 +6833,29 @@ if (isToursProd) {
 } else if (isLocalBoul) {
   allProducts = products.filter(function(p) { return p.category === 'pains'; });
 } else if (isLocalTour) {
+  // v20.163 — en plus du critère v20.46, tout produit pâtisserie/base EFFECTIVEMENT
+  // commandé au Local ce jour (réappro envoyé, qty > 0, supply boutique = local)
+  // apparaît, quelle que soit sa config (usage réappro, bases_patisserie…).
+  // Corrige : commandes pâtisserie de Veigné (bretons, fonds, tartelettes) invisibles.
+  const patOrderedIds = {};
+  ['veigne', 'tours', 'saint-avertin'].forEach(function(b) {
+    Object.keys(productionData[b] || {}).forEach(function(pid) {
+      const row = productionData[b][pid];
+      if (!row || !row.sent_at || !(parseQty(row.commander) > 0)) return;
+      const pp = products.find(function(x) { return x.id === pid; });
+      if (pp && getProductSupply(pp, b) === 'local') patOrderedIds[pid] = true;
+    });
+  });
   allProducts = products.filter(function(p) {
     if (p.category === 'viennoiserie' || p.category === 'brioches_special') return true;
-    // v20.46 — Pâtisseries fabriquées au Local (Vigneronnes, tartelettes, cannelés…) à la suite,
-    // alimentées par la prévision St-Av. Critère : pâtisserie/gâteaux secs · source St-Av = local · version vente.
-    if ((p.category === 'patisserie_petits' || p.category === 'patisserie_gros' || p.category === 'gateaux_secs')
-        && getProductSupply(p, 'saint-avertin') === 'local'
+    const isPat = (p.category === 'patisserie_petits' || p.category === 'patisserie_gros'
+                || p.category === 'gateaux_secs' || p.category === 'bases_patisserie');
+    if (!isPat) return false;
+    // v20.46 — Pâtisseries fabriquées au Local (Vigneronnes, tartelettes, cannelés…),
+    // alimentées par la prévision St-Av. Critère : source St-Av = local · version vente.
+    if (getProductSupply(p, 'saint-avertin') === 'local'
         && (p.usage === 'ventes' || p.usage === 'both')) return true;
+    if (patOrderedIds[p.id]) return true;
     return false;
   });
 } else {
