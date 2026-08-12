@@ -2479,6 +2479,7 @@ let realtimeChannelPros = null;
 // v21.0.4 — Commandes pros (saisie côté boutique : Veigné, Tours, Le Local)
 let proOrdersData = [];               // commandes visibles depuis la boutique courante (avec items en jointure)
 let proOrderFilterPeriod = 'week';    // today | tomorrow | week
+let proOrdersSourceFilter = null;     // v20.172 — 'all' | boutique id (défaut : boutique courante à l'ouverture)
 let editingProOrderId = null;         // null = liste, 'new' = création, uuid = édition
 let proOrderDraft = null;             // working copy form
 let realtimeChannelProOrders = null;
@@ -3277,7 +3278,8 @@ renderAccessCodes();
 // v21.0.4 — Saisie commande pros par boutique (Veigné, Tours, Le Local)
 await loadAdminPros();              // pour le dropdown choix du pro
 await loadAdminProducts();          // pour avoir tous les products (incl. pros_only)
-await loadProOrders(currentBoutique);
+proOrdersSourceFilter = currentBoutique; // v20.172 — filtre boutique, défaut = ma boutique
+await loadProOrders(proOrdersSourceFilter);
 subscribeRealtimeProOrders(currentBoutique);
 renderProOrders();
 } else if (v === 'marche') {
@@ -10664,12 +10666,13 @@ async function applyGenerateRecurring() {
 
 async function loadProOrders(boutique) {
   // On charge les commandes avec leurs items via select imbriqué Supabase
-  const { data, error } = await supa
+  // v20.172 — boutique = 'all' → toutes les boutiques (filtre de l'onglet Pros)
+  let q = supa
     .from('pro_orders')
     .select('*, pro_order_items(*)')
-    .eq('tenant_id', TENANT_ID)
-    .eq('boutique_source', boutique)
-    .order('date_livraison', { ascending: true });
+    .eq('tenant_id', TENANT_ID);
+  if (boutique && boutique !== 'all') q = q.eq('boutique_source', boutique);
+  const { data, error } = await q.order('date_livraison', { ascending: true });
   if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
   proOrdersData = data || [];
 }
@@ -10679,14 +10682,14 @@ function subscribeRealtimeProOrders(boutique) {
   realtimeChannelProOrders = supa.channel('pro_orders_' + TENANT_ID + '_' + boutique)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_orders' },
       async function() {
-        await loadProOrders(boutique);
+        await loadProOrders(proOrdersSourceFilter || boutique); // v20.172 — respecte le filtre en cours
         if (currentBoutique === boutique && currentVue === 'pros_orders' && editingProOrderId === null) {
           renderProOrders();
         }
       })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pro_order_items' },
       async function() {
-        await loadProOrders(boutique);
+        await loadProOrders(proOrdersSourceFilter || boutique); // v20.172
         if (currentBoutique === boutique && currentVue === 'pros_orders' && editingProOrderId === null) {
           renderProOrders();
         }
@@ -10882,6 +10885,13 @@ function handleProOrderFilterPeriod(p) {
   renderProOrders();
 }
 
+// v20.172 — filtre par boutique source dans l'onglet Pros (Tous / Le Local / Veigné / Tours)
+async function handleProOrdersSourceFilter(b) {
+  proOrdersSourceFilter = b;
+  await loadProOrders(b);
+  renderProOrders();
+}
+
 // v21.0.4.3 — Charge les pro_orders + items pour la vue Production
 async function loadProOrdersForProduction(boutique, dateISO) {
   // Pour Veigné = pro_orders boutique_source=veigne ; pour Le Local = local ; pour Tours = tours
@@ -11032,6 +11042,13 @@ function renderProOrders() {
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'week' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'week\')">Semaine</button>'
     + '</div>'
   + '</div>';
+  // v20.172 — filtre par boutique source (défaut : ma boutique)
+  const srcF = proOrdersSourceFilter || currentBoutique;
+  html += '<div class="pro-period-filter" style="margin-bottom:10px">'
+    + [['all', '🏠 Tous'], ['local', 'Le Local'], ['veigne', 'Veigné'], ['tours', 'Tours']].map(function(b) {
+        return '<button class="pro-period-btn ' + (srcF === b[0] ? 'active' : '') + '" onclick="handleProOrdersSourceFilter(\'' + b[0] + '\')">' + b[1] + '</button>';
+      }).join('')
+  + '</div>';
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + visible.length + '</div><div class="prod-kpi-lbl">Commandes</div></div>'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--blue)">' + nbItems + '</div><div class="prod-kpi-lbl">Lignes produit</div></div>'
@@ -11084,10 +11101,15 @@ function renderProOrders() {
         const specialHtml = hasSpecial
           ? '<div class="pro-order-special-inline">⭐ ' + escapeHtml(o.notes) + '</div>'
           : '';
+        // v20.172 — badge boutique source quand on regarde « Tous »
+        const srcColors = { 'local': '#8B6914', 'veigne': '#4A7C59', 'tours': '#2C5F8A', 'saint-avertin': '#D4701A' };
+        const srcBadge = (srcF === 'all')
+          ? '<span style="font-size:10.5px;font-weight:700;color:white;background:' + (srcColors[o.boutique_source] || '#999') + ';border-radius:8px;padding:2px 7px;margin-left:6px;vertical-align:middle">' + escapeHtml(BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source || '?') + '</span>'
+          : '';
         html += '<div class="pro-order-card" onclick="openProOrderForm(\'' + escapeHtml(o.id) + '\')">'
           + '<div class="pro-order-main">'
             + '<div class="pro-order-card-header">'
-              + '<div class="pro-order-name">' + escapeHtml(proName) + '</div>'
+              + '<div class="pro-order-name">' + escapeHtml(proName) + srcBadge + '</div>'
               + '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>'
             + '</div>'
             + itemsHtml
