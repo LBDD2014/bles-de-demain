@@ -5602,25 +5602,44 @@ async function markProOrderDelivered(orderId, currentStatus) {
   renderLivraison();
 }
 
-function renderLivreurProOrdersSection() {
-  if (!livreurProOrders.length) return '';
+// v20.169 — Qui livre ce pro ce jour-là ? 'livreur' | 'retrait' (le pro vient chercher)
+// | 'boutique' (la boutique/Phil livre). Réglé par jour en fiche pro (jours_livraison[j].tournee) ;
+// défaut : Local/Veigné → tournée livreur, Tours/St-Av → la boutique gère.
+function proTourneeMode(pro, boutiqueSource, dateISO) {
+  const JOURS_DOW = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const day = JOURS_DOW[new Date(dateISO + 'T12:00').getDay()];
+  const cfg = pro && pro.jours_livraison && pro.jours_livraison[day];
+  const t = cfg && cfg.tournee;
+  if (t === 'livreur' || t === 'retrait' || t === 'boutique') return t;
+  return (boutiqueSource === 'local' || boutiqueSource === 'veigne') ? 'livreur' : 'boutique';
+}
 
+function renderLivreurProOrdersSection() {
   const prosMap = {};
   adminPros.forEach(function(p) { prosMap[p.id] = p; });
+  // v20.169 — la tournée ne montre que ce que le livreur livre vraiment (ex : Le Pavillon
+  // seulement mer/sam ; Table des Rochers et QG de Loulou viennent chercher → jamais)
+  const tourneeOrders = livreurProOrders.filter(function(o) {
+    const pro = prosMap[o.pro_id];
+    const src = o.boutique_source || (pro && pro.boutique_principale) || '?';
+    return proTourneeMode(pro, src, currentDate) === 'livreur';
+  });
+  if (!tourneeOrders.length) return '';
+
   const productsMap = {};
   (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
 
   // Groupe par boutique source
   const sourceOrder = ['local', 'veigne', 'tours', 'saint-avertin'];
   const bySource = {};
-  livreurProOrders.forEach(function(o) {
+  tourneeOrders.forEach(function(o) {
     const b = o.boutique_source || '?';
     if (!bySource[b]) bySource[b] = [];
     bySource[b].push(o);
   });
 
-  const aLivrer = livreurProOrders.filter(function(o) { return o.statut !== 'livre'; }).length;
-  const livres = livreurProOrders.filter(function(o) { return o.statut === 'livre'; }).length;
+  const aLivrer = tourneeOrders.filter(function(o) { return o.statut !== 'livre'; }).length;
+  const livres = tourneeOrders.filter(function(o) { return o.statut === 'livre'; }).length;
 
   let html = '<div class="info-banner" style="border-left-color:var(--gold);margin-top:14px"><strong>💼 Commandes Pros</strong> · ' + aLivrer + ' à livrer / ' + livres + ' livrée' + (livres > 1 ? 's' : '') + '</div>';
 
@@ -8571,7 +8590,8 @@ function handleProJourActif(jour) {
       actif: true,
       butoir_decalage: (cur.butoir_decalage != null ? cur.butoir_decalage : -1),
       butoir_heure: cur.butoir_heure || cur.butoir || '',
-      livraison: cur.livraison || ''
+      livraison: cur.livraison || '',
+      tournee: cur.tournee || '' // v20.169
     };
   }
   renderAdminPros();
@@ -9409,7 +9429,8 @@ async function saveProForm() {
         actif: true,
         butoir_decalage: (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1),
         butoir_heure: cfg.butoir_heure || null,
-        livraison: cfg.livraison || null
+        livraison: cfg.livraison || null,
+        tournee: cfg.tournee || null // v20.169 — livreur/retrait/boutique (null = auto selon boutique)
       };
     }
   });
@@ -9680,7 +9701,7 @@ function renderProForm(mc) {
   // v21.0.3 — Jours de livraison (7 jours, chaque jour = toggle + butoir + livraison)
   html += '<div class="pro-form-section">'
     + '<h3>Jours de livraison</h3>'
-    + '<div class="pro-form-hint" style="margin-bottom:10px">Coche les jours où le pro est livré. Butoir = jusqu\'à quand il peut passer commande. Livraison = heure cible.</div>';
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Coche les jours où le pro est livré. Butoir = jusqu\'à quand il peut passer commande. Livraison = heure cible. Livreur = qui livre (Auto : Local/Veigné → tournée livreur, Tours/St-Av → la boutique).</div>';
   PRO_JOURS.forEach(function(jp) {
     const jourId = jp[0];
     const jourLbl = jp[1];
@@ -9700,6 +9721,14 @@ function renderProForm(mc) {
           + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir_heure || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir_heure\', this.value)">'
           + '<label>Livraison</label>'
           + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.livraison || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'livraison\', this.value)">'
+          // v20.169 — qui livre ce jour-là ? (pilote la tournée du livreur)
+          + '<label>Livreur</label>'
+          + '<select class="pro-input" onchange="handleProJourField(\'' + jourId + '\', \'tournee\', this.value)">'
+            + '<option value=""' + (!cfg.tournee ? ' selected' : '') + '>Auto (selon boutique)</option>'
+            + '<option value="livreur"' + (cfg.tournee === 'livreur' ? ' selected' : '') + '>🚚 Tournée livreur</option>'
+            + '<option value="retrait"' + (cfg.tournee === 'retrait' ? ' selected' : '') + '>🚶 Vient chercher</option>'
+            + '<option value="boutique"' + (cfg.tournee === 'boutique' ? ' selected' : '') + '>🏪 Livré par la boutique</option>'
+          + '</select>'
         + '</div>'
         : '<div class="pro-jour-fields-off">—</div>')
     + '</div>';
