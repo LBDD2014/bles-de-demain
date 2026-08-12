@@ -14754,6 +14754,10 @@ return currentVue === 'production' || currentVue === 'recap' || currentVue === '
 let metroProducts = [], metroNeedsAll = [], metroChecks = {};
 // v20.161 — note libre par site + ruptures Metro (produit non trouvé, Phil y retourne)
 let metroNotes = {}, metroRuptures = {};
+// v20.170 — cycle Envoyer → Course faite : metro_needs = brouillon de la boutique,
+// metro_history done_at NULL = commande ENVOYÉE (seule visible au Récap de Phil),
+// done_at rempli = course faite → historique consultable par la boutique.
+let metroPending = [], metroHistory = [], metroHistOpen = false;
 let metroView = 'saisie'; // 'saisie' | 'recap'
 let metroManage = false, metroManageUnlocked = false, metroHideDone = false;
 const METRO_SITES = [
@@ -14765,16 +14769,21 @@ const METRO_SITES = [
 
 async function loadMetro() {
   setSyncStatus('syncing');
-  const [p, n, c, nt] = await Promise.all([
+  const histCutoff = addDays(todayISO(), -60) + 'T00:00:00Z'; // v20.170 — 60 j d'historique chargés
+  const [p, n, c, nt, hi] = await Promise.all([
     supa.from('metro_products').select('*').eq('tenant_id', TENANT_ID).order('ordre', { ascending: true }).order('nom', { ascending: true }),
     supa.from('metro_needs').select('*').eq('tenant_id', TENANT_ID),
     supa.from('metro_checks').select('*').eq('tenant_id', TENANT_ID),
-    supa.from('metro_notes').select('*').eq('tenant_id', TENANT_ID)
+    supa.from('metro_notes').select('*').eq('tenant_id', TENANT_ID),
+    supa.from('metro_history').select('*').eq('tenant_id', TENANT_ID)
+      .or('done_at.is.null,done_at.gte.' + histCutoff)
+      .order('sent_at', { ascending: false })
   ]);
-  if (p.error || n.error || c.error || nt.error) {
+  if (p.error || n.error || c.error || nt.error || hi.error) {
     setSyncStatus('error');
-    showToast('Erreur Metro : ' + (p.error || n.error || c.error || nt.error).message, 'error');
+    showToast('Erreur Metro : ' + (p.error || n.error || c.error || nt.error || hi.error).message, 'error');
     metroProducts = []; metroNeedsAll = []; metroChecks = {}; metroNotes = {}; metroRuptures = {};
+    metroPending = []; metroHistory = [];
     return;
   }
   metroProducts = (p.data || []).filter(function(x) { return x.actif !== false; });
@@ -14783,6 +14792,8 @@ async function loadMetro() {
   (c.data || []).forEach(function(r) { metroChecks[r.product_id] = !!r.checked; metroRuptures[r.product_id] = !!r.rupture; });
   metroNotes = {};
   (nt.data || []).forEach(function(r) { metroNotes[r.boutique_id] = r.note || ''; });
+  metroPending = (hi.data || []).filter(function(r) { return !r.done_at; });
+  metroHistory = (hi.data || []).filter(function(r) { return !!r.done_at; });
   setSyncStatus('ok');
 }
 
@@ -14792,6 +14803,28 @@ function metroQty(b, pid) {
 }
 function metroTotal(pid) {
   return METRO_SITES.reduce(function(a, s) { return a + metroQty(s[0], pid); }, 0);
+}
+// v20.170 — quantités ENVOYÉES (metro_history en attente) : la seule source du Récap
+function metroPendingQty(b, pid) {
+  const r = metroPending.find(function(x) { return x.boutique_id === b && x.product_id === pid; });
+  return r ? (parseInt(r.qty) || 0) : 0;
+}
+function metroPendingTotal(pid) {
+  return METRO_SITES.reduce(function(a, s) { return a + metroPendingQty(s[0], pid); }, 0);
+}
+// Nb de produits dont le brouillon diffère de l'envoyé (0 = tout est à jour chez Phil)
+function metroDiffCount(b) {
+  let n = 0;
+  const seen = {};
+  metroProducts.forEach(function(p) {
+    seen[p.id] = true;
+    if (metroQty(b, p.id) !== metroPendingQty(b, p.id)) n++;
+  });
+  // produits retirés du catalogue mais encore en attente : comptés aussi
+  metroPending.forEach(function(r) {
+    if (r.boutique_id === b && !seen[r.product_id] && (parseInt(r.qty) || 0) > 0) n++;
+  });
+  return n;
 }
 function metroCats() {
   const seen = [];
@@ -14818,9 +14851,20 @@ function renderMetro() {
 
 function renderMetroSaisie() {
   const b = currentBoutique;
-  let h = '<div class="metro-remind">🔔 <div>Saisis ici ce qu\'il te faut de Metro (courses <b>le lundi</b> en général). Rappel automatique le <b>samedi matin</b> dans les Messages.</div></div>';
+  // v20.170 — cycle Envoyer → Course faite (Phil peut passer plusieurs fois par semaine)
+  const pendB = metroPending.filter(function(r) { return r.boutique_id === b && (parseInt(r.qty) || 0) > 0; });
+  const nbDraft = metroProducts.filter(function(p) { return metroQty(b, p.id) > 0; }).length;
+  const diff = metroDiffCount(b);
+  let h = '<div class="metro-remind">🔔 <div>Saisis tes besoins puis appuie sur <b>✉️ Envoyer</b>. Phil ne voit que ce qui est <b>envoyé</b>. Après sa course, la liste repart à zéro.</div></div>';
   // v20.161 — note libre du site (produit spécifique hors catalogue, etc.)
   h += '<textarea class="metro-note-inp" placeholder="📝 Note pour la course (ex : un produit spécifique à prendre)…" onchange="metroSaveNote(this.value)">' + escapeHtml(metroNotes[b] || '') + '</textarea>';
+  // État de la commande + bouton Envoyer
+  if (diff > 0) {
+    h += '<button class="btn-gold" style="width:100%;margin:4px 0 10px" onclick="metroEnvoyerCommande()">✉️ Envoyer ma commande à Phil (' + nbDraft + ' produit' + (nbDraft > 1 ? 's' : '') + ')</button>';
+    if (pendB.length) h += '<div class="info-banner" style="border-left-color:var(--orange);margin-bottom:10px">✏️ Ta saisie a changé depuis le dernier envoi — appuie sur <b>Envoyer</b> pour mettre à jour la commande chez Phil.</div>';
+  } else if (pendB.length) {
+    h += '<div class="info-banner" style="border-left-color:var(--green);margin-bottom:10px">✅ <b>Commande envoyée</b> — en attente de la course (' + pendB.length + ' produit' + (pendB.length > 1 ? 's' : '') + '). Tu peux encore modifier ta saisie puis ré-envoyer.</div>';
+  }
   if (!metroProducts.length) return h + '<div class="loading">Catalogue Metro vide — ajoute des produits via 🛠️ Gérer (vue Récap courses).</div>';
   metroCats().forEach(function(cat) {
     const items = metroProducts.filter(function(p) { return p.categorie === cat; });
@@ -14828,19 +14872,91 @@ function renderMetroSaisie() {
     h += '<div class="metro-cat">' + escapeHtml(cat) + '</div>';
     items.forEach(function(p) {
       const q = metroQty(b, p.id);
+      const pq = metroPendingQty(b, p.id);
+      let sentTag = '';
+      if (pq > 0 && pq === q) sentTag = '<div class="metro-cond" style="color:var(--green);font-weight:700">✉️ envoyé</div>';
+      else if (pq !== q && (pq > 0 || q > 0)) sentTag = '<div class="metro-cond" style="color:var(--orange);font-weight:700">✉️ envoyé : ' + pq + ' — ré-envoie pour mettre à jour</div>';
       h += '<div class="metro-row">' + metroPhotoHtml(p)
         + '<div class="metro-info"><div class="metro-name">' + escapeHtml(p.nom) + '</div><div class="metro-cond">' + escapeHtml(p.conditionnement || '') + '</div>'
+        + sentTag
         + (metroRuptures[p.id] ? '<div><span class="metro-badge-rupt">🚫 Rupture Metro — Phil y retourne, en attendant on se débrouille</span></div>' : '')
         + '</div>'
         + '<div class="metro-qty' + (q === 0 ? ' mq-zero' : '') + '"><button onclick="metroStep(\'' + p.id + '\',-1)">−</button><span class="mq" id="mq_' + p.id + '">' + q + '</span><button onclick="metroStep(\'' + p.id + '\',1)">＋</button></div>'
         + '</div>';
     });
   });
+  h += renderMetroHistorique(b);
+  return h;
+}
+
+// v20.170 — envoi de la commande : photo du brouillon → metro_history (remplace l'envoi en attente)
+async function metroEnvoyerCommande() {
+  const b = currentBoutique;
+  const draft = metroProducts.map(function(p) { return { p: p, q: metroQty(b, p.id) }; }).filter(function(x) { return x.q > 0; });
+  const pendB = metroPending.filter(function(r) { return r.boutique_id === b; });
+  if (!draft.length && !pendB.length) { showToast('Rien à envoyer — saisis d\'abord des quantités', 'error'); return; }
+  if (!confirm('Envoyer ta commande Metro à Phil ?\n' + draft.length + ' produit(s).')) return;
+  setSyncStatus('syncing');
+  const now = new Date().toISOString();
+  // 1) produits du brouillon : mise à jour de l'envoi en attente, ou nouvelle ligne
+  for (const d of draft) {
+    const ex = pendB.find(function(r) { return r.product_id === d.p.id; });
+    if (ex) {
+      if ((parseInt(ex.qty) || 0) !== d.q) {
+        const r = await supa.from('metro_history').update({ qty: d.q, sent_at: now, updated_by: DEVICE_ID, updated_at: now }).eq('id', ex.id);
+        if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+      }
+    } else {
+      const r = await supa.from('metro_history').insert({
+        tenant_id: TENANT_ID, boutique_id: b, product_id: d.p.id, product_nom: d.p.nom,
+        qty: d.q, sent_at: now, updated_by: DEVICE_ID, updated_at: now
+      });
+      if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+    }
+  }
+  // 2) produits retirés du brouillon : l'envoi en attente passe à 0
+  for (const ex of pendB) {
+    if (!draft.some(function(d) { return d.p.id === ex.product_id; }) && (parseInt(ex.qty) || 0) !== 0) {
+      const r = await supa.from('metro_history').update({ qty: 0, sent_at: now, updated_by: DEVICE_ID, updated_at: now }).eq('id', ex.id);
+      if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+    }
+  }
+  setSyncStatus('ok');
+  await loadMetro(); renderMetro();
+  showToast('✉️ Commande envoyée à Phil', 'sync');
+}
+
+// v20.170 — historique consultation : les 4 dernières courses de la boutique
+function renderMetroHistorique(b) {
+  const done = metroHistory.filter(function(r) { return r.boutique_id === b && (parseInt(r.qty) || 0) > 0; });
+  if (!done.length) return '';
+  const runs = {};
+  done.forEach(function(r) { const k = r.done_at; (runs[k] = runs[k] || []).push(r); });
+  const keys = Object.keys(runs).sort().reverse().slice(0, 4);
+  if (!keys.length) return '';
+  let h = '<div class="prod-reassort-box" style="margin-top:14px">'
+    + '<div class="prod-reassort-header" onclick="metroHistOpen=!metroHistOpen;renderMetro()">'
+    + '<span>📜 <strong>Courses précédentes</strong> — consultation</span>'
+    + '<span class="prod-reassort-toggle">' + (metroHistOpen ? '▲' : '▼') + '</span></div>';
+  if (metroHistOpen) {
+    h += '<div class="prod-reassort-body">';
+    keys.forEach(function(k) {
+      const rows = runs[k].slice().sort(function(a, c) { return String(a.product_nom || a.product_id).localeCompare(String(c.product_nom || c.product_id)); });
+      h += '<div class="prod-reassort-cat">✅ Course du ' + escapeHtml(formatDateFr(String(k).slice(0, 10))) + '</div>';
+      rows.forEach(function(r) {
+        h += '<div class="prod-reassort-row"><span class="prod-reassort-name">' + escapeHtml(r.product_nom || r.product_id) + '</span>'
+          + '<span class="prod-reassort-cells"><span class="prod-reassort-cell"><strong>' + (parseInt(r.qty) || 0) + '</strong></span></span></div>';
+      });
+    });
+    h += '</div>';
+  }
+  h += '</div>';
   return h;
 }
 
 function renderMetroRecap() {
-  const lignes = metroProducts.filter(function(p) { return metroTotal(p.id) > 0; });
+  // v20.170 — le Récap ne montre que l'ENVOYÉ (metro_history en attente), plus la saisie live
+  const lignes = metroProducts.filter(function(p) { return metroPendingTotal(p.id) > 0; });
   const todo = lignes.filter(function(p) { return !metroChecks[p.id]; }).length;
   const done = lignes.length - todo;
   let h = '<div class="metro-toolbar"><span><b>' + todo + '</b> à prendre · <b>' + done + '</b> cochés</span>'
@@ -14850,6 +14966,13 @@ function renderMetroRecap() {
     + '<button class="metro-btn' + (metroManage ? ' on' : '') + '" onclick="metroToggleManage()">🛠️ Gérer</button>'
     + '<button class="metro-btn warn" onclick="metroResetRun()">✅ Course faite</button>'
     + '</span></div>';
+  // v20.170 — saisies non envoyées : petite alerte pour appeler la boutique avant de partir
+  const sitesNonEnvoyes = METRO_SITES.filter(function(s) { return metroDiffCount(s[0]) > 0; });
+  if (sitesNonEnvoyes.length) {
+    h += '<div class="info-banner" style="border-left-color:#999;color:var(--grey);font-size:12.5px">⚠️ Saisie <b>non envoyée</b> : '
+      + sitesNonEnvoyes.map(function(s) { return '<b style="color:' + s[2] + '">' + s[1] + '</b> (' + metroDiffCount(s[0]) + ')'; }).join(' · ')
+      + ' — à vérifier avec eux avant de partir.</div>';
+  }
   // v20.161 — notes des sites (nom du site + pastille couleur devant chaque note)
   const sitesAvecNote = METRO_SITES.filter(function(s) { return (metroNotes[s[0]] || '').trim() !== ''; });
   if (sitesAvecNote.length) {
@@ -14859,7 +14982,7 @@ function renderMetroRecap() {
   }
   if (!metroProducts.length) return h + '<div class="loading">Catalogue vide — 🛠️ Gérer pour ajouter des produits.</div>';
   const src = metroManage ? metroProducts : lignes;
-  if (!src.length) return h + '<div class="loading">Aucun besoin saisi pour l\'instant. Les boutiques remplissent leur onglet Metro, et tout apparaît ici.</div>';
+  if (!src.length) return h + '<div class="loading">Aucune commande envoyée pour l\'instant. Les boutiques saisissent puis appuient sur ✉️ Envoyer, et tout apparaît ici.</div>';
   metroCats().forEach(function(cat) {
     const items = src.filter(function(p) { return p.categorie === cat; });
     if (!items.length) return;
@@ -14868,7 +14991,7 @@ function renderMetroRecap() {
       const isDone = !!metroChecks[p.id];
       if (!metroManage && metroHideDone && isDone) return;
       const chips = METRO_SITES.map(function(s) {
-        const q = metroQty(s[0], p.id);
+        const q = metroPendingQty(s[0], p.id);
         if (!q) return '';
         return '<span class="metro-st" style="color:' + s[2] + '"><span class="d" style="background:' + s[2] + '"></span>' + s[1] + ' ' + q + '</span>';
       }).join('');
@@ -14878,7 +15001,7 @@ function renderMetroRecap() {
         + (isRupt && !metroManage ? '<div><span class="metro-badge-rupt">🚫 Rupture Metro</span></div>' : '')
         + (chips ? '<div class="metro-split">' + chips + '</div>' : '')
         + '</div>'
-        + '<div class="metro-total"><div class="t">' + metroTotal(p.id) + '</div><div class="l">total</div></div>'
+        + '<div class="metro-total"><div class="t">' + metroPendingTotal(p.id) + '</div><div class="l">total</div></div>'
         + (metroManage
           ? '<div class="metro-mbtns"><button onclick="metroEditProduct(\'' + p.id + '\')" title="Modifier">✏️</button><button class="del" onclick="metroDeleteProduct(\'' + p.id + '\')" title="Supprimer">🗑️</button></div>'
           : '<button class="metro-rupt-btn" onclick="metroToggleRupture(\'' + p.id + '\')" title="Rupture chez Metro (garde la quantité, prévient les boutiques)">🚫</button>'
@@ -14943,17 +15066,22 @@ async function metroSaveNote(val) {
 
 async function metroResetRun() {
   const ruptIds = Object.keys(metroRuptures).filter(function(k) { return metroRuptures[k]; });
-  let msg = 'Course faite ?\nRemet les besoins à zéro, décoche tout et efface les notes (prêt pour la semaine prochaine).';
-  if (ruptIds.length) msg += '\n' + ruptIds.length + ' produit(s) en rupture gardent leur quantité pour le prochain passage.';
+  let msg = 'Course faite ?\nLa commande passe en historique, les saisies repartent à zéro et les notes s\'effacent — prêt pour un nouveau passage.';
+  if (ruptIds.length) msg += '\n' + ruptIds.length + ' produit(s) en rupture restent en attente pour le prochain passage.';
   if (!confirm(msg)) return;
   setSyncStatus('syncing');
-  let q1 = supa.from('metro_needs').update({ qty: 0, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('qty', 0);
+  const nowISO = new Date().toISOString();
+  // v20.170 — l'envoi en attente devient historique (consultable par les boutiques), sauf ruptures
+  let q0 = supa.from('metro_history').update({ done_at: nowISO, updated_at: nowISO }).eq('tenant_id', TENANT_ID).is('done_at', null);
+  if (ruptIds.length) q0 = q0.not('product_id', 'in', '("' + ruptIds.join('","') + '")');
+  const r0 = await q0;
+  let q1 = supa.from('metro_needs').update({ qty: 0, updated_at: nowISO }).eq('tenant_id', TENANT_ID).neq('qty', 0);
   if (ruptIds.length) q1 = q1.not('product_id', 'in', '("' + ruptIds.join('","') + '")');
   const r1 = await q1;
-  const r2 = await supa.from('metro_checks').update({ checked: false, updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).eq('checked', true);
-  const r3 = await supa.from('metro_notes').update({ note: '', updated_at: new Date().toISOString() }).eq('tenant_id', TENANT_ID).neq('note', '');
-  if (r1.error || r2.error || r3.error) { setSyncStatus('error'); showToast((r1.error || r2.error || r3.error).message, 'error'); return; }
-  await loadMetro(); renderMetro(); showToast('Course remise à zéro', 'sync');
+  const r2 = await supa.from('metro_checks').update({ checked: false, updated_at: nowISO }).eq('tenant_id', TENANT_ID).eq('checked', true);
+  const r3 = await supa.from('metro_notes').update({ note: '', updated_at: nowISO }).eq('tenant_id', TENANT_ID).neq('note', '');
+  if (r0.error || r1.error || r2.error || r3.error) { setSyncStatus('error'); showToast((r0.error || r1.error || r2.error || r3.error).message, 'error'); return; }
+  await loadMetro(); renderMetro(); showToast('Course faite — commande passée en historique', 'sync');
 }
 
 async function metroToggleManage() {
