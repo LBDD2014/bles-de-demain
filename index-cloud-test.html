@@ -6443,8 +6443,12 @@ productionData[r.boutique_id][r.product_id] = {
 avoir: r.avoir || '', commander: r.commander || '',
 previs: r.previs == null ? '' : r.previs
 };
+// v20.166 — ne redessiner que sur un onglet Production : sinon (Stock Tourier, etc.)
+// l'écran Production écrasait la vue en cours (ex : pointage ✓ préparé au Stock Tourier)
+if (currentVue === 'production' || currentVue === 'prod_boul' || currentVue === 'prod_tour') {
 renderProduction();
 showToast('Commande mise a jour (' + PROD_BOUTIQUE_LABELS[r.boutique_id] + ')', 'sync');
+}
 }).subscribe();
 }
 
@@ -6512,8 +6516,11 @@ productionLocalData[r.product_id] = {
 produit: r.produit == null ? '' : String(r.produit).replace('.', ','),
 stock:   r.stock   == null ? '' : String(r.stock).replace('.', ',')
 };
+// v20.166 — même garde : pas de redraw Production hors des onglets Production
+if (currentVue === 'production' || currentVue === 'prod_boul' || currentVue === 'prod_tour') {
 renderProduction();
 showToast('Production mise a jour', 'sync');
+}
 }).subscribe();
 }
 
