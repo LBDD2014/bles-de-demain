@@ -8953,6 +8953,9 @@ function renderProInterface() {
     html += '<div class="info-banner" style="border-left-color:var(--brown-mid);margin-bottom:14px"><em style="font-size:12px">Aucun jour de livraison disponible pour le moment. Toutes les heures butoir des prochains jours sont dépassées, ou aucun jour n\'est configuré côté boulangerie. Contacte ta boulangerie si besoin.</em></div>';
   }
 
+  // v20.173 — Mon équipe : le client gère lui-même ses contacts + qui peut commander
+  html += renderProInterfaceTeam();
+
   // Section "À venir"
   html += '<div style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:var(--brown);margin:14px 0 8px">📋 Commandes à venir (' + upcoming.length + ')</div>';
   if (!upcoming.length) {
@@ -8998,6 +9001,7 @@ function renderProInterfaceOrdersList(orders, productsMap, pro, canShowActions) 
         + '<div><strong style="color:var(--brown);font-size:14px">' + escapeHtml(formatDateFr(o.date_livraison)) + '</strong>'
           + ' <span style="color:#999;font-size:11px">· ' + escapeHtml(boutiqueLbl) + '</span>'
           + ' <span style="color:' + statutColor + ';font-size:11px;font-weight:700"> · ' + statutLbl + '</span>'
+          + (proOrderByName(o) ? ' <span style="color:var(--brown-mid);font-size:11px">· 👤 ' + escapeHtml(proOrderByName(o)) + '</span>' : '')
         + '</div>'
         + '<div style="font-weight:800;color:var(--gold-dark)">' + (total > 0 ? total.toFixed(2).replace('.', ',') + ' €' : '—') + '</div>'
       + '</div>';
@@ -9044,12 +9048,14 @@ function openProInterfaceForm(orderId) {
   proInterfaceFormOpen = orderId;
   if (orderId === 'new') {
     const dates = getAvailableDatesForPro(pro);
+    const elig = proTeamEligible();
     proInterfaceDraft = {
       id: null,
       date_livraison: dates[0] || '',
       boutique_source: pro.boutique_principale || 'local',
       statut: 'confirme',
       notes: '',
+      ordered_by: (elig.length === 1 ? elig[0].nom : ''), // v20.173 — pré-choisi si 1 seul autorisé
       items: []
     };
     // Pré-remplir avec template_items si configuré (pratique pour récurrent)
@@ -9074,6 +9080,7 @@ function openProInterfaceForm(orderId) {
       boutique_source: o.boutique_source,
       statut: o.statut || 'confirme',
       notes: o.notes || '',
+      ordered_by: proOrderByName(o) || '', // v20.173
       items: (o.pro_order_items || []).map(function(it) {
         return { id: it.id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique };
       })
@@ -9138,6 +9145,101 @@ function removeProInterfaceItem(idx) {
 // === v21.4 — Réassort pro en 1 touche : "comme la dernière fois" / "comme la semaine dernière" ===
 
 // Dernière commande passée (livraison < aujourd'hui), tous jours confondus, avec produits
+// ===== v20.173 — « 👥 Mon équipe » : contacts gérés par le client pro lui-même =====
+// pros.contacts (jsonb) : [{nom, tel, role, peut_commander}] — peut_commander absent = true.
+// Un seul lien par client (choix Phil 12/08) : déclaratif, le nom choisi est tracé sur la commande.
+let proTeamOpen = false;       // section dépliée ?
+let proTeamEditIdx = null;     // null = fermé, -1 = nouveau, n = édition contact n
+
+function proTeamContacts() {
+  const c = proInterfacePro && proInterfacePro.contacts;
+  return Array.isArray(c) ? c : [];
+}
+function proTeamEligible() {
+  return proTeamContacts().filter(function(c) { return c && c.nom && c.peut_commander !== false; });
+}
+
+function renderProInterfaceTeam() {
+  const contacts = proTeamContacts();
+  let h = '<div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(61,43,31,0.05)">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="proTeamOpen=!proTeamOpen;renderProInterface()">'
+    + '<div style="font-family:Georgia,serif;font-weight:700;color:var(--brown)">👥 Mon équipe <span style="font-size:11px;color:#999;font-weight:500">(' + contacts.length + ')</span></div>'
+    + '<span style="color:var(--gold-dark);font-size:12px">' + (proTeamOpen ? '▲' : '▼') + '</span></div>';
+  if (proTeamOpen) {
+    h += '<div style="font-size:11.5px;color:var(--brown-mid);margin:8px 0 10px">Ajoute ici les personnes de ton équipe et coche qui peut passer commande. Le nom choisi est enregistré sur chaque commande.</div>';
+    if (!contacts.length) h += '<div style="color:var(--brown-mid);font-style:italic;font-size:12.5px;margin-bottom:8px">Aucun contact pour l\'instant.</div>';
+    contacts.forEach(function(c, i) {
+      const can = c.peut_commander !== false;
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #F5F0E8">'
+        + '<div style="min-width:0"><strong style="color:var(--brown);font-size:13.5px">' + escapeHtml(c.nom || '?') + '</strong>'
+        + (c.role ? ' <span style="color:#999;font-size:11.5px">· ' + escapeHtml(c.role) + '</span>' : '')
+        + (c.tel ? '<div style="font-size:11.5px;color:var(--brown-mid)">📞 ' + escapeHtml(c.tel) + '</div>' : '')
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'
+        + (can ? '<span style="font-size:10.5px;font-weight:700;color:var(--green);background:#EFF7F1;border-radius:8px;padding:2px 7px">✓ commande</span>'
+               : '<span style="font-size:10.5px;font-weight:700;color:#999;background:#F3F0E9;border-radius:8px;padding:2px 7px">consultation</span>')
+        + '<button onclick="proTeamEditIdx=' + i + ';renderProInterface()" style="padding:6px 9px;background:#F5F0E5;border:1px solid #E0D8C8;border-radius:7px;font-size:12px;cursor:pointer">✏️</button>'
+        + '</div></div>';
+    });
+    h += '<button onclick="proTeamEditIdx=-1;renderProInterface()" style="width:100%;margin-top:10px;padding:9px;background:transparent;border:1px dashed var(--gold);border-radius:8px;color:var(--gold-dark);font-size:12.5px;font-weight:700;cursor:pointer">＋ Ajouter une personne</button>';
+    if (proTeamEditIdx !== null) {
+      const isNew = proTeamEditIdx === -1;
+      const c = isNew ? { nom: '', tel: '', role: '', peut_commander: true } : (contacts[proTeamEditIdx] || {});
+      h += '<div style="background:#FBF7EF;border:1px solid var(--gold-light);border-radius:10px;padding:12px;margin-top:10px">'
+        + '<div style="font-weight:700;color:var(--brown);font-size:13px;margin-bottom:8px">' + (isNew ? '＋ Nouvelle personne' : '✏️ Modifier') + '</div>'
+        + '<input id="ptm-nom" placeholder="Nom (obligatoire)" value="' + escapeHtml(c.nom || '') + '" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:7px;font-size:13px;margin-bottom:7px">'
+        + '<input id="ptm-tel" placeholder="Téléphone (optionnel)" value="' + escapeHtml(c.tel || '') + '" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:7px;font-size:13px;margin-bottom:7px">'
+        + '<input id="ptm-role" placeholder="Rôle (ex : chef, second, salle…)" value="' + escapeHtml(c.role || '') + '" style="width:100%;padding:9px;border:1px solid #E0D8C8;border-radius:7px;font-size:13px;margin-bottom:8px">'
+        + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--brown);margin-bottom:10px"><input id="ptm-can" type="checkbox"' + (c.peut_commander !== false ? ' checked' : '') + '> Peut passer commande</label>'
+        + '<div style="display:flex;gap:6px">'
+        + '<button onclick="proTeamEditIdx=null;renderProInterface()" style="flex:1;padding:9px;background:#F0EAE0;border:none;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--brown);cursor:pointer">Annuler</button>'
+        + (!isNew ? '<button onclick="proTeamDelete(' + proTeamEditIdx + ')" style="padding:9px 12px;background:#FEF2F2;border:1px solid var(--red);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--red);cursor:pointer">🗑️</button>' : '')
+        + '<button onclick="proTeamSave(' + proTeamEditIdx + ')" style="flex:2;padding:9px;background:var(--gold);border:none;border-radius:8px;font-size:12.5px;font-weight:700;color:white;cursor:pointer">✓ Enregistrer</button>'
+        + '</div></div>';
+    }
+  }
+  h += '</div>';
+  return h;
+}
+
+async function proTeamPersist(contacts) {
+  const { error } = await supa.from('pros').update({ contacts: contacts })
+    .eq('tenant_id', TENANT_ID).eq('id', proInterfacePro.id);
+  if (error) { alert('Erreur : ' + error.message); return false; }
+  proInterfacePro.contacts = contacts;
+  return true;
+}
+async function proTeamSave(idx) {
+  const nom = (document.getElementById('ptm-nom').value || '').trim();
+  if (!nom) { alert('Le nom est obligatoire.'); return; }
+  const entry = {
+    nom: nom,
+    tel: (document.getElementById('ptm-tel').value || '').trim(),
+    role: (document.getElementById('ptm-role').value || '').trim(),
+    peut_commander: !!document.getElementById('ptm-can').checked
+  };
+  const contacts = proTeamContacts().slice();
+  if (idx === -1) contacts.push(entry); else contacts[idx] = Object.assign({}, contacts[idx], entry);
+  if (!(await proTeamPersist(contacts))) return;
+  proTeamEditIdx = null;
+  renderProInterface();
+}
+async function proTeamDelete(idx) {
+  const contacts = proTeamContacts().slice();
+  const c = contacts[idx];
+  if (!confirm('Retirer « ' + ((c && c.nom) || '?') + ' » de l\'équipe ?')) return;
+  contacts.splice(idx, 1);
+  if (!(await proTeamPersist(contacts))) return;
+  proTeamEditIdx = null;
+  renderProInterface();
+}
+
+// Nom du commanditaire tracé dans created_by ('pro_self:Kevin') — null si non renseigné
+function proOrderByName(o) {
+  return (o && typeof o.created_by === 'string' && o.created_by.indexOf('pro_self:') === 0)
+    ? o.created_by.slice(9) : null;
+}
+
 function proFindLastOrder() {
   const today = todayISO();
   const cands = proInterfaceOrders.filter(function(o) {
@@ -9207,6 +9309,11 @@ async function saveProInterfaceOrder() {
     alert('Ajoute au moins un produit ou écris une note (commande spéciale).');
     return;
   }
+  // v20.173 — si des contacts « peut commander » existent, on demande qui commande
+  if (proTeamEligible().length && !(d.ordered_by || '').trim()) {
+    alert('Choisis qui passe la commande (👤 au-dessus des produits).');
+    return;
+  }
   const orderRow = {
     tenant_id: TENANT_ID,
     pro_id: pro.id,
@@ -9214,7 +9321,7 @@ async function saveProInterfaceOrder() {
     boutique_source: d.boutique_source || pro.boutique_principale || 'local',
     statut: d.statut || 'confirme',
     notes: (d.notes || '').trim() || null,
-    created_by: 'pro_self'
+    created_by: (d.ordered_by || '').trim() ? 'pro_self:' + d.ordered_by.trim() : 'pro_self' // v20.173
   };
   let orderId = d.id;
   if (!orderId) {
@@ -9300,6 +9407,21 @@ function renderProInterfaceForm(proEl) {
       html += '<div style="font-size:11px;color:var(--brown-mid);margin-top:6px"><em>Heure butoir : ' + bd.toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) + '</em></div>';
     }
   }
+  // v20.173 — qui passe la commande ? (contacts « peut commander » de Mon équipe)
+  const eligTeam = proTeamEligible();
+  if (eligTeam.length) {
+    html += '<label style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase;display:block;margin:12px 0 6px">👤 Qui passe la commande ?</label>';
+    html += '<select onchange="handleProInterfaceField(\'ordered_by\', this.value)" style="width:100%;padding:10px;border:1px solid #E0D8C8;border-radius:8px;font-size:14px;background:white">';
+    html += '<option value=""' + (!d.ordered_by ? ' selected' : '') + '>— Choisir —</option>';
+    eligTeam.forEach(function(c) {
+      html += '<option value="' + escapeHtml(c.nom) + '"' + (d.ordered_by === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>';
+    });
+    // Nom enregistré sur une ancienne commande mais retiré de l'équipe depuis
+    if (d.ordered_by && !eligTeam.some(function(c) { return c.nom === d.ordered_by; })) {
+      html += '<option value="' + escapeHtml(d.ordered_by) + '" selected>' + escapeHtml(d.ordered_by) + '</option>';
+    }
+    html += '</select>';
+  }
   html += '</div>';
 
   // Section items
@@ -9308,7 +9430,8 @@ function renderProInterfaceForm(proEl) {
   // v21.4 — Réassort en 1 touche : reprendre une commande précédente
   const lastOrder = proFindLastOrder();
   const lastWeekOrder = proFindSameDayLastWeek(d.date_livraison);
-  if (lastOrder || lastWeekOrder) {
+  // v20.173 — boutons toujours visibles (grisés si rien à recopier) pour que la fonction se voie
+  {
     html += '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
     const onStyle = 'flex:1;min-width:150px;padding:9px;background:#FBF7EF;border:1px solid var(--gold);border-radius:8px;color:var(--gold-dark);font-size:12px;font-weight:700;cursor:pointer';
     const offStyle = 'flex:1;min-width:150px;padding:9px;background:#F3F0E9;border:1px solid #E0D8C8;border-radius:8px;color:#B9AE98;font-size:12px;font-weight:700;cursor:not-allowed';
@@ -9319,6 +9442,9 @@ function renderProInterfaceForm(proEl) {
       ? '<button onclick="prefillProInterfaceFrom(\'lastweek\')" style="' + onStyle + '">📅 Comme la semaine dernière</button>'
       : '<button disabled title="Pas de commande ce jour la semaine dernière" style="' + offStyle + '">📅 Comme la semaine dernière</button>';
     html += '</div>';
+    if (!lastOrder && !lastWeekOrder) {
+      html += '<div style="font-size:11px;color:var(--brown-mid);margin:-6px 0 10px"><em>Dès ta première commande passée, tu pourras la reprendre en 1 touche ici.</em></div>';
+    }
   }
   if (!d.items.length) {
     html += '<div style="color:var(--brown-mid);font-style:italic;margin-bottom:10px">Aucun produit pour l\'instant.</div>';
@@ -11106,10 +11232,14 @@ function renderProOrders() {
         const srcBadge = (srcF === 'all')
           ? '<span style="font-size:10.5px;font-weight:700;color:white;background:' + (srcColors[o.boutique_source] || '#999') + ';border-radius:8px;padding:2px 7px;margin-left:6px;vertical-align:middle">' + escapeHtml(BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source || '?') + '</span>'
           : '';
+        // v20.173 — nom du commanditaire si la commande vient de l'espace pro
+        const byName = proOrderByName(o);
         html += '<div class="pro-order-card" onclick="openProOrderForm(\'' + escapeHtml(o.id) + '\')">'
           + '<div class="pro-order-main">'
             + '<div class="pro-order-card-header">'
-              + '<div class="pro-order-name">' + escapeHtml(proName) + srcBadge + '</div>'
+              + '<div class="pro-order-name">' + escapeHtml(proName) + srcBadge
+                + (byName ? ' <span style="font-size:11px;color:var(--brown-mid);font-weight:500">👤 ' + escapeHtml(byName) + '</span>' : '')
+              + '</div>'
               + '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>'
             + '</div>'
             + itemsHtml
