@@ -340,6 +340,48 @@ animation: attnPulse 1.5s ease-in-out infinite;
 .attention-alert .attn-x { margin-left: auto; font-weight: 800; padding: 2px 6px; opacity: .85; }
 @keyframes attnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
 
+/* v20.175 — Découpe gros pains (Tableau marché + lecture fournil) */
+.market-dec-row {
+grid-column: 1 / -1; background: #FBF7EF; border: 1px dashed var(--gold-light);
+border-radius: 10px; padding: 8px 10px; margin: 2px 0 6px;
+}
+.dec-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.dec-line:last-child { margin-bottom: 0; }
+.dec-lbl { font-size: 11px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: .05em; }
+.dec-qty-inp {
+width: 44px; padding: 6px 3px; text-align: center; font-size: 14px; font-weight: 700;
+border: 1.5px solid #E0D8C8; border-radius: 8px; background: white; color: var(--brown);
+}
+.div-chip {
+padding: 6px 10px; border-radius: 999px; border: 1.5px solid #E0D8C8;
+background: white; color: var(--brown-mid); font-size: 13px; font-weight: 700; cursor: pointer;
+font-family: inherit;
+}
+.div-chip.on { background: var(--gold); border-color: var(--gold); color: white; }
+.dec-poids { font-size: 11.5px; color: var(--green); font-weight: 700; white-space: nowrap; }
+.dec-x-btn { margin-left: auto; border: none; background: #FEF2F2; color: var(--red); border-radius: 8px; padding: 5px 8px; cursor: pointer; font-size: 12px; }
+.dec-reste-tag { font-size: 12px; font-weight: 700; color: var(--brown); padding: 6px 9px; background: #F0EAE0; border-radius: 8px; }
+.dec-add-btn {
+border: 1.5px dashed var(--gold); background: transparent; color: var(--gold-dark);
+border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.dec-open-btn {
+border: 1px solid var(--gold-light); background: #FBF7EF; color: var(--gold-dark);
+border-radius: 8px; padding: 4px 9px; font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+margin-top: 3px;
+}
+.dec-warn-txt { font-size: 11px; color: var(--orange); font-weight: 700; }
+.cut-badge-prod { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.cut-piece-prod {
+background: #FBF7EF; border: 1px solid var(--gold); border-radius: 8px;
+padding: 2px 7px; font-size: 11.5px; font-weight: 800; color: var(--brown); white-space: nowrap;
+}
+.cut-piece-prod small { font-weight: 700; color: var(--green); font-size: 10px; }
+.pesee-tag {
+display: inline-block; margin-top: 3px; background: #EFF3F7; border: 1px solid var(--blue);
+border-radius: 8px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: var(--blue); white-space: nowrap;
+}
+
 /* v20.8 — Bloc Réassorts magasins (consultation, replié) */
 .prod-reassort-box {
 background: #F5F0E5; border: 1px solid #E0D5BD;
@@ -7291,6 +7333,16 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
 // v20.165 — Touriers : production comptée en PIÈCES (les caisses = réalité du congélo, Stock Tourier)
 + (!isLocalTour && formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
+// v20.175 — Boulangers Local : consigne de découpe des marchés + rappel pesée
++ (isLocalBoul ? (function() {
+    let b = '';
+    activeMarketsForGrid.forEach(function(mid) {
+      const dm = marketUpcomingData[mid] && marketUpcomingData[mid]._decoupe && marketUpcomingData[mid]._decoupe[r.p.id];
+      if (dm) b += '<div>' + decoupeBadgeHtml(r.p.decoupe_config, dm.dec, dm.total) + '</div>';
+    });
+    if (!b && r.p.decoupe_config && r.p.decoupe_config.mode === 'pesee' && r.total > 0) b = '<div>' + peseeTagHtml(r.p.decoupe_config) + '</div>';
+    return b;
+  })() : '')
 + '</div>';
   if (showMatinV) {
     // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
@@ -7474,7 +7526,8 @@ marche:             r.marche             == null ? '' : String(r.marche).replace
 commande:           r.commande           == null ? '' : String(r.commande).replace('.', ','),
 commande_tranchee:  r.commande_tranchee  == null ? '' : String(r.commande_tranchee).replace('.', ','),
 pertes:             r.pertes             == null ? '' : String(r.pertes).replace('.', ','),
-product_notes:      r.product_notes || ''
+product_notes:      r.product_notes || '',
+decoupe:            r.decoupe || null // v20.175
 };
 });
 }
@@ -7508,6 +7561,7 @@ tenant_id: TENANT_ID, market_id: currentMarketId, service_date: currentMarketDat
 product_id: pid,
 marche: marche, commande: commande, commande_tranchee: commandeTr, pertes: pertes,
 product_notes: d.product_notes || null,
+decoupe: d.decoupe || null, // v20.175 — consigne de découpe (gros pains)
 updated_by: DEVICE_ID, updated_at: new Date().toISOString()
 }, { onConflict: 'tenant_id,market_id,service_date,product_id' });
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); }
@@ -7626,6 +7680,106 @@ updateTimers['m_daynote'] = setTimeout(function() { upsertMarketDayNote(marketDa
 function toggleMarketFilter() {
 marketFilterEmpty = !marketFilterEmpty;
 renderMarket();
+}
+
+// ===== v20.175 — Découpe des gros pains (bac ÷ N) + pesée fixe (tourtes) =====
+// products.decoupe_config : {mode:'bac', bac_kg} | {mode:'pesee', cru, cuit} | null
+// market_entries.decoupe  : {cuts:[{n,div}], reste: div|null} | null
+const DECOUPE_DIVS = [4, 5, 6, 7, 8];
+
+function decoupePoids(bacKg, div) {
+  if (!bacKg || !div) return '';
+  const kg = bacKg / div * 0.8; // −20 % de cuisson (indicatif)
+  return kg >= 1 ? ('≈ ' + kg.toFixed(1).replace('.', ',') + ' kg') : ('≈ ' + Math.round(kg * 1000 / 50) * 50 + ' g');
+}
+function peseeTagHtml(cfg) {
+  if (!cfg || cfg.mode !== 'pesee') return '';
+  const fmt = function(g) { return g >= 1000 ? (g / 1000).toFixed(g % 1000 ? 1 : 0).replace('.', ',') + ' kg' : g + ' g'; };
+  return '<span class="pesee-tag">⚖️ pesée ' + fmt(cfg.cru || 0) + ' cru → ' + fmt(cfg.cuit || 0) + ' cuit</span>';
+}
+// Badge compact « ✂️ 6 ÷4 ≈1,2 kg + reste ÷8 ≈600 g » (saisie + fournil)
+function decoupeBadgeHtml(cfg, dec, totalQty) {
+  if (!dec || !Array.isArray(dec.cuts)) return '';
+  const bacKg = cfg && cfg.mode === 'bac' ? cfg.bac_kg : null;
+  const parts = [];
+  let used = 0;
+  dec.cuts.forEach(function(c) {
+    const n = parseInt(c.n, 10) || 0; if (n <= 0) return;
+    used += n;
+    const w = decoupePoids(bacKg, c.div);
+    parts.push('<span class="cut-piece-prod">' + n + ' ÷' + c.div + (w ? ' <small>' + w + '</small>' : '') + '</span>');
+  });
+  if (dec.reste) {
+    const resteN = (totalQty != null && totalQty - used > 0) ? (totalQty - used) + ' ' : '';
+    const w = decoupePoids(bacKg, dec.reste);
+    parts.push('<span class="cut-piece-prod">reste ' + resteN + '÷' + dec.reste + (w ? ' <small>' + w + '</small>' : '') + '</span>');
+  }
+  if (!parts.length) return '';
+  return '<span class="cut-badge-prod">✂️ ' + parts.join('') + '</span>';
+}
+
+function marketDecoupeGet(pid) {
+  const m = marketEntriesData[pid];
+  return (m && m.decoupe && Array.isArray(m.decoupe.cuts)) ? m.decoupe : null;
+}
+function marketDecoupeSet(pid, dec) {
+  if (!marketEntriesData[pid]) marketEntriesData[pid] = { marche: '', commande: '', commande_tranchee: '', pertes: '', product_notes: '' };
+  marketEntriesData[pid].decoupe = dec;
+  upsertMarketEntry(pid);
+  renderMarket();
+}
+function marketDecoupeInit(pid) { marketDecoupeSet(pid, { cuts: [{ n: 4, div: 4 }], reste: 8 }); }
+function marketDecoupeClear(pid) { marketDecoupeSet(pid, null); }
+function marketDecoupeAddCut(pid) { const d = marketDecoupeGet(pid); if (!d) return; d.cuts.push({ n: 4, div: 5 }); marketDecoupeSet(pid, d); }
+function marketDecoupeDelCut(pid, i) {
+  const d = marketDecoupeGet(pid); if (!d) return;
+  d.cuts.splice(i, 1);
+  marketDecoupeSet(pid, d.cuts.length ? d : null);
+}
+function marketDecoupeSetN(pid, i, v) { const d = marketDecoupeGet(pid); if (!d || !d.cuts[i]) return; d.cuts[i].n = Math.max(1, parseInt(v, 10) || 1); marketDecoupeSet(pid, d); }
+function marketDecoupeSetDiv(pid, i, div) { const d = marketDecoupeGet(pid); if (!d || !d.cuts[i]) return; d.cuts[i].div = div; marketDecoupeSet(pid, d); }
+function marketDecoupeSetReste(pid, div) { const d = marketDecoupeGet(pid); if (!d) return; d.reste = (d.reste === div ? null : div); marketDecoupeSet(pid, d); }
+
+function marketDecoupeChips(cur, onclickPrefix) {
+  return DECOUPE_DIVS.map(function(d) {
+    return '<button class="div-chip' + (d === cur ? ' on' : '') + '" onclick="' + onclickPrefix + ',' + d + ')">÷' + d + '</button>';
+  }).join('');
+}
+// Sous-ligne éditeur, insérée sous la ligne produit du Tableau marché
+function marketDecoupeRowHtml(p, totalQty) {
+  const cfg = p.decoupe_config;
+  if (!cfg) return '';
+  if (cfg.mode === 'pesee') return '<div style="grid-column:1/-1;margin:-2px 0 6px">' + peseeTagHtml(cfg) + '</div>';
+  if (cfg.mode !== 'bac') return '';
+  const dec = marketDecoupeGet(p.id);
+  if (!dec) {
+    if (!(totalQty > 0)) return '';
+    return '<div style="grid-column:1/-1;margin:-2px 0 6px"><button class="dec-open-btn" onclick="marketDecoupeInit(\'' + p.id + '\')">✂️ Découpe (grosses pièces)…</button></div>';
+  }
+  const bacKg = cfg.bac_kg;
+  let h = '<div class="market-dec-row">';
+  let used = 0;
+  dec.cuts.forEach(function(c, i) {
+    used += parseInt(c.n, 10) || 0;
+    h += '<div class="dec-line">'
+      + '<input class="dec-qty-inp" type="number" min="1" value="' + (parseInt(c.n, 10) || 1) + '" onchange="marketDecoupeSetN(\'' + p.id + '\',' + i + ', this.value)">'
+      + '<span class="dec-lbl">en</span>'
+      + marketDecoupeChips(c.div, 'marketDecoupeSetDiv(\'' + p.id + '\',' + i)
+      + (bacKg ? '<span class="dec-poids">' + decoupePoids(bacKg, c.div) + '</span>' : '')
+      + '<button class="dec-x-btn" onclick="marketDecoupeDelCut(\'' + p.id + '\',' + i + ')">✕</button>'
+      + '</div>';
+  });
+  h += '<div class="dec-line"><span class="dec-reste-tag">Le reste</span><span class="dec-lbl">en</span>'
+    + marketDecoupeChips(dec.reste, 'marketDecoupeSetReste(\'' + p.id + '\'')
+    + (dec.reste && bacKg ? '<span class="dec-poids">' + decoupePoids(bacKg, dec.reste) + '</span>' : '')
+    + '</div>';
+  const reste = (totalQty || 0) - used;
+  h += '<div class="dec-line"><button class="dec-add-btn" onclick="marketDecoupeAddCut(\'' + p.id + '\')">＋ coupe</button>'
+    + '<button class="dec-x-btn" onclick="marketDecoupeClear(\'' + p.id + '\')" title="Retirer la découpe">Retirer ✂️</button>'
+    + (reste < 0 ? '<span class="dec-warn-txt">⚠️ coupes (' + used + ') > total (' + (totalQty || 0) + ')</span>' : '')
+    + '</div>';
+  h += '</div>';
+  return h;
 }
 
 function renderMarket() {
@@ -7757,6 +7911,8 @@ html += '<div class="market-row">'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsP  + '" data-pid="' + r.p.id + '" data-field="pertes"            value="' + escapeHtml(r.pertesRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
 + '<input type="text" class="market-note-inline" data-pid="' + r.p.id + '" data-field="product_notes" value="' + escapeHtml(r.notesRaw || '') + '" placeholder="ex: 600g, tranche..." oninput="handleMarketInput(this)">'
 + '</div>';
+// v20.175 — sous-ligne découpe (÷ bac) ou rappel pesée, si le produit est configuré
+html += marketDecoupeRowHtml(r.p, (r.marcheVal || 0) + (r.commandeVal || 0) + (r.commandeTranVal || 0));
   });
   });
 
@@ -7782,11 +7938,14 @@ if (error) return;
 // Total à produire pour ce produit/marche/date = marche + commande + commande_tranchee
 const total = (r.marche || 0) + (r.commande || 0) + (r.commande_tranchee || 0);
 if (total === 0) return;
-if (!marketUpcomingData[r.market_id]) marketUpcomingData[r.market_id] = { _date: r.service_date, _products: {} };
+if (!marketUpcomingData[r.market_id]) marketUpcomingData[r.market_id] = { _date: r.service_date, _products: {}, _decoupe: {} };
 if (r.service_date < marketUpcomingData[r.market_id]._date) {
 marketUpcomingData[r.market_id]._date = r.service_date;
 }
 marketUpcomingData[r.market_id]._products[r.product_id] = total;
+// v20.175 — consigne de découpe lue au fournil (Prod. Boulangers)
+if (!marketUpcomingData[r.market_id]._decoupe) marketUpcomingData[r.market_id]._decoupe = {};
+if (r.decoupe) marketUpcomingData[r.market_id]._decoupe[r.product_id] = { dec: r.decoupe, total: total };
 });
 }
 
@@ -8401,6 +8560,21 @@ const doit_avoir_par_boutique = {};
 // v21.2 — Suivi stock pro (checkbox)
 const suiviStockEl = document.getElementById('edit-suivi-stock-' + pid);
 const suivi_stock_pro = suiviStockEl ? !!suiviStockEl.checked : undefined;
+// v20.175 — Découpe marché
+const decModeEl = document.getElementById('edit-dec-mode-' + pid);
+let decoupe_config;
+if (decModeEl) {
+  if (decModeEl.value === 'bac') {
+    const kg = parseFloat(document.getElementById('edit-dec-backg-' + pid).value);
+    decoupe_config = { mode: 'bac', bac_kg: (!isNaN(kg) && kg > 0) ? kg : null };
+  } else if (decModeEl.value === 'pesee') {
+    const cru = parseInt(document.getElementById('edit-dec-cru-' + pid).value, 10);
+    const cuit = parseInt(document.getElementById('edit-dec-cuit-' + pid).value, 10);
+    decoupe_config = { mode: 'pesee', cru: (!isNaN(cru) ? cru : null), cuit: (!isNaN(cuit) ? cuit : null) };
+  } else {
+    decoupe_config = null;
+  }
+}
 if (!name) { showToast('Nom obligatoire', 'error'); return; }
 if (!category) { showToast('Catégorie obligatoire', 'error'); return; }
 setSyncStatus('syncing');
@@ -8412,6 +8586,7 @@ const updateFields = {
 };
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
 if (suivi_stock_pro !== undefined) updateFields.suivi_stock_pro = suivi_stock_pro;
+if (decoupe_config !== undefined) updateFields.decoupe_config = decoupe_config; // v20.175
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
@@ -11896,6 +12071,26 @@ if (isEditing) {
     + '<input type="checkbox" id="edit-suivi-stock-' + p.id + '"' + (p.suivi_stock_pro ? ' checked' : '') + ' style="width:20px;height:20px">'
     + '<span style="font-size:12px;color:var(--brown-mid)">Apparaît dans <strong>Stock Boul. Pro</strong> au Local + auto-décrément quand une commande pro est livrée</span>'
     + '</label></div>'
+    // v20.175 — Découpe marché (gros pains) : ÷ bac ou pesée fixe
+    + (function() {
+        const dc = p.decoupe_config || {};
+        const mode = dc.mode || '';
+        return '<div class="npf-row"><label class="npf-lbl">✂️ Découpe marché</label>'
+          + '<select id="edit-dec-mode-' + p.id + '" class="npf-input" onchange="var s=this.value;document.getElementById(\'edit-dec-bac-' + p.id + '\').style.display=(s===\'bac\'?\'\':\'none\');document.getElementById(\'edit-dec-pesee-' + p.id + '\').style.display=(s===\'pesee\'?\'\':\'none\')">'
+            + '<option value=""' + (!mode ? ' selected' : '') + '>— Aucune</option>'
+            + '<option value="bac"' + (mode === 'bac' ? ' selected' : '') + '>Bac ÷ N (grosses pièces marché)</option>'
+            + '<option value="pesee"' + (mode === 'pesee' ? ' selected' : '') + '>Pesée fixe (rappel cru → cuit)</option>'
+          + '</select></div>'
+          + '<div class="npf-row" id="edit-dec-bac-' + p.id + '" style="' + (mode === 'bac' ? '' : 'display:none') + '"><label class="npf-lbl">Poids du bac (kg)</label>'
+          + '<input type="number" step="0.5" min="1" max="20" id="edit-dec-backg-' + p.id + '" class="npf-input" value="' + (dc.bac_kg != null ? dc.bac_kg : '') + '" placeholder="ex : 6 — vide = pas de poids affichés"></div>'
+          + '<div class="npf-row" id="edit-dec-pesee-' + p.id + '" style="' + (mode === 'pesee' ? '' : 'display:none') + '"><label class="npf-lbl">Pesée (g)</label>'
+          + '<div style="display:flex;gap:6px;flex:1;align-items:center">'
+          + '<input type="number" step="50" min="50" id="edit-dec-cru-' + p.id + '" class="npf-input" value="' + (dc.cru || '') + '" placeholder="cru (ex : 1000)" style="flex:1">'
+          + '<span style="font-size:12px;color:var(--brown-mid)">cru →</span>'
+          + '<input type="number" step="50" min="50" id="edit-dec-cuit-' + p.id + '" class="npf-input" value="' + (dc.cuit || '') + '" placeholder="cuit (ex : 800)" style="flex:1">'
+          + '<span style="font-size:12px;color:var(--brown-mid)">cuit</span>'
+          + '</div></div>';
+      })()
     + '<div class="npf-actions">'
     + '<button class="btn-grey" onclick="cancelEditProduct()">Annuler</button>'
     + '<button class="btn-gold" onclick="saveEditProduct(\'' + p.id + '\')">Enregistrer</button>'
