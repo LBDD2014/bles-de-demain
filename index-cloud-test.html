@@ -7753,7 +7753,8 @@ function marketDecoupeRowHtml(p, totalQty) {
   if (cfg.mode !== 'bac') return '';
   const dec = marketDecoupeGet(p.id);
   if (!dec) {
-    if (!(totalQty > 0)) return '';
+    // v20.176 — bouton toujours visible (avant : masqué tant que qté = 0, donc
+    // invisible au chargement d'un marché encore vide → on croyait la fonction absente)
     return '<div style="grid-column:1/-1;margin:-2px 0 6px"><button class="dec-open-btn" onclick="marketDecoupeInit(\'' + p.id + '\')">✂️ Découpe (grosses pièces)…</button></div>';
   }
   const bacKg = cfg.bac_kg;
@@ -7809,7 +7810,8 @@ return (r.marcheVal != null && r.marcheVal !== 0) ||
 (r.commandeVal != null && r.commandeVal !== 0) ||
 (r.commandeTranVal != null && r.commandeTranVal !== 0) ||
 (r.pertesVal != null && r.pertesVal !== 0) ||
-(r.notesRaw && r.notesRaw !== '');
+(r.notesRaw && r.notesRaw !== '') ||
+!!marketDecoupeGet(r.p.id); // v20.176 — une découpe saisie = activité
 })
 : rows;
 
