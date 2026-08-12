@@ -15101,19 +15101,49 @@ function metroSlug(nom) {
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
 }
 
-async function metroAddProduct() {
-  const nom = prompt('Nom du produit :'); if (!nom || !nom.trim()) return;
-  const cond = prompt('Conditionnement (ex : 1 kg, sceau 5 kg, carton, pièce) :') || '';
+// v20.171 — formulaire d'ajout avec menu déroulant catégorie (fini les prompts à la chaîne)
+function metroAddProduct() {
+  closeMetroAddModal();
   const cats = metroCats();
-  const cat = (prompt('Catégorie :\n(existantes : ' + cats.join(' · ') + ')', cats[0] || 'Divers') || 'Divers').trim() || 'Divers';
+  const div = document.createElement('div');
+  div.id = 'metro-add-modal';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(46,48,68,.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML = '<div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+    + '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:19px;font-weight:700;color:var(--brown);margin-bottom:12px">＋ Nouveau produit Metro</div>'
+    + '<label class="sp-lbl">Nom</label>'
+    + '<input id="ma-nom" class="pro-input" style="width:100%;margin-bottom:10px" placeholder="ex : Papier toilettes">'
+    + '<label class="sp-lbl">Conditionnement (optionnel)</label>'
+    + '<input id="ma-cond" class="pro-input" style="width:100%;margin-bottom:10px" placeholder="ex : 1 kg, bidon 5L, carton, pièce">'
+    + '<label class="sp-lbl">Catégorie</label>'
+    + '<select id="ma-cat" class="pro-input" style="width:100%;margin-bottom:6px" onchange="document.getElementById(\'ma-cat-new\').style.display = (this.value === \'__new__\' ? \'block\' : \'none\')">'
+      + cats.map(function(c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('')
+      + '<option value="__new__">➕ Nouvelle catégorie…</option>'
+    + '</select>'
+    + '<input id="ma-cat-new" class="pro-input" style="width:100%;margin-bottom:10px;display:none" placeholder="Nom de la nouvelle catégorie">'
+    + '<div style="display:flex;gap:8px;margin-top:10px">'
+    + '<button class="metro-btn" style="flex:1" onclick="closeMetroAddModal()">Annuler</button>'
+    + '<button class="btn-gold" style="flex:2" onclick="metroAddProductSubmit()">＋ Ajouter</button>'
+    + '</div></div>';
+  document.body.appendChild(div);
+  const inp = document.getElementById('ma-nom');
+  if (inp) inp.focus();
+}
+function closeMetroAddModal() { const e = document.getElementById('metro-add-modal'); if (e) e.remove(); }
+async function metroAddProductSubmit() {
+  const nom = (document.getElementById('ma-nom').value || '').trim();
+  if (!nom) { showToast('Le nom est obligatoire', 'error'); return; }
+  const cond = (document.getElementById('ma-cond').value || '').trim();
+  let cat = document.getElementById('ma-cat').value;
+  if (cat === '__new__') cat = (document.getElementById('ma-cat-new').value || '').trim() || 'Divers';
   let id = metroSlug(nom);
   if (metroProducts.some(function(p) { return p.id === id; })) id += '_' + Date.now().toString(36).slice(-4);
   const maxOrdre = metroProducts.reduce(function(a, p) { return Math.max(a, p.ordre || 0); }, 0);
   const { error } = await supa.from('metro_products').insert({
-    id: id, tenant_id: TENANT_ID, nom: nom.trim(), conditionnement: cond.trim() || null,
+    id: id, tenant_id: TENANT_ID, nom: nom, conditionnement: cond || null,
     categorie: cat, actif: true, ordre: maxOrdre + 10
   });
   if (error) { showToast(error.message, 'error'); return; }
+  closeMetroAddModal();
   await loadMetro(); renderMetro(); showToast('Produit ajouté', 'sync');
 }
 
