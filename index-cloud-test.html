@@ -11755,6 +11755,8 @@ html += '<div class="new-prod-form">'
     return '<option value="' + escapeHtml(x.id) + '"' + (adminNewProductDraft.pros_only_id === x.id ? ' selected' : '') + '>' + escapeHtml(x.nom) + '</option>';
   }).join('')
 + '</select></div>'
+// v20.174 — le piège Idéal 2,4kg : expliquer ce que « Spécifique au pro » cache vraiment
++ '<div class="npf-hint" style="background:#FEF8E6;border-left:3px solid var(--orange);padding:6px 10px;margin:4px 0 8px">⚠️ « Spécifique au pro » = <strong>UN seul pro</strong>, produit <strong>invisible partout ailleurs</strong> (marché, boutiques, autres pros).<br>Vendu au <strong>marché + plusieurs pros</strong> ? Laisse « Produit standard » et coche-le dans le <strong>Catalogue restreint</strong> de chaque fiche pro concernée.</div>'
 + '<div class="npf-actions">'
 + '<button class="btn-grey" onclick="toggleNewProductForm()">Annuler</button>'
 + '<button class="btn-gold" onclick="saveNewProduct()">Creer</button>'
@@ -11886,6 +11888,8 @@ if (isEditing) {
         return '<option value="' + escapeHtml(x.id) + '"' + (p.pros_only_id === x.id ? ' selected' : '') + '>' + escapeHtml(x.nom) + '</option>';
       }).join('')
     + '</select></div>'
+    // v20.174 — même rappel que sur le formulaire de création
+    + '<div class="npf-hint" style="background:#FEF8E6;border-left:3px solid var(--orange);padding:6px 10px;margin:4px 0 8px">⚠️ « Spécifique au pro » = <strong>UN seul pro</strong>, produit <strong>invisible partout ailleurs</strong> (marché, boutiques, autres pros).<br>Vendu au <strong>marché + plusieurs pros</strong> ? Laisse « Produit standard » et coche-le dans le <strong>Catalogue restreint</strong> de chaque fiche pro concernée.</div>'
     // v21.2 — Suivi stock pro (apparaît dans Stock Boul. Pro + auto-décrément à la livraison)
     + '<div class="npf-row"><label class="npf-lbl">Suivi stock pro</label>'
     + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">'
