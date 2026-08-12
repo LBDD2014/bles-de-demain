@@ -6775,6 +6775,13 @@ productionReassortsExpanded = !productionReassortsExpanded;
 renderProduction();
 }
 
+// v20.168 — bloc « Réassorts à préparer — Ingrédients & autres » (Prod. Boulangers Local)
+let localMiscReassortsExpanded = true; // déplié par défaut : c'était invisible avant
+function toggleLocalMiscReassorts() {
+localMiscReassortsExpanded = !localMiscReassortsExpanded;
+renderProduction();
+}
+
 // v20.10 — édition directe de Matin V depuis "À produire" (boulanger ajuste)
 function handleMatinVInput(el) {
   const pid = el.dataset.pid;
@@ -6937,6 +6944,8 @@ const showApremSA = isLocalBoul;
 const showResteJ1 = isLocalBoul || isLocalTour;
 // v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
 const showVTS = !isVeignePat && !isLocalBoul && !isToursProd;
+// v20.168 — Boulangers Local : colonnes V/T pour les réassorts supply=local (Pain de mie…)
+const showVTBoul = isLocalBoul;
 const activeMarketsForGrid = (isVeignePat || isToursProd) ? [] : activeMarkets;
 // v20.10 — Veigné Pâtissier : table simplifiée, Produit/Stock/Écart inutiles
 // (pâtissiers gèrent leur stock surgelé en interne, boulangers ne remplissent jamais)
@@ -6952,6 +6961,7 @@ const fixedColsBefore = '1.3fr'
   + (showApremSA ? ' 0.65fr' : '')
   + (showResteJ1 ? ' 0.65fr' : '')
   + (showVTS ? ((isLocalBoul || isLocalTour) ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
+  + (showVTBoul ? ' 0.5fr 0.5fr' : '')
   + (showSpe ? ' 0.55fr' : '')
   + (showProsCol ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
@@ -6986,6 +6996,10 @@ cS = (supS === 'veigne') ? parseQty(vS && vS.commander) : 0;
 // v20.165 — Touriers : les réassorts Veigné/Tours sont du SURGELÉ pioché au congélo
 // (Stock Tourier → À préparer ❄️), pas de la production → exclus du plan et du total.
 if (isLocalTour) { cV = 0; cT = 0; }
+// v20.168 — Boulangers Local : les réassorts V/T supply=local (ex : Pain de mie)
+// comptent et s'affichent (v20.17 masquait V/T car ils cuisent leur pain sur place,
+// mais le pain de mie vient du Local → il était invisible). SA reste via Matin SA (v20.20).
+if (isLocalBoul) { cS = 0; }
 
 const marketVals = {};
 let marketSum = 0;
@@ -7017,7 +7031,8 @@ const cPros = showProsCol && proAgg[p.id] ? proAgg[p.id].totalQty : 0;
 // v20.18 — Le Local Boul : Total = Matin SA + Aprem + SA + Spé - Reste J-1
 // v21.0.4.3 — Total inclut désormais les besoins pros
 const totalReassort = cV + cT + cS;
-const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + (showVTS ? totalReassort : 0) + ((isVeignePat || isToursProd) ? 0 : marketSum) + cSpe + cPros;
+// v20.168 — isLocalBoul : inclure les réassorts V/T supply=local dans le total
+const total = (showMatinV ? cMatinV : 0) + cMatinSA + cAprem - cReste + ((showVTS || isLocalBoul) ? totalReassort : 0) + ((isVeignePat || isToursProd) ? 0 : marketSum) + cSpe + cPros;
 const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
@@ -7202,6 +7217,11 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
         + '<span class="col-c">SA</span>';
     }
   }
+  if (showVTBoul) {
+    // v20.168 — réassorts V/T supply=local (Pain de mie…) : de nouveau visibles
+    headerHtml += '<span class="col-c" title="Réassort Veigné (pain fourni par Le Local)">V</span>'
+      + '<span class="col-c" title="Réassort Tours (pain fourni par Le Local)">T</span>';
+  }
   if (showSpe) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Commandes spéciales du jour">⭐ Spé</span>';
   }
@@ -7287,6 +7307,10 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
         + '<div class="cell ' + (r.savertin > 0 ? '' : 'zero') + '">' + formatQty(r.savertin) + '</div>';
     }
   }
+  if (showVTBoul) {
+    rowHtml += '<div class="cell ' + (r.veigne > 0 ? '' : 'zero') + '">' + formatQty(r.veigne) + '</div>'
+      + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>';
+  }
   if (showSpe) {
     rowHtml += '<div class="cell ' + (r.spe > 0 ? '' : 'zero') + '" style="color:' + (r.spe > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.spe > 0 ? '700' : '400') + '">' + (r.spe > 0 ? '⭐' + formatQty(r.spe) : '0') + '</div>';
   }
@@ -7314,6 +7338,60 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   });
 
 html += '</div>';
+
+// v20.168 — Réassorts commandés au Local hors écrans de prod (ingrédients, sec-traiteur…) :
+// ni pains (grille ci-dessus), ni congélo tourier (Stock Tourier ❄️). Avant, la farine ou
+// l'huile commandées par une boutique n'apparaissaient NULLE PART au Local.
+if (isLocalBoul) {
+  const catsCoveredElsewhere = ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs', 'bases_patisserie'];
+  const miscRows = [];
+  products.forEach(function(p) {
+    if (catsCoveredElsewhere.indexOf(p.category) !== -1) return;
+    const q = { 'veigne': 0, 'tours': 0, 'saint-avertin': 0 };
+    let tot = 0;
+    PROD_BOUTIQUES.forEach(function(b) {
+      const sup = getProductSupply(p, b);
+      if (sup != null && sup !== 'local') return;
+      const row = productionData[b] && productionData[b][p.id];
+      const n = parseQty(row && row.commander);
+      if (n > 0) { q[b] = n; tot += n; }
+    });
+    if (tot > 0) miscRows.push({ p: p, veigne: q['veigne'], tours: q['tours'], savertin: q['saint-avertin'] });
+  });
+  if (miscRows.length) {
+    html += '<div class="prod-reassort-box" style="border:1.5px solid var(--orange)">'
+      + '<div class="prod-reassort-header" onclick="toggleLocalMiscReassorts()">'
+      + '<span>📦 <strong>Réassorts à préparer — Ingrédients & autres</strong> — ' + miscRows.length + ' produit' + (miscRows.length > 1 ? 's' : '') + ' commandé' + (miscRows.length > 1 ? 's' : '') + ' par les boutiques</span>'
+      + '<span class="prod-reassort-toggle">' + (localMiscReassortsExpanded ? '▲' : '▼') + '</span>'
+      + '</div>';
+    if (localMiscReassortsExpanded) {
+      html += '<div class="prod-reassort-body">';
+      const miscByCat = {};
+      miscRows.forEach(function(r) {
+        const c = r.p.category || 'autre';
+        (miscByCat[c] = miscByCat[c] || []).push(r);
+      });
+      Object.keys(miscByCat).sort(function(a, b) {
+        const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      }).forEach(function(cat) {
+        html += '<div class="prod-reassort-cat">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+        miscByCat[cat].forEach(function(r) {
+          const cond = formatConditioning(r.p) || r.p.unit || '';
+          html += '<div class="prod-reassort-row">'
+            + '<span class="prod-reassort-name">' + escapeHtml(r.p.name) + (cond ? ' <span class="prod-unit">' + escapeHtml(cond) + '</span>' : '') + '</span>'
+            + '<span class="prod-reassort-cells">';
+          if (r.veigne > 0) html += '<span class="prod-reassort-cell">V <strong>' + formatQty(r.veigne) + '</strong></span>';
+          if (r.tours > 0) html += '<span class="prod-reassort-cell">T <strong>' + formatQty(r.tours) + '</strong></span>';
+          if (r.savertin > 0) html += '<span class="prod-reassort-cell">SA <strong>' + formatQty(r.savertin) + '</strong></span>';
+          html += '</span></div>';
+        });
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+}
 
 // v20.8 — Bloc "Réassorts magasins" en bas pour Veigné Pâtissier (consultation, replié par défaut)
 if (isVeignePat) {
