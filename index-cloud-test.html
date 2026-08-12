@@ -13516,8 +13516,12 @@ const p = products.find(function(x) { return x.id === productId; });
 if (!p) return originShop; // fallback
 const cat = p.category;
 // v20.141 — gros gâteaux : piloté par le supply (local si supply=local, sinon Veigné)
+// v20.166 — EXCEPTION Tours : supply=local pour Tours = réassort surgelé (v20.164) que
+// Tours cuit sur place → spéciales produites à Tours. Le frais pâtissier (supply=veigne,
+// ex : tartes aux fraises) reste produit à Veigné.
 if (cat === 'patisserie_gros') {
   const sup = getProductSupply(p, originShop);
+  if (originShop === 'tours') return sup === 'veigne' ? 'veigne' : 'tours';
   return sup === 'local' ? 'local' : 'veigne';
 }
 if (cat === 'patisserie_petits') {
