@@ -308,6 +308,38 @@ background: white; border: 1px solid var(--gold-light); border-radius: 12px;
 padding: 3px 9px; font-size: 11px; color: var(--brown); font-weight: 600;
 }
 
+/* v20.167 — Spéciales du jour groupées par magasin de retrait (couleur par boutique) */
+.prod-special-group {
+display: flex; justify-content: space-between; align-items: center;
+margin: 10px 0 2px; padding: 5px 10px; border-radius: 8px;
+color: #fff; font-size: 12px; font-weight: 700;
+}
+.prod-special-group.sg-veigne { background: var(--gold-dark); }
+.prod-special-group.sg-tours { background: var(--blue); }
+.prod-special-group.sg-saint-avertin { background: var(--green); }
+.prod-special-group.sg-local { background: var(--brown-mid); }
+.prod-special-row.sg-veigne { border-left: 4px solid var(--gold-dark); padding-left: 8px; }
+.prod-special-row.sg-tours { border-left: 4px solid var(--blue); padding-left: 8px; }
+.prod-special-row.sg-saint-avertin { border-left: 4px solid var(--green); padding-left: 8px; }
+.prod-special-row.sg-local { border-left: 4px solid var(--brown-mid); padding-left: 8px; }
+
+/* v20.167 — Bandeau « attention » global (nouvelle spéciale / réassort envoyé) */
+#attention-bar {
+position: fixed; left: 10px; right: 10px;
+bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+z-index: 2600; display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+}
+.attention-alert {
+pointer-events: auto; display: flex; align-items: center; gap: 10px;
+background: var(--orange); color: #fff; border-radius: 14px;
+padding: 11px 14px; font-size: 13.5px; font-weight: 600; line-height: 1.35;
+box-shadow: 0 6px 18px rgba(0,0,0,.3); cursor: pointer;
+animation: attnPulse 1.5s ease-in-out infinite;
+}
+.attention-alert.kind-special { background: var(--gold-dark); }
+.attention-alert .attn-x { margin-left: auto; font-weight: 800; padding: 2px 6px; opacity: .85; }
+@keyframes attnPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+
 /* v20.8 — Bloc Réassorts magasins (consultation, replié) */
 .prod-reassort-box {
 background: #F5F0E5; border: 1px solid #E0D5BD;
@@ -3020,6 +3052,7 @@ if (b !== 'backoffice') {
   messagesData
     .filter(function(m) { return m.recipient_boutique === myBox && !m.read_at && (m.msg_date || todayStr) >= todayStr; })
     .forEach(function(m) { showMessageAlert(m); });
+  subscribeRealtimeAttention(); // v20.167 — bip + bandeau : nouvelle spéciale / réassort envoyé
 }
 renderNav();
 setVue(NAV_ITEMS[b][0].id);
@@ -3035,6 +3068,10 @@ if (realtimeChannelMarket) { supa.removeChannel(realtimeChannelMarket); realtime
 if (realtimeChannelMessages) { supa.removeChannel(realtimeChannelMessages); realtimeChannelMessages = null; }
 releaseWakeLock();
 msgAlertQueue = []; renderMessageAlert();
+if (realtimeChannelAttention) { supa.removeChannel(realtimeChannelAttention); realtimeChannelAttention = null; }
+attentionAlerts = []; attentionReapproBatch = {};
+if (attentionReapproTimer) { clearTimeout(attentionReapproTimer); attentionReapproTimer = null; }
+renderAttentionBar();
 if (realtimeChannelSpecials) { supa.removeChannel(realtimeChannelSpecials); realtimeChannelSpecials = null; }
 if (realtimeChannelPrevis)   { supa.removeChannel(realtimeChannelPrevis);   realtimeChannelPrevis = null; }
 if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     realtimeChannelPros = null; }
@@ -3154,6 +3191,11 @@ stockPatUnlocked = true;
 }
 currentVue = v;
 productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
+// v20.167 — ouvrir l'onglet concerné acquitte les bandeaux « attention »
+if (typeof attentionAlerts !== 'undefined' && attentionAlerts.length) {
+  attentionAlerts = attentionAlerts.filter(function(a) { return a.vue !== v; });
+  renderAttentionBar();
+}
 renderNav();
 const pbtn = document.getElementById('print-btn');
 if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'livraison' || v === 'specials' || v === 'metro') ? 'flex' : 'none';
@@ -7054,25 +7096,38 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
     + '</div>';
   if (productionSpecialsExpanded) {
     html += '<div class="prod-specials-body">';
+    // v20.167 — groupé par magasin de retrait (couleur par boutique), heures triées dans chaque groupe
+    const speGroups = {};
     productionSpecialOrders.forEach(function(o) {
-      const pickupTime = o.pickup_time || '—';
-      const clientName = o.client_name || '(sans nom)';
-      const destShop = BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop || '?';
-      const deliv = o.delivery_type === 'delivery' ? '🚚 livraison' : '🏪 retrait';
-      html += '<div class="prod-special-row">'
-        + '<div class="prod-special-meta">'
-        + '<strong>' + escapeHtml(pickupTime) + '</strong> · ' + escapeHtml(clientName)
-        + ' → <span class="prod-special-shop">' + escapeHtml(destShop) + '</span> · ' + deliv
-        + '</div>';
-      if (o.items && o.items.length) {
-        html += '<div class="prod-special-items">';
-        o.items.forEach(function(it) {
-          const pname = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id) : (it.product_name_custom || '?');
-          html += '<span class="prod-special-item">' + escapeHtml(pname) + ' ×' + (parseQty(it.qty) || 0) + (it.tranche ? ' 🔪' : '') + '</span>';
-        });
+      const s = o.origin_shop || '?';
+      (speGroups[s] = speGroups[s] || []).push(o);
+    });
+    const speShopSeq = [currentBoutique].concat(
+      ['veigne', 'tours', 'saint-avertin', 'local'].filter(function(s) { return s !== currentBoutique; }));
+    Object.keys(speGroups).forEach(function(s) { if (speShopSeq.indexOf(s) === -1) speShopSeq.push(s); });
+    speShopSeq.forEach(function(shop) {
+      const list = speGroups[shop];
+      if (!list || !list.length) return;
+      list.sort(function(a, b) { return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99')); });
+      html += '<div class="prod-special-group sg-' + shop + '"><span>🏪 Retrait ' + escapeHtml(BOUTIQUE_NAMES[shop] || shop) + '</span><span>' + list.length + ' commande' + (list.length > 1 ? 's' : '') + '</span></div>';
+      list.forEach(function(o) {
+        const pickupTime = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—';
+        const clientName = o.customer_name || o.client_name || '(sans nom)';
+        const deliv = o.delivery_type === 'delivery' ? '🚚 livraison' : '🏪 retrait';
+        html += '<div class="prod-special-row sg-' + shop + '">'
+          + '<div class="prod-special-meta">'
+          + '<strong>' + escapeHtml(pickupTime) + '</strong> · ' + escapeHtml(clientName) + ' · ' + deliv
+          + '</div>';
+        if (o.items && o.items.length) {
+          html += '<div class="prod-special-items">';
+          o.items.forEach(function(it) {
+            const pname = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id) : (it.product_name_custom || '?');
+            html += '<span class="prod-special-item">' + escapeHtml(pname) + ' ×' + (parseQty(it.qty) || 0) + (it.tranche ? ' 🔪' : '') + '</span>';
+          });
+          html += '</div>';
+        }
         html += '</div>';
-      }
-      html += '</div>';
+      });
     });
     html += '</div>';
   }
@@ -12071,6 +12126,105 @@ function openTourierReassortPopup() {
 function closeTourierReassortPopup() { const e = document.getElementById('reassort-popup'); if (e) e.remove(); }
 function tourierUnitLabel(p) { const c = formatConditioning(p); return c || (p && p.unit) || 'pièce'; }
 
+// ===================== v20.167 — Alerte « attention » : nouvelle spéciale / réassort envoyé =====================
+// Bip court (1×) + bandeau coloré persistant en bas de l'écran, uniquement chez le site qui
+// doit produire/préparer. Le bandeau reste jusqu'au tap (→ ouvre l'onglet concerné) ou ✕.
+let realtimeChannelAttention = null;
+let attentionAlerts = [];        // [{key, kind:'special'|'reappro', vue, text}]
+let attentionSpecialSeen = {};   // order_id déjà signalés (évite double bip INSERT+UPDATE)
+let attentionReapproBatch = {};  // { boutique_id: Set(product_id) } — regroupe la rafale d'un envoi
+let attentionReapproTimer = null;
+
+function renderAttentionBar() {
+  let bar = document.getElementById('attention-bar');
+  if (!attentionAlerts.length) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'attention-bar'; document.body.appendChild(bar); }
+  bar.innerHTML = attentionAlerts.map(function(a, i) {
+    return '<div class="attention-alert kind-' + a.kind + '" onclick="attentionAlertGo(' + i + ')">'
+      + a.text + '<span class="attn-x" onclick="event.stopPropagation();attentionAlertClose(' + i + ')">✕</span></div>';
+  }).join('');
+}
+function attentionAlertGo(i) {
+  const a = attentionAlerts[i]; if (!a) return;
+  attentionAlerts.splice(i, 1); renderAttentionBar();
+  if (a.vue) setVue(a.vue);
+}
+function attentionAlertClose(i) { attentionAlerts.splice(i, 1); renderAttentionBar(); }
+function pushAttentionAlert(kind, vue, text, key) {
+  if (key) attentionAlerts = attentionAlerts.filter(function(a) { return a.key !== key; });
+  attentionAlerts.push({ key: key || null, kind: kind, vue: vue, text: text });
+  if (attentionAlerts.length > 4) attentionAlerts = attentionAlerts.slice(-4);
+  renderAttentionBar();
+  playMessageBeep(false);
+}
+
+function flushAttentionReappro() {
+  attentionReapproTimer = null;
+  const catsT = ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs', 'bases_patisserie'];
+  Object.keys(attentionReapproBatch).forEach(function(b) {
+    const pids = Array.from(attentionReapproBatch[b]);
+    if (!pids.length) return;
+    let vue;
+    if (currentBoutique === 'local') {
+      const anyTour = pids.some(function(pid) {
+        const p = products.find(function(x) { return x.id === pid; });
+        return p && catsT.indexOf(p.category) !== -1;
+      });
+      vue = anyTour ? 'stock_tour' : 'prod_boul';
+      checkTourierReassortAlert(false); // rafraîchit aussi le bandeau orange des écrans Prod.
+    } else {
+      vue = 'stock_pat'; // Veigné : pâtisserie commandée par Tours/St-Av → à préparer au Stock Pât.
+    }
+    pushAttentionAlert('reappro', vue,
+      '📦 <strong>Réassort ' + escapeHtml(BOUTIQUE_NAMES[b] || b) + ' envoyé</strong> — ' + pids.length + ' produit' + (pids.length > 1 ? 's' : '') + ' → appuie pour voir',
+      'reappro_' + b);
+  });
+  attentionReapproBatch = {};
+}
+
+function subscribeRealtimeAttention() {
+  if (realtimeChannelAttention) { supa.removeChannel(realtimeChannelAttention); realtimeChannelAttention = null; }
+  if (['veigne', 'tours', 'saint-avertin', 'local'].indexOf(currentBoutique) === -1) return;
+  realtimeChannelAttention = supa.channel('attention_' + currentBoutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'special_orders' }, function(payload) {
+      const r = payload.new;
+      if (!r || !r.id) return;
+      if (r.created_by === DEVICE_ID) return;           // pas d'alerte chez celui qui saisit
+      if (r.production_shop !== currentBoutique) return; // seulement le site qui produit
+      if (r.origin_shop === currentBoutique) return;     // saisie maison = déjà vue au comptoir
+      if (r.status === 'annulee' || r.status === 'livree') return;
+      if (r.pickup_date && r.pickup_date < todayISO()) return;
+      if (attentionSpecialSeen[r.id]) return;
+      attentionSpecialSeen[r.id] = true;
+      const d = r.pickup_date ? formatDateFr(r.pickup_date) : '';
+      const t = r.pickup_time ? (' ' + String(r.pickup_time).slice(0, 5)) : '';
+      pushAttentionAlert('special', 'specials',
+        '⭐ <strong>Nouvelle commande spéciale</strong> — retrait ' + escapeHtml(BOUTIQUE_NAMES[r.origin_shop] || r.origin_shop || '?')
+        + ' ' + escapeHtml(d) + escapeHtml(t) + ' → appuie pour voir',
+        'special_' + r.id);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reappros' }, function(payload) {
+      const r = payload.new;
+      if (!r || !r.sent_at || r.prepared_at || r.livre_at) return; // seulement envoyé, pas encore traité
+      if (r.updated_by === DEVICE_ID) return;
+      if (!(parseQty(r.commander) > 0)) return;
+      const d0 = todayISO();
+      if (!r.service_date || r.service_date < d0 || r.service_date > addDays(d0, 2)) return;
+      const p = products.find(function(x) { return x.id === r.product_id; });
+      if (!p) return;
+      const sup = getProductSupply(p, r.boutique_id);
+      if (currentBoutique === 'local') { if (sup !== 'local') return; }
+      else if (currentBoutique === 'veigne') { if (sup !== 'veigne' || r.boutique_id === 'veigne') return; }
+      else return;
+      if (!attentionReapproBatch[r.boutique_id]) attentionReapproBatch[r.boutique_id] = new Set();
+      attentionReapproBatch[r.boutique_id].add(r.product_id);
+      // un envoi = une rafale de lignes → on regroupe 2,5 s avant de biper une seule fois
+      if (attentionReapproTimer) clearTimeout(attentionReapproTimer);
+      attentionReapproTimer = setTimeout(flushAttentionReappro, 2500);
+    })
+    .subscribe();
+}
+
 async function saveTourierField(pid, field, val) {
   const st = tourierStockData[pid]; if (!st) return;
   const v = (String(val).trim() === '' ? null : parseQty(val));
@@ -13724,12 +13878,12 @@ realtimeChannelSpecials = supa.channel('specials_' + currentBoutique)
 .on('postgres_changes', { event: '*', schema: 'public', table: 'special_orders' }, async function() {
 if (specialFormMode) return; // ne pas rerender pendant edition
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
-renderSpecials();
+if (currentVue === 'specials') renderSpecials(); // v20.167 — ne pas écraser un autre onglet
 })
 .on('postgres_changes', { event: '*', schema: 'public', table: 'special_order_items' }, async function() {
 if (specialFormMode) return;
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
-renderSpecials();
+if (currentVue === 'specials') renderSpecials(); // v20.167
 })
 .subscribe();
 }
