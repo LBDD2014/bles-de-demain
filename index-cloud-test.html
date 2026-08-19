@@ -449,6 +449,11 @@ text-align: center; font-weight: 600; font-variant-numeric: tabular-nums;
 color: var(--gold); font-size: 14px; font-weight: 700;
 background: #FFF9ED; border-radius: 5px; padding: 3px 0;
 }
+/* v20.181b — Total revu à la baisse par les restes d'hier : couleur distincte pour repérer
+   d'un coup d'oeil les lignes qui ont bougé (Phil 19/08). */
+.prod-row .cell.total.total-ajuste {
+color: var(--blue); background: #EAF1F8; box-shadow: inset 0 0 0 1.5px var(--blue);
+}
 .prod-input {
 width: 100%; padding: 6px 2px; border: 2px solid #E0D8C8; border-radius: 6px;
 font-size: 13px; font-weight: 700; text-align: center; color: var(--brown);
@@ -6965,6 +6970,8 @@ function recomputeRowTotal(el, pid) {
     pros = agg[pid] ? agg[pid].totalQty : 0;
   }
   totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe + pros);
+  // v20.181b — la ligne reste marquée tant qu'un reste d'hier est déduit
+  totalCell.classList.toggle('total-ajuste', reste > 0);
 }
 
 function renderProduction() {
@@ -7435,7 +7442,10 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   const v = r.markets[mid] || 0;
   rowHtml += '<div class="cell ' + (v > 0 ? '' : 'zero') + '" style="color:' + (v > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + formatQty(v) + '</div>';
   });
-  rowHtml += '<div class="cell total">' + formatQty(r.total) + '</div>';
+  const totalAjuste = (r.reste > 0);
+  rowHtml += '<div class="cell total' + (totalAjuste ? ' total-ajuste' : '') + '"'
+    + (totalAjuste ? ' title="Besoin ' + formatQty(r.total + r.reste) + ' − ' + formatQty(r.reste) + ' déjà en vitrine à St-Avertin"' : '')
+    + '>' + formatQty(r.total) + '</div>';
   if (showProdStockEcart) {
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input ' + prodCls + '" data-pid="' + r.p.id + '" data-field="produit" value="' + escapeHtml(r.produitRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
       + '<input type="text" inputmode="decimal" class="prod-input ' + stockCls + '" data-pid="' + r.p.id + '" data-field="stock" value="' + escapeHtml(r.stockRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
