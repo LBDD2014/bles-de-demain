@@ -1030,6 +1030,27 @@ function melangesForBase(basePid){const ing=BASE_PATE[basePid];if(!ing)return []
   return produits.filter(p=>p.categorie==='melange'&&p.actif!==false&&recettesMap[p.id]&&(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id===ing));}
 function melangePateParBac(mpid){const rec=recettesMap[mpid];if(!rec)return 0;const ing=(rec.lignes||[]).find(l=>l.ingredient_id===ing_pate_of(mpid));return ing?ing.quantite:0;}
 function ing_pate_of(mpid){const rec=recettesMap[mpid];if(!rec)return null;const l=(rec.lignes||[]).find(x=>x.ingredient_id&&x.ingredient_id.indexOf('ing_pate_')===0);return l?l.ingredient_id:null;}
+// v20.180 — Préparations intermédiaires (empois de maïs…) : un ingrédient d'un mélange peut
+// être fabriqué à part, avec sa propre recette. Convention d'id : ing_xxx ↔ pr_prep_xxx.
+// Le lot de la recette = somme de ses lignes ; on affiche la quantité au prorata des bacs cochés.
+function prepRecipeFor(ingId){
+  if(!ingId||ingId.indexOf('ing_')!==0)return null;
+  const pid='pr_prep_'+ingId.slice(4);const rec=recettesMap[pid];
+  if(!rec||!(rec.lignes||[]).length)return null;
+  const lot=(rec.lignes||[]).reduce((s,l)=>s+(parseFloat(l.quantite)||0),0);
+  if(!(lot>0))return null;
+  return {pid:pid,nom:(produits.find(x=>x.id===pid)||{}).nom||'Préparation',lignes:rec.lignes,lot:lot};
+}
+function prepDetailHtml(ingId,qty){
+  const p=prepRecipeFor(ingId);if(!p||!(qty>0))return '';
+  const f=qty/p.lot;
+  const parts=p.lignes.map(l=>{const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};
+    return fmt((parseFloat(l.quantite)||0)*f)+' '+(ing.nom||l.ingredient_id);}).join(' + ');
+  const nb=String(r2(f)).replace('.',','),lot=String(r2(p.lot)).replace('.',',');
+  return '<div class="pesee" style="padding:1px 0 5px 24px;border-bottom:none;align-items:flex-start">'
+    +'<div class="nom" style="font-size:11.5px;color:var(--grey-light)">↳ à fabriquer — '+nb+' lot'+(f>1?'s':'')+' <span class="hint" style="font-size:10px;margin:0">(1 lot = '+lot+' kg)</span></div>'
+    +'<div class="q" style="font-size:11.5px;font-weight:600;color:var(--brown-mid);text-align:right;max-width:58%">'+parts+'</div></div>';
+}
 function pdSetMelange(mpid,bacs){const n=parseFloat(bacs)||0;if(n>0)pdMelange[mpid]=n;else delete pdMelange[mpid];pdRenderAll();pdAutoSave();}
 function pdMelangeSection(basePid){
   const mels=melangesForBase(basePid);if(!mels.length)return '';
@@ -1065,7 +1086,7 @@ function pdMelangeSection(basePid){
         al+='<div class="pesee" style="padding:5px 0"><div class="nom" style="font-size:13px">🫧 <b>À faire tremper</b> <span class="hint" style="font-size:10px;margin:0">(tous mélanges)</span></div><div class="q" style="font-size:12px;text-align:right;font-weight:bold">'+parts+'</div></div>';}
       perMel.forEach(m=>{
         al+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--brown-mid)">🧩 '+m.nom+' <span class="hint" style="font-size:10px;margin:0;font-weight:normal">('+r2(m.bacs)+' bac'+(m.bacs>1?'s':'')+')</span></div>';
-        m.items.forEach(it=>{const ing=ingredients.find(x=>x.id===it.id)||{};al+='<div class="pesee" style="padding:3px 0 3px 12px"><div class="nom" style="font-size:13px">'+(ing.nom||it.id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(it.q)+'</div></div>';});});
+        m.items.forEach(it=>{const ing=ingredients.find(x=>x.id===it.id)||{};al+='<div class="pesee" style="padding:3px 0 3px 12px"><div class="nom" style="font-size:13px">'+(ing.nom||it.id)+(ing.bio?'<span class="leaf">bio</span>':'')+'</div><div class="q">'+fmt(it.q)+'</div></div>';al+=prepDetailHtml(it.id,it.q);});});
       summary+='<div style="margin-top:6px;font-size:12px;font-weight:bold;color:var(--gold-dark)">À préparer (ajouts)</div>'+al;}}
   return '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #D9C9a4"><div style="font-size:12px;font-weight:bold;color:var(--gold-dark);margin-bottom:2px">🧩 Mélanges</div>'+rows+summary+'</div>';
 }
