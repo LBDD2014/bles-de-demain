@@ -3084,6 +3084,12 @@ if (b !== 'amboise' && b !== 'beaujardin') {
   }
 }
 currentBoutique = b;
+// v20.182 — on repart de zéro : sans ça, en changeant de site sans recharger, les alertes
+// du site précédent restaient affichées (Tours voyait le travail du Local).
+tourierPendingReassort = null;
+productionPendingSpecials = null;
+attentionAlerts = [];
+renderAttentionBar();
 isLivreurMode = (b === 'livreur');
 isLocalMode = (b === 'local');
 if (MARKET_IDS.indexOf(b) !== -1) {
@@ -3309,6 +3315,14 @@ await loadStAvSalesFromTable(currentReapproDate);
 productionStAvRestesVeille = await loadRestesJ1('saint-avertin', currentReapproDate);
 // v20.165 — pop-up (1×/jour) + bandeau : réassorts surgelés en attente → Stock Tourier
 checkTourierReassortAlert(true);
+}
+// v20.182 — Veigné prépare aussi des réassorts (Tours + St-Av)
+if (currentBoutique === 'veigne') {
+checkTourierReassortAlert(true);
+}
+// v20.182 — commandes spéciales à produire : chaque site producteur (Local, Veigné, Tours)
+if (['local', 'veigne', 'tours'].indexOf(currentBoutique) !== -1) {
+checkSpecialsProductionAlert(true);
 }
 // v21.0.4.3 — Charger les commandes pros du jour pour cette boutique
 // Aussi adminPros + adminProducts pour les noms / catégories
@@ -7187,9 +7201,12 @@ let html = '<div class="date-bar">'
 // v20.42 — Bande "Pros à anticiper sur 7 jours" (Le Local prod_boul/prod_tour uniquement)
 if (isLocalBoul || isLocalTour) {
   html += renderProductionWeekStrip(currentVue);
-  // v20.165 — bandeau réassorts surgelés en attente (tant que tout n'est pas préparé)
-  html += tourierReassortBannerHtml();
 }
+// v20.182 — bandeaux d'alerte sur TOUS les écrans de production (Local, Veigné, Tours).
+// Chaque site ne voit que son propre travail : les alertes sont filtrées en amont
+// (production_shop pour les spéciales, supply = le site pour les réassorts).
+html += specialsProductionBannerHtml();
+html += tourierReassortBannerHtml();
 
 // v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
 // v20.19 — Le Local Prod. Boulangers/Touriers : même règle (KPI simplifié)
@@ -12564,8 +12581,92 @@ function changeTourierDate(delta) { tourierDate = addDays(tourierDate, delta); l
 // v20.165 — Réassorts surgelés en attente (envoyés, pas préparés, aujourd'hui + demain)
 // → bandeau permanent sur Prod. Boulangers/Touriers + pop-up 1×/jour à l'arrivée au Local.
 let tourierPendingReassort = null; // { total, parts: ['Veigné : 18 produits (aujourd hui)', …] }
+// v20.182 — Alerte « commandes spéciales à produire », même modèle que les réassorts :
+// bandeau qui reste tant que ce n'est pas traité + pop-up 1×/jour à l'arrivée.
+// Phil 19/08 : l'alerte temps réel existante est volatile (elle n'existe que si l'app est
+// ouverte à la seconde de la saisie) — une commande prise la veille à 17 h n'interpellait
+// personne le lendemain matin.
+// CLOISONNEMENT : filtre sur production_shop = le site courant. Le Local ne voit que ce que
+// Le Local produit, Tours que ce que Tours produit — jamais le travail des autres.
+let productionPendingSpecials = null; // { total, parts:[…] }
+
+function isProductionVue() {
+  return currentVue === 'prod_boul' || currentVue === 'prod_tour' || currentVue === 'production';
+}
+
+async function checkSpecialsProductionAlert(showPopup) {
+  if (['local', 'veigne', 'tours'].indexOf(currentBoutique) === -1) return;
+  const d0 = todayISO(), d1 = addDays(d0, 1);
+  const { data, error } = await supa.from('special_orders')
+    .select('id,origin_shop,production_shop,pickup_date,pickup_time,status')
+    .eq('tenant_id', TENANT_ID)
+    .eq('production_shop', currentBoutique)
+    .in('pickup_date', [d0, d1]);
+  if (error || !data) return;
+  const agg = {}; let total = 0;
+  data.forEach(function(r) {
+    if (r.status === 'annulee' || r.status === 'livree') return;
+    agg[r.pickup_date] = (agg[r.pickup_date] || 0) + 1; total++;
+  });
+  if (!total) {
+    const hadBefore = !!productionPendingSpecials;
+    productionPendingSpecials = null;
+    if (hadBefore && isProductionVue()) renderProduction();
+    return;
+  }
+  const parts = Object.keys(agg).sort().map(function(d) {
+    return (d === d0 ? 'aujourd hui' : 'demain') + ' : ' + agg[d] + ' commande' + (agg[d] > 1 ? 's' : '');
+  });
+  productionPendingSpecials = { total: total, parts: parts };
+  if (isProductionVue()) renderProduction();
+  if (showPopup) {
+    const key = 'lbdd_specials_popup_' + currentBoutique + '_' + d0;
+    let seen = false;
+    try { seen = !!localStorage.getItem(key); } catch (e) {}
+    if (!seen) {
+      openSpecialsProductionPopup();
+      try { localStorage.setItem(key, '1'); } catch (e) {}
+    }
+  }
+}
+
+function specialsProductionBannerHtml() {
+  if (!productionPendingSpecials) return '';
+  const s = productionPendingSpecials;
+  return '<div class="metro-remind" style="border-left-color:var(--gold-dark);cursor:pointer" onclick="setVue(\'specials\')">⭐ <div><strong>'
+    + s.total + ' commande' + (s.total > 1 ? 's' : '') + ' spéciale' + (s.total > 1 ? 's' : '') + ' à produire</strong> — '
+    + s.parts.map(escapeHtml).join(' · ')
+    + ' → appuie ici pour voir le détail</div></div>';
+}
+
+function closeSpecialsProductionPopup() {
+  const el = document.getElementById('specials-popup');
+  if (el) el.remove();
+}
+function openSpecialsProductionPopup() {
+  if (!productionPendingSpecials) return;
+  closeSpecialsProductionPopup();
+  const s = productionPendingSpecials;
+  const div = document.createElement('div');
+  div.id = 'specials-popup';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(46,48,68,.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML = '<div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+    + '<div style="font-size:40px;margin-bottom:8px">⭐</div>'
+    + '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:20px;font-weight:700;color:var(--brown);margin-bottom:10px">'
+    + s.total + ' commande' + (s.total > 1 ? 's' : '') + ' spéciale' + (s.total > 1 ? 's' : '') + ' à produire</div>'
+    + '<div style="font-size:14.5px;color:var(--grey);line-height:1.6;margin-bottom:16px">' + s.parts.map(escapeHtml).join('<br>') + '</div>'
+    + '<button onclick="closeSpecialsProductionPopup();setVue(\'specials\')" style="background:var(--gold);color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px">Voir les commandes</button>'
+    + '<button onclick="closeSpecialsProductionPopup()" style="background:none;border:none;color:var(--grey-light);font-size:14px;cursor:pointer;padding:6px">Plus tard</button>'
+    + '</div>';
+  document.body.appendChild(div);
+  playMessageBeep(false);
+}
+
 async function checkTourierReassortAlert(showPopup) {
-  if (currentBoutique !== 'local') return;
+  // v20.182 — étendu à Veigné (elle prépare pour Tours et St-Av). Cloisonnement strict :
+  // chaque site ne voit QUE les réassorts qu'il doit préparer lui-même (supply = son site).
+  if (currentBoutique !== 'local' && currentBoutique !== 'veigne') return;
+  const mySupply = currentBoutique; // 'local' ou 'veigne'
   const d0 = todayISO(), d1 = addDays(d0, 1);
   const { data, error } = await supa.from('reappros')
     .select('boutique_id,product_id,service_date,commander,sent_at,prepared_at')
@@ -12579,16 +12680,17 @@ async function checkTourierReassortAlert(showPopup) {
   const agg = {}; let total = 0;
   data.forEach(function(r) {
     if (!(parseQty(r.commander) > 0)) return;
+    if (r.boutique_id === currentBoutique) return; // pas ses propres commandes
     const p = products.find(function(x) { return x.id === r.product_id; });
     if (!p || catsT.indexOf(p.category) === -1) return;
-    if (getProductSupply(p, r.boutique_id) !== 'local') return;
+    if (getProductSupply(p, r.boutique_id) !== mySupply) return;
     const k = r.boutique_id + '|' + r.service_date;
     agg[k] = (agg[k] || 0) + 1; total++;
   });
   if (!total) {
     const hadBefore = !!tourierPendingReassort;
     tourierPendingReassort = null;
-    if (hadBefore && (currentVue === 'prod_boul' || currentVue === 'prod_tour')) renderProduction();
+    if (hadBefore && isProductionVue()) renderProduction();
     return;
   }
   const parts = Object.keys(agg).sort().map(function(k) {
@@ -12597,9 +12699,9 @@ async function checkTourierReassortAlert(showPopup) {
     return (BOUTIQUE_NAMES[b] || b) + ' : ' + agg[k] + ' produit' + (agg[k] > 1 ? 's' : '') + ' (' + when + ')';
   });
   tourierPendingReassort = { total: total, parts: parts };
-  if (currentVue === 'prod_boul' || currentVue === 'prod_tour') renderProduction();
+  if (isProductionVue()) renderProduction();
   if (showPopup) {
-    const key = 'lbdd_reassort_popup_' + d0;
+    const key = 'lbdd_reassort_popup_' + currentBoutique + '_' + d0;
     let seen = false;
     try { seen = !!localStorage.getItem(key); } catch (e) {}
     if (!seen) {
@@ -12610,10 +12712,15 @@ async function checkTourierReassortAlert(showPopup) {
 }
 
 function tourierReassortBannerHtml() {
+  // v20.182 — garde-fou de cloisonnement : seuls Le Local et Veigné préparent des réassorts.
+  if (currentBoutique !== 'local' && currentBoutique !== 'veigne') return '';
   if (!tourierPendingReassort) return '';
-  return '<div class="metro-remind" style="border-left-color:var(--orange);cursor:pointer" onclick="setVue(\'stock_tour\')">📦 <div><strong>Réassort surgelé à préparer</strong> — '
+  // v20.182 — Veigné prépare sa pâtisserie au Stock Pât., Le Local au Stock Tourier
+  const vue = (currentBoutique === 'veigne') ? 'stock_pat' : 'stock_tour';
+  const cible = (currentBoutique === 'veigne') ? 'le Stock Pât.' : 'le Stock Tourier ❄️';
+  return '<div class="metro-remind" style="border-left-color:var(--orange);cursor:pointer" onclick="setVue(\'' + vue + '\')">📦 <div><strong>Réassort à préparer</strong> — '
     + tourierPendingReassort.parts.map(escapeHtml).join(' · ')
-    + ' → appuie ici pour ouvrir le Stock Tourier ❄️</div></div>';
+    + ' → appuie ici pour ouvrir ' + cible + '</div></div>';
 }
 
 function openTourierReassortPopup() {
