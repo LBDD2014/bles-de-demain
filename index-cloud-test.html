@@ -13046,7 +13046,13 @@ function renderStock() {
   const byCat = {}; entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
   html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
     + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
-  ['viennoiserie', 'brioches_special'].forEach(function(cat) {
+  // v20.177 — on affiche TOUTES les catégories suivies au congélo tourier, plus seulement
+  // viennoiserie/brioches. Les tartes et bases pâtissières produites au Local (ajoutées au
+  // suivi en v20.164) étaient chargées et décomptées, mais jamais affichées.
+  const TOURIER_CAT_ORDER = ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'bases_patisserie'];
+  const tourierCats = TOURIER_CAT_ORDER.filter(function(c) { return byCat[c]; })
+    .concat(Object.keys(byCat).filter(function(c) { return TOURIER_CAT_ORDER.indexOf(c) === -1; }).sort());
+  tourierCats.forEach(function(cat) {
     if (!byCat[cat] || !byCat[cat].length) return;
     const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
     const catPids = list.map(function(x) { return x.p.id; });
