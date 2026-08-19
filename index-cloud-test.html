@@ -2503,6 +2503,12 @@ let productionVeigneSalesByProduct = {};  // { product_id: matin_qty }
 let productionStAvSalesByProduct = {};  // { product_id: matin_qty }
 // v20.18 — Sales St-Av complètes (matin/aprem/reste_j1) pour Le Local Prod. Boulangers
 let productionStAvSalesFromTable = {};  // { product_id: { matin, aprem, reste_j1 } }
+// v20.181 — Restes St-Av du SOIR DE LA VEILLE (J-1 + J-2 cumulés = ce qui est physiquement
+// en vitrine le matin). Phil 19/08 : le prévisionnel des boutiques se fait à la semaine, donc
+// les restes saisis le soir arrivent trop tard pour lui. Le rattrapage se fait ici : le matin,
+// l'atelier voit un besoin déjà net et décide de ne pas cuire (4 flans en stock → 0 flan cuit).
+// Avant : on lisait les restes de la journée AFFICHÉE, pas encore saisis → déduction toujours nulle.
+let productionStAvRestesVeille = {};    // { product_id: reste_j1 + reste_j2 de la veille }
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 let productionLocalData = {};
@@ -3294,6 +3300,8 @@ if (currentBoutique === 'local') {
 await loadStAvSalesForProduction(currentReapproDate);
 // v20.18 — sales St-Av complètes (matin/aprem/reste_j1) pour Prod. Boulangers
 await loadStAvSalesFromTable(currentReapproDate);
+// v20.181 — restes St-Av de la veille (déduits du total à produire)
+productionStAvRestesVeille = await loadRestesJ1('saint-avertin', currentReapproDate);
 // v20.165 — pop-up (1×/jour) + bandeau : réassorts surgelés en attente → Stock Tourier
 checkTourierReassortAlert(true);
 }
@@ -6927,17 +6935,8 @@ function handleApremSAFromLocal(el) {
 }
 
 // v20.18 — édition Reste J-1 depuis Le Local Prod. Boulangers (sync vers sales St-Av)
-function handleResteJ1FromLocal(el) {
-  const pid = el.dataset.pid;
-  const val = el.value;
-  if (!productionStAvSalesFromTable[pid]) productionStAvSalesFromTable[pid] = { matin: null, aprem: null, reste_j1: null };
-  productionStAvSalesFromTable[pid].reste_j1 = (val === '') ? null : (parseInt(val, 10) || 0);
-  recomputeRowTotal(el, pid);
-  clearTimeout(updateTimers['reste_' + pid]);
-  updateTimers['reste_' + pid] = setTimeout(function() {
-    upsertStAvSaleFieldFromLocal(pid, 'reste_j1', val);
-  }, 400);
-}
+// v20.181 — handleResteJ1FromLocal() supprimée : la colonne Reste est passée en lecture seule
+// (elle affiche le reste d'HIER chez St-Avertin, saisi par la vendeuse dans son onglet Ventes).
 
 // Helper commun : recalcule Total = Matin V + Matin SA + Spé pour une ligne
 // v20.22 — Matin SA depuis previs (cohérent avec Veigné). Au Local Boul, on inclut Aprem - Reste J-1 (sales St-Av).
@@ -6954,7 +6953,7 @@ function recomputeRowTotal(el, pid) {
     const t = productionStAvSalesFromTable[pid] || {};
     // v20.32 — Aprem reste exclusif Prod. Boulangers ; Reste J-1 aussi à Prod. Touriers
     if (currentVue === 'prod_boul') aprem = t.aprem || 0;
-    reste = t.reste_j1 || 0;
+    reste = productionStAvRestesVeille[pid] || 0; // v20.181 — reste de la veille (J-1 + J-2)
   }
   const spe = productionSpecialByProduct[pid] || 0;
   // v21.0.4.4 — Inclure les pros dans le recompute (sinon le total écrase la colonne Pros après chaque édition)
@@ -7123,7 +7122,7 @@ const matinSAEligible = showMatinSA && (!isVeignePat || veignePatVisibleCats.ind
 const stAvSale = productionStAvSalesFromTable[p.id] || {};
 const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
-const cReste = showResteJ1 ? (stAvSale.reste_j1 || 0) : 0;
+const cReste = showResteJ1 ? (productionStAvRestesVeille[p.id] || 0) : 0; // v20.181 — reste du soir de la veille (J-1 + J-2)
 // v21.0.4.3 — Pros : qty cumulée des commandes pros du jour pour ce produit (filtre par vue)
 const cPros = showProsCol && proAgg[p.id] ? proAgg[p.id].totalQty : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
@@ -7303,7 +7302,7 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
     headerHtml += '<span class="col-c" style="color:var(--orange)" title="Aprem St-Avertin">Aprem SA</span>';
   }
   if (showResteJ1) {
-    headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Reste J-1 St-Av (déduit du Total)">Reste J-1</span>';
+    headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Ce qui restait en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du Total">Reste SA hier</span>';
   }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
@@ -7403,8 +7402,9 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input aprem-sa-input' + (r.aprem > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(apremDisp) + '" placeholder="-" oninput="handleApremSAFromLocal(this)" onfocus="this.select()" style="color:' + (r.aprem > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:700">';
   }
   if (showResteJ1) {
-    const resteDisp = r.reste > 0 ? formatQty(r.reste) : '';
-    rowHtml += '<input type="text" inputmode="decimal" class="prod-input reste-j1-input' + (r.reste > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(resteDisp) + '" placeholder="-" oninput="handleResteJ1FromLocal(this)" onfocus="this.select()" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:700">';
+    // v20.181 — lecture seule : cette valeur appartient à la journée d'hier de St-Avertin,
+    // saisie par la vendeuse. Deux personnes écrivant la même case = source d'erreur.
+    rowHtml += '<div class="cell ' + (r.reste > 0 ? '' : 'zero') + '" title="Reste en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du total" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.reste > 0 ? '700' : '400') + '">' + (r.reste > 0 ? '−' + formatQty(r.reste) : '0') + '</div>';
   }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
