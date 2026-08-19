@@ -4453,15 +4453,28 @@ function toggleVentesHideEmpty() {
   renderVentes();
 }
 
+// v20.179 — Ventes : les tartelettes sont rangées AVEC la viennoiserie (Phil 19/08).
+// Affichage seulement : leur `category` reste patisserie_petits, donc Prévis (Prev.Pât),
+// Réappro (section Pâtisserie), Stock Pât. Veigné et la valorisation ne bougent pas.
+// Elles gardent aussi leur modèle de saisie Prévis / Sortie jour (calcul auto).
+// Critère volontairement basé sur le nom : une nouvelle « Tartelette … » se range toute seule.
+const VENTES_TARTELETTE_CAT = 'tartelettes';
+function isTarteletteProduct(p) {
+  return !!p && p.category === 'patisserie_petits' && /^\s*tartelette/i.test(p.name || '');
+}
+function ventesDisplayCat(p) {
+  return isTarteletteProduct(p) ? VENTES_TARTELETTE_CAT : p.category;
+}
+
 async function renderVentes() {
 const mc = document.getElementById('main-content');
 if (!VENTES_BOUTIQUES.includes(currentBoutique)) {
 mc.innerHTML = '<div class="empty-state">Module Ventes pas encore active.</div>'; return;
 }
 const ventesProducts = getProductsForVentes();
-const ORDER = ['pains', 'viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'traiteur', 'gateaux_secs'];
+const ORDER = ['pains', 'viennoiserie', VENTES_TARTELETTE_CAT, 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'sec_traiteur', 'traiteur', 'gateaux_secs'];
 const presentCats = ORDER.filter(function(c) {
-return ventesProducts.some(function(p) { return p.category === c; });
+return ventesProducts.some(function(p) { return ventesDisplayCat(p) === c; });
 });
 
 // v20.1 : charger previs du jour pour affichage lecture seule
@@ -4527,17 +4540,20 @@ let nbLignesMasquees = 0;
 presentCats.forEach(function(cat) {
 const ps = ventesProducts.filter(function(p) {
 if (p.boutique_restriction && p.boutique_restriction !== currentBoutique) return false;
-return p.category === cat;
+return ventesDisplayCat(p) === cat;
 });
 if (!ps.length) return;
 let secRows = '';
 let nbVisibles = 0;
-const secHeader = '<div class="section"><div class="section-header">' + (CAT_LABELS[cat] || cat) + '</div>'
+const isTartSec = (cat === VENTES_TARTELETTE_CAT);
+const secSortie = isTartSec ? true : usesSortieModel(cat); // tartelettes : modèle gâteaux conservé
+const secLabel = isTartSec ? 'Viennoiserie — Tartelettes' : (CAT_LABELS[cat] || cat);
+const secHeader = '<div class="section"><div class="section-header">' + secLabel + '</div>'
 
 + '<div class="ventes-col-header v201">'
 + '<span class="col-lbl">Produit</span>'
-+ '<span class="col-lbl" style="color:var(--gold-dark)">' + (usesSortieModel(cat) ? 'Prévis' : 'Matin') + '</span>'
-+ '<span class="col-lbl" style="color:var(--orange)">' + (usesSortieModel(cat) ? 'Sortie jour' : 'Après-midi') + '</span>'
++ '<span class="col-lbl" style="color:var(--gold-dark)">' + (secSortie ? 'Prévis' : 'Matin') + '</span>'
++ '<span class="col-lbl" style="color:var(--orange)">' + (secSortie ? 'Sortie jour' : 'Après-midi') + '</span>'
 + '<span class="col-lbl" style="color:var(--gold-dark)">Reste J-1</span>'
 + '<span class="col-lbl" style="color:var(--brown-mid)">J-2</span>'
 + '<span class="col-lbl" style="color:var(--red)">Perte</span>'
