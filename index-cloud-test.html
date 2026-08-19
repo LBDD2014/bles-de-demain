@@ -4457,10 +4457,20 @@ function toggleVentesHideEmpty() {
 // Affichage seulement : leur `category` reste patisserie_petits, donc Prévis (Prev.Pât),
 // Réappro (section Pâtisserie), Stock Pât. Veigné et la valorisation ne bougent pas.
 // Elles gardent aussi leur modèle de saisie Prévis / Sortie jour (calcul auto).
-// Critère volontairement basé sur le nom : une nouvelle « Tartelette … » se range toute seule.
+// Liste explicite (Phil 19/08) : SEULEMENT les 4 tartelettes produites au Local et vendues
+// depuis le congélo. Les tartelettes fraîches de Veigné (Citron Meringuée, Fraise) restent
+// dans Petits Gâteaux. Pas de critère automatique par nom ou par supply : « Citron Meringuée »
+// a supply=local pour Tours et serait attrapée à tort.
 const VENTES_TARTELETTE_CAT = 'tartelettes';
+const VENTES_TARTELETTE_IDS = [
+  'tap',      // Tartelette Pomme
+  'vpg_vig',  // Tartelette Vigneronne
+  'tpo',      // Tartelette Poires Amandines
+  'vpg_abp',  // Tartelette Abricot Pistache
+  'tab'       // Tartelette Abricot Pistache (version réappro, au cas où elle passe en vente)
+];
 function isTarteletteProduct(p) {
-  return !!p && p.category === 'patisserie_petits' && /^\s*tartelette/i.test(p.name || '');
+  return !!p && VENTES_TARTELETTE_IDS.indexOf(p.id) !== -1;
 }
 function ventesDisplayCat(p) {
   return isTarteletteProduct(p) ? VENTES_TARTELETTE_CAT : p.category;
