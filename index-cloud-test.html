@@ -2367,6 +2367,16 @@ const CAT_LABELS = {
   'gateaux_secs':      'Gâteaux Secs'
 };
 
+// v20.178 — Prod. Boulangers (Le Local) = catégorie « pains » + quelques produits d'autres
+// familles réellement fabriqués au fournil. Phil 19/08 : les Viennoises nature/chocolat sont
+// faites par les boulangers. Choix assumé : elles restent AUSSI visibles en Prod. Touriers
+// (info pour l'équipe tourier) — même ligne sur les 2 écrans.
+const PROD_BOUL_EXTRA_IDS = ['brioche_feuilletee_copie_3ax13q', 'viennoise_nature_copie_52cp6e'];
+function isProdBoulProduct(p) {
+  if (!p) return false;
+  return p.category === 'pains' || PROD_BOUL_EXTRA_IDS.indexOf(p.id) !== -1;
+}
+
 const BOUTIQUE_NAMES = {
   'veigne': 'Veigné', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
   'amboise': 'Marché Amboise', 'beaujardin': 'Marché Beaujardin',
@@ -6738,7 +6748,7 @@ function renderProductionWeekStrip(vue) {
   allProds.forEach(function(p) { prodById[p.id] = p; });
   function passesCategory(prod) {
     if (!prod) return false;
-    if (vue === 'prod_boul') return prod.category === 'pains';
+    if (vue === 'prod_boul') return isProdBoulProduct(prod);
     if (vue === 'prod_tour') return prod.category === 'viennoiserie' || prod.category === 'brioches_special';
     return true;
   }
@@ -6790,7 +6800,7 @@ function renderProductionUpcomingProsSection(vue) {
   (adminPros || []).forEach(function(p) { prosById[p.id] = p; });
   function passesCategory(prod) {
     if (!prod) return false;
-    if (vue === 'prod_boul') return prod.category === 'pains';
+    if (vue === 'prod_boul') return isProdBoulProduct(prod);
     if (vue === 'prod_tour') return prod.category === 'viennoiserie' || prod.category === 'brioches_special';
     return true;
   }
@@ -6951,7 +6961,7 @@ if (isToursProd) {
     return true;
   });
 } else if (isLocalBoul) {
-  allProducts = products.filter(function(p) { return p.category === 'pains'; });
+  allProducts = products.filter(isProdBoulProduct); // v20.178 — pains + viennoises du fournil
 } else if (isLocalTour) {
   // v20.164 — retour au critère v20.46 seul : Prod. Touriers = plan de PRODUCTION
   // (pâtisserie cuite du jour pour St-Av). Le réassort SURGELÉ commandé par les
@@ -11268,7 +11278,7 @@ function aggregateProOrdersForProduction(vue) {
       const prod = prodById[it.product_id];
       if (!prod) return;
       // Filtre par vue (catégorie produit)
-      if (vue === 'prod_boul' && prod.category !== 'pains') return;
+      if (vue === 'prod_boul' && !isProdBoulProduct(prod)) return;
       if (vue === 'prod_tour' && prod.category !== 'viennoiserie' && prod.category !== 'brioches_special') return;
       if (!result[it.product_id]) result[it.product_id] = { totalQty: 0, byPro: {} };
       const qty = Number(it.qty) || 0;
