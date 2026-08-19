@@ -12544,6 +12544,29 @@ async function tourierToggleActif(pid) {
   renderStock();
 }
 
+// v20.183 — Stock Tourier + Stock Boul. Pro : cacher les lignes vides (Phil 19/08).
+// « Vide » = stock 0, rien de commandé (À partir 0) et aucun Mini réglé : une ligne sans
+// Mini n'est pas suivie, donc rien à surveiller. Les lignes en alerte (Mini défini) et
+// celles avec une commande en cours restent TOUJOURS visibles, même à 0.
+// Filtre d'affichage mémorisé par appareil — les produits restent actifs au catalogue.
+let stockHideEmpty = false;
+try { stockHideEmpty = localStorage.getItem('lbdd_stock_hide_empty') === '1'; } catch (e) {}
+function toggleStockHideEmpty() {
+  stockHideEmpty = !stockHideEmpty;
+  try { localStorage.setItem('lbdd_stock_hide_empty', stockHideEmpty ? '1' : '0'); } catch (e) {}
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro(); else renderStock();
+}
+function stockIsEmptyRow(stock, mini, aPartir) {
+  return !(Number(stock) || 0) && !(Number(aPartir) || 0) && (mini == null || mini === '');
+}
+function stockHideEmptyBarHtml(nbMasquees) {
+  return '<div class="prod-filter-bar"><label>'
+    + '<input type="checkbox" ' + (stockHideEmpty ? 'checked' : '') + ' onchange="toggleStockHideEmpty()">'
+    + '<span>Cacher les lignes vides'
+    + (stockHideEmpty && nbMasquees > 0 ? ' <strong>(' + nbMasquees + ' masquée' + (nbMasquees > 1 ? 's' : '') + ')</strong>' : '')
+    + '</span></label></div>';
+}
+
 // ===================== v20.81 — Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir) =====================
 let tourierStockData = {};   // { product_id: {stock, mini, ...} }
 let tourierReassort = {};    // { boutique: [reappro rows] }
@@ -13196,7 +13219,15 @@ function renderStock() {
     else html += '<div class="info-banner" style="background:#F0EAE0">Aucun produit. Déverrouille le mode chef pour en ajouter.</div>';
     mc.innerHTML = html; if (stockReceiptModalOpen) renderStockReceiptModal(); return;
   }
-  const byCat = {}; entries.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
+  // v20.183 — case « Cacher les lignes vides »
+  let nbStockMasquees = 0;
+  const visibles = entries.filter(function(e) {
+    const st = e.st;
+    if (stockIsEmptyRow(st.stock, st.mini, outBy[e.p.id] || 0)) { nbStockMasquees++; return !stockHideEmpty; }
+    return true;
+  });
+  html += stockHideEmptyBarHtml(nbStockMasquees);
+  const byCat = {}; visibles.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
   html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
     + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
   // v20.177 — on affiche TOUTES les catégories suivies au congélo tourier, plus seulement
@@ -13731,9 +13762,18 @@ function renderStockBoulangerPro() {
   const outBy = {};
   prepLines.forEach(function(l) { if (!l.prepared) outBy[l.productId] = (outBy[l.productId] || 0) + l.qty; });
 
+  // v20.183 — case « Cacher les lignes vides »
+  let nbStockMasquees = 0;
+  const visiblesPro = suiviProducts.filter(function(p) {
+    const inv = proStockData[p.id] || { qty: 0, mini: null };
+    if (stockIsEmptyRow(inv.qty, inv.mini, outBy[p.id] || 0)) { nbStockMasquees++; return !stockHideEmpty; }
+    return true;
+  });
+  html += stockHideEmptyBarHtml(nbStockMasquees);
+
   // Grouper par catégorie (catégories réelles, rien d'inventé)
   const byCat = {};
-  suiviProducts.forEach(function(p) {
+  visiblesPro.forEach(function(p) {
     const c = p.category || 'autre';
     if (!byCat[c]) byCat[c] = [];
     byCat[c].push(p);
