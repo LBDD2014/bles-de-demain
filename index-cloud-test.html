@@ -14398,6 +14398,13 @@ async function upsertSpecialOrder() {
 const d = specialFormDraft;
 if (!d) return;
 if (!d.customer_name || !d.customer_name.trim()) { showToast('Nom client obligatoire', 'error'); return; }
+// v20.185 — téléphone obligatoire pour les NOUVELLES commandes (les anciennes sans
+// téléphone restent modifiables : on ne bloque pas un simple changement de statut)
+if (!d.id) {
+  const telDigits = String(d.customer_phone || '').replace(/\D/g, '');
+  if (telDigits.length < 10) { showToast('Téléphone client obligatoire (10 chiffres)', 'error'); return; }
+}
+if (d.paiement === 'acompte' && !(parseQty(d.acompte_montant) > 0)) { showToast('Montant de l\'acompte ?', 'error'); return; }
 if (!d.pickup_date) { showToast('Date de retrait obligatoire', 'error'); return; }
 const cleanItems = (d.items || []).filter(function(it) {
 return (it.product_id || (it.product_name_custom && it.product_name_custom.trim()));
@@ -14413,6 +14420,8 @@ origin_shop: d.origin_shop,
 production_shop: productionShop,
 customer_name: d.customer_name.trim(),
 customer_phone: d.customer_phone ? d.customer_phone.trim() : null,
+paiement: d.paiement || 'non_regle',
+acompte_montant: d.paiement === 'acompte' ? (parseQty(d.acompte_montant) || null) : null,
 pickup_date: d.pickup_date,
 pickup_time: d.pickup_time || null,
 status: d.status || 'brouillon',
@@ -14514,6 +14523,9 @@ if (o.origin_shop !== o.production_shop) {
 html += '<div class="ticket-row"><span>Production :</span>' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</div>';
 }
 if (o.status) html += '<div class="ticket-row"><span>Statut :</span>' + escapeHtml(STATUS_LBL[o.status] || o.status) + '</div>';
+// v20.185 — paiement sur le ticket
+const payTxt = o.paiement === 'regle' ? 'Réglé ✓' : (o.paiement === 'acompte' ? 'Acompte ' + formatQty(o.acompte_montant || 0) + ' € — reste à encaisser' : 'À régler au retrait');
+html += '<div class="ticket-row"><span>Paiement :</span><strong>' + escapeHtml(payTxt) + '</strong></div>';
 html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qte</th></tr></thead><tbody>';
 (o.items || []).forEach(function(it) {
 const name = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
@@ -14711,6 +14723,9 @@ html += '</div>';
 html += '<div class="sp-card-body">' + escapeHtml(summary) + '</div>';
 html += '<div class="sp-card-footer">';
 html += '<span class="sp-status-badge sp-st-' + o.status + '">' + STATUS_LBL[o.status] + '</span>';
+// v20.185 — pastille paiement (visible d'un coup d'œil au retrait)
+if (o.paiement === 'regle') html += '<span style="background:#EAF3EC;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Réglé</span>';
+else if (o.paiement === 'acompte') html += '<span style="background:#FDEEDC;color:var(--orange);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Acompte ' + formatQty(o.acompte_montant || 0) + ' €</span>';
 if (o.origin_shop !== o.production_shop) {
 html += '<span class="sp-prod-tag">➜ ' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</span>';
 }
@@ -14729,12 +14744,15 @@ id: null,
 origin_shop: currentBoutique,
 customer_name: '',
 customer_phone: '',
+paiement: 'non_regle',      // v20.185 — non_regle | acompte | regle
+acompte_montant: '',
 pickup_date: selectedSpecialDay || currentSpecialWeekStart,
 pickup_time: '',
 status: 'brouillon',
 notes: '',
 items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
 };
+loadSpecialClientsIndex(); // v20.185 — mémoire clients (suggestion nom + téléphone)
 renderSpecials();
 }
 
@@ -14747,6 +14765,8 @@ id: o.id,
 origin_shop: o.origin_shop,
 customer_name: o.customer_name || '',
 customer_phone: o.customer_phone || '',
+paiement: o.paiement || 'non_regle',
+acompte_montant: o.acompte_montant == null ? '' : String(o.acompte_montant).replace('.', ','),
 pickup_date: o.pickup_date,
 pickup_time: o.pickup_time || '',
 status: o.status || 'brouillon',
@@ -14792,6 +14812,68 @@ renderSpecials();
 function handleSpecialFormField(field, val) {
 if (!specialFormDraft) return;
 specialFormDraft[field] = val;
+}
+
+// v20.185 — paiement (bouton → re-render, pas de saisie clavier en cours)
+function setSpecialPaiement(v) {
+  if (!specialFormDraft) return;
+  specialFormDraft.paiement = v;
+  renderSpecials();
+}
+
+// v20.185 — Mémoire clients : suggestions depuis l'historique des commandes spéciales,
+// TOUTES boutiques confondues (choix Phil : un client de Veigné est reconnu à Tours).
+// Pas de table dédiée : l'index se reconstruit depuis special_orders, il s'enrichit
+// tout seul à chaque nouvelle commande.
+let specialClientsIndex = null;   // [{name, phone}] dédupliqué, plus récent d'abord
+let _specialClientsMatches = [];
+function _normClient(s2) {
+  return String(s2 || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+async function loadSpecialClientsIndex() {
+  if (specialClientsIndex) return;
+  const { data, error } = await supa.from('special_orders')
+    .select('customer_name,customer_phone,created_at')
+    .eq('tenant_id', TENANT_ID)
+    .not('customer_name', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(3000);
+  if (error) { specialClientsIndex = []; return; }
+  const seen = {}; const out = [];
+  (data || []).forEach(function(r) {
+    const nm = String(r.customer_name || '').trim();
+    if (!nm) return;
+    const k = _normClient(nm);
+    if (seen[k]) { // déjà vu (plus récent) : complète juste le téléphone s'il manquait
+      if (!seen[k].phone && r.customer_phone) seen[k].phone = String(r.customer_phone).trim();
+      return;
+    }
+    const e = { name: nm, phone: r.customer_phone ? String(r.customer_phone).trim() : '' };
+    seen[k] = e; out.push(e);
+  });
+  specialClientsIndex = out;
+}
+function handleSpecialClientInput(el) {
+  handleSpecialFormField('customer_name', el.value);
+  const box = document.getElementById('sp-client-sug');
+  if (!box) return;
+  const q = _normClient(el.value);
+  if (q.length < 2 || !specialClientsIndex) { box.innerHTML = ''; return; }
+  _specialClientsMatches = specialClientsIndex.filter(function(c) {
+    return _normClient(c.name).indexOf(q) !== -1 || (c.phone && c.phone.replace(/\D/g, '').indexOf(q) !== -1);
+  }).slice(0, 5);
+  box.innerHTML = _specialClientsMatches.map(function(c, i) {
+    return '<button type="button" onclick="pickSpecialClient(' + i + ')" style="display:block;width:100%;text-align:left;padding:9px 12px;border:1px solid #E8DFC9;border-top:none;background:#FFFDF7;cursor:pointer;font-size:14px">👤 <strong>'
+      + escapeHtml(c.name) + '</strong>' + (c.phone ? ' — ' + escapeHtml(c.phone) : '') + '</button>';
+  }).join('');
+}
+function pickSpecialClient(i) {
+  const c = _specialClientsMatches[i]; if (!c || !specialFormDraft) return;
+  specialFormDraft.customer_name = c.name;
+  if (c.phone) specialFormDraft.customer_phone = c.phone;
+  const nom = document.getElementById('sp-client-nom'); if (nom) nom.value = c.name;
+  const tel = document.getElementById('sp-client-tel'); if (tel && c.phone) tel.value = c.phone;
+  const box = document.getElementById('sp-client-sug'); if (box) box.innerHTML = '';
 }
 
 // v20.74 — messages de plaque préréglés (clic = remplit Notes, éditable ensuite)
@@ -14860,12 +14942,26 @@ html += '</div>';
 
 html += '<div class="sp-form">';
 
-// Client
+// Client — v20.185 : suggestions depuis l'historique (toutes boutiques confondues)
 html += '<div class="sp-form-row"><label class="sp-lbl">Nom client *</label>';
-html += '<input class="sp-input" type="text" value="' + escapeHtml(d.customer_name) + '" placeholder="ex : M. Dupont" oninput="handleSpecialFormField(\'customer_name\', this.value)"></div>';
+html += '<input class="sp-input" id="sp-client-nom" type="text" autocomplete="off" value="' + escapeHtml(d.customer_name) + '" placeholder="ex : M. Dupont" oninput="handleSpecialClientInput(this)">';
+html += '<div id="sp-client-sug"></div></div>';
 
-html += '<div class="sp-form-row"><label class="sp-lbl">Telephone</label>';
-html += '<input class="sp-input" type="tel" value="' + escapeHtml(d.customer_phone) + '" placeholder="optionnel" oninput="handleSpecialFormField(\'customer_phone\', this.value)"></div>';
+html += '<div class="sp-form-row"><label class="sp-lbl">Telephone' + (d.id ? '' : ' *') + '</label>';
+html += '<input class="sp-input" id="sp-client-tel" type="tel" value="' + escapeHtml(d.customer_phone) + '" placeholder="' + (d.id ? '' : 'obligatoire — ') + 'ex : 06 12 34 56 78" oninput="handleSpecialFormField(\'customer_phone\', this.value)"></div>';
+
+// v20.185 — paiement à la prise de commande
+html += '<div class="sp-form-row"><label class="sp-lbl">Paiement</label><div style="display:flex;gap:6px;flex-wrap:wrap">';
+[['non_regle', 'À régler'], ['acompte', 'Acompte'], ['regle', '💰 Réglé']].forEach(function(pm) {
+  const on = (d.paiement || 'non_regle') === pm[0];
+  html += '<button type="button" onclick="setSpecialPaiement(\'' + pm[0] + '\')" style="flex:1;min-width:90px;padding:10px 6px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid ' + (on ? 'var(--gold-dark)' : '#E0D8C8') + ';background:' + (on ? '#FFF3D6' : '#FAF8F4') + ';color:' + (on ? 'var(--gold-dark)' : 'var(--grey)') + '">' + pm[1] + '</button>';
+});
+html += '</div>';
+if (d.paiement === 'acompte') {
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="sp-lbl" style="margin:0">Montant *</label>'
+    + '<input class="sp-input" type="text" inputmode="decimal" style="max-width:110px" value="' + escapeHtml(String(d.acompte_montant || '')) + '" placeholder="ex : 20" oninput="handleSpecialFormField(\'acompte_montant\', this.value)"><span style="font-weight:700">€</span></div>';
+}
+html += '</div>';
 
 // Date + Heure
 html += '<div class="sp-form-row-double">';
