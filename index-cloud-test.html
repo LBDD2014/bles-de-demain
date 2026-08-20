@@ -4360,8 +4360,8 @@ tenant_id: TENANT_ID, boutique_id: b, product_id: pid, date: date,
 matin: parseInt(d2.matin) || 0,
 matin_auto: d2.matin_auto == null ? null : d2.matin_auto,
 aprem: d2.aprem === '' ? null : parseInt(d2.aprem) || 0,
-reste_j1: d2.reste_j1 === '' ? null : parseInt(d2.reste_j1) || 0,
-reste_j2: d2.reste_j2 === '' || d2.reste_j2 == null ? null : parseInt(d2.reste_j2) || 0,
+reste_j1: d2.reste_j1 === '' ? null : parseQty(d2.reste_j1) || 0, // v20.184 — demi-pièces
+reste_j2: d2.reste_j2 === '' || d2.reste_j2 == null ? null : parseQty(d2.reste_j2) || 0,
 perte: d2.perte === '' ? null : parseInt(d2.perte) || 0,
 rupture_heure: d2.rupture_heure || null,
 day_closed: d2.day_closed === true,  // v20.5 — préserve l'état de validation
@@ -4377,8 +4377,8 @@ setSyncStatus('syncing');
 const d = salesData[pid] || {};
 const matin = d.matin === '' ? null : parseInt(d.matin) || 0;
 const aprem = d.aprem === '' ? null : parseInt(d.aprem) || 0;
-const resteJ1 = d.reste_j1 === '' ? null : parseInt(d.reste_j1) || 0;
-const resteJ2 = d.reste_j2 === '' || d.reste_j2 == null ? null : parseInt(d.reste_j2) || 0;
+const resteJ1 = d.reste_j1 === '' ? null : parseQty(d.reste_j1) || 0; // v20.184 — demi-pièces
+const resteJ2 = d.reste_j2 === '' || d.reste_j2 == null ? null : parseQty(d.reste_j2) || 0;
 const perte = d.perte === '' ? null : parseInt(d.perte) || 0;
 const { error } = await supa.from('sales').upsert({
 tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
@@ -4663,8 +4663,8 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
 + '</div>'
 + prevCell
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (apremAuto ? 'is-auto' : (apremVal !== '' ? 'has' : '')) + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="' + (isCakeP ? 'Sortie jour' : 'Après-midi') + ' — ' + escapeHtml(p.name) + '" value="' + apremVal + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + rj + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + rj2 + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-half="1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + String(rj).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-half="1" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + String(rj2).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
 + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
@@ -4827,8 +4827,8 @@ function calcVenduV201(pid, previs) {
 const d = salesData[pid] || {};
 if (!d.day_closed) return null;
 const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
-const rj = d.reste_j1 === '' ? 0 : parseInt(d.reste_j1) || 0;
-const rj2 = d.reste_j2 === '' || d.reste_j2 == null ? 0 : parseInt(d.reste_j2) || 0;
+const rj = d.reste_j1 === '' ? 0 : parseQty(d.reste_j1) || 0; // v20.184 — demi-pièces
+const rj2 = d.reste_j2 === '' || d.reste_j2 == null ? 0 : parseQty(d.reste_j2) || 0;
 const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
 const pv = previs || 0;
 // v20.139 — Gâteaux : la Sortie jour (aprem) est déjà comprise dans le Prévis → on ne l'ajoute pas
@@ -4896,8 +4896,8 @@ async function validateDay() {
       tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: p.id, date: currentDate,
       matin: hasVal(d.matin) ? (parseInt(d.matin) || 0) : null,
       aprem: hasVal(d.aprem) ? (parseInt(d.aprem) || 0) : 0,
-      reste_j1: hasVal(d.reste_j1) ? (parseInt(d.reste_j1) || 0) : 0,
-      reste_j2: hasVal(d.reste_j2) ? (parseInt(d.reste_j2) || 0) : 0,
+      reste_j1: hasVal(d.reste_j1) ? (parseQty(d.reste_j1) || 0) : 0, // v20.184 — demi-pièces
+      reste_j2: hasVal(d.reste_j2) ? (parseQty(d.reste_j2) || 0) : 0,
       perte: hasVal(d.perte) ? (parseInt(d.perte) || 0) : 0,
       rupture_heure: d.rupture_heure || null,
       day_closed: true,
@@ -4958,7 +4958,7 @@ tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: curre
 matin: d.matin == null || d.matin === '' ? null : parseInt(d.matin) || 0,
 aprem: d.aprem === '' ? null : parseInt(d.aprem) || 0,
 reste_j1: 0,  // <-- le cœur du bouton
-reste_j2: d.reste_j2 === '' || d.reste_j2 == null ? null : parseInt(d.reste_j2) || 0,
+reste_j2: d.reste_j2 === '' || d.reste_j2 == null ? null : parseQty(d.reste_j2) || 0,
 perte: d.perte === '' ? null : parseInt(d.perte) || 0,
 rupture_heure: d.rupture_heure || null,
 day_closed: d.day_closed === true,  // v20.5 — préserve l'état de validation
@@ -15915,8 +15915,10 @@ let _npBuffer = '';
 function openNumpad(inp) {
 if (!inp) return;
 _npTarget = inp;
-const cur = (inp.value == null ? '' : String(inp.value)).replace(/[^0-9]/g, '');
-_npBuffer = cur;
+// v20.184 — les champs marqués data-np-half acceptent les demi-pièces (0,5)
+const allowHalf = inp.getAttribute('data-np-half') === '1';
+const raw = (inp.value == null ? '' : String(inp.value)).replace('.', ',');
+_npBuffer = allowHalf ? raw.replace(/[^0-9,]/g, '') : raw.replace(/[^0-9]/g, '');
 renderNumpad();
 }
 
@@ -15931,6 +15933,10 @@ keys += '<button class="np-key" onclick="npKey(\'' + d + '\')">' + d + '</button
 keys += '<button class="np-key np-ghost" onclick="npClear()">C</button>';
 keys += '<button class="np-key" onclick="npKey(\'0\')">0</button>';
 keys += '<button class="np-key np-ghost" onclick="npBackspace()">⌫</button>';
+// v20.184 — demi-pièces (ex : 1/2 Fruité gardé pour demain) sur Reste J-1 / J-2
+if (_npTarget.getAttribute('data-np-half') === '1') {
+  keys += '<button class="np-key" style="grid-column:1/-1;background:#FFF9ED;border:1.5px solid var(--gold)" onclick="npHalf()">½ &nbsp;<span style="font-size:12px;color:var(--brown-mid);font-weight:500">(ajoute ,5)</span></button>';
+}
 ov.innerHTML = '<div class="np-box">'
 + '<div class="np-head">' + escapeHtml(label) + '</div>'
 + '<div class="np-display" id="np-display">' + (_npBuffer === '' ? '0' : escapeHtml(_npBuffer)) + '</div>'
@@ -15949,7 +15955,14 @@ if (d) d.textContent = (_npBuffer === '' ? '0' : _npBuffer);
 function npKey(d) {
 if (_npBuffer === '0') _npBuffer = '';   // pas de zéro en tête
 if (_npBuffer.length >= 5) return;       // garde-fou (max 99999)
+if (_npBuffer.indexOf(',') !== -1) return; // v20.184 — après « ,5 », on ne rajoute plus de chiffre
 _npBuffer += d; _npRefresh();
+}
+// v20.184 — ½ : 2 → « 2,5 » · vide → « 0,5 »
+function npHalf() {
+if (_npBuffer.indexOf(',') !== -1) return;
+_npBuffer = (_npBuffer === '' ? '0' : _npBuffer) + ',5';
+_npRefresh();
 }
 function npBackspace() { _npBuffer = _npBuffer.slice(0, -1); _npRefresh(); }
 function npClear() { _npBuffer = ''; _npRefresh(); }
