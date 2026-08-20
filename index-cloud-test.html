@@ -4362,7 +4362,7 @@ matin_auto: d2.matin_auto == null ? null : d2.matin_auto,
 aprem: d2.aprem === '' ? null : parseInt(d2.aprem) || 0,
 reste_j1: d2.reste_j1 === '' ? null : parseQty(d2.reste_j1) || 0, // v20.184 — demi-pièces
 reste_j2: d2.reste_j2 === '' || d2.reste_j2 == null ? null : parseQty(d2.reste_j2) || 0,
-perte: d2.perte === '' ? null : parseInt(d2.perte) || 0,
+perte: d2.perte === '' ? null : parseQty(d2.perte) || 0, // v20.184b — demi-pièces
 rupture_heure: d2.rupture_heure || null,
 day_closed: d2.day_closed === true,  // v20.5 — préserve l'état de validation
 updated_by: DEVICE_ID, updated_at: nowISO
@@ -4379,7 +4379,7 @@ const matin = d.matin === '' ? null : parseInt(d.matin) || 0;
 const aprem = d.aprem === '' ? null : parseInt(d.aprem) || 0;
 const resteJ1 = d.reste_j1 === '' ? null : parseQty(d.reste_j1) || 0; // v20.184 — demi-pièces
 const resteJ2 = d.reste_j2 === '' || d.reste_j2 == null ? null : parseQty(d.reste_j2) || 0;
-const perte = d.perte === '' ? null : parseInt(d.perte) || 0;
+const perte = d.perte === '' ? null : parseQty(d.perte) || 0; // v20.184b — demi-pièces
 const { error } = await supa.from('sales').upsert({
 tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid, date: currentDate,
 matin: matin, aprem: aprem, reste_j1: resteJ1, reste_j2: resteJ2, perte: perte,
@@ -4665,7 +4665,7 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (apremAuto ? 'is-auto' : (apremVal !== '' ? 'has' : '')) + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="' + (isCakeP ? 'Sortie jour' : 'Après-midi') + ' — ' + escapeHtml(p.name) + '" value="' + apremVal + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-half="1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + String(rj).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-half="1" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + String(rj2).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + pe + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-half="1" data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + String(pe).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
 + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
 + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
 + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
@@ -4829,7 +4829,7 @@ if (!d.day_closed) return null;
 const a  = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
 const rj = d.reste_j1 === '' ? 0 : parseQty(d.reste_j1) || 0; // v20.184 — demi-pièces
 const rj2 = d.reste_j2 === '' || d.reste_j2 == null ? 0 : parseQty(d.reste_j2) || 0;
-const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
+const pe = d.perte === '' ? 0 : parseQty(d.perte) || 0; // v20.184b — demi-pièces
 const pv = previs || 0;
 // v20.139 — Gâteaux : la Sortie jour (aprem) est déjà comprise dans le Prévis → on ne l'ajoute pas
 if (usesSortieModel(_catOf(pid))) return Math.max(0, pv - rj - rj2 - pe);
@@ -4840,7 +4840,7 @@ function calcPerteV201(pid, previs) {
 const d = salesData[pid] || {};
 if (!d.day_closed) return null;
 const a = d.aprem === '' ? 0 : parseInt(d.aprem) || 0;
-const pe = d.perte === '' ? 0 : parseInt(d.perte) || 0;
+const pe = d.perte === '' ? 0 : parseQty(d.perte) || 0; // v20.184b — demi-pièces
 // v20.139 — Gâteaux : base = Prévis seul (la Sortie jour est déjà dans le Prévis)
 const total = usesSortieModel(_catOf(pid)) ? (previs || 0) : ((previs || 0) + a);
 if (total === 0) return null;
@@ -4898,7 +4898,7 @@ async function validateDay() {
       aprem: hasVal(d.aprem) ? (parseInt(d.aprem) || 0) : 0,
       reste_j1: hasVal(d.reste_j1) ? (parseQty(d.reste_j1) || 0) : 0, // v20.184 — demi-pièces
       reste_j2: hasVal(d.reste_j2) ? (parseQty(d.reste_j2) || 0) : 0,
-      perte: hasVal(d.perte) ? (parseInt(d.perte) || 0) : 0,
+      perte: hasVal(d.perte) ? (parseQty(d.perte) || 0) : 0, // v20.184b — demi-pièces
       rupture_heure: d.rupture_heure || null,
       day_closed: true,
       updated_by: DEVICE_ID, updated_at: nowISO
@@ -4959,7 +4959,7 @@ matin: d.matin == null || d.matin === '' ? null : parseInt(d.matin) || 0,
 aprem: d.aprem === '' ? null : parseInt(d.aprem) || 0,
 reste_j1: 0,  // <-- le cœur du bouton
 reste_j2: d.reste_j2 === '' || d.reste_j2 == null ? null : parseQty(d.reste_j2) || 0,
-perte: d.perte === '' ? null : parseInt(d.perte) || 0,
+perte: d.perte === '' ? null : parseQty(d.perte) || 0, // v20.184b — demi-pièces
 rupture_heure: d.rupture_heure || null,
 day_closed: d.day_closed === true,  // v20.5 — préserve l'état de validation
 updated_by: DEVICE_ID, updated_at: nowISO

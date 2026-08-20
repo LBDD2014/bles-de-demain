@@ -14,6 +14,11 @@ ALTER TABLE public.sales
   ALTER COLUMN reste_j1 TYPE numeric USING reste_j1::numeric,
   ALTER COLUMN reste_j2 TYPE numeric USING reste_j2::numeric;
 
+-- v20.184b — la Perte aussi (1/2 Fruité jeté). À lancer seul si le bloc
+-- ci-dessus est déjà passé :
+ALTER TABLE public.sales
+  ALTER COLUMN perte TYPE numeric USING perte::numeric;
+
 -- Vérification (doit s'exécuter sans erreur et montrer numeric) :
 -- SELECT column_name, data_type FROM information_schema.columns
---  WHERE table_name = 'sales' AND column_name IN ('reste_j1','reste_j2');
+--  WHERE table_name = 'sales' AND column_name IN ('reste_j1','reste_j2','perte');
