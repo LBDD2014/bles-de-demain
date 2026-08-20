@@ -1448,6 +1448,18 @@ async function uploadPhoto(inputId,prefix){
   if(up.error)throw new Error(up.error.message);
   return supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
 }
+// v20.191 — Garde-fou Mimosas : le GAEC facture « farine de blé type BISE », mais c'est
+// en réalité les BLÉS ANCIENS (≠ T80 Bio Bise de chez Suire/Girardeau, autre produit).
+// L'erreur a été faite 9 fois de suite (bons 2880→2941, 1450 kg comptés deux fois,
+// corrigé le 20/08/2026). Ses bons sont numérotés à 4 chiffres, ceux de Suire « GIR… ».
+function livGardeFouMimosas(ingId, numBon){
+  if(ingId!=='ing_t80_bise') return true;
+  if(!/^\s*2[89]\d\d\s*$/.test(String(numBon||''))) return true;
+  return confirm('⚠️ Attention — bon n° '+String(numBon).trim()+' : ce numéro est de la série du GAEC des Mimosas.\n\n'
+    +'Chez eux, « farine de blé type bise » = BLÉS ANCIENS, pas le T80 Bio Bise de Suire/Girardeau '
+    +'(qui numérote ses bons « GIR… »).\n\nEnregistrer quand même en T80 Bio Bise ?');
+}
+
 async function livSave(){
   if(_livSaving)return;
   const row={ingredient_id:document.getElementById('livIng').value,quantite_kg:parseFloat(document.getElementById('livQte').value)||0,
@@ -1456,6 +1468,7 @@ async function livSave(){
     note:document.getElementById('livNote').value||null,
     fournisseur_id:(ingredients.find(i=>i.id===document.getElementById('livIng').value)||{}).fournisseur_id||null};
   if(!row.quantite_kg){toast('Mets une quantité');return;}
+  if(!livGardeFouMimosas(row.ingredient_id,row.numero_bon))return; // v20.191
   const btn=document.getElementById('livSaveBtn');
   _livSaving=true;if(btn){btn.disabled=true;btn.textContent='⏳ Enregistrement…';}
   try{
@@ -1576,6 +1589,7 @@ async function livRenderList(filtered){
     g.lignes.push(l);if(l.photo_url&&!g.photo)g.photo=l.photo_url;if(l.photo_facture_url&&!g.facture)g.facture=l.photo_facture_url;
   });
   const shown=filtered?groups:groups.slice(0,15);
+  _livGroups=shown; // v20.191 — pour livAddFacture(gi)
   const frD=d=>{if(!d)return'';const p=String(d).split('-');return p[2]+'/'+p[1];};
   box.innerHTML=shown.map((g,gi)=>{
     const total=g.lignes.reduce((s,l)=>s+(+l.quantite_kg||0),0);
@@ -1585,6 +1599,9 @@ async function livRenderList(filtered){
       +'<div class="s">'+frD(g.date)+' · '+g.lignes.length+' farine'+(g.lignes.length>1?'s':'')+(filtered?' · '+sn:'')+'</div></div>'
       +(g.photo?'<a class="ico-btn" href="'+g.photo+'" target="_blank" onclick="event.stopPropagation()">📷</a>':'')
       +(g.facture?'<a class="ico-btn" href="'+g.facture+'" target="_blank" onclick="event.stopPropagation()">🧾</a>':'')
+      // v20.191 — rattacher la facture APRÈS coup (fournisseurs sans bon de livraison :
+      // le GAEC des Mimosas facture en fin de mois, la photo arrive après la saisie)
+      +'<button class="ico-btn" title="'+(g.facture?'Remplacer':'Ajouter')+' la photo de la facture" onclick="event.stopPropagation();livAddFacture('+gi+')">'+(g.facture?'♻️':'＋🧾')+'</button>'
       +'<span class="ico-btn" id="livcar_'+gi+'" style="pointer-events:none">▾</span></div>';
     const det='<div id="livg_'+gi+'" style="display:none;padding:2px 0 8px 30px">'
       +g.lignes.map(l=>'<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid #f0ece0">'
@@ -1592,6 +1609,45 @@ async function livRenderList(filtered){
         +'<button class="ico-btn" onclick="livDel('+l.id+')">🗑</button></div>').join('')+'</div>';
     return head+det;
   }).join('')||'<div class="hint">Aucune livraison pour ce magasin.</div>';
+}
+// v20.191 — Ajouter/remplacer la photo de facture sur une réception DÉJÀ saisie.
+// Une facture mensuelle couvre souvent plusieurs bons : on propose de l'appliquer
+// à toutes les réceptions du même fournisseur sur le même mois.
+let _livGroups=[];
+function livAddFacture(gi){
+  const g=_livGroups[gi]; if(!g)return;
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=async function(){
+    if(!inp.files||!inp.files[0]){inp.remove();return;}
+    try{
+      setSync('envoi de la facture…');
+      const f=inp.files[0];const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+      const path='facture_'+Date.now()+'.'+ext;
+      const up=await supa.storage.from('bons-bio').upload(path,f,{upsert:false});
+      if(up.error)throw new Error(up.error.message);
+      const url=supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
+      let ids=g.lignes.map(l=>l.id);
+      // autres réceptions du même mois et du même site, sans facture
+      const mois=String(g.date).slice(0,7);
+      const q=await supa.from('fab_livraisons').select('id,numero_bon,date_livraison')
+        .eq('site',g.site).gte('date_livraison',mois+'-01').lte('date_livraison',mois+'-31')
+        .is('photo_facture_url',null);
+      const autres=(q.data||[]).filter(l=>ids.indexOf(l.id)===-1);
+      if(autres.length){
+        const bons=[...new Set(autres.map(l=>l.numero_bon).filter(Boolean))];
+        if(confirm('Appliquer cette facture aussi aux '+autres.length+' autre(s) réception(s) de '+mois+' ?'
+          +(bons.length?'\n(BL n° '+bons.join(', ')+')':''))) ids=ids.concat(autres.map(l=>l.id));
+      }
+      const up2=await supa.from('fab_livraisons').update({photo_facture_url:url}).in('id',ids);
+      if(up2.error)throw new Error(up2.error.message);
+      setSync('🟢 connecté');toast('Facture attachée à '+ids.length+' réception'+(ids.length>1?'s':'')+' ✓');
+      livRenderList();
+    }catch(e){setSync('⚠️');toast('Facture : '+e.message);}
+    inp.remove();
+  };
+  inp.click();
 }
 function livTog(gi){const e=document.getElementById('livg_'+gi);const c=document.getElementById('livcar_'+gi);if(!e)return;const open=e.style.display==='none';e.style.display=open?'block':'none';if(c)c.textContent=open?'▴':'▾';}
 async function livDel(id){
