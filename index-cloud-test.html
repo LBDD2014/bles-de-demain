@@ -3349,9 +3349,13 @@ await loadSpecialOrdersForProduction(currentReapproDate);
 if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
 await loadStAvSalesForProduction(currentReapproDate);
+// v20.192 — restes de la veille (Veigné + St-Av) pour déduire du « à produire »
+await loadProductionNetInputs(['veigne', 'saint-avertin'], currentReapproDate);
 }
 if (currentBoutique === 'tours') {
 await loadToursSalesForProduction(currentReapproDate);
+// v20.192 — idem pour Tours (produit son pain, sa viennoiserie et son traiteur)
+await loadProductionNetInputs(['tours'], currentReapproDate);
 }
 // v20.15 : pour Le Local, on a besoin des ventes St-Av (pain + viennoiserie cuite éditables)
 if (currentBoutique === 'local') {
@@ -6946,6 +6950,49 @@ if (q > 0) productionStAvSalesByProduct[pid] = q;
 });
 }
 
+// v20.192 — NET à produire : « ce qu'il faut vraiment faire », pas le prévis brut.
+//
+// Règle (validée Phil 20/08/2026) : on déduit EXACTEMENT ce que la vendeuse a noté
+// en Reste J-1 / J-2 la veille (= ce qu'elle garde et remet en vitrine demain), et
+// JAMAIS la Perte (= ce qui part à la poubelle, donc à refaire).
+// Pas de liste de produits à maintenir : la saisie du soir fait foi, produit par
+// produit et jour par jour. Un croissant jeté → Perte → rien de déduit. Un flan
+// gardé → Reste → déduit. Marche donc pour TOUTES les catégories.
+//
+// Cas particulier traiteur/pâtisserie/gâteaux secs : ces catégories ont déjà une
+// « Sortie jour » sur l'écran Ventes (= Prévis − restes, corrigeable à la main).
+// Si la vendeuse l'a corrigée, c'est elle qui fait foi → les deux écrans affichent
+// le même chiffre.
+let productionNetByShop = {};   // { boutique: { pid: { reste: n, sortie: n|null } } }
+
+async function loadProductionNetInputs(boutiques, date) {
+  productionNetByShop = {};
+  for (const b of boutiques) {
+    const entry = {};
+    const restes = await loadRestesJ1(b, date);
+    Object.keys(restes).forEach(function(pid) { entry[pid] = { reste: restes[pid], sortie: null }; });
+    const { data, error } = await supa.from('sales').select('product_id,aprem')
+      .eq('tenant_id', TENANT_ID).eq('boutique_id', b).eq('date', date);
+    if (!error) {
+      (data || []).forEach(function(r) {
+        // Même test que l'écran Ventes : 0 ou vide = pas de saisie manuelle (auto)
+        if (r.aprem == null || r.aprem === '' || String(r.aprem) === '0') return;
+        if (!entry[r.product_id]) entry[r.product_id] = { reste: 0, sortie: null };
+        entry[r.product_id].sortie = parseQty(r.aprem) || 0;
+      });
+    }
+    productionNetByShop[b] = entry;
+  }
+}
+
+// Net à produire pour un produit dans une boutique donnée (0 si tout est déjà en vitrine).
+function productionNetQty(shop, p, previsQty) {
+  const info = (productionNetByShop[shop] || {})[p.id];
+  if (!info) return previsQty || 0;
+  if (usesSortieModel(p.category) && info.sortie != null) return info.sortie;
+  return Math.max(0, (previsQty || 0) - (info.reste || 0));
+}
+
 // v20.18 — Charge les sales St-Av complètes (matin/aprem/reste_j1) pour Le Local
 // Permet aux boulangers de voir le contexte de vente et d'ajuster la production.
 async function loadStAvSalesFromTable(date) {
@@ -7176,11 +7223,20 @@ if (currentBoutique === 'veigne') {
 await loadVeigneSalesForProduction(currentReapproDate);
 // v20.11 — recharger les Matins St-Av (traiteur)
 await loadStAvSalesForProduction(currentReapproDate);
+// v20.192 — restes de la veille du nouveau jour
+await loadProductionNetInputs(['veigne', 'saint-avertin'], currentReapproDate);
+}
+// v20.192 — Tours n'était pas rechargé du tout : changer de jour gardait l'ancien prévis
+if (currentBoutique === 'tours' && currentVue === 'production') {
+await loadToursSalesForProduction(currentReapproDate);
+await loadProductionNetInputs(['tours'], currentReapproDate);
 }
 // v20.15 — Le Local : recharger les Matins St-Av (traiteur)
 if (currentBoutique === 'local') {
 await loadStAvSalesForProduction(currentReapproDate);
 if (typeof loadStAvSalesFromTable === 'function') await loadStAvSalesFromTable(currentReapproDate);
+// v20.192 — les restes St-Av (v20.181) n'étaient pas rechargés au changement de date
+productionStAvRestesVeille = await loadRestesJ1('saint-avertin', currentReapproDate);
 }
 // v20.42 — Pro_orders du jour + semaine pour bande "À anticiper"
 if (currentBoutique === 'local' || currentBoutique === 'veigne') {
@@ -7318,15 +7374,19 @@ function handleMatinVInput(el) {
   const pid = el.dataset.pid;
   const val = el.value;
   const q = parseQty(val) || 0;
+  // v20.192 — Tours utilise le même input : il doit écrire dans SON prévis, pas
+  // dans celui de Veigné (sinon éditer « Prévis » à Tours modifiait Veigné).
+  const shop = (currentBoutique === 'tours' && currentVue === 'production') ? 'tours' : 'veigne';
+  const cache = (shop === 'tours') ? productionToursSalesByProduct : productionVeigneSalesByProduct;
   // MAJ cache local
-  if (q > 0) productionVeigneSalesByProduct[pid] = q;
-  else delete productionVeigneSalesByProduct[pid];
+  if (q > 0) cache[pid] = q;
+  else delete cache[pid];
   // Recalcule le Total de la ligne sans full re-render (perf + curseur)
   recomputeRowTotal(el, pid);
-  // Debounce upsert vers la table previs (= source du Matin Veigné)
+  // Debounce upsert vers la table previs (= source du Matin Veigné / Prévis Tours)
   clearTimeout(updateTimers['matinv_' + pid]);
   updateTimers['matinv_' + pid] = setTimeout(function() {
-    upsertPrevis(pid, 'veigne', currentReapproDate, val);
+    upsertPrevis(pid, shop, currentReapproDate, val);
   }, 400);
 }
 
@@ -7369,8 +7429,18 @@ function recomputeRowTotal(el, pid) {
   if (!row) return;
   const totalCell = row.querySelector('.cell.total');
   if (!totalCell) return;
-  const mV = productionVeigneSalesByProduct[pid] || 0;
-  const mSA = productionStAvSalesByProduct[pid] || 0;
+  // v20.192 — mêmes déductions qu'au render, sinon le Total repasse en brut dès qu'on tape
+  const isToursProdV = (currentBoutique === 'tours' && currentVue === 'production');
+  const isVeignePatV = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne');
+  const showResteNetV = isVeignePatV || isToursProdV;
+  const prod = (products || []).find(function(x) { return x.id === pid; }) || { id: pid, category: _catOf(pid) };
+  const mVRaw = (isToursProdV ? productionToursSalesByProduct[pid] : productionVeigneSalesByProduct[pid]) || 0;
+  // v20.23 — à Veigné, Matin SA ne concerne que traiteur / gros gâteaux / gâteaux secs
+  const mSAEligible = !isVeignePatV || ['traiteur', 'patisserie_gros', 'gateaux_secs'].indexOf(prod.category) !== -1;
+  const mSARaw = mSAEligible ? (productionStAvSalesByProduct[pid] || 0) : 0;
+  const mV = showResteNetV ? productionNetQty(isToursProdV ? 'tours' : 'veigne', prod, mVRaw) : mVRaw;
+  const mSA = showResteNetV ? productionNetQty('saint-avertin', prod, mSARaw) : mSARaw;
+  const resteNet = (mVRaw - mV) + (mSARaw - mSA);
   let aprem = 0;
   let reste = 0;
   if (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue === 'prod_tour')) {
@@ -7382,7 +7452,8 @@ function recomputeRowTotal(el, pid) {
   const spe = productionSpecialByProduct[pid] || 0;
   // v21.0.4.4 — Inclure les pros dans le recompute (sinon le total écrase la colonne Pros après chaque édition)
   let pros = 0;
-  const showProsCol = (currentBoutique === 'veigne' && productionSupplierMode === 'veigne')
+  // v20.192 — Tours était oublié ici : sa colonne Pros disparaissait du Total après édition
+  const showProsCol = isVeignePatV || isToursProdV
     || (currentBoutique === 'local' && (currentVue === 'prod_boul' || currentVue === 'prod_tour'));
   if (showProsCol) {
     const agg = aggregateProOrdersForProduction(currentVue);
@@ -7390,7 +7461,7 @@ function recomputeRowTotal(el, pid) {
   }
   totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe + pros);
   // v20.181b — la ligne reste marquée tant qu'un reste d'hier est déduit
-  totalCell.classList.toggle('total-ajuste', reste > 0);
+  totalCell.classList.toggle('total-ajuste', reste > 0 || resteNet > 0);
 }
 
 function renderProduction() {
@@ -7466,6 +7537,9 @@ const showMatinSA = isVeignePat || isLocalBoul || isLocalTour;
 const showApremSA = isLocalBoul;
 // v20.32 — Reste J-1 aussi à Prod. Touriers (tartes fines, cookies, etc. qui se gardent J+1)
 const showResteJ1 = isLocalBoul || isLocalTour;
+// v20.192 — Veigné/Tours : colonne « Reste hier » = déduction réellement appliquée au Total
+// (le Local a déjà la sienne depuis v20.181, alimentée par les restes de St-Avertin)
+const showResteNet = isVeignePat || isToursProd;
 // v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
 const showVTS = !isVeignePat && !isLocalBoul && !isToursProd;
 // v20.168 — Boulangers Local : colonnes V/T pour les réassorts supply=local (Pain de mie…)
@@ -7484,6 +7558,7 @@ const fixedColsBefore = '1.3fr'
   + (showMatinSA ? ' 0.65fr' : '')
   + (showApremSA ? ' 0.65fr' : '')
   + (showResteJ1 ? ' 0.65fr' : '')
+  + (showResteNet ? ' 0.65fr' : '')
   + (showVTS ? ((isLocalBoul || isLocalTour) ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
   + (showVTBoul ? ' 0.5fr 0.5fr' : '')
   + (showSpe ? ' 0.55fr' : '')
@@ -7538,7 +7613,9 @@ marketSum += mv;
 // v20.7 — Commandes spéciales du jour pour ce produit (somme des items)
 const cSpe = showSpe ? (productionSpecialByProduct[p.id] || 0) : 0;
 // v20.9 — Matin Veigné depuis sales (besoin de la vendeuse Veigné pour le jour)
-const cMatinV = showMatinV ? ((isToursProd ? productionToursSalesByProduct[p.id] : productionVeigneSalesByProduct[p.id]) || 0) : 0;
+const cMatinVRaw = showMatinV ? ((isToursProd ? productionToursSalesByProduct[p.id] : productionVeigneSalesByProduct[p.id]) || 0) : 0;
+// v20.192 — Veigné/Tours : on ne produit que le manque réel (prévis − ce qui reste d'hier)
+const cMatinV = showResteNet ? productionNetQty(isToursProd ? 'tours' : 'veigne', p, cMatinVRaw) : cMatinVRaw;
 // v20.11 — Matin St-Av : pertinent à Veigné pour traiteur (seul cas filtré). Au Local pour pain/viennoiserie : toutes catégories filtrées en amont (allProducts).
 // v20.16 — Le Local : pas de filtre catégorie ici (allProducts est déjà filtré par équipe).
 // v20.22 — Matin SA toujours depuis previs (pattern cohérent avec Veigné). Aprem/Reste J-1 restent depuis sales.
@@ -7546,9 +7623,13 @@ const cMatinV = showMatinV ? ((isToursProd ? productionToursSalesByProduct[p.id]
 const veignePatVisibleCats = ['traiteur', 'patisserie_gros', 'gateaux_secs'];
 const matinSAEligible = showMatinSA && (!isVeignePat || veignePatVisibleCats.indexOf(p.category) !== -1);
 const stAvSale = productionStAvSalesFromTable[p.id] || {};
-const cMatinSA = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+const cMatinSARaw = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+// v20.192 — Veigné produit aussi pour St-Av : son reste d'hier réduit d'autant son besoin
+const cMatinSA = (showResteNet && matinSAEligible) ? productionNetQty('saint-avertin', p, cMatinSARaw) : cMatinSARaw;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
 const cReste = showResteJ1 ? (productionStAvRestesVeille[p.id] || 0) : 0; // v20.181 — reste du soir de la veille (J-1 + J-2)
+// v20.192 — ce qui a été retiré du besoin brut (affiché dans la colonne « Reste hier »)
+const cResteNet = (cMatinVRaw - cMatinV) + (cMatinSARaw - cMatinSA);
 // v21.0.4.3 — Pros : qty cumulée des commandes pros du jour pour ce produit (filtre par vue)
 const cPros = showProsCol && proAgg[p.id] ? proAgg[p.id].totalQty : 0;
 // v20.8 + v20.9 + v20.11 — Veigné Pâtissier : Total = Matin V + Matin SA + Spé
@@ -7561,8 +7642,10 @@ const pl = productionLocalData[p.id] || { produit: '', stock: '' };
 const prod  = pl.produit === '' || pl.produit == null ? null : parseQty(pl.produit);
 const stock = pl.stock   === '' || pl.stock   == null ? null : parseQty(pl.stock);
 return {
-p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinV, matinSA: cMatinSA,
-aprem: cAprem, reste: cReste, pros: cPros,
+// v20.192 — les cases Matin V / Matin SA restent le PRÉVIS BRUT : elles sont
+// éditables et écrivent dans `previs`. La déduction vit dans la colonne « Reste hier ».
+p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinVRaw, matinSA: cMatinSARaw,
+aprem: cAprem, reste: cReste, resteNet: cResteNet, pros: cPros,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -7733,6 +7816,10 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   if (showResteJ1) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Ce qui restait en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du Total">Reste SA hier</span>';
   }
+  if (showResteNet) {
+    // v20.192
+    headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Ce qui a été gardé hier soir (Reste J-1 + J-2 saisi dans Ventes) — déjà en vitrine, donc retiré du Total. La Perte n\'est jamais déduite : ce qui est jeté est à refaire.">Reste hier</span>';
+  }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
       // v20.17 — Boulangers Local : seul SA est pertinent (Veigné + Tours autonomes pour le pain)
@@ -7835,6 +7922,14 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     // saisie par la vendeuse. Deux personnes écrivant la même case = source d'erreur.
     rowHtml += '<div class="cell ' + (r.reste > 0 ? '' : 'zero') + '" title="Reste en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du total" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.reste > 0 ? '700' : '400') + '">' + (r.reste > 0 ? '−' + formatQty(r.reste) : '0') + '</div>';
   }
+  if (showResteNet) {
+    // v20.192 — lecture seule : c'est la journée d'hier de la vendeuse, pas la nôtre.
+    // Valeur négative = déduit du Total. Positive (rare) = la vendeuse a corrigé sa
+    // « Sortie jour » à la hausse sur Ventes, on suit sa correction.
+    const rn = r.resteNet || 0;
+    const rnTxt = rn > 0 ? '−' + formatQty(rn) : (rn < 0 ? '+' + formatQty(-rn) : '0');
+    rowHtml += '<div class="cell ' + (rn !== 0 ? '' : 'zero') + '" title="Gardé hier soir et déjà en vitrine ce matin — retiré du Total. La Perte n\'est pas déduite." style="color:' + (rn !== 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (rn !== 0 ? '700' : '400') + '">' + rnTxt + '</div>';
+  }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
       // v20.17 — Boulangers Local : afficher uniquement SA · v20.165 — Touriers idem
@@ -7864,9 +7959,11 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   const v = r.markets[mid] || 0;
   rowHtml += '<div class="cell ' + (v > 0 ? '' : 'zero') + '" style="color:' + (v > 0 ? 'var(--orange)' : 'inherit') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + formatQty(v) + '</div>';
   });
-  const totalAjuste = (r.reste > 0);
+  // v20.192 — le Total est « ajusté » dès qu'un reste d'hier a été retiré (St-Av au Local, ou Veigné/Tours)
+  const totalAjuste = (r.reste > 0 || (r.resteNet || 0) > 0);
+  const dedTotal = (r.reste || 0) + Math.max(0, r.resteNet || 0);
   rowHtml += '<div class="cell total' + (totalAjuste ? ' total-ajuste' : '') + '"'
-    + (totalAjuste ? ' title="Besoin ' + formatQty(r.total + r.reste) + ' − ' + formatQty(r.reste) + ' déjà en vitrine à St-Avertin"' : '')
+    + (totalAjuste ? ' title="Besoin ' + formatQty(r.total + dedTotal) + ' − ' + formatQty(dedTotal) + ' déjà en vitrine (gardé hier soir)"' : '')
     + '>' + formatQty(r.total) + '</div>';
   if (showProdStockEcart) {
     rowHtml += '<input type="text" inputmode="decimal" class="prod-input ' + prodCls + '" data-pid="' + r.p.id + '" data-field="produit" value="' + escapeHtml(r.produitRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
