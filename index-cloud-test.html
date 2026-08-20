@@ -2468,6 +2468,7 @@ const NAV_ITEMS = {
   ],
   'saint-avertin': [
     { id: 'ventes',           lbl: 'Ventes' },
+    { id: 'reappro',          lbl: 'Consommables' },   // v20.189 — sachets, serviettes, sacs vides
     { id: 'reappro_pat',      lbl: 'Cmd Veigné Pât.' },
     { id: 'metro',            lbl: 'Metro' },
     { id: 'previs_traiteur',  lbl: 'Prév. Trait.' },
@@ -2976,6 +2977,14 @@ function getProductsForPrevisGroup(boutique, group) {
     return supply === 'on_site';
   });
 }
+
+// v20.189 — Consommables commandables au Local par TOUTES les boutiques, St-Avertin
+// comprise. Phil (20/08) : « St-Avertin n'a besoin de rien d'autre que des sachets
+// baguettes, sacs de farine vides ou serviettes, vu qu'il n'y a pas de production ».
+// Liste explicite : son onglet Cmd Local ne montre QUE ça — pas les farines ni les
+// surgelés, qui passent par son Prévis (sinon double commande, double production).
+const CONSOMMABLES_IDS = ['sab', 'serviettes', 'sacs_farine_vides'];
+function isConsommable(p) { return !!p && CONSOMMABLES_IDS.indexOf(p.id) !== -1; }
 
 // v20.1 : sections Réappro ventilees par groupe
 function getReapproSectionGroup(p, boutique) {
@@ -3916,6 +3925,8 @@ const prodsForBoutique = products.filter(function(p) {
 const u = p.usage || 'reappro';
 if (u !== 'reappro' && u !== 'both') return false;
 if (getProductSupply(p, currentBoutique) == null) return false;
+// v20.189 — St-Avertin ne commande que des consommables (aucune production sur place)
+if (currentBoutique === 'saint-avertin' && !isConsommable(p)) return false;
 const s = getProductSupply(p, currentBoutique);
 // Exclusions v20 : les produits qui ont leur propre ecran Prévis / Traiteur
 if (p.category === 'traiteur' && categoryHasPrevis(p.category) && (s === 'on_site' || s === 'veigne')) return false;
@@ -3995,7 +4006,7 @@ if (sections.pain.length) {
 html += renderReapproSection('reassort', 'Pain (au Local)', sections.pain, 'local');
 }
 if (sections.ingrédients.length) {
-html += renderReapproSection('reassort', 'Ingrédients (au Local)', sections.ingrédients, 'local');
+html += renderReapproSection('reassort', (currentBoutique === 'saint-avertin' ? 'Consommables (au Local)' : 'Ingrédients & consommables (au Local)'), sections.ingrédients, 'local');
 }
 if (sections.autre.length) {
 html += renderReapproSection('reassort', 'Autres', sections.autre, null);
