@@ -1980,6 +1980,8 @@ max-width: 90vw; text-align: center;
 .mj-b-pro { background: #EAF1F8; color: var(--blue); }
 .mj-b-metro { background: #EFEAF6; color: #6B4FA0; }
 .mj-b-none { background: #EEE9DC; color: #A99F87; font-weight: 400; }
+.mj-b-butoir { background: #FBE9E9; color: var(--red); }
+.mj-butoir { display: inline-block; margin-left: 6px; background: #FBE9E9; color: var(--red); border-radius: 6px; padding: 1px 7px; font-size: 11.5px; font-weight: 700; }
 .mj-pause { text-align: center; margin: 14px 0 12px 64px; background: var(--gold-light); border-radius: 20px; padding: 7px; font-weight: 700; letter-spacing: 3px; font-size: 13px; color: var(--brown-mid); }
 .mj-prolist { margin-top: 7px; font-size: 13px; }
 .mj-prolist div { padding: 4px 0; border-top: 1px dashed #EDE5D2; display: flex; justify-content: space-between; gap: 8px; }
@@ -5809,24 +5811,75 @@ function maJourneeOrderSummary(o) {
     .map(function(it) { return formatQty(parseQty(it.qty)) + ' ' + ((pm[it.product_id] || {}).name || it.product_id); }).join(' · ');
 }
 
-// « + Ajouter un pro aujourd'hui » (réactivation ponctuelle, ex : Chevalier)
+// v20.187 — extra_pros accepte l'ancien format (id texte) ET le nouveau ({id, h})
+function maJourneeExtras() {
+  return ((livreurDayData && livreurDayData.extra_pros) || []).map(function(x) {
+    return (typeof x === 'string') ? { id: x, h: '' } : { id: x.id, h: x.h || '' };
+  });
+}
+// Heure butoir de livraison d'un pro aujourd'hui : l'heure saisie à l'ajout du jour
+// l'emporte, sinon celle de sa fiche pro pour ce jour (champ « Livraison »).
+function maJourneeButoir(proId) {
+  const ex = maJourneeExtras().find(function(x) { return x.id === proId; });
+  if (ex && ex.h) return ex.h;
+  const pr = (adminPros || []).find(function(x) { return x.id === proId; });
+  const JOURS_DOW = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const day = JOURS_DOW[new Date(todayISO() + 'T12:00').getDay()];
+  const cfg = pr && pr.jours_livraison && pr.jours_livraison[day];
+  return (cfg && cfg.livraison) ? cfg.livraison : '';
+}
+function maJourneeButoirBadge(proId) {
+  const h = maJourneeButoir(proId);
+  return h ? '<span class="mj-butoir">⏰ avant ' + escapeHtml(String(h).slice(0, 5).replace(':', 'h')) + '</span>' : '';
+}
+
+// « ＋ Ajouter un pro aujourd'hui » (réactivation ponctuelle, ex : Chevalier)
+// v20.187 — modal : choix du pro + HEURE BUTOIR de livraison (Phil : « il faut que mon
+// livreur sache à quel moment il doit livrer »). Remplace les prompt() en cascade.
+let _mjAddDraft = null;
 function maJourneeAddPro() {
-  const done = (livreurDayData && livreurDayData.extra_pros) || [];
-  const dispo = (adminPros || []).filter(function(pr) { return pr.actif !== false && done.indexOf(pr.id) === -1; })
+  const deja = maJourneeExtras().map(function(x) { return x.id; });
+  const dispo = (adminPros || []).filter(function(pr) { return pr.actif !== false && deja.indexOf(pr.id) === -1; })
     .sort(function(a, b2) { return (a.nom || '').localeCompare(b2.nom || ''); });
   if (!dispo.length) { showToast('Aucun pro à ajouter', 'error'); return; }
-  const noms = dispo.map(function(pr, i) { return (i + 1) + '. ' + pr.nom; }).join('\n');
-  const rep = prompt('Ajouter quel pro à la tournée d\'aujourd\'hui ?\n\n' + noms + '\n\nTape le numéro :', '');
-  if (rep === null) return;
-  const idx = parseInt(rep, 10) - 1;
-  if (isNaN(idx) || !dispo[idx]) { showToast('Numéro invalide', 'error'); return; }
-  const list = ((livreurDayData && livreurDayData.extra_pros) || []).slice();
-  list.push(dispo[idx].id);
+  _mjAddDraft = { id: dispo[0].id, h: '' };
+  closeMaJourneeAddPro();
+  const div = document.createElement('div');
+  div.id = 'mj-addpro-modal';
+  div.className = 'modal-overlay show';
+  div.style.zIndex = '3000';
+  div.onclick = function(e) { if (e.target === div) closeMaJourneeAddPro(); };
+  let h = '<div class="modal" style="max-width:400px;width:100%">';
+  h += '<div class="modal-title">＋ Ajouter une livraison</div>';
+  h += '<div class="modal-sub">Livraison qui s\'ajoute à la tournée d\'aujourd\'hui.</div>';
+  h += '<label style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase">Client pro</label>';
+  h += '<select class="pro-input" style="width:100%;margin-bottom:12px" onchange="_mjAddDraft.id=this.value">';
+  dispo.forEach(function(pr) { h += '<option value="' + escapeHtml(pr.id) + '">' + escapeHtml(pr.nom) + '</option>'; });
+  h += '</select>';
+  h += '<label style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase">Heure butoir de livraison</label>';
+  h += '<input type="time" class="pro-input" style="width:100%;margin-bottom:4px" oninput="_mjAddDraft.h=this.value">';
+  h += '<div style="font-size:12px;color:var(--grey-light);margin-bottom:14px">Le livreur la verra en ⏰ sur sa feuille de route. Laisse vide s\'il n\'y a pas d\'heure imposée.</div>';
+  h += '<div class="modal-actions">';
+  h += '<button class="modal-action cancel" onclick="closeMaJourneeAddPro()">Annuler</button>';
+  h += '<button class="modal-action" style="background:var(--gold);color:#fff" onclick="maJourneeConfirmAddPro()">Ajouter</button>';
+  h += '</div></div>';
+  div.innerHTML = h;
+  document.body.appendChild(div);
+}
+function closeMaJourneeAddPro() {
+  const el = document.getElementById('mj-addpro-modal');
+  if (el) el.remove();
+}
+function maJourneeConfirmAddPro() {
+  if (!_mjAddDraft || !_mjAddDraft.id) { closeMaJourneeAddPro(); return; }
+  const list = maJourneeExtras();
+  list.push({ id: _mjAddDraft.id, h: _mjAddDraft.h || '' });
+  closeMaJourneeAddPro();
   saveLivreurDayRow({ extra_pros: list });
   renderMaJournee();
 }
 function maJourneeRemovePro(pid) {
-  const list = ((livreurDayData && livreurDayData.extra_pros) || []).filter(function(x) { return x !== pid; });
+  const list = maJourneeExtras().filter(function(x) { return x.id !== pid; });
   saveLivreurDayRow({ extra_pros: list });
   renderMaJournee();
 }
@@ -5859,8 +5912,12 @@ function renderMaJournee() {
 
     if (st.type === 'pro') {
       const orders = maJourneeProOrders(st.match);
-      if (orders.length) badges += orders.map(function(o) { return '<span class="mj-badge mj-b-pro">💼 ' + escapeHtml(maJourneeOrderSummary(o) || 'commande du jour') + '</span>'; }).join('');
-      else badges += '<span class="mj-badge mj-b-none">pas de commande saisie</span>';
+      if (orders.length) {
+        badges += orders.map(function(o) { return '<span class="mj-badge mj-b-pro">💼 ' + escapeHtml(maJourneeOrderSummary(o) || 'commande du jour') + '</span>'; }).join('');
+        // v20.187 — heure butoir de livraison (fiche pro ou saisie du jour)
+        const hb = orders.map(function(o) { return maJourneeButoir(o.pro_id); }).filter(Boolean)[0];
+        if (hb) badges += '<span class="mj-badge mj-b-butoir">⏰ avant ' + escapeHtml(String(hb).slice(0, 5).replace(':', 'h')) + '</span>';
+      } else badges += '<span class="mj-badge mj-b-none">pas de commande saisie</span>';
     }
     if (st.type === 'reassort') {
       const n = maJourneeReassorts[st.b] || 0;
@@ -5879,26 +5936,40 @@ function renderMaJournee() {
     }
     if (st.type === 'pros') {
       // Tournée pros du jour (même filtre que l'onglet Tournée) + pros réactivés à la main
-      const extraIds = (livreurDayData && livreurDayData.extra_pros) || [];
+      const extraIds = maJourneeExtras().map(function(x) { return x.id; });
       const tourneeOrders = livreurProOrders.filter(function(o) {
         const pr = prosMap[o.pro_id];
         const src = o.boutique_source || (pr && pr.boutique_principale) || '?';
         return proTourneeMode(pr, src, d0) === 'livreur' || extraIds.indexOf(o.pro_id) !== -1;
       });
+      // v20.187 — une ligne par pro, triée par heure butoir (les plus urgents en tête)
       const seenPro = {};
-      let list = '';
+      const lignes = [];
       tourneeOrders.forEach(function(o) {
-        const pr = prosMap[o.pro_id]; seenPro[o.pro_id] = true;
-        list += '<div><span class="who">' + escapeHtml(pr ? pr.nom : o.pro_id) + (extraIds.indexOf(o.pro_id) !== -1 ? ' <button class="mj-x" onclick="event.stopPropagation();maJourneeRemovePro(\'' + o.pro_id + '\')">✕</button>' : '') + '</span><span class="what">' + escapeHtml(maJourneeOrderSummary(o) || '—') + '</span></div>';
+        seenPro[o.pro_id] = true;
+        lignes.push({ pid: o.pro_id, txt: maJourneeOrderSummary(o) || '—', extra: extraIds.indexOf(o.pro_id) !== -1 });
       });
       extraIds.forEach(function(pid2) {
         if (seenPro[pid2]) return;
-        const pr = prosMap[pid2];
-        list += '<div><span class="who">' + escapeHtml(pr ? pr.nom : pid2) + ' <button class="mj-x" onclick="event.stopPropagation();maJourneeRemovePro(\'' + pid2 + '\')">✕</button></span><span class="what" style="color:#A99F87">aucune commande saisie</span></div>';
+        lignes.push({ pid: pid2, txt: '', extra: true, vide: true });
+      });
+      lignes.forEach(function(l) { l.h = maJourneeButoir(l.pid); });
+      lignes.sort(function(a, b2) {
+        if (a.h && b2.h) return a.h.localeCompare(b2.h);
+        if (a.h) return -1;
+        if (b2.h) return 1;
+        return 0;
+      });
+      let list = '';
+      lignes.forEach(function(l) {
+        const pr = prosMap[l.pid];
+        list += '<div><span class="who">' + escapeHtml(pr ? pr.nom : l.pid) + maJourneeButoirBadge(l.pid)
+          + (l.extra ? ' <button class="mj-x" onclick="event.stopPropagation();maJourneeRemovePro(\'' + l.pid + '\')">✕</button>' : '')
+          + '</span><span class="what"' + (l.vide ? ' style="color:#A99F87"' : '') + '>' + escapeHtml(l.vide ? 'aucune commande saisie' : l.txt) + '</span></div>';
       });
       if (!list) list = '<div><span class="what" style="color:#A99F87">Aucune commande pro à livrer aujourd\'hui.</span></div>';
       extra = '<div class="mj-prolist">' + list + '</div>'
-        + '<button class="mj-addpro" onclick="event.stopPropagation();maJourneeAddPro()">＋ Ajouter un pro aujourd\'hui</button>';
+        + '<button class="mj-addpro" onclick="event.stopPropagation();maJourneeAddPro()">＋ Ajouter une livraison aujourd\'hui</button>';
     }
 
     html += '<div class="mj-step' + (isDone ? ' done' : '') + (off ? ' off' : '') + '">'
