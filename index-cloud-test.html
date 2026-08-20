@@ -1960,6 +1960,35 @@ max-width: 90vw; text-align: center;
 }
 .np-key:active { background: var(--gold); color: #fff; transform: scale(0.95); }
 .np-key.np-ghost { background: transparent; border-color: transparent; color: var(--grey-light); font-size: 22px; }
+/* v20.186 — Ma journée (livreur) */
+.mj-tl { padding: 4px 2px; }
+.mj-step { display: flex; gap: 10px; margin-bottom: 8px; }
+.mj-t { flex: 0 0 54px; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--brown-mid); padding-top: 13px; }
+.mj-card { flex: 1; background: #fff; border-radius: 12px; padding: 11px 13px; box-shadow: 0 1px 4px rgba(61,43,31,.07); border-left: 4px solid var(--gold-light); display: flex; gap: 10px; align-items: flex-start; }
+.mj-body { flex: 1; }
+.mj-place { font-weight: 700; font-size: 15px; color: var(--brown); }
+.mj-task { font-size: 13px; color: var(--grey-light); margin-top: 1px; }
+.mj-chk { flex: 0 0 34px; height: 34px; border-radius: 50%; border: 2px solid var(--gold); background: #fff; font-size: 18px; color: var(--green); cursor: pointer; }
+.mj-step.done .mj-card { opacity: .55; border-left-color: var(--green); }
+.mj-step.done .mj-place { text-decoration: line-through; }
+.mj-step.done .mj-chk { background: var(--green); border-color: var(--green); color: #fff; }
+.mj-step.off .mj-card { background: #F4F0E6; box-shadow: none; border-left-color: #DDD3BC; }
+.mj-step.off .mj-place { color: #A99F87; }
+.mj-badge { display: inline-block; margin-top: 7px; margin-right: 5px; border-radius: 8px; padding: 5px 10px; font-size: 12.5px; font-weight: 700; }
+.mj-b-reassort { background: #FDEEDC; color: var(--orange); }
+.mj-b-spe { background: #FFF3D6; color: var(--gold-dark); }
+.mj-b-pro { background: #EAF1F8; color: var(--blue); }
+.mj-b-metro { background: #EFEAF6; color: #6B4FA0; }
+.mj-b-none { background: #EEE9DC; color: #A99F87; font-weight: 400; }
+.mj-pause { text-align: center; margin: 14px 0 12px 64px; background: var(--gold-light); border-radius: 20px; padding: 7px; font-weight: 700; letter-spacing: 3px; font-size: 13px; color: var(--brown-mid); }
+.mj-prolist { margin-top: 7px; font-size: 13px; }
+.mj-prolist div { padding: 4px 0; border-top: 1px dashed #EDE5D2; display: flex; justify-content: space-between; gap: 8px; }
+.mj-prolist div:first-child { border-top: none; }
+.mj-prolist .who { font-weight: 700; }
+.mj-prolist .what { color: var(--grey-light); text-align: right; font-size: 12.5px; }
+.mj-x { border: none; background: #F4E9E9; color: var(--red); border-radius: 6px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
+.mj-addpro { margin-top: 9px; width: 100%; padding: 9px; border: 1.5px dashed var(--gold); background: #FFFDF7; border-radius: 9px; color: var(--gold-dark); font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+.mj-legend { margin: 16px 2px 0; font-size: 12px; color: var(--grey-light); background: #fff; border-radius: 10px; padding: 10px 12px; }
 .np-actions { display: flex; gap: 9px; margin-top: 12px; }
 .np-cancel, .np-ok { flex: 1; padding: 15px; border: none; border-radius: 14px; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
 .np-cancel { background: #EFE7D6; color: var(--grey); }
@@ -2445,6 +2474,7 @@ const NAV_ITEMS = {
     { id: 'messages',         lbl: 'Messages' }
   ],
   'livreur': [
+    { id: 'ma_journee', lbl: 'Ma journée' },   // v20.186 — feuille de route du jour
     { id: 'tournee',  lbl: 'Tournée' },
     { id: 'messages', lbl: 'Messages' }
   ],
@@ -3281,6 +3311,12 @@ renderVentes();
 } else if (v === 'recap') {
 await loadRecapWeek(currentBoutique, currentWeekStart);
 renderRecap();
+} else if (v === 'ma_journee') {
+// v20.186 — feuille de route du livreur : trame du jour + réel injecté
+if (!adminPros.length) await loadAdminPros();
+if (!adminProducts.length) await loadAdminProducts();
+await loadMaJournee();
+renderMaJournee();
 } else if (v === 'livraison' || v === 'tournee') {
 await loadDeliveries(currentDate);
 subscribeRealtimeDeliveries();
@@ -3444,6 +3480,8 @@ renderStockVeignePat();
 } else if (v === 'metro') {
 // v20.158 — Commande Metro (courses grossiste du lundi)
 await loadMetro();
+// v20.186 — au Local : état de la case « à faire livrer par le livreur »
+if (currentBoutique === 'local') livreurDayData = await loadLivreurDayRow(todayISO());
 renderMetro();
 }
 }
@@ -5660,6 +5698,222 @@ return html;
 }
 
 // === v21.0.7 — Vue livreur : commandes pros à livrer du jour ===
+
+// ============================================================================
+// v20.186 — « Ma journée » : feuille de route du livreur, théorique mais modulable
+// (trame papier de Phil validée le 20/08). La trame est EN DUR ici (v1) ; ce qui
+// bouge au jour le jour vit dans la table livreur_day (metro_tours coché par Phil
+// depuis le Récap Metro, extra_pros réactivés ponctuellement, étapes « fait »).
+// Cloisonnement : tout ce qui s'affiche vient du réel du jour (réassorts envoyés,
+// spéciales, pro_orders) — rien à retaper.
+// ============================================================================
+let livreurDayData = null;      // ligne livreur_day du jour (metro_tours, extra_pros, done)
+let maJourneeReassorts = {};    // { veigne: n, tours: n } produits envoyés non préparés/livrés… (badge)
+let maJourneeSpecialesTours = 0;
+
+// Trame par jour de semaine (2=mardi … 6=samedi). h ≈ indicatif.
+// type : fixe | pause | pro (livraison pro nominative) | reassort (b=boutique)
+//        | tours (conditionnel : spéciales + metro) | pros (tournée pros fin de matinée)
+function maJourneeTrame(dow) {
+  const matinDebutSemaine = [
+    { k: 'chg1',   h: '5h30',  place: 'Le Local — chargement', task: '1ère tournée St-Avertin', type: 'fixe' },
+    { k: 'vpat',   h: '≈6h',   place: 'Veigné', task: 'Récupérer la pâtisserie', type: 'fixe' },
+    { k: 'samep',  h: '≈6h30', place: 'St-Avertin', task: 'Dépose + mise en place du magasin', type: 'fixe' },
+    { k: 'ret1',   h: '≈7h',   place: 'Le Local (Esvres)', task: 'Retour', type: 'fixe' }
+  ];
+  const matinFinSemaine = [
+    { k: 'chg1',   h: '5h',    place: 'Le Local — chargement', task: '1ère tournée St-Avertin', type: 'fixe' },
+    { k: 'sadep',  h: '≈5h30', place: 'St-Avertin', task: 'Dépôt express de la 1ère tournée', type: 'fixe' },
+    { k: 'ret0',   h: '≈6h',   place: 'Le Local (Esvres)', task: 'Recharger', type: 'fixe' },
+    { k: 'vpat',   h: '≈6h15', place: 'Veigné', task: 'Récupérer la pâtisserie', type: 'fixe' },
+    { k: 'samep',  h: '6h30',  place: 'St-Avertin', task: 'Mise en place du magasin', type: 'fixe' },
+    { k: 'ret1',   h: '≈7h',   place: 'Le Local (Esvres)', task: 'Retour', type: 'fixe' }
+  ];
+  const matin = (dow === 5 || dow === 6) ? matinFinSemaine : matinDebutSemaine;
+  const steps = matin.concat([
+    { k: 'pause',  h: '≈7h30', type: 'pause' },
+    { k: 'tyf',    h: '≈8h',   place: 'Terre y Fruits', task: 'Livraison pro', type: 'pro', match: 'terre' },
+    { k: 'v2',     h: '8h15',  place: 'Veigné', task: (dow === 2 || dow === 6) ? 'Dépose + réassort' : 'Dépose', type: (dow === 2 || dow === 6) ? 'reassort' : 'fixe', b: 'veigne' },
+    { k: 'coop',   h: '8h50',  place: 'Coop Nature', task: 'Livraison pro — ⏰ avant 9h', type: 'pro', match: 'coop' },
+    { k: 'sa2',    h: '≈9h',   place: 'St-Avertin — 2ᵉ tour', task: 'Complément du matin', type: 'fixe' }
+  ]);
+  if (dow === 3 || dow === 5) {
+    steps.push({ k: 'tours', h: '≈9h30', place: 'Tours', task: dow === 3 ? 'Réassort + Le Pavillon (livré depuis la boutique de Tours)' : 'Réassort', type: 'reassort', b: 'tours' });
+  } else {
+    steps.push({ k: 'tours', h: '≈9h30', place: 'Tours', task: 'si nécessaire', type: 'tours' });
+  }
+  steps.push({ k: 'pros', h: '10h30', place: 'Le Local — chargement pros', task: 'Puis livraisons :', type: 'pros' });
+  if (dow === 2 || dow === 6) {
+    steps.push({ k: 'lodge', h: '≈12h', place: 'Loire Valley Lodge', task: 'Dernière livraison, puis retour', type: 'pro', match: 'lodge' });
+  }
+  return steps;
+}
+
+async function loadLivreurDayRow(dateISO) {
+  const { data } = await supa.from('livreur_day').select('*')
+    .eq('tenant_id', TENANT_ID).eq('date', dateISO).maybeSingle();
+  return data || { date: dateISO, metro_tours: false, extra_pros: [], done: {} };
+}
+async function saveLivreurDayRow(patch) {
+  const d = livreurDayData || { date: todayISO(), metro_tours: false, extra_pros: [], done: {} };
+  Object.keys(patch).forEach(function(k2) { d[k2] = patch[k2]; });
+  livreurDayData = d;
+  const { error } = await supa.from('livreur_day').upsert({
+    tenant_id: TENANT_ID, date: d.date, metro_tours: !!d.metro_tours,
+    extra_pros: d.extra_pros || [], done: d.done || {},
+    updated_by: DEVICE_ID, updated_at: new Date().toISOString()
+  }, { onConflict: 'tenant_id,date' });
+  if (error) showToast(error.message, 'error');
+}
+
+async function loadMaJournee() {
+  const d0 = todayISO();
+  livreurDayData = await loadLivreurDayRow(d0);
+  await loadLivreurProOrders(d0);
+  // Réassorts envoyés du jour, par boutique (badge « X produits chargés au Local »)
+  maJourneeReassorts = { veigne: 0, tours: 0 };
+  const { data: rr } = await supa.from('reappros').select('boutique_id,product_id,commander,sent_at')
+    .eq('tenant_id', TENANT_ID).eq('service_date', d0)
+    .in('boutique_id', ['veigne', 'tours']).not('sent_at', 'is', null);
+  (rr || []).forEach(function(r) {
+    if (!(parseQty(r.commander) > 0)) return;
+    const p = products.find(function(x) { return x.id === r.product_id; });
+    if (!p || getProductSupply(p, r.boutique_id) !== 'local') return;
+    maJourneeReassorts[r.boutique_id]++;
+  });
+  // Spéciales à déposer à Tours (produites ailleurs, retrait Tours aujourd'hui)
+  const { data: sp } = await supa.from('special_orders').select('id,status')
+    .eq('tenant_id', TENANT_ID).eq('origin_shop', 'tours').neq('production_shop', 'tours')
+    .eq('pickup_date', d0);
+  maJourneeSpecialesTours = (sp || []).filter(function(o) { return o.status !== 'annulee' && o.status !== 'livree'; }).length;
+}
+
+function maJourneeToggleDone(key) {
+  const done = (livreurDayData && livreurDayData.done) || {};
+  done[key] = !done[key];
+  saveLivreurDayRow({ done: done });
+  renderMaJournee();
+}
+
+// Commandes pro du jour pour un pro donné (badge des étapes nominatives)
+function maJourneeProOrders(matchTxt) {
+  const prosMap = {}; adminPros.forEach(function(pr) { prosMap[pr.id] = pr; });
+  return livreurProOrders.filter(function(o) {
+    const pr = prosMap[o.pro_id];
+    return pr && _normClient(pr.nom).indexOf(matchTxt) !== -1;
+  });
+}
+function maJourneeOrderSummary(o) {
+  const pm = {}; (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(x) { pm[x.id] = x; });
+  return (o.pro_order_items || []).filter(function(it) { return parseQty(it.qty) > 0; })
+    .map(function(it) { return formatQty(parseQty(it.qty)) + ' ' + ((pm[it.product_id] || {}).name || it.product_id); }).join(' · ');
+}
+
+// « + Ajouter un pro aujourd'hui » (réactivation ponctuelle, ex : Chevalier)
+function maJourneeAddPro() {
+  const done = (livreurDayData && livreurDayData.extra_pros) || [];
+  const dispo = (adminPros || []).filter(function(pr) { return pr.actif !== false && done.indexOf(pr.id) === -1; })
+    .sort(function(a, b2) { return (a.nom || '').localeCompare(b2.nom || ''); });
+  if (!dispo.length) { showToast('Aucun pro à ajouter', 'error'); return; }
+  const noms = dispo.map(function(pr, i) { return (i + 1) + '. ' + pr.nom; }).join('\n');
+  const rep = prompt('Ajouter quel pro à la tournée d\'aujourd\'hui ?\n\n' + noms + '\n\nTape le numéro :', '');
+  if (rep === null) return;
+  const idx = parseInt(rep, 10) - 1;
+  if (isNaN(idx) || !dispo[idx]) { showToast('Numéro invalide', 'error'); return; }
+  const list = ((livreurDayData && livreurDayData.extra_pros) || []).slice();
+  list.push(dispo[idx].id);
+  saveLivreurDayRow({ extra_pros: list });
+  renderMaJournee();
+}
+function maJourneeRemovePro(pid) {
+  const list = ((livreurDayData && livreurDayData.extra_pros) || []).filter(function(x) { return x !== pid; });
+  saveLivreurDayRow({ extra_pros: list });
+  renderMaJournee();
+}
+
+function renderMaJournee() {
+  const mc = document.getElementById('main-content');
+  const d0 = todayISO();
+  const dow = new Date(d0 + 'T12:00').getDay();
+  const done = (livreurDayData && livreurDayData.done) || {};
+  const DOW_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const dateLbl = formatDateFr(d0); // contient déjà le jour (« jeudi 20 août »)
+  let html = '<div class="info-banner" style="border-left-color:var(--gold)"><strong>🚚 ' + escapeHtml(dateLbl.charAt(0).toUpperCase() + dateLbl.slice(1)) + '</strong><br>Horaires ≈ indicatifs — l\'ordre peut changer selon la situation.</div>';
+
+  if (dow === 0 || dow === 1) {
+    html += '<div class="empty-state">Pas de tournée le ' + DOW_FULL[dow].toLowerCase() + '.<br><span style="font-size:12.5px;color:var(--brown-mid)">La feuille de route couvre du mardi au samedi.</span></div>';
+    mc.innerHTML = html; return;
+  }
+  if (dow === 2) html += '<div class="metro-remind" style="border-left-color:#6B4FA0">🛒 <div><strong>Mardi = courses Metro.</strong> Vérifie avec Phil s\'il y a des bacs à emmener à Tours.</div></div>';
+
+  const prosMap = {}; adminPros.forEach(function(pr) { prosMap[pr.id] = pr; });
+  const steps = maJourneeTrame(dow);
+  html += '<div class="mj-tl">';
+  steps.forEach(function(st) {
+    if (st.type === 'pause') {
+      html += '<div class="mj-pause">P A U S E · 20 min</div>';
+      return;
+    }
+    const isDone = !!done[st.k];
+    let badges = '', extra = '', off = false;
+
+    if (st.type === 'pro') {
+      const orders = maJourneeProOrders(st.match);
+      if (orders.length) badges += orders.map(function(o) { return '<span class="mj-badge mj-b-pro">💼 ' + escapeHtml(maJourneeOrderSummary(o) || 'commande du jour') + '</span>'; }).join('');
+      else badges += '<span class="mj-badge mj-b-none">pas de commande saisie</span>';
+    }
+    if (st.type === 'reassort') {
+      const n = maJourneeReassorts[st.b] || 0;
+      if (n > 0) badges += '<span class="mj-badge mj-b-reassort">📦 Réassort ' + (BOUTIQUE_NAMES[st.b] || st.b) + ' : ' + n + ' produit' + (n > 1 ? 's' : '') + ' à charger au Local</span>';
+      else badges += '<span class="mj-badge mj-b-none">réassort pas encore envoyé par la boutique</span>';
+      if (st.b === 'tours') {
+        if (maJourneeSpecialesTours > 0) badges += '<span class="mj-badge mj-b-spe">⭐ ' + maJourneeSpecialesTours + ' commande' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' spéciale' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' à déposer</span>';
+        if (livreurDayData && livreurDayData.metro_tours) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
+      }
+    }
+    if (st.type === 'tours') {
+      const any = maJourneeSpecialesTours > 0 || (livreurDayData && livreurDayData.metro_tours);
+      if (maJourneeSpecialesTours > 0) badges += '<span class="mj-badge mj-b-spe">⭐ ' + maJourneeSpecialesTours + ' commande' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' spéciale' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' à déposer</span>';
+      if (livreurDayData && livreurDayData.metro_tours) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
+      if (!any) { off = true; badges += '<span class="mj-badge mj-b-none">rien aujourd\'hui</span>'; }
+    }
+    if (st.type === 'pros') {
+      // Tournée pros du jour (même filtre que l'onglet Tournée) + pros réactivés à la main
+      const extraIds = (livreurDayData && livreurDayData.extra_pros) || [];
+      const tourneeOrders = livreurProOrders.filter(function(o) {
+        const pr = prosMap[o.pro_id];
+        const src = o.boutique_source || (pr && pr.boutique_principale) || '?';
+        return proTourneeMode(pr, src, d0) === 'livreur' || extraIds.indexOf(o.pro_id) !== -1;
+      });
+      const seenPro = {};
+      let list = '';
+      tourneeOrders.forEach(function(o) {
+        const pr = prosMap[o.pro_id]; seenPro[o.pro_id] = true;
+        list += '<div><span class="who">' + escapeHtml(pr ? pr.nom : o.pro_id) + (extraIds.indexOf(o.pro_id) !== -1 ? ' <button class="mj-x" onclick="event.stopPropagation();maJourneeRemovePro(\'' + o.pro_id + '\')">✕</button>' : '') + '</span><span class="what">' + escapeHtml(maJourneeOrderSummary(o) || '—') + '</span></div>';
+      });
+      extraIds.forEach(function(pid2) {
+        if (seenPro[pid2]) return;
+        const pr = prosMap[pid2];
+        list += '<div><span class="who">' + escapeHtml(pr ? pr.nom : pid2) + ' <button class="mj-x" onclick="event.stopPropagation();maJourneeRemovePro(\'' + pid2 + '\')">✕</button></span><span class="what" style="color:#A99F87">aucune commande saisie</span></div>';
+      });
+      if (!list) list = '<div><span class="what" style="color:#A99F87">Aucune commande pro à livrer aujourd\'hui.</span></div>';
+      extra = '<div class="mj-prolist">' + list + '</div>'
+        + '<button class="mj-addpro" onclick="event.stopPropagation();maJourneeAddPro()">＋ Ajouter un pro aujourd\'hui</button>';
+    }
+
+    html += '<div class="mj-step' + (isDone ? ' done' : '') + (off ? ' off' : '') + '">'
+      + '<div class="mj-t">' + escapeHtml(st.h) + '</div>'
+      + '<div class="mj-card">'
+      + '<button class="mj-chk" onclick="maJourneeToggleDone(\'' + st.k + '\')">' + (isDone ? '✓' : '') + '</button>'
+      + '<div class="mj-body"><div class="mj-place">' + escapeHtml(st.place) + '</div>'
+      + (st.task ? '<div class="mj-task">' + escapeHtml(st.task) + '</div>' : '')
+      + badges + extra
+      + '</div></div></div>';
+  });
+  html += '</div>';
+  html += '<div class="mj-legend">Les heures sont des <b>estimations</b>. Une étape « si nécessaire » ne s\'allume que s\'il y a vraiment quelque chose. Le détail des réassorts et des pros est dans l\'onglet <b>Tournée</b>.</div>';
+  mc.innerHTML = html;
+}
 
 async function loadLivreurProOrders(date) {
   const { data, error } = await supa
@@ -15604,6 +15858,13 @@ function renderMetroHistorique(b) {
   return h;
 }
 
+// v20.186 — bascule « courses Metro à livrer par le livreur » (côté Phil, Récap Metro)
+async function metroToggleLivreur() {
+  if (!livreurDayData || livreurDayData.date !== todayISO()) livreurDayData = await loadLivreurDayRow(todayISO());
+  await saveLivreurDayRow({ metro_tours: !livreurDayData.metro_tours });
+  renderMetro();
+}
+
 function renderMetroRecap() {
   // v20.170 — le Récap ne montre que l'ENVOYÉ (metro_history en attente), plus la saisie live
   const lignes = metroProducts.filter(function(p) { return metroPendingTotal(p.id) > 0; });
@@ -15616,6 +15877,15 @@ function renderMetroRecap() {
     + '<button class="metro-btn' + (metroManage ? ' on' : '') + '" onclick="metroToggleManage()">🛠️ Gérer</button>'
     + '<button class="metro-btn warn" onclick="metroResetRun()">✅ Course faite</button>'
     + '</span></div>';
+  // v20.186 — Phil coche → l'étape Tours du livreur s'allume « Courses Metro à livrer »
+  if (currentBoutique === 'local') {
+    const mtOn = !!(livreurDayData && livreurDayData.metro_tours);
+    h += '<div class="info-banner" style="border-left-color:#6B4FA0;cursor:pointer" onclick="metroToggleLivreur()">'
+      + '<span style="font-size:17px;margin-right:6px">' + (mtOn ? '☑️' : '⬜') + '</span>'
+      + '<strong>🚚 Courses à faire livrer à Tours par le livreur</strong> (aujourd\'hui)'
+      + (mtOn ? ' — <span style="color:#6B4FA0;font-weight:700">il le verra sur sa feuille de route</span>' : '')
+      + '</div>';
+  }
   // v20.170 — saisies non envoyées : petite alerte pour appeler la boutique avant de partir
   const sitesNonEnvoyes = METRO_SITES.filter(function(s) { return metroDiffCount(s[0]) > 0; });
   if (sitesNonEnvoyes.length) {

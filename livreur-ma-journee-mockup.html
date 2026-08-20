@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Ma journée (Livreur)</title>
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --blue: #2C5F8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: var(--cream); color: var(--brown); max-width: 520px; margin: 0 auto; padding-bottom: 40px; }
+
+  .hdr { background: var(--grey-dark); color: #fff; padding: 14px 16px 10px; }
+  .hdr h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 19px; }
+  .hdr .sub { color: var(--gold-light); font-size: 12.5px; margin-top: 2px; }
+
+  .day-strip { display: flex; gap: 5px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #E8DFC9; }
+  .day-strip button { flex: 1; padding: 8px 2px; border-radius: 8px; border: 1px solid #E0D8C8; background: #FAF8F4; font-family: inherit; font-size: 12.5px; color: var(--grey); }
+  .day-strip button.on { background: var(--gold); color: #fff; border-color: var(--gold); font-weight: 700; }
+
+  .note { margin: 10px 12px 0; background: #FFF8E7; border-left: 3px solid var(--gold); border-radius: 8px; padding: 9px 12px; font-size: 12.5px; color: var(--brown-mid); }
+
+  .tl { padding: 12px; }
+  .step { display: flex; gap: 10px; margin-bottom: 8px; }
+  .step .t { flex: 0 0 52px; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--brown-mid); padding-top: 13px; }
+  .step .t small { display:block; font-weight: 400; color: #B4A88E; font-size: 10px; }
+  .card { flex: 1; background: #fff; border-radius: 12px; padding: 11px 13px; box-shadow: 0 1px 4px rgba(61,43,31,.07); border-left: 4px solid var(--gold-light); }
+  .card .place { font-weight: 700; font-size: 15px; }
+  .card .task { font-size: 13px; color: var(--grey-light); margin-top: 1px; }
+
+  .step.done .card { opacity: .55; border-left-color: var(--green); }
+  .step.done .place { text-decoration: line-through; }
+  .step.done .card::after { content: "✓ fait"; float: right; color: var(--green); font-size: 12px; font-weight: 700; }
+
+  .step.now .card { border-left-color: var(--gold-dark); box-shadow: 0 2px 10px rgba(139,105,20,.25); }
+  .step.now .t { color: var(--gold-dark); }
+
+  .step.off .card { background: #F4F0E6; box-shadow: none; border-left-color: #DDD3BC; }
+  .step.off .place { color: #A99F87; }
+  .step.off .task { color: #B8AF9A; }
+
+  .badge { display: inline-block; margin-top: 7px; margin-right: 5px; border-radius: 8px; padding: 5px 10px; font-size: 12.5px; font-weight: 700; }
+  .b-reassort { background: #FDEEDC; color: var(--orange); }
+  .b-spe { background: #FFF3D6; color: var(--gold-dark); }
+  .b-pro { background: #EAF1F8; color: var(--blue); }
+  .b-metro { background: #EFEAF6; color: #6B4FA0; }
+  .b-none { background: #EEE9DC; color: #A99F87; font-weight: 400; }
+
+  .prolist { margin-top: 7px; font-size: 13px; }
+  .prolist div { padding: 4px 0; border-top: 1px dashed #EDE5D2; display: flex; justify-content: space-between; gap: 8px; }
+  .prolist div:first-child { border-top: none; }
+  .prolist .who { font-weight: 700; }
+  .prolist .what { color: var(--grey-light); text-align: right; font-size: 12.5px; }
+
+  .pause { text-align: center; margin: 14px 0 12px 62px; background: var(--gold-light); border-radius: 20px; padding: 7px; font-weight: 700; letter-spacing: 3px; font-size: 13px; color: var(--brown-mid); }
+
+  .legend { margin: 18px 12px 0; font-size: 12px; color: var(--grey-light); background: #fff; border-radius: 10px; padding: 10px 12px; }
+  .legend b { color: var(--brown-mid); }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🚚 Ma journée</h1>
+  <div class="sub">Mardi 25 août — horaires ≈ indicatifs, ordre modulable</div>
+</div>
+
+<div class="day-strip">
+  <button>Lun<br>—</button><button class="on">Mar</button><button>Mer</button><button>Jeu</button><button>Ven</button><button>Sam</button>
+</div>
+
+<div class="note">🛒 <strong>Mardi = courses Metro.</strong> Vérifie avec Phil s'il y a des bacs à emmener à Tours.</div>
+
+<div class="tl">
+
+  <div class="step done">
+    <div class="t">5h30</div>
+    <div class="card"><div class="place">Le Local — chargement</div><div class="task">1ère tournée St-Avertin</div></div>
+  </div>
+
+  <div class="step done">
+    <div class="t">≈6h</div>
+    <div class="card"><div class="place">Veigné</div><div class="task">Récupérer la pâtisserie</div></div>
+  </div>
+
+  <div class="step now">
+    <div class="t">≈6h30<small>en cours</small></div>
+    <div class="card"><div class="place">St-Avertin</div><div class="task">Dépose + mise en place du magasin</div></div>
+  </div>
+
+  <div class="step">
+    <div class="t">≈7h</div>
+    <div class="card"><div class="place">Le Local (Esvres)</div><div class="task">Retour</div></div>
+  </div>
+
+  <div class="pause">P A U S E</div>
+
+  <div class="step">
+    <div class="t">≈8h</div>
+    <div class="card"><div class="place">Terre y Fruits</div><div class="task">Livraison pro</div>
+      <span class="badge b-pro">💼 20 Tradition · 6 Céréales</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="t">8h15</div>
+    <div class="card"><div class="place">Veigné</div><div class="task">Dépose + réassort du mardi</div>
+      <span class="badge b-reassort">📦 Réassort Veigné : 14 produits chargés au Local</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="t">8h50</div>
+    <div class="card"><div class="place">Coop Nature</div><div class="task">Livraison pro — ⏰ <strong>avant 9h</strong></div>
+      <span class="badge b-pro">💼 8 Essentiel</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="t">≈9h</div>
+    <div class="card"><div class="place">St-Avertin — 2ᵉ tour</div><div class="task">Complément du matin</div></div>
+  </div>
+
+  <div class="step">
+    <div class="t">≈9h30</div>
+    <div class="card"><div class="place">Tours <span style="font-weight:400;color:#A99F87">(si nécessaire)</span></div>
+      <div class="task">Aujourd'hui il y a de quoi y aller :</div>
+      <span class="badge b-spe">⭐ 2 commandes spéciales à déposer</span>
+      <span class="badge b-metro">🛒 Courses Metro : 3 articles</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="t">10h30</div>
+    <div class="card"><div class="place">Le Local — chargement pros</div><div class="task">Puis livraisons :</div>
+      <div class="prolist">
+        <div><span class="who">Château d'Artigny</span><span class="what">15 Idéal 2,4 kg · 2 levure</span></div>
+        <div><span class="who">La Tortinière</span><span class="what">10 demi-Tradition</span></div>
+        <div><span class="who">Audace</span><span class="what">8 Mathis 800 g</span></div>
+        <div><span class="who">Saint Malo</span><span class="what">12 Tradition</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="t">≈12h</div>
+    <div class="card"><div class="place">Loire Valley Lodge</div><div class="task">Dernière livraison, puis retour</div>
+      <span class="badge b-pro">💼 6 Mathis 1,5 kg</span>
+    </div>
+  </div>
+
+  <div class="step off">
+    <div class="t">—</div>
+    <div class="card"><div class="place">Fredeville</div><div class="task">Pas prévu le mardi</div>
+      <span class="badge b-none">rien aujourd'hui</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <b>Comment lire :</b> les heures sont des <b>estimations</b> — l'ordre peut changer.
+  Une étape <b>« si nécessaire »</b> s'allume seulement quand il y a vraiment quelque chose
+  (commandes spéciales, réassort envoyé, courses Metro) ; sinon elle reste grise « rien aujourd'hui ».
+  Les quantités pros et réassorts viennent des <b>vraies commandes du jour</b> — rien à retaper.
+  Toucher une étape ouvre l'écran correspondant (Tournée, Metro…).
+</div>
+
+</body>
+</html>
