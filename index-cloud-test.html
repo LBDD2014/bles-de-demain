@@ -6159,6 +6159,12 @@ setSyncStatus('syncing');
 let update;
 if (wasLivre) {
 update = { livre_at: null, qty_livree: null, livre_by: null };
+// v20.190 — on retire aussi le dispatch bio créé à la validation
+const { data: rOld } = await supa.from('reappros').select('*').eq('id', rid).single();
+if (rOld) {
+  const pOld = products.find(function(x) { return x.id === rOld.product_id; });
+  if (pOld) await syncDispatchBio(rOld, pOld, true);
+}
 } else {
 // Si une qty_livree est saisie sur l'input dans la page, la prendre
 const input = document.querySelector('input[data-rid="' + rid + '"]');
@@ -6217,6 +6223,67 @@ await setVue('tournée');
 showToast(rows.length + ' reappros valides', 'sync');
 }
 
+// ============================================================================
+// v20.190 — Dispatch bio automatique : la validation de livraison du livreur crée
+// la ligne de dispatch dans Fabrication (fab_mouvements), au lieu que Phil la
+// ressaisisse à la main (2 dispatchs seulement en base depuis le début → bilan bio
+// plein de négatifs « donnée manquante »).
+//
+// Règles voulues :
+//  - déclenché à la LIVRAISON (pas à la commande) : on ne trace que du bio parti pour de bon
+//  - quantité RÉELLEMENT livrée (qty_livree si le livreur l'a corrigée, sinon commandée)
+//    × conditionnement du produit → des kg/L, l'unité du bilan BV
+//  - uniquement les produits ayant un équivalent bio en Fabrication. Les consommables
+//    (sachets, serviettes, sacs vides) ne doivent JAMAIS entrer dans la traçabilité BV.
+//  - uniquement vers Veigné et Tours : St-Avertin ne produit pas, elle n'a pas de stock bio.
+// ============================================================================
+const DISPATCH_BIO_MAP = {
+  'fba':      'ing_bp',        // Farine Blé Ancien (sac 25 kg) → Blés de pop (anciens)
+  'fep':      'ing_engrain',   // Farine Petit Épeautre (25 kg) → Engrain (petit épeautre)
+  'hui_bib3': 'ing_huile_bio',
+  'hui_bib5': 'ing_huile_bio',
+  'hui_bib10': 'ing_huile_bio'
+};
+const DISPATCH_BIO_SITES = ['veigne', 'tours'];
+
+// Quantité à tracer : nb d'unités livrées × contenu du conditionnement (sac de 25, BIB 5 L…)
+function dispatchBioQty(p, r) {
+  const nb = (r.qty_livree != null && r.qty_livree !== '') ? parseQty(r.qty_livree) : parseQty(r.commander);
+  if (!(nb > 0)) return 0;
+  const parUnite = (p.conditioning_qty != null && p.conditioning_qty > 0) ? Number(p.conditioning_qty) : 1;
+  return Math.round(nb * parUnite * 1000) / 1000;
+}
+
+async function syncDispatchBio(r, p, annuler) {
+  const ing = DISPATCH_BIO_MAP[p.id];
+  if (!ing) return;
+  if (DISPATCH_BIO_SITES.indexOf(r.boutique_id) === -1) return;
+  if (getProductSupply(p, r.boutique_id) !== 'local') return; // parti du Local, sinon rien à tracer
+  if (annuler) {
+    await supa.from('fab_mouvements').delete().eq('reappro_id', r.id);
+    return;
+  }
+  const qte = dispatchBioQty(p, r);
+  if (!(qte > 0)) return;
+  // Pas d'upsert : PostgREST ne sait pas viser un index unique PARTIEL (celui-ci ignore
+  // les NULL des dispatchs saisis à la main). On efface puis on réinsère — même effet,
+  // et une re-validation ne crée jamais de doublon.
+  await supa.from('fab_mouvements').delete().eq('reappro_id', r.id);
+  const { error } = await supa.from('fab_mouvements').insert({
+    reappro_id: r.id,
+    ingredient_id: ing,
+    site_depart: 'local',
+    site_arrivee: r.boutique_id,
+    date_mouvement: r.service_date,
+    quantite_kg: qte,
+    cree_par: DEVICE_ID
+  });
+  if (error) { showToast('Dispatch bio : ' + error.message, 'error'); return; }
+  const ingLbl = { 'ing_bp': 'Blés de pop', 'ing_engrain': 'Engrain', 'ing_huile_bio': 'Huile bio' }[ing] || ing;
+  const unite = (ing === 'ing_huile_bio') ? 'L' : 'kg';
+  showToast('🚚 Dispatch bio créé : ' + formatQty(qte) + ' ' + unite + ' ' + ingLbl + ' → ' + (BOUTIQUE_NAMES[r.boutique_id] || r.boutique_id), 'sync');
+}
+
 async function maybeDeductStock(rid, wasAlreadyLivre) {
 // Si déjà livré, on ne fait rien (la 1re validation a déjà deduit)
 if (wasAlreadyLivre) return;
@@ -6225,6 +6292,8 @@ const { data: r } = await supa.from('reappros').select('*').eq('id', rid).single
 if (!r) return;
 const p = products.find(function(x) { return x.id === r.product_id; });
 if (!p) return;
+// v20.190 — dispatch bio automatique (avant le filtre viennoiserie ci-dessous)
+await syncDispatchBio(r, p, false);
 if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
 // La deduction se fait automatiquement dans le calcul du stock Local (loadStockData prend déjà qty_livree en compte)
 // Rien a faire ici : le stock recalculera au prochain affichage.
