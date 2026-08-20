@@ -2982,7 +2982,7 @@ function getReapproSectionGroup(p, boutique) {
   const cat = p.category;
   const supply = getProductSupply(p, boutique);
   if (supply === 'veigne') return 'patisserie_veigne'; // à commander à Veigné (gros gâteaux Tours)
-  if (cat === 'ingredients' || cat === 'sec_traiteur') return 'ingredients';
+  if (cat === 'ingredients' || cat === 'sec_traiteur') return 'ingrédients'; // v20.188 — la clé de section porte l'accent (sinon tout tombait dans « Autres »)
   if (cat === 'viennoiserie' || cat === 'brioches_special') return 'surgelés';
   if (cat === 'patisserie_petits' || cat === 'patisserie_gros' || cat === 'gateaux_secs') return 'patisserie';
   if (cat === 'pains') return 'pain';
