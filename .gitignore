@@ -1,0 +1,4 @@
+# Fichiers macOS
+.DS_Store
+
+# Les exclusions des tests (node_modules, captures) sont dans tests/.gitignore
