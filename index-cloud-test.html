@@ -2387,6 +2387,10 @@ const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
 const TENANT_ID    = '00000000-0000-0000-0000-000000000001';
 const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
+// v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
+// Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
+// une vieille version en cache » : à monter à chaque déploiement.
+const APP_VERSION  = 'v20.195';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2819,7 +2823,7 @@ function applyProductFilter() {
 
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  document.getElementById('device-id-label').textContent = DEVICE_ID;
+  document.getElementById('device-id-label').textContent = APP_VERSION + ' · ' + DEVICE_ID;
   // v21.3.0 — Détection magic link interface pro (URL ?pro_token=...)
   const _proToken = new URLSearchParams(window.location.search).get('pro_token');
   if (_proToken) {
@@ -16047,7 +16051,7 @@ function renderMetroSaisie() {
   } else if (pendB.length) {
     h += '<div class="info-banner" style="border-left-color:var(--green);margin-bottom:10px">✅ <b>Commande envoyée</b> — en attente de la course (' + pendB.length + ' produit' + (pendB.length > 1 ? 's' : '') + '). Tu peux encore modifier ta saisie puis ré-envoyer.</div>';
   }
-  if (!metroProducts.length) return h + '<div class="loading">Catalogue Metro vide — ajoute des produits via 🛠️ Gérer (vue Récap courses).</div>';
+  if (!metroProducts.length) return h + '<div class="empty-state">Catalogue Metro vide — ajoute des produits via 🛠️ Gérer (vue Récap courses).</div>';
   metroCats().forEach(function(cat) {
     const items = metroProducts.filter(function(p) { return p.categorie === cat; });
     if (!items.length) return;
@@ -16178,9 +16182,9 @@ function renderMetroRecap() {
       return '<div class="n"><b style="color:' + s[2] + '">📝 ' + s[1] + '</b><span>' + escapeHtml(metroNotes[s[0]]) + '</span></div>';
     }).join('') + '</div>';
   }
-  if (!metroProducts.length) return h + '<div class="loading">Catalogue vide — 🛠️ Gérer pour ajouter des produits.</div>';
+  if (!metroProducts.length) return h + '<div class="empty-state">Catalogue vide — 🛠️ Gérer pour ajouter des produits.</div>';
   const src = metroManage ? metroProducts : lignes;
-  if (!src.length) return h + '<div class="loading">Aucune commande envoyée pour l\'instant. Les boutiques saisissent puis appuient sur ✉️ Envoyer, et tout apparaît ici.</div>';
+  if (!src.length) return h + '<div class="empty-state">Aucune commande envoyée pour l\'instant. Les boutiques saisissent puis appuient sur ✉️ Envoyer, et tout apparaît ici.</div>';
   metroCats().forEach(function(cat) {
     const items = src.filter(function(p) { return p.categorie === cat; });
     if (!items.length) return;
