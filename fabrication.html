@@ -232,6 +232,7 @@
       <button class="ico-btn" onclick="pdChangeWeek(1)">›</button>
     </div>
     <p class="hint" id="pdDayLabel" style="font-weight:bold;color:var(--gold-dark);margin-top:2px"></p>
+    <button class="btn ghost" style="margin:4px 0 8px;padding:8px 14px;font-size:13px" onclick="pdFillFromPlan()">⇩ Remplir depuis le planning</button>
     <label>Affichage des pesées</label>
     <div class="seg" id="fabUnit">
       <button class="on" onclick="fabSetUnit('auto',this)">Auto</button>
@@ -947,6 +948,79 @@ function pdRenderWeekStrip(){
   el.innerHTML=h;
 }
 async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
+
+// v20.204 — Remplit Prod. du jour depuis le planning de la semaine (demande Phil).
+// Logique métier : le planning écrit la PÉTRISSÉE en kg de farine (« 75+75 » = 2
+// pétrins), puis ses DÉCLINAISONS en bacs (Tradition graines, Idéal…) qui deviennent
+// les mélanges de Prod. du jour. Les levains sortent ensuite tout seuls (pdRenderLevain).
+// Correspondance planning → produit par le NOM (lignes renommées le 24/08 pour coller
+// aux produits) + alias pour le langage d'équipe qu'on ne veut pas renommer.
+const PD_PLAN_ALIAS={'croissant':'pr_pate_levee_feuilletee'}; // la pâte des croissants
+async function pdFillFromPlan(){
+  if(!pdDate){toast('Choisis un jour');return;}
+  const aDeja=Object.keys(pdDay).length||Object.keys(pdMelange).length;
+  if(aDeja&&!confirm('Remplacer la saisie en cours par le planning du '+pdLabel(pdDate)+' ?'))return;
+  setSync('lecture du planning…');
+  const [lg,vl]=await Promise.all([
+    supa.from('fab_planning_lignes').select('id,nom,pate,unite,kg_farine_unite,actif,site').eq('actif',true).eq('site',fabSite),
+    supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',pdDate)
+  ]);
+  if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
+  setSync('🟢 connecté');
+  const valById={};(vl.data||[]).forEach(v=>{valById[v.ligne_id]=v.valeur;});
+  const norm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[norm(p.nom)]=p.id;});
+  const findPid=nom=>PD_PLAN_ALIAS[norm(nom)]||prodByNom[norm(nom)]||null;
+  // pâtes écrites en kg ce jour-là (même règle que la calculette)
+  const kgPates=new Set();
+  (lg.data||[]).forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
+  pdDay={};pdMelange={};
+  const ignorees=[];const besoinBase={}; // basePid -> kg de pâte demandés par les déclinaisons sans pétrissée
+  (lg.data||[]).forEach(l=>{
+    const raw=String(valById[l.id]||'').trim();if(!raw)return;
+    const total=calcParseNum(raw);if(!total)return;
+    const pid=findPid(l.nom);
+    if(l.unite==='kg'){
+      // pétrissée : chaque « 75+75 » devient un pétrin distinct
+      if(!pid||!recettesMap[pid]){ignorees.push(l.nom);return;}
+      const parts=raw.replace(',','.').match(/\d+(?:\.\d+)?/g)||[String(total)];
+      // le planning est en kg de FARINE ; certains produits se saisissent en BACS
+      // dans Prod. du jour (Baguette épeautre…) → conversion, arrondie au ½ bac
+      pdDay[pid]=parts.map(x=>{
+        let q=parseFloat(x);
+        if(pdHasBac(pid))q=Math.round((pdKgToBac(pid,q)||0)*2)/2;
+        return {qte:q,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)};
+      });
+      return;
+    }
+    // déclinaison en bacs/pièces
+    const estMelange=pid&&recettesMap[pid]&&produits.some(p=>p.id===pid&&p.categorie==='melange');
+    if(estMelange){
+      pdMelange[pid]=total;
+      // pas de pétrissée écrite ce jour-là → la somme des déclinaisons dimensionne le pétrin
+      if(!(l.pate&&kgPates.has(l.pate))){
+        const base=Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ing_pate_of(pid));
+        if(base)besoinBase[base]=(besoinBase[base]||0)+(melangePateParBac(pid)*total);
+      }
+      return;
+    }
+    if(pid&&recettesMap[pid]&&pdHasBac(pid)){pdDay[pid]=[{qte:total,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];return;}
+    // sans recette : si sa pâte est écrite en kg, c'est du façonnage pur (le planning suffit)
+    if(!(l.pate&&kgPates.has(l.pate)))ignorees.push(l.nom);
+  });
+  // pétrins déduits des déclinaisons (Essentiel/Idéal, Pain blanc…) — arrondi au ½ bac SUP.
+  Object.keys(besoinBase).forEach(base=>{
+    if(pdDay[base])return; // déjà écrit en kg dans le planning
+    const rec=recettesMap[base];if(!rec)return;
+    const flour=besoinBase[base]/(doughPerKgFlour(base)||1.6);
+    const qte=pdHasBac(base)?Math.ceil((pdKgToBac(base,flour)||0)*2)/2:Math.ceil(flour*2)/2;
+    if(qte>0)pdDay[base]=[{qte:qte,hydra:(pdHydraPref[base]!=null?pdHydraPref[base]:undefined)}];
+  });
+  pdRenderAll();pdAutoSave();
+  const n=Object.keys(pdDay).length,m=Object.keys(pdMelange).length;
+  toast('Planning repris : '+n+' pétrissée'+(n>1?'s':'')+(m?' + '+m+' mélange'+(m>1?'s':''):''));
+  if(ignorees.length)alert('Non repris (pas de recette rattachée) :\n· '+ignorees.join('\n· ')+'\n\nCes lignes restent visibles dans le Planning.');
+}
 
 /* --- jour : charge / sauve (auto-save) --- */
 async function pdLoadDay(){
@@ -2032,14 +2106,24 @@ async function calcFromPlan(){
   const date=document.getElementById('calcPlanDate').value;if(!date){toast('Choisis un jour');return;}
   setSync('lecture du planning…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('id,nom,pate,kg_farine_unite,actif,site').eq('actif',true).eq('site',planSite),
+    supa.from('fab_planning_lignes').select('id,nom,pate,unite,kg_farine_unite,actif,site').eq('actif',true).eq('site',planSite),
     supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',date)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
   setSync('🟢 connecté');
   const valById={};(vl.data||[]).forEach(v=>{valById[v.ligne_id]=v.valeur;});
+  // v20.204 — RÈGLE (Phil, 24/08) : on écrit d'abord la PÉTRISSÉE (en kg de farine),
+  // puis ses DÉCLINAISONS (bacs/pièces) pour que l'équipe sache quoi façonner.
+  // Une déclinaison sort de la pétrissée : si sa pâte est déjà écrite en kg le même
+  // jour, elle ne compte NI pour la farine NI pour le levain (sinon double comptage :
+  // le mercredi 26/08 réclamait 175 kg de Tradition au lieu de 150).
+  // Filet de sécurité : pas de ligne kg ce jour-là → la déclinaison compte (la somme
+  // des bacs EST alors la pétrissée, cas Essentiel/Idéal ou Pain blanc).
+  const kgPates=new Set();
+  (lg.data||[]).forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
   const byPate={};
   (lg.data||[]).forEach(l=>{const num=calcParseNum(valById[l.id]);if(!num||!l.kg_farine_unite)return;
+    if(l.unite!=='kg'&&l.pate&&kgPates.has(l.pate))return; // déclinaison d'une pétrissée déjà écrite
     const p=l.pate||l.nom;byPate[p]=(byPate[p]||0)+num*(+l.kg_farine_unite);});
   const pates=Object.keys(byPate).sort((a,b)=>a.localeCompare(b));
   const box=document.getElementById('calcPlanResult');
