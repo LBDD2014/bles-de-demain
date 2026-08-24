@@ -2481,7 +2481,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.199';
+const APP_VERSION  = 'v20.200';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -16068,9 +16068,25 @@ specialFormDraft.notes = txt;
 renderSpecialOrderForm();
 }
 
+// v20.200 — repasser une quantité libre en liste déroulante
+function specialItemQtyListe(idx) {
+  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
+  const it = specialFormDraft.items[idx];
+  it.qty_libre = false;
+  if (!(Number(it.qty) >= 1 && Number(it.qty) <= 50)) it.qty = 1;
+  renderSpecials();
+}
+
 function handleSpecialItemField(idx, field, val) {
 if (!specialFormDraft || !specialFormDraft.items[idx]) return;
 const it = specialFormDraft.items[idx];
+// v20.200 — « Autre… » : on bascule la case en saisie clavier, sans valeur imposée
+if (field === 'qty' && val === '__autre') {
+  it.qty_libre = true;
+  it.qty = '';
+  renderSpecials();
+  return;
+}
 it[field] = val;
 if (field === 'category') {
 // Reset le produit quand on change de catégorie
@@ -16219,15 +16235,24 @@ html += '<button class="sp-item-del" onclick="removeSpecialItem(' + idx + ')">�
 // Qty + Catégorie sur même ligne
 html += '<div class="sp-item-grid">';
 html += '<div><label class="sp-lbl-sm">Qte</label>';
+// v20.200 — la liste s'arrêtait à 50 : impossible de saisir une grosse commande
+// (100 traditions pour un buffet). Au-delà, « Autre… » ouvre la saisie au clavier.
+// La liste reste le mode normal : sur tablette, choisir 12 est plus sûr que le taper.
+const qtyLibre = !!it.qty_libre || (it.qty !== '' && it.qty != null && Number(it.qty) > 50);
+if (qtyLibre) {
+html += '<div style="display:flex;gap:5px;align-items:center">'
+  + '<input class="sp-input sp-qty" type="text" inputmode="numeric" style="flex:1" value="' + escapeHtml(String(it.qty == null ? '' : it.qty)) + '"'
+  + ' placeholder="ex : 120" oninput="handleSpecialItemField(' + idx + ', \'qty\', this.value)">'
+  + '<button type="button" class="sp-item-del" style="color:var(--brown-mid);font-size:16px" title="Revenir à la liste" onclick="specialItemQtyListe(' + idx + ')">↩</button>'
+  + '</div></div>';
+} else {
 html += '<select class="sp-input sp-qty" onchange="handleSpecialItemField(' + idx + ', \'qty\', this.value)">';
 for (let i = 1; i <= 50; i++) {
 html += '<option value="' + i + '"' + (String(it.qty) === String(i) ? ' selected' : '') + '>' + i + '</option>';
 }
-// Si qty custom, ajouter l'option
-if (it.qty && [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,30,40,50].indexOf(Number(it.qty)) === -1) {
-html += '<option value="' + it.qty + '" selected>' + escapeHtml(String(it.qty)) + '</option>';
-}
+html += '<option value="__autre">Autre… (plus de 50)</option>';
 html += '</select></div>';
+}
 
 html += '<div><label class="sp-lbl-sm">Catégorie</label>';
 html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'category\', this.value)">';
