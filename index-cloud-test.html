@@ -2390,7 +2390,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.195';
+const APP_VERSION  = 'v20.196';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7459,7 +7459,8 @@ function recomputeRowTotal(el, pid) {
     const t = productionStAvSalesFromTable[pid] || {};
     // v20.32 — Aprem reste exclusif Prod. Boulangers ; Reste J-1 aussi à Prod. Touriers
     if (currentVue === 'prod_boul') aprem = t.aprem || 0;
-    reste = productionStAvRestesVeille[pid] || 0; // v20.181 — reste de la veille (J-1 + J-2)
+    // v20.196 — même borne qu'au render : on ne déduit pas plus que le besoin du jour
+    reste = Math.min(productionStAvRestesVeille[pid] || 0, mSA + aprem);
   }
   const spe = productionSpecialByProduct[pid] || 0;
   // v21.0.4.4 — Inclure les pros dans le recompute (sinon le total écrase la colonne Pros après chaque édition)
@@ -7639,7 +7640,12 @@ const cMatinSARaw = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) 
 // v20.192 — Veigné produit aussi pour St-Av : son reste d'hier réduit d'autant son besoin
 const cMatinSA = (showResteNet && matinSAEligible) ? productionNetQty('saint-avertin', p, cMatinSARaw) : cMatinSARaw;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
-const cReste = showResteJ1 ? (productionStAvRestesVeille[p.id] || 0) : 0; // v20.181 — reste du soir de la veille (J-1 + J-2)
+// v20.181 — reste du soir de la veille (J-1 + J-2) chez St-Avertin
+const cResteBrut = showResteJ1 ? (productionStAvRestesVeille[p.id] || 0) : 0;
+// v20.196 — une déduction ne peut pas dépasser le besoin qu'elle concerne.
+// St-Avertin est fermée le lundi : besoin 0, mais restes du dimanche soir → on
+// déduisait dans le vide et le total partait en négatif (−23,5 le 24/08).
+const cReste = Math.min(cResteBrut, cMatinSA + cAprem);
 // v20.192 — ce qui a été retiré du besoin brut (affiché dans la colonne « Reste hier »)
 const cResteNet = (cMatinVRaw - cMatinV) + (cMatinSARaw - cMatinSA);
 // v21.0.4.3 — Pros : qty cumulée des commandes pros du jour pour ce produit (filtre par vue)
@@ -7657,7 +7663,7 @@ return {
 // v20.192 — les cases Matin V / Matin SA restent le PRÉVIS BRUT : elles sont
 // éditables et écrivent dans `previs`. La déduction vit dans la colonne « Reste hier ».
 p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinVRaw, matinSA: cMatinSARaw,
-aprem: cAprem, reste: cReste, resteNet: cResteNet, pros: cPros,
+aprem: cAprem, reste: cReste, resteBrut: cResteBrut, resteNet: cResteNet, pros: cPros,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -7943,7 +7949,13 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   if (showResteJ1) {
     // v20.181 — lecture seule : cette valeur appartient à la journée d'hier de St-Avertin,
     // saisie par la vendeuse. Deux personnes écrivant la même case = source d'erreur.
-    rowHtml += '<div class="cell ' + (r.reste > 0 ? '' : 'zero') + '" title="Reste en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du total" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.reste > 0 ? '700' : '400') + '">' + (r.reste > 0 ? '−' + formatQty(r.reste) : '0') + '</div>';
+    // v20.196 — on affiche la déduction RÉELLEMENT appliquée. Si St-Av avait plus de
+    // restes que son besoin du jour (boutique fermée le lundi), le surplus n'est pas
+    // déduit : on le rappelle en infobulle plutôt que d'afficher un chiffre trompeur.
+    const resteTitre = (r.resteBrut > r.reste)
+      ? 'Il restait ' + formatQty(r.resteBrut) + ' à St-Avertin hier soir, mais elle ne commande que ' + formatQty(r.reste) + ' aujourd\'hui — on ne déduit pas plus que le besoin'
+      : 'Reste en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du total';
+    rowHtml += '<div class="cell ' + (r.reste > 0 ? '' : 'zero') + '" title="' + escapeHtml(resteTitre) + '" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.reste > 0 ? '700' : '400') + '">' + (r.reste > 0 ? '−' + formatQty(r.reste) : '0') + '</div>';
   }
   if (showResteNet) {
     // v20.192 — lecture seule : c'est la journée d'hier de la vendeuse, pas la nôtre.
