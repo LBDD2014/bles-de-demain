@@ -587,6 +587,83 @@ width: 100%; box-sizing: border-box;
 .adr-input:focus, .adr-select:focus { outline: none; border-color: var(--gold); }
 .adr-select { cursor: pointer; }
 
+/* v20.199 — Équipe & dotations */
+.stf-seg { display: flex; gap: 8px; padding: 12px 14px 4px; }
+.stf-seg button {
+flex: 1; font-family: inherit; font-size: 13px; cursor: pointer; background: white;
+border: 2px solid #E0D8C8; border-radius: 9px; padding: 9px 6px; color: var(--brown-mid);
+}
+.stf-seg button.on { background: var(--gold); border-color: var(--gold-dark); color: #fff; font-weight: 700; }
+.stf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; padding: 6px 14px; }
+.stf-kpi { background: white; border: 1px solid #EBE3D2; border-radius: 10px; padding: 10px 8px; text-align: center; }
+.stf-kpi b { display: block; font-family: Georgia, serif; font-size: 22px; line-height: 1.1; }
+.stf-kpi span { font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--grey-light); }
+.stf-kpi.alert b { color: var(--red); } .stf-kpi.todo b { color: var(--orange); }
+.stf-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 2px; align-items: center; }
+.stf-chip {
+font-family: inherit; font-size: 12px; cursor: pointer; background: white;
+border: 1.5px solid #E0D8C8; border-radius: 20px; padding: 5px 12px; color: var(--brown-mid);
+}
+.stf-chip.on { background: var(--grey-dark); border-color: var(--grey-dark); color: #fff; font-weight: 700; }
+.stf-tablewrap { overflow-x: auto; margin: 10px 14px; background: white; border: 1px solid #EBE3D2; border-radius: 12px; }
+.stf-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+.stf-table th, .stf-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #F5F0E5; white-space: nowrap; }
+.stf-table th { font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--grey-light); font-weight: 400; background: #FCF9F2; }
+.stf-table tr:last-child td { border-bottom: none; }
+.stf-stick { position: sticky; left: 0; z-index: 2; background: white; border-right: 1px solid #EBE3D2; }
+.stf-table th.stf-stick { background: #FCF9F2; z-index: 3; }
+.stf-table tr.parti td { opacity: .6; }
+.stf-name { background: none; border: 0; font-family: inherit; font-size: 13px; color: var(--brown);
+cursor: pointer; padding: 0; display: flex; align-items: center; gap: 6px; text-align: left; }
+.stf-name:hover span.n { color: var(--gold-dark); text-decoration: underline; }
+.stf-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.stf-cell-no { color: #CFC7B4; }
+.stf-tz { color: var(--grey-light); font-size: 11px; }
+.stf-over { color: var(--red); font-weight: 700; }
+.stf-pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; }
+.stf-p-ok { background: #EAF3EC; color: var(--green); }
+.stf-p-warn { background: #FDEEDC; color: var(--orange); }
+.stf-p-bad { background: #FBEAEA; color: var(--red); }
+.stf-site { font-size: 10.5px; padding: 1px 8px; border-radius: 20px; color: #fff; }
+.stf-s-tours { background: var(--blue); } .stf-s-veigne { background: var(--green); }
+.stf-s-saint-avertin { background: var(--brown-mid); } .stf-s-local { background: var(--grey); }
+.stf-s-trier { background: var(--orange); }
+.stf-sel {
+font-family: inherit; font-size: 12.5px; color: var(--brown); background: white;
+border: 1.5px solid #E0D8C8; border-radius: 7px; padding: 5px 8px; cursor: pointer; min-width: 92px;
+}
+.stf-sel:focus { outline: none; border-color: var(--gold); }
+.stf-sel.filled { border-color: var(--gold); background: #FFF7E4; font-weight: 700; }
+.stf-form { margin: 10px 14px; background: white; border: 2px solid var(--gold); border-radius: 12px; padding: 14px; }
+.stf-form h4 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 15px; color: var(--brown); }
+.stf-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.stf-f { display: flex; flex-direction: column; gap: 4px; }
+.stf-f .lb { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--brown-mid); }
+.stf-f select, .stf-f input {
+font-family: inherit; font-size: 14px; padding: 8px 9px; border: 2px solid #E0D8C8;
+border-radius: 8px; background: white; color: var(--brown); width: 100%;
+}
+.stf-f select:focus, .stf-f input:focus { outline: none; border-color: var(--gold); }
+.stf-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px 0; }
+.stf-sheet-bg { position: fixed; inset: 0; background: rgba(46,48,68,.55); z-index: 4000;
+display: flex; align-items: flex-end; justify-content: center; }
+.stf-sheet { background: #fff; width: 100%; max-width: 470px; border-radius: 16px 16px 0 0;
+padding: 16px 16px 24px; max-height: 92vh; overflow-y: auto; }
+.stf-sheet h3 { font-family: Georgia, serif; font-size: 18px; margin: 0 0 2px; color: var(--brown); }
+.stf-sheet .sub { font-size: 12px; color: var(--grey-light); margin-bottom: 8px; }
+.stf-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--grey-light); margin: 14px 0 6px; }
+.stf-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stf-opts button { font-family: inherit; font-size: 14px; cursor: pointer; padding: 11px 6px;
+border-radius: 10px; border: 2px solid #E0D8C8; background: var(--cream); color: var(--brown); }
+.stf-opts button.cur { border-color: var(--gold); background: #FFF7E4; font-weight: 700; }
+.stf-recap { background: var(--cream); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+.stf-dline { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+padding: 6px 0; border-bottom: 1px solid #EDE4D0; }
+.stf-dline:last-child { border-bottom: none; }
+.stf-warn { background: #FBEAEA; border-left: 4px solid var(--red); border-radius: 8px;
+padding: 9px 11px; font-size: 12.5px; margin-top: 8px; }
+@media (min-width: 760px) { .stf-sheet-bg { align-items: center; } .stf-sheet { border-radius: 16px; } }
+
 /* v18 : Nouveau produit + Edition + Actions */
 .new-prod-form, .admin-row-edit {
 background: white; border-radius: 12px; padding: 14px; margin: 10px 14px;
@@ -2404,7 +2481,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.198';
+const APP_VERSION  = 'v20.199';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2529,6 +2606,7 @@ const NAV_ITEMS = {
     { id: 'produits', lbl: 'Produits' },
     { id: 'catégories', lbl: 'Catég.' },
     { id: 'valorisation', lbl: 'Valo.' },
+    { id: 'equipe', lbl: 'Équipe' },   // v20.199 — dotations vêtements de travail
     { id: 'pros', lbl: 'Pros' },
     { id: 'acces', lbl: 'Accès' }
   ]
@@ -3427,6 +3505,11 @@ renderValorisation();
 await loadAdminPros();
 subscribeRealtimePros();
 renderAdminPros();
+} else if (v === 'equipe') {
+// v20.199 — Équipe & dotations (vêtements de travail)
+staffFormOpen = null;
+await loadStaffAll();
+renderStaff();
 } else if (v === 'acces') {
 await loadBoutiqueCodes();
 renderAccessCodes();
@@ -10477,6 +10560,492 @@ async function deletePro(pid) {
 }
 
 // v20.54 — BackOffice : voir / modifier les codes d'accès par boutique
+/* ============================================================================
+   v20.199 — ÉQUIPE & DOTATIONS (BackOffice)
+
+   Suivre qui a reçu quoi (tee-shirt, polo, veste, chemise, tablier…), en
+   quelle taille, à quelle date ; savoir ce qu'il reste en stock pour
+   recommander à temps ; suivre les arrivées, les départs, et ce qui n'a pas
+   été rendu.
+
+   Règle des restitutions, calquée sur Reste / Perte côté boutique :
+     · « au stock »     = réutilisable  → la quantité remonte au stock
+     · « hors d'usage » = abîmé, perdu  → sortie définitive, le stock ne bouge pas
+     · rien             = pas rendu     → reste dû par la personne
+   Sans le troisième cas, le stock dériverait : on croirait avoir des pièces
+   qu'on a jetées.
+   ============================================================================ */
+
+const STAFF_SITES = [
+  { id: 'tours',         lbl: 'Tours' },
+  { id: 'veigne',        lbl: 'Veigné' },
+  { id: 'saint-avertin', lbl: 'St-Avertin' },
+  { id: 'local',         lbl: 'Le Local' }
+];
+// site NULL = pas encore réparti
+const STAFF_TRIER = 'trier';
+
+const STAFF_JEUX = {
+  vetement:  { lbl: 'Vêtement — S à XXL', t: ['S', 'M', 'L', 'XL', 'XXL'] },
+  vetement4: { lbl: 'Vêtement — S à XL',  t: ['S', 'M', 'L', 'XL'] },
+  tablier:   { lbl: 'Tablier — T1 à T3',  t: ['T1', 'T2', 'T3'] },
+  pantalon:  { lbl: 'Pantalon — 36 à 54', t: ['36','38','40','42','44','46','48','50','52','54'] },
+  pointure:  { lbl: 'Pointure — 35 à 47', t: Array.from({ length: 13 }, function(_, i) { return String(35 + i); }) },
+  aucune:    { lbl: 'Sans taille',        t: ['-'] }
+};
+
+let staffData = [], staffArticles = [], staffStock = [], staffDotations = [];
+let staffView = 'eq';            // eq | stock | art
+let staffFilter = 'tous';
+let staffShowAnciens = false;
+let staffSheetId = null;
+let staffFormOpen = null;        // 'new' | 'rec' | 'art'
+let staffTablesManquantes = false;
+
+/* ------------------------------------------------------------ chargement -- */
+async function loadStaffAll() {
+  staffTablesManquantes = false;
+  const res = await Promise.all([
+    supa.from('staff').select('*').eq('tenant_id', TENANT_ID).order('sort_order'),
+    supa.from('staff_articles').select('*').eq('tenant_id', TENANT_ID).order('sort_order'),
+    supa.from('staff_stock').select('*').eq('tenant_id', TENANT_ID),
+    supa.from('staff_dotations').select('*').eq('tenant_id', TENANT_ID).order('remis_le', { ascending: false })
+  ]);
+  const err = res.find(function(r) { return r.error; });
+  if (err) {
+    // 42P01 = table absente : la migration SQL n'a pas encore été passée.
+    if (String(err.error.message || '').match(/does not exist|schema cache/i)) { staffTablesManquantes = true; return; }
+    showToast('Erreur Équipe : ' + err.error.message, 'error');
+    return;
+  }
+  staffData      = res[0].data || [];
+  staffArticles  = (res[1].data || []).filter(function(a) { return a.actif !== false; });
+  staffStock     = res[2].data || [];
+  staffDotations = res[3].data || [];
+}
+
+/* --------------------------------------------------------------- calculs -- */
+function staffSiteLbl(id) {
+  if (!id) return 'À trier';
+  const s = STAFF_SITES.find(function(x) { return x.id === id; });
+  return s ? s.lbl : id;
+}
+function staffSiteCls(id) { return 'stf-s-' + (id || STAFF_TRIER); }
+function staffTailles(articleId) {
+  const a = staffArticles.find(function(x) { return x.id === articleId; });
+  return (STAFF_JEUX[(a || {}).jeu_tailles] || STAFF_JEUX.aucune).t;
+}
+function staffArtNom(id) {
+  const a = staffArticles.find(function(x) { return x.id === id; });
+  return a ? a.nom : id;
+}
+/* Agrégat par salarié × article : ce qu'il détient encore, sa taille, et le
+   cumul de l'année civile (pour le quota). */
+function staffAgg(staffId, articleId) {
+  const an = new Date().getFullYear();
+  let detient = 0, cumulAn = 0, taille = '', dernier = '';
+  staffDotations.forEach(function(d) {
+    if (d.staff_id !== staffId || d.article_id !== articleId) return;
+    const q = parseQty(d.qty) || 0;
+    if (!d.rendu) detient += q;
+    if (String(d.remis_le || '').slice(0, 4) === String(an)) cumulAn += q;
+    if (!dernier || String(d.remis_le) > dernier) { dernier = String(d.remis_le); taille = d.taille || ''; }
+  });
+  return { detient: detient, cumulAn: cumulAn, taille: taille, dernier: dernier };
+}
+/* Ce qu'une personne n'a pas rendu, toutes lignes confondues. */
+function staffDu(staffId) {
+  return staffDotations.filter(function(d) { return d.staff_id === staffId && !d.rendu; })
+    .reduce(function(s, d) { return s + (parseQty(d.qty) || 0); }, 0);
+}
+function staffEtat(staffId) {
+  const arts = staffArticles.filter(function(a) { return staffAgg(staffId, a.id).detient > 0; }).length;
+  if (!arts) return 'non';
+  return arts >= 2 ? 'ok' : 'part';
+}
+function staffStockLine(articleId, taille) {
+  return staffStock.find(function(r) { return r.article_id === articleId && r.taille === taille; });
+}
+
+/* ------------------------------------------------------------- écritures -- */
+async function staffUpsertStock(articleId, taille, delta, reception) {
+  const l = staffStockLine(articleId, taille);
+  const qty = Math.max(0, (l ? parseQty(l.qty) || 0 : 0) + delta);
+  const row = {
+    tenant_id: TENANT_ID, article_id: articleId, taille: taille, qty: qty,
+    seuil: l ? l.seuil : 0, updated_at: new Date().toISOString(), updated_by: DEVICE_ID
+  };
+  if (reception) row.last_reception = todayISO();
+  else if (l) row.last_reception = l.last_reception;
+  const { error } = await supa.from('staff_stock').upsert(row, { onConflict: 'tenant_id,article_id,taille' });
+  if (error) { showToast(error.message, 'error'); return false; }
+  return true;
+}
+async function staffReload() { await loadStaffAll(); renderStaff(); }
+
+async function staffMove(id, site) {
+  const { error } = await supa.from('staff').update({
+    site: site || null, updated_at: new Date().toISOString(), updated_by: DEVICE_ID
+  }).eq('id', id);
+  if (error) { showToast(error.message, 'error'); return; }
+  staffSheetId = null;
+  await staffReload();
+}
+async function staffToggleDepart(id) {
+  const p = staffData.find(function(x) { return x.id === id; });
+  if (!p) return;
+  const sortie = p.date_sortie ? null : todayISO();
+  const { error } = await supa.from('staff').update({
+    date_sortie: sortie, updated_at: new Date().toISOString(), updated_by: DEVICE_ID
+  }).eq('id', id);
+  if (error) { showToast(error.message, 'error'); return; }
+  if (sortie) staffShowAnciens = true;
+  await staffReload();
+}
+async function staffCreer() {
+  const nom = (document.getElementById('stf-n-nom').value || '').trim();
+  if (!nom) { showToast('Il faut un nom.', 'error'); return; }
+  const site = document.getElementById('stf-n-site').value;
+  const id = 'stf_' + nom.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) + '_' + Date.now().toString(36).slice(-4);
+  const { error } = await supa.from('staff').insert({
+    tenant_id: TENANT_ID, id: id, nom: nom.toUpperCase(), site: site || null,
+    date_entree: todayISO(), sort_order: 0, updated_by: DEVICE_ID
+  });
+  if (error) { showToast(error.message, 'error'); return; }
+  staffFormOpen = null;
+  await staffReload();
+}
+async function staffDonner() {
+  const staffId = staffSheetId;
+  const art = document.getElementById('stf-g-art').value;
+  const tai = document.getElementById('stf-g-tai').value;
+  const qte = parseQty(document.getElementById('stf-g-qte').value) || 1;
+  const { error } = await supa.from('staff_dotations').insert({
+    tenant_id: TENANT_ID, staff_id: staffId, article_id: art, taille: tai,
+    qty: qte, remis_le: todayISO(), updated_by: DEVICE_ID
+  });
+  if (error) { showToast(error.message, 'error'); return; }
+  await staffUpsertStock(art, tai, -qte, false);
+  await staffReload();
+}
+/* Les trois issues d'une restitution. Repasser à « pas rendu » annule
+   proprement le mouvement de stock précédent. */
+async function staffRendre(dotId, mode) {
+  const d = staffDotations.find(function(x) { return String(x.id) === String(dotId); });
+  if (!d) return;
+  const avant = d.rendu || '';
+  const apres = mode || null;
+  if (avant === (apres || '')) return;
+  const { error } = await supa.from('staff_dotations').update({
+    rendu: apres, rendu_le: apres ? todayISO() : null,
+    updated_at: new Date().toISOString(), updated_by: DEVICE_ID
+  }).eq('id', d.id);
+  if (error) { showToast(error.message, 'error'); return; }
+  const q = parseQty(d.qty) || 0;
+  if (apres === 'stock' && avant !== 'stock') await staffUpsertStock(d.article_id, d.taille, q, false);
+  else if (avant === 'stock' && apres !== 'stock') await staffUpsertStock(d.article_id, d.taille, -q, false);
+  await staffReload();
+}
+async function staffReception() {
+  const art = document.getElementById('stf-r-art').value;
+  const tai = document.getElementById('stf-r-tai').value;
+  const qte = parseQty(document.getElementById('stf-r-qte').value) || 0;
+  if (!qte) return;
+  if (await staffUpsertStock(art, tai, qte, true)) { staffFormOpen = null; await staffReload(); }
+}
+async function staffSetSeuil(articleId, taille, val) {
+  const l = staffStockLine(articleId, taille);
+  const { error } = await supa.from('staff_stock').upsert({
+    tenant_id: TENANT_ID, article_id: articleId, taille: taille,
+    qty: l ? l.qty : 0, seuil: parseQty(val) || 0,
+    last_reception: l ? l.last_reception : null,
+    updated_at: new Date().toISOString(), updated_by: DEVICE_ID
+  }, { onConflict: 'tenant_id,article_id,taille' });
+  if (error) { showToast(error.message, 'error'); return; }
+  await staffReload();
+}
+async function staffArtSet(id, champ, val) {
+  const patch = { updated_at: new Date().toISOString(), updated_by: DEVICE_ID };
+  patch[champ] = (champ === 'quota_annuel') ? (val ? parseInt(val, 10) : null) : val;
+  const { error } = await supa.from('staff_articles').update(patch).eq('id', id);
+  if (error) { showToast(error.message, 'error'); return; }
+  await staffReload();
+}
+async function staffArtCreer() {
+  const nom = (document.getElementById('stf-a-nom').value || '').trim();
+  if (!nom) { showToast('Il faut un nom d\'article.', 'error'); return; }
+  const q = document.getElementById('stf-a-quota').value;
+  const { error } = await supa.from('staff_articles').insert({
+    tenant_id: TENANT_ID,
+    id: 'sa_' + nom.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) + '_' + Date.now().toString(36).slice(-4),
+    nom: nom, jeu_tailles: document.getElementById('stf-a-jeu').value,
+    quota_annuel: q ? parseInt(q, 10) : null,
+    sort_order: (staffArticles.length + 1) * 10, updated_by: DEVICE_ID
+  });
+  if (error) { showToast(error.message, 'error'); return; }
+  staffFormOpen = null;
+  await staffReload();
+}
+async function staffArtRetirer(id) {
+  if (!confirm('Retirer « ' + staffArtNom(id) + ' » du catalogue ?\n\nLes remises déjà enregistrées sont conservées.')) return;
+  const { error } = await supa.from('staff_articles').update({ actif: false, updated_by: DEVICE_ID }).eq('id', id);
+  if (error) { showToast(error.message, 'error'); return; }
+  await staffReload();
+}
+
+/* ----------------------------------------------------------- helpers UI --- */
+function stfOpts(arr, sel) {
+  return arr.map(function(o) {
+    const v = (typeof o === 'object') ? o.v : o;
+    const l = (typeof o === 'object') ? o.l : o;
+    return '<option value="' + escapeHtml(String(v)) + '"' +
+      (String(v) === String(sel == null ? '' : sel) ? ' selected' : '') + '>' + escapeHtml(String(l)) + '</option>';
+  }).join('');
+}
+function stfNombres(a, b) { return Array.from({ length: b - a + 1 }, function(_, i) { return String(a + i); }); }
+function stfSetView(v) { staffView = v; staffFormOpen = null; renderStaff(); }
+function stfSetFiltre(f) { staffFilter = f; renderStaff(); }
+function stfToggleForm(f) { staffFormOpen = (staffFormOpen === f) ? null : f; renderStaff(); }
+function stfToggleAnciens(el) { staffShowAnciens = el.checked; renderStaff(); }
+// Le menu Taille suit le menu Article : jamais « T2 » proposé pour un tee-shirt.
+function stfMajTailles(idArt, idTai) {
+  const s = document.getElementById(idTai);
+  if (s) s.innerHTML = stfOpts(staffTailles(document.getElementById(idArt).value));
+}
+
+/* -------------------------------------------------------------- rendu ----- */
+function renderStaff() {
+  const mc = document.getElementById('main-content');
+  if (staffTablesManquantes) {
+    mc.innerHTML = '<div class="empty-state" style="margin:20px 14px">'
+      + '<strong>Les tables ne sont pas encore créées.</strong><br><br>'
+      + 'Lance la migration <code>migration-v20.199-equipe-dotations.sql</code> dans l\'éditeur SQL Supabase,'
+      + ' puis reviens sur cet onglet.</div>';
+    return;
+  }
+  let html = '<div class="stf-seg">'
+    + ['eq:Équipe', 'stock:Stock', 'art:Articles'].map(function(x) {
+        const p = x.split(':');
+        return '<button type="button" class="' + (staffView === p[0] ? 'on' : '') + '" onclick="stfSetView(\'' + p[0] + '\')">' + p[1] + '</button>';
+      }).join('')
+    + '</div>';
+  if (staffView === 'eq') html += stfViewEquipe();
+  else if (staffView === 'stock') html += stfViewStock();
+  else html += stfViewArticles();
+  mc.innerHTML = html;
+  if (staffSheetId) stfRenderSheet();
+}
+
+/* --- vue Équipe : une colonne par article --- */
+function stfViewEquipe() {
+  const actifs = staffData.filter(function(p) { return !p.date_sortie; });
+  const du = staffData.filter(function(p) { return p.date_sortie; })
+    .reduce(function(s, p) { return s + staffDu(p.id); }, 0);
+  let html = '<div class="stf-kpis">'
+    + '<div class="stf-kpi"><b>' + actifs.length + '</b><span>en poste</span></div>'
+    + '<div class="stf-kpi todo"><b>' + actifs.filter(function(p) { return !p.site; }).length + '</b><span>à répartir</span></div>'
+    + '<div class="stf-kpi alert"><b>' + actifs.filter(function(p) { return staffEtat(p.id) === 'non'; }).length + '</b><span>rien reçu</span></div>'
+    + '<div class="stf-kpi alert"><b>' + formatQty(du) + '</b><span>à récupérer</span></div>'
+    + '</div>';
+
+  const filtres = [{ id: 'tous', lbl: 'Tous' }].concat(STAFF_SITES).concat([{ id: STAFF_TRIER, lbl: 'À trier' }]);
+  html += '<div class="stf-filters">' + filtres.map(function(f) {
+    const n = f.id === 'tous' ? '' : ' ' + actifs.filter(function(p) {
+      return f.id === STAFF_TRIER ? !p.site : p.site === f.id; }).length;
+    return '<button type="button" class="stf-chip ' + (staffFilter === f.id ? 'on' : '') + '" onclick="stfSetFiltre(\'' + f.id + '\')">' + escapeHtml(f.lbl) + n + '</button>';
+  }).join('')
+    + '<label style="margin-left:auto;font-size:12px;color:var(--brown-mid);display:flex;align-items:center;gap:5px">'
+    + '<input type="checkbox" ' + (staffShowAnciens ? 'checked' : '') + ' onchange="stfToggleAnciens(this)"> Voir les anciens</label></div>';
+
+  const list = staffData.filter(function(p) {
+    if (!staffShowAnciens && p.date_sortie) return false;
+    if (staffFilter === 'tous') return true;
+    return staffFilter === STAFF_TRIER ? !p.site : p.site === staffFilter;
+  });
+
+  html += '<div class="stf-tablewrap"><table class="stf-table"><thead><tr>'
+    + '<th class="stf-stick">Salarié</th><th>Site</th>'
+    + staffArticles.map(function(a) { return '<th>' + escapeHtml(a.nom) + '</th>'; }).join('')
+    + '<th>Statut</th></tr></thead><tbody>';
+
+  html += list.length ? list.map(function(p) {
+    const cells = staffArticles.map(function(a) {
+      const g = staffAgg(p.id, a.id);
+      if (!g.detient && !g.cumulAn) return '<td class="stf-cell-no">—</td>';
+      const dep = a.quota_annuel && g.cumulAn > a.quota_annuel;
+      return '<td><b class="' + (dep ? 'stf-over' : '') + '">×' + formatQty(g.detient) + '</b> '
+        + '<span class="stf-tz">' + escapeHtml(g.taille || '') + '</span>'
+        + (dep ? ' <span class="stf-pill stf-p-bad">' + formatQty(g.cumulAn) + '/' + a.quota_annuel + '</span>' : '') + '</td>';
+    }).join('');
+    const d = staffDu(p.id);
+    const statut = p.date_sortie
+      ? '<span class="stf-pill ' + (d ? 'stf-p-bad' : 'stf-p-ok') + '">parti ' + formatDateFr(p.date_sortie) + (d ? ' · ' + formatQty(d) + ' à rendre' : ' · soldé') + '</span>'
+      : '<span class="stf-pill stf-p-ok">en poste</span>';
+    return '<tr class="' + (p.date_sortie ? 'parti' : '') + '"><td class="stf-stick">'
+      + '<button type="button" class="stf-name" onclick="stfOpenSheet(\'' + p.id + '\')">'
+      + '<span class="stf-dot" style="background:' + (staffEtat(p.id) === 'ok' ? 'var(--green)' : staffEtat(p.id) === 'part' ? 'var(--orange)' : 'var(--red)') + '"></span>'
+      + '<span class="n">' + escapeHtml(p.nom) + '</span></button></td>'
+      + '<td><span class="stf-site ' + staffSiteCls(p.site) + '">' + escapeHtml(staffSiteLbl(p.site)) + '</span></td>'
+      + cells + '<td>' + statut + '</td></tr>';
+  }).join('') : '<tr><td colspan="' + (staffArticles.length + 3) + '" style="padding:18px;color:#AAA">Personne ici.</td></tr>';
+
+  html += '</tbody></table></div>';
+  html += '<div class="stf-actions"><button class="btn-gold-sm" onclick="stfToggleForm(\'new\')">+ Nouveau salarié</button></div>';
+  if (staffFormOpen === 'new') {
+    html += '<div class="stf-form"><h4>Nouveau salarié</h4><div class="stf-fgrid">'
+      + '<div class="stf-f"><span class="lb">Nom (NOM Prénom)</span><input id="stf-n-nom" placeholder="MARTIN Camille"></div>'
+      + '<div class="stf-f"><span class="lb">Site</span><select id="stf-n-site">'
+      + stfOpts([{ v: '', l: 'À trier' }].concat(STAFF_SITES.map(function(s) { return { v: s.id, l: s.lbl }; })),
+                staffFilter === STAFF_TRIER || staffFilter === 'tous' ? '' : staffFilter) + '</select></div>'
+      + '</div><div class="stf-actions" style="padding:12px 0 0">'
+      + '<button class="btn-gold-sm" onclick="staffCreer()">Enregistrer</button>'
+      + '<button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid)" onclick="stfToggleForm(\'new\')">Annuler</button></div></div>';
+  }
+  return html;
+}
+
+/* --- vue Stock : par article × taille --- */
+function stfViewStock() {
+  const lignes = staffStock.slice().sort(function(a, b) {
+    const na = staffArtNom(a.article_id), nb = staffArtNom(b.article_id);
+    return na === nb ? String(a.taille).localeCompare(String(b.taille), 'fr', { numeric: true }) : na.localeCompare(nb);
+  });
+  const manque = lignes.filter(function(r) { return (parseQty(r.qty) || 0) < (parseQty(r.seuil) || 0); });
+  let html = '<div class="stf-kpis">'
+    + '<div class="stf-kpi alert"><b>' + manque.length + '</b><span>tailles à commander</span></div>'
+    + '<div class="stf-kpi"><b>' + formatQty(lignes.reduce(function(s, r) { return s + (parseQty(r.qty) || 0); }, 0)) + '</b><span>pièces en stock</span></div>'
+    + '</div>';
+  html += '<div class="stf-actions">'
+    + '<button class="btn-gold-sm" onclick="stfToggleForm(\'rec\')">+ Réception</button>'
+    + '<button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid)" onclick="stfListeCommander()">Liste à commander</button></div>';
+  if (staffFormOpen === 'rec') {
+    const a0 = (staffArticles[0] || {}).id;
+    html += '<div class="stf-form"><h4>Réception</h4><div class="stf-fgrid">'
+      + '<div class="stf-f"><span class="lb">Article</span><select id="stf-r-art" onchange="stfMajTailles(\'stf-r-art\',\'stf-r-tai\')">'
+      + stfOpts(staffArticles.map(function(a) { return { v: a.id, l: a.nom }; })) + '</select></div>'
+      + '<div class="stf-f"><span class="lb">Taille</span><select id="stf-r-tai">' + stfOpts(staffTailles(a0)) + '</select></div>'
+      + '<div class="stf-f"><span class="lb">Quantité reçue</span><select id="stf-r-qte">'
+      + stfOpts(stfNombres(1, 100).map(function(n) { return { v: n, l: '×' + n }; }), '10') + '</select></div>'
+      + '</div><div class="stf-actions" style="padding:12px 0 0">'
+      + '<button class="btn-gold-sm" onclick="staffReception()">Ajouter au stock</button>'
+      + '<button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid)" onclick="stfToggleForm(\'rec\')">Annuler</button></div></div>';
+  }
+  html += '<div class="stf-tablewrap"><table class="stf-table"><thead><tr>'
+    + '<th>Article</th><th>Taille</th><th>En stock</th><th>Seuil d\'alerte</th><th>État</th><th>Dernière réception</th>'
+    + '</tr></thead><tbody>';
+  html += lignes.length ? lignes.map(function(r) {
+    const q = parseQty(r.qty) || 0, s = parseQty(r.seuil) || 0;
+    const bad = q < s, warn = !bad && q < s * 1.5;
+    const col = bad ? 'var(--red)' : warn ? 'var(--orange)' : 'var(--green)';
+    const pill = bad ? '<span class="stf-pill stf-p-bad">à commander</span>'
+               : warn ? '<span class="stf-pill stf-p-warn">bientôt</span>'
+               : '<span class="stf-pill stf-p-ok">ok</span>';
+    return '<tr><td>' + escapeHtml(staffArtNom(r.article_id)) + '</td><td>' + escapeHtml(r.taille) + '</td>'
+      + '<td><span style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:' + col + '">' + formatQty(q) + '</span></td>'
+      + '<td><select class="stf-sel" onchange="staffSetSeuil(\'' + r.article_id + '\',\'' + escapeHtml(r.taille) + '\',this.value)">'
+      + stfOpts(stfNombres(0, 30), s) + '</select></td>'
+      + '<td>' + pill + '</td><td style="color:#AAA">' + (r.last_reception ? escapeHtml(formatDateFr(r.last_reception)) : '—') + '</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="padding:18px;color:#AAA">Aucun stock saisi. Commence par une réception.</td></tr>';
+  html += '</tbody></table></div>';
+  return html;
+}
+function stfListeCommander() {
+  const m = staffStock.filter(function(r) { return (parseQty(r.qty) || 0) < (parseQty(r.seuil) || 0); });
+  alert(m.length
+    ? 'À commander :\n\n' + m.map(function(r) {
+        return '· ' + staffArtNom(r.article_id) + ' ' + r.taille + ' — il reste ' + formatQty(r.qty) + ', seuil ' + formatQty(r.seuil);
+      }).join('\n')
+    : 'Rien à commander, tout est au-dessus du seuil.');
+}
+
+/* --- vue Articles : le catalogue, donc les colonnes --- */
+function stfViewArticles() {
+  let html = '<div style="padding:8px 14px;font-size:12px;color:var(--grey-light)">'
+    + 'Chaque article devient une colonne dans Équipe et des lignes dans le Stock.</div>';
+  html += '<div class="stf-tablewrap"><table class="stf-table"><thead><tr>'
+    + '<th>Article</th><th>Tailles</th><th>Quota par an</th><th></th></tr></thead><tbody>';
+  html += staffArticles.map(function(a) {
+    return '<tr><td><strong>' + escapeHtml(a.nom) + '</strong></td>'
+      + '<td><select class="stf-sel" onchange="staffArtSet(\'' + a.id + '\',\'jeu_tailles\',this.value)">'
+      + stfOpts(Object.keys(STAFF_JEUX).map(function(k) { return { v: k, l: STAFF_JEUX[k].lbl }; }), a.jeu_tailles) + '</select></td>'
+      + '<td><select class="stf-sel" onchange="staffArtSet(\'' + a.id + '\',\'quota_annuel\',this.value)">'
+      + stfOpts([{ v: '', l: 'Pas de quota' }].concat(stfNombres(1, 12).map(function(n) { return { v: n, l: n + ' / an' }; })), a.quota_annuel || '') + '</select></td>'
+      + '<td><button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid);padding:4px 10px;font-size:11px" onclick="staffArtRetirer(\'' + a.id + '\')">Retirer</button></td></tr>';
+  }).join('');
+  html += '</tbody></table></div>';
+  html += '<div class="stf-actions"><button class="btn-gold-sm" onclick="stfToggleForm(\'art\')">+ Ajouter un article</button></div>';
+  if (staffFormOpen === 'art') {
+    html += '<div class="stf-form"><h4>Nouvel article</h4><div class="stf-fgrid">'
+      + '<div class="stf-f"><span class="lb">Nom</span><input id="stf-a-nom" placeholder="Chaussures de sécurité"></div>'
+      + '<div class="stf-f"><span class="lb">Jeu de tailles</span><select id="stf-a-jeu">'
+      + stfOpts(Object.keys(STAFF_JEUX).map(function(k) { return { v: k, l: STAFF_JEUX[k].lbl }; }), 'vetement') + '</select></div>'
+      + '<div class="stf-f"><span class="lb">Quota par an</span><select id="stf-a-quota">'
+      + stfOpts([{ v: '', l: 'Pas de quota' }].concat(stfNombres(1, 12).map(function(n) { return { v: n, l: n + ' / an' }; })), '') + '</select></div>'
+      + '</div><div class="stf-actions" style="padding:12px 0 0">'
+      + '<button class="btn-gold-sm" onclick="staffArtCreer()">Créer</button>'
+      + '<button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid)" onclick="stfToggleForm(\'art\')">Annuler</button></div></div>';
+  }
+  return html;
+}
+
+/* --- fiche salarié --- */
+function stfOpenSheet(id) { staffSheetId = id; stfRenderSheet(); }
+function stfCloseSheet() {
+  staffSheetId = null;
+  const el = document.getElementById('stf-sheet');
+  if (el) el.remove();
+}
+function stfRenderSheet() {
+  const p = staffData.find(function(x) { return x.id === staffSheetId; });
+  if (!p) { stfCloseSheet(); return; }
+  let el = document.getElementById('stf-sheet');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'stf-sheet';
+    el.className = 'stf-sheet-bg';
+    el.addEventListener('click', function(e) { if (e.target === el) stfCloseSheet(); });
+    document.body.appendChild(el);
+  }
+  const lignes = staffDotations.filter(function(d) { return d.staff_id === p.id; });
+  const du = staffDu(p.id);
+  const a0 = (staffArticles[0] || {}).id;
+
+  el.innerHTML = '<div class="stf-sheet" role="dialog" aria-modal="true">'
+    + '<h3>' + escapeHtml(p.nom) + '</h3>'
+    + '<div class="sub">' + (p.date_sortie ? 'Parti le ' + escapeHtml(formatDateFr(p.date_sortie)) : 'En poste') + ' · ' + escapeHtml(staffSiteLbl(p.site)) + '</div>'
+    + (p.date_sortie && du ? '<div class="stf-warn"><strong>' + formatQty(du) + ' pièces non rendues.</strong> Choisis pour chacune : retour au stock, ou hors d\'usage.</div>' : '')
+    + '<div class="stf-lbl">Site</div><div class="stf-opts">'
+    + [{ id: '', lbl: 'À trier' }].concat(STAFF_SITES).map(function(s) {
+        return '<button type="button" class="' + ((s.id || null) === (p.site || null) ? 'cur' : '') + '" onclick="staffMove(\'' + p.id + '\',\'' + s.id + '\')">' + escapeHtml(s.lbl) + '</button>';
+      }).join('') + '</div>'
+    + '<div class="stf-lbl">Dotation reçue</div><div class="stf-recap">'
+    + (lignes.length ? lignes.map(function(d) {
+        const a = staffArticles.find(function(x) { return x.id === d.article_id; }) || { nom: d.article_id };
+        return '<div class="stf-dline"><span' + (d.rendu ? ' style="opacity:.55;text-decoration:line-through"' : '') + '>'
+          + escapeHtml(a.nom) + ' · ' + escapeHtml(d.taille || '') + ' · ×' + formatQty(d.qty)
+          + '<br><span style="color:var(--grey-light);font-size:11px">remis le ' + escapeHtml(formatDateFr(d.remis_le)) + '</span></span>'
+          + '<select class="stf-sel ' + (d.rendu ? 'filled' : '') + '" onchange="staffRendre(\'' + d.id + '\',this.value)">'
+          + stfOpts([{ v: '', l: 'Pas rendu' }, { v: 'stock', l: '↩ Au stock' }, { v: 'hs', l: '✕ Hors d\'usage' }], d.rendu || '')
+          + '</select></div>';
+      }).join('') : '<div style="color:var(--grey-light)">Rien reçu pour l\'instant.</div>')
+    + '</div>'
+    + '<div class="stf-lbl">Donner un article</div>'
+    + '<div class="stf-fgrid">'
+    + '<div class="stf-f"><select id="stf-g-art" onchange="stfMajTailles(\'stf-g-art\',\'stf-g-tai\')">'
+    + stfOpts(staffArticles.map(function(a) { return { v: a.id, l: a.nom }; })) + '</select></div>'
+    + '<div class="stf-f"><select id="stf-g-tai">' + stfOpts(staffTailles(a0)) + '</select></div>'
+    + '<div class="stf-f"><select id="stf-g-qte">' + stfOpts(stfNombres(1, 20).map(function(n) { return { v: n, l: '×' + n }; }), '1') + '</select></div>'
+    + '</div>'
+    + '<div class="stf-actions" style="padding:10px 0 0"><button class="btn-gold-sm" onclick="staffDonner()">Enregistrer la remise</button></div>'
+    + '<div class="stf-actions" style="padding:14px 0 0;margin-top:12px;border-top:1px solid #EDE4D0">'
+    + '<button class="btn-gold-sm" style="background:#fff;color:var(--red);border-color:#E9C9C9" onclick="staffToggleDepart(\'' + p.id + '\')">'
+    + (p.date_sortie ? 'Annuler le départ' : 'Enregistrer un départ') + '</button>'
+    + '<button class="btn-gold-sm" style="background:#fff;color:var(--brown-mid)" onclick="stfCloseSheet()">Fermer</button></div>'
+    + '</div>';
+}
+
 function renderAccessCodes() {
   const mc = document.getElementById('main-content');
   const rows = [
