@@ -188,6 +188,7 @@
   /* v20.203 — 52px ne suffisaient pas : « 75+75+75 » (3 pétrins) était tronqué et illisible. */
   .pcell{width:74px;border:1px solid #ddd;border-radius:5px;padding:6px 3px;text-align:center;font-size:13.5px}
   .pcell:focus{outline:none;border-color:var(--gold);background:#FFFCF4}
+  .pcell::placeholder{color:var(--gold-dark);opacity:.55;font-style:italic} /* v20.207 — levain calculé, modifiable */
   .plan-tbl tr.plan-sec td{text-align:left;color:#fff;font-weight:bold;font-size:11.5px;letter-spacing:.6px;padding:5px 8px;border-color:rgba(0,0,0,.08)}
   .plan-tbl td.pname{border-left-width:4px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -285,6 +286,10 @@
       <button class="btn" id="planScanBtn" onclick="document.getElementById('planPhoto').click()">📷 Scanner la feuille</button>
       <span class="hint" style="margin:0">remplit la semaine affichée</span>
     </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:13px;margin:6px 0;cursor:pointer">
+      <input type="checkbox" id="planHideChk" style="width:auto;transform:scale(1.2)" onchange="planHideEmpty=this.checked;localStorage.setItem('planHideEmpty',this.checked?'1':'');planRender()">
+      Masquer les lignes non remplies cette semaine
+    </label>
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
@@ -963,6 +968,63 @@ const PD_PLAN_ALIAS={
   'croissant':'pr_pate_levee_feuilletee',   // la pâte des croissants
   'baguetteordinaire':'pr_pain_blanc'       // même pâte que le Pain blanc (Phil 24/08)
 };
+const fabNorm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+// v20.207 — Traduit UN JOUR de planning en pétrins + mélanges de Prod. du jour.
+// Partagé entre le bouton « Remplir depuis le planning » et le calcul automatique
+// des levains affiché dans le Planning : un seul cerveau, pas deux qui divergent.
+function planMapJour(lgRows, valById){
+  const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[fabNorm(p.nom)]=p.id;});
+  const findPid=nom=>PD_PLAN_ALIAS[fabNorm(nom)]||prodByNom[fabNorm(nom)]||null;
+  const kgPates=new Set();
+  lgRows.forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
+  const jour={},melange={},ignorees=[],besoinBase={},farineAcc={};
+  lgRows.forEach(l=>{
+    const raw=String(valById[l.id]||'').trim();if(!raw)return;
+    const total=calcParseNum(raw);if(!total)return;
+    const pid=findPid(l.nom);
+    if(l.unite==='kg'){
+      if(!pid||!recettesMap[pid]){ignorees.push(l.nom);return;}
+      const parts=raw.replace(',','.').match(/\d+(?:\.\d+)?/g)||[String(total)];
+      jour[pid]=parts.map(x=>{
+        let q=parseFloat(x);
+        if(pdHasBac(pid))q=Math.round((pdKgToBac(pid,q)||0)*2)/2; // planning en kg farine → produit saisi en bacs
+        return {qte:q,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)};
+      });
+      return;
+    }
+    const estMelange=pid&&recettesMap[pid]&&produits.some(p=>p.id===pid&&p.categorie==='melange');
+    if(estMelange){
+      melange[pid]=total;
+      if(!(l.pate&&kgPates.has(l.pate))){
+        const base=Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ing_pate_of(pid));
+        if(base)besoinBase[base]=(besoinBase[base]||0)+(melangePateParBac(pid)*total);
+      }
+      return;
+    }
+    if(pid&&recettesMap[pid]){
+      // deux façonnages d'une même pâte (Pain blanc + Baguette ordinaire) : farine additionnée
+      if(+l.kg_farine_unite){farineAcc[pid]=(farineAcc[pid]||0)+total*(+l.kg_farine_unite);return;}
+      if(pdHasBac(pid)){jour[pid]=[{qte:total,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];return;}
+    }
+    if(!(l.pate&&kgPates.has(l.pate)))ignorees.push(l.nom);
+  });
+  Object.keys(farineAcc).forEach(pid=>{
+    if(jour[pid])return;
+    const f=farineAcc[pid];if(!(f>0))return;
+    const qte=pdHasBac(pid)?Math.round((pdKgToBac(pid,f)||0)*2)/2:Math.round(f*2)/2;
+    if(qte>0)jour[pid]=[{qte:qte,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];
+  });
+  Object.keys(besoinBase).forEach(base=>{
+    if(jour[base])return;
+    const rec=recettesMap[base];if(!rec)return;
+    const flour=besoinBase[base]/(doughPerKgFlour(base)||1.6);
+    const qte=pdHasBac(base)?Math.ceil((pdKgToBac(base,flour)||0)*2)/2:Math.ceil(flour*2)/2;
+    if(qte>0)jour[base]=[{qte:qte,hydra:(pdHydraPref[base]!=null?pdHydraPref[base]:undefined)}];
+  });
+  return {jour:jour,melange:melange,ignorees:ignorees};
+}
+
 async function pdFillFromPlan(){
   if(!pdDate){toast('Choisis un jour');return;}
   const aDeja=Object.keys(pdDay).length||Object.keys(pdMelange).length;
@@ -975,71 +1037,12 @@ async function pdFillFromPlan(){
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
   setSync('🟢 connecté');
   const valById={};(vl.data||[]).forEach(v=>{valById[v.ligne_id]=v.valeur;});
-  const norm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[norm(p.nom)]=p.id;});
-  const findPid=nom=>PD_PLAN_ALIAS[norm(nom)]||prodByNom[norm(nom)]||null;
-  // pâtes écrites en kg ce jour-là (même règle que la calculette)
-  const kgPates=new Set();
-  (lg.data||[]).forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
-  pdDay={};pdMelange={};
-  const ignorees=[];const besoinBase={}; // basePid -> kg de pâte demandés par les déclinaisons sans pétrissée
-  const farineAcc={}; // pid -> kg de farine cumulés (façonnages multiples d'une même pâte)
-  (lg.data||[]).forEach(l=>{
-    const raw=String(valById[l.id]||'').trim();if(!raw)return;
-    const total=calcParseNum(raw);if(!total)return;
-    const pid=findPid(l.nom);
-    if(l.unite==='kg'){
-      // pétrissée : chaque « 75+75 » devient un pétrin distinct
-      if(!pid||!recettesMap[pid]){ignorees.push(l.nom);return;}
-      const parts=raw.replace(',','.').match(/\d+(?:\.\d+)?/g)||[String(total)];
-      // le planning est en kg de FARINE ; certains produits se saisissent en BACS
-      // dans Prod. du jour (Baguette épeautre…) → conversion, arrondie au ½ bac
-      pdDay[pid]=parts.map(x=>{
-        let q=parseFloat(x);
-        if(pdHasBac(pid))q=Math.round((pdKgToBac(pid,q)||0)*2)/2;
-        return {qte:q,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)};
-      });
-      return;
-    }
-    // déclinaison en bacs/pièces
-    const estMelange=pid&&recettesMap[pid]&&produits.some(p=>p.id===pid&&p.categorie==='melange');
-    if(estMelange){
-      pdMelange[pid]=total;
-      // pas de pétrissée écrite ce jour-là → la somme des déclinaisons dimensionne le pétrin
-      if(!(l.pate&&kgPates.has(l.pate))){
-        const base=Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ing_pate_of(pid));
-        if(base)besoinBase[base]=(besoinBase[base]||0)+(melangePateParBac(pid)*total);
-      }
-      return;
-    }
-    if(pid&&recettesMap[pid]){
-      // v20.206 — deux façonnages d'une même pâte (Pain blanc + Baguette ordinaire) :
-      // on additionne leur FARINE (conversion du planning) dans le même pétrin.
-      if(+l.kg_farine_unite){farineAcc[pid]=(farineAcc[pid]||0)+total*(+l.kg_farine_unite);return;}
-      if(pdHasBac(pid)){pdDay[pid]=[{qte:total,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];return;}
-    }
-    // sans recette : si sa pâte est écrite en kg, c'est du façonnage pur (le planning suffit)
-    if(!(l.pate&&kgPates.has(l.pate)))ignorees.push(l.nom);
-  });
-  // pétrins constitués par addition de farine (Pain blanc = ses bacs + ceux de la Baguette ordinaire)
-  Object.keys(farineAcc).forEach(pid=>{
-    if(pdDay[pid])return; // une ligne kg l'a déjà écrit
-    const f=farineAcc[pid];if(!(f>0))return;
-    const qte=pdHasBac(pid)?Math.round((pdKgToBac(pid,f)||0)*2)/2:Math.round(f*2)/2;
-    if(qte>0)pdDay[pid]=[{qte:qte,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];
-  });
-  // pétrins déduits des déclinaisons (Essentiel/Idéal, Pain blanc…) — arrondi au ½ bac SUP.
-  Object.keys(besoinBase).forEach(base=>{
-    if(pdDay[base])return; // déjà écrit en kg dans le planning
-    const rec=recettesMap[base];if(!rec)return;
-    const flour=besoinBase[base]/(doughPerKgFlour(base)||1.6);
-    const qte=pdHasBac(base)?Math.ceil((pdKgToBac(base,flour)||0)*2)/2:Math.ceil(flour*2)/2;
-    if(qte>0)pdDay[base]=[{qte:qte,hydra:(pdHydraPref[base]!=null?pdHydraPref[base]:undefined)}];
-  });
+  const m=planMapJour(lg.data||[],valById);
+  pdDay=m.jour;pdMelange=m.melange;
   pdRenderAll();pdAutoSave();
-  const n=Object.keys(pdDay).length,m=Object.keys(pdMelange).length;
-  toast('Planning repris : '+n+' pétrissée'+(n>1?'s':'')+(m?' + '+m+' mélange'+(m>1?'s':''):''));
-  if(ignorees.length)alert('Non repris (pas de recette rattachée) :\n· '+ignorees.join('\n· ')+'\n\nCes lignes restent visibles dans le Planning.');
+  const n=Object.keys(pdDay).length,nm=Object.keys(pdMelange).length;
+  toast('Planning repris : '+n+' pétrissée'+(n>1?'s':'')+(nm?' + '+nm+' mélange'+(nm>1?'s':''):''));
+  if(m.ignorees.length)alert('Non repris (pas de recette rattachée) :\n· '+m.ignorees.join('\n· ')+'\n\nCes lignes restent visibles dans le Planning.');
 }
 
 /* --- jour : charge / sauve (auto-save) --- */
@@ -1212,18 +1215,19 @@ function pdCompute(row){
   const rec=recettesMap[row.pid];if(!rec)return null;
   const kgFlour=pdRowKgFlour(row);const f=kgFlour/(rec.rendement_base||1);
   const hydra=(row.hydra!==undefined)?row.hydra:(rec.hydratation_pct!=null?Math.round(rec.hydratation_pct):null);
-  let lines=[],tot=0,coulage=0,totalFlour=0,levainDur=0,levainLiq=0;
+  let lines=[],tot=0,coulage=0,totalFlour=0,levainDur=0,levainLiq=0,levainSuc=0;
   (rec.lignes||[]).forEach(l=>{
     const ing=ingredients.find(x=>x.id===l.ingredient_id)||{};const q=l.quantite*f;tot+=q;
     if(ing.categorie==='farine')totalFlour+=q;
     if(l.ingredient_id==='ing_eau')coulage=q;
     if(l.ingredient_id==='ing_levain_dur')levainDur+=q;
     if(l.ingredient_id==='ing_levain_liquide')levainLiq+=q;
+    if(l.ingredient_id==='ing_levain_sucre')levainSuc+=q; // v20.207 — levain des viennoiseries / pâte sucrée
     lines.push({id:l.ingredient_id,nom:(l.ingredient_id==='ing_eau'?'Eau de coulage':(ing.nom||l.ingredient_id)),q,note:l.note,bio:!!ing.bio});
   });
   let bassinage=0;
   if(hydra!=null&&!isNaN(hydra)&&totalFlour>0){bassinage=(hydra/100)*totalFlour-coulage;if(bassinage<0)bassinage=0;tot+=bassinage;}
-  return {rec,f,hydra,lines,coulage,bassinage,totalFlour,tot,levainDur,levainLiq,kgFlour,bacs:pdKgToBac(row.pid,kgFlour)};
+  return {rec,f,hydra,lines,coulage,bassinage,totalFlour,tot,levainDur,levainLiq,levainSuc,kgFlour,bacs:pdKgToBac(row.pid,kgFlour)};
 }
 
 function pdRenderAll(){pdRenderRows();pdRenderLevain();pdRenderMatieres();pdRenderFiches();}
@@ -1285,13 +1289,16 @@ function pdRenderRows(){
 
 function pdRenderLevain(){
   const el=document.getElementById('pdLevain');if(!el)return;
-  let dur=0,liq=0;pdEntries().forEach(r=>{const c=pdCompute(r);if(c){dur+=c.levainDur;liq+=c.levainLiq;}});
-  if(dur<=0&&liq<=0){el.style.display='none';return;}
+  let dur=0,liq=0,suc=0;pdEntries().forEach(r=>{const c=pdCompute(r);if(c){dur+=c.levainDur;liq+=c.levainLiq;suc+=c.levainSuc;}});
+  if(dur<=0&&liq<=0&&suc<=0){el.style.display='none';return;}
   const rd=parseFloat((ingredients.find(x=>x.id==='ing_levain_dur')||{}).eau_ratio)||0.6;
   const rl=parseFloat((ingredients.find(x=>x.id==='ing_levain_liquide')||{}).eau_ratio)||1;
   let html='<h2>🥖 Levain à préparer pour la journée</h2>';
   if(dur>0){const far=dur/(1+rd),eau=dur-far;html+='<div class="pesee"><div class="nom"><b>Levain dur</b> — '+fmt(dur)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine T80<br>+ '+fmt(eau)+' eau</div></div>';}
   if(liq>0){const far=liq/(1+rl),eau=liq-far;html+='<div class="pesee"><div class="nom"><b>Levain liquide</b> — '+fmt(liq)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine T65 bio<br>+ '+fmt(eau)+' eau</div></div>';}
+  if(suc>0){const rs=parseFloat((ingredients.find(x=>x.id==='ing_levain_sucre')||{}).eau_ratio)||1;
+    const far=suc/(1+rs),eau=suc-far;
+    html+='<div class="pesee"><div class="nom"><b>Levain pâte sucrée</b> — '+fmt(suc)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine<br>+ '+fmt(eau)+' eau</div></div>';}
   el.innerHTML=html;el.style.display='block';
 }
 
@@ -2157,6 +2164,7 @@ async function calcFromPlan(){
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planVals={},planSite='local',planScanData=[];
+let planHideEmpty=localStorage.getItem('planHideEmpty')==='1'; // v20.207 — masquer les lignes vides
 // planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
   {key:'pains',label:'PAINS',color:'var(--blue)'},
@@ -2188,6 +2196,7 @@ async function planLoad(){
   planLignes=lg.data||[];planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
 }
 function planRender(){
+  const chk=document.getElementById('planHideChk');if(chk)chk.checked=planHideEmpty;
   const end=pdAddDays(planWeekStart,6);
   document.getElementById('planWeekLbl').textContent='Semaine du '+planFr(planWeekStart)+' au '+planFr(end);
   const today=new Date().toISOString().slice(0,10);
@@ -2196,22 +2205,53 @@ function planRender(){
   head+='</tr></thead>';
   let body='<tbody>';
   if(!planLignes.length){body+='<tr><td colspan="8" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
+  // v20.207 — Levains calculés automatiquement pour chaque jour de la semaine :
+  // on traduit le jour en pétrins (planMapJour, le même cerveau que « Remplir
+  // depuis le planning ») et on somme le levain de chaque recette. Affiché en
+  // GRIS dans la ligne levain tant que rien n'est saisi à la main — une saisie
+  // manuelle garde toujours le dernier mot.
+  const LEV_MAP={'levaindur':'levainDur','levainliquide':'levainLiq','levainliquidepatesucree':'levainSuc'};
+  const levByDay={};
+  const aDesLevains=planLignes.some(lg=>planSecOf(lg)==='levains');
+  if(aDesLevains&&Object.keys(recettesMap||{}).length){
+    for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+      const valById={};planLignes.forEach(l=>{valById[l.id]=planVals[l.id+'_'+iso]||'';});
+      const m=planMapJour(planLignes.filter(l=>planSecOf(l)!=='levains'),valById);
+      const t={levainDur:0,levainLiq:0,levainSuc:0};
+      Object.keys(m.jour).forEach(pid=>m.jour[pid].forEach(b=>{const c=pdCompute({pid:pid,qte:b.qte,hydra:b.hydra});
+        if(c){t.levainDur+=c.levainDur;t.levainLiq+=c.levainLiq;t.levainSuc+=c.levainSuc;}}));
+      levByDay[iso]=t;
+    }
+  }
+  const ligneRemplie=lg=>{
+    for(let i=0;i<7;i++){if(String(planVals[lg.id+'_'+pdAddDays(planWeekStart,i)]||'').trim())return true;}
+    const k=LEV_MAP[fabNorm(lg.nom)];
+    if(k){for(let i=0;i<7;i++){const t=levByDay[pdAddDays(planWeekStart,i)];if(t&&t[k]>0.05)return true;}}
+    return false;
+  };
   const renderLine=(lg,sibs)=>{
     const idx=sibs.indexOf(lg),col=planSecColor(planSecOf(lg));
-    let r='<tr><td class="pname" style="border-left-color:'+col+'">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span><div class="plan-ctrls">'
+    const levKey=LEV_MAP[fabNorm(lg.nom)];
+    let r='<tr><td class="pname" style="border-left-color:'+col+'">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span>'
+      +(levKey?'<span class="pu" style="color:var(--gold-dark)"> · calcul auto</span>':'')
+      +'<div class="plan-ctrls">'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',-1)"'+(idx===0?' disabled':'')+'>↑</button>'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',1)"'+(idx===sibs.length-1?' disabled':'')+'>↓</button>'
       +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
     for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
-      r+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
+      let ph='';
+      if(levKey&&!String(val).trim()){const t=levByDay[iso];const q=t?t[levKey]:0;if(q>0.05)ph=String(calcR05(q));}
+      r+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
     return r+'</tr>';
   };
   PLAN_SECTIONS.forEach(sec=>{
-    const sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
+    let sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
     if(!sibs.length)return;
+    const visibles=planHideEmpty?sibs.filter(ligneRemplie):sibs;
+    if(!visibles.length)return;
     body+='<tr class="plan-sec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
-    sibs.forEach(lg=>body+=renderLine(lg,sibs));
+    visibles.forEach(lg=>body+=renderLine(lg,sibs));
   });
   body+='</tbody>';
   document.getElementById('planTbl').innerHTML=head+body;
