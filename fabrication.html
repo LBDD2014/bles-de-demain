@@ -527,7 +527,11 @@ function pdSaveHydraPref(pid,h){if(h==null)return;pdHydraPref[pid]=h;try{localSt
 let pdQtePref={}; try{pdQtePref=JSON.parse(localStorage.getItem('pdQtePref')||'{}')}catch(e){} // quantité mémorisée PAR MAGASIN + produit (clé "site:pid")
 function pdSaveQtePref(pid,q){if(q==null||isNaN(q)||q<=0)return;pdQtePref[fabSite+':'+pid]=q;try{localStorage.setItem('pdQtePref',JSON.stringify(pdQtePref))}catch(e){}}
 // Pâtes de base qui ont des mélanges : produit de base -> ingrédient "pâte de X"
-const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_essentiel'};
+// v20.205 — La Viennoise rejoint les pâtes de base : ses déclinaisons (pain de
+// mie, brioche cannelle, viennoises, burgers, hotdogs — recettes dictées par Phil
+// le 24/08) s'affichent sous son pétrin et sont reprises par « Remplir depuis le
+// planning », comme les mélanges de Tradition et d'Essentiel.
+const BASE_PATE={'pr_tradition':'ing_pate_tradition','pr_essentiel':'ing_pate_essentiel','pr_viennoise':'ing_pate_viennoise'};
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function setSync(s){document.getElementById('sync').textContent=s;}
