@@ -2253,23 +2253,26 @@ function planPrintWeek(){
     +' · <i>chiffres italiques = levain calculé</i></div>'
     +'<table><thead><tr><th style="text-align:left">Produit</th>'+heads+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>';
-  // v20.211 — TOUT sur une seule page (demande Phil) : mise en page compacte, et
-  // si la semaine compte plus de lignes que la page n'en tient, on réduit le zoom
-  // au prorata plutôt que de déborder sur une page 2.
+  // v20.213 — la feuille REMPLIT la page (demande Phil : « le plus visible
+  // possible »). Toute la typo est en em et la taille de base est calculée
+  // d'après le nombre de lignes : ~65 lignes tiennent à 9,5 px, donc moins de
+  // lignes = texte proportionnellement plus gros. Bornes 7-17 px : jamais
+  // illisible, jamais grotesque. Une seule page dans tous les cas.
   const nRows=(rows.match(/<tr/g)||[]).length+1; // + ligne d'en-tête
-  // v20.212 — portrait (demande Phil) : plus de hauteur, ~60 lignes tiennent sans réduction
-  const z=Math.min(1,60/Math.max(nRows,1));
+  // Géométrie réelle : page utile ≈ 1077 px (297−12 mm), une ligne ≈ 1,66×police
+  // + 2 px de bordures, le titre ≈ 3×police. On résout la police qui remplit
+  // exactement, avec 7 % de marge (les navigateurs arrondissent les hauteurs).
+  const basePx=Math.max(7,Math.min(17,0.93*(1077-2*nRows)/(1.66*nRows+3)));
   printDoc(html,
     '@page{size:A4 portrait;margin:6mm}'
-    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F;zoom:'+z.toFixed(3)+'}'
-    +'#printwrap h1{font-size:14px;margin:0 0 1px}'
-    +'#printwrap .sub{font-size:9.5px;color:#6B4226;margin:0 0 4px}'
-    +'#printwrap table{border-collapse:collapse;width:100%;font-size:9.5px}'
-    +'#printwrap th,#printwrap td{border:1px solid #999;padding:1.5px 3px;text-align:center;line-height:1.25}'
-    +'#printwrap th{padding:1px 3px}'
+    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F;font-size:'+basePx.toFixed(2)+'px}'
+    +'#printwrap h1{font-size:1.55em;margin:0 0 .1em}'
+    +'#printwrap .sub{font-size:1em;color:#6B4226;margin:0 0 .45em}'
+    +'#printwrap table{border-collapse:collapse;width:100%;font-size:1em}'
+    +'#printwrap th,#printwrap td{border:1px solid #999;padding:.18em .35em;text-align:center;line-height:1.3}'
     +'#printwrap td.pn{text-align:left;font-weight:bold;white-space:nowrap}'
-    +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:8px}'
-    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:8.5px;letter-spacing:.5px;padding:1px 4px;'
+    +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:.82em}'
+    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:.88em;letter-spacing:.5px;padding:.12em .45em;'
     +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'#printwrap td.auto{font-style:italic;color:#6B4226}');
 }
