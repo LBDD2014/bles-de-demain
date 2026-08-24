@@ -1298,7 +1298,7 @@ function pdRenderLevain(){
   if(liq>0){const far=liq/(1+rl),eau=liq-far;html+='<div class="pesee"><div class="nom"><b>Levain liquide</b> — '+fmt(liq)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine T65 bio<br>+ '+fmt(eau)+' eau</div></div>';}
   if(suc>0){const rs=parseFloat((ingredients.find(x=>x.id==='ing_levain_sucre')||{}).eau_ratio)||1;
     const far=suc/(1+rs),eau=suc-far;
-    html+='<div class="pesee"><div class="nom"><b>Levain pâte sucrée</b> — '+fmt(suc)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine<br>+ '+fmt(eau)+' eau</div></div>';}
+    html+='<div class="pesee"><div class="nom"><b>Levain pâte sucrée</b> — '+fmt(suc)+'</div><div class="q" style="font-size:12px;color:var(--grey-light);text-align:right">'+fmt(far)+' farine T65 bio<br>+ '+fmt(eau)+' eau</div></div>';}
   el.innerHTML=html;el.style.display='block';
 }
 
