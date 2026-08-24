@@ -2253,18 +2253,22 @@ function planPrintWeek(){
     +' · <i>chiffres italiques = levain calculé</i></div>'
     +'<table><thead><tr><th style="text-align:left">Produit</th>'+heads+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>';
+  // v20.211 — TOUT sur une seule page (demande Phil) : mise en page compacte, et
+  // si la semaine compte plus de lignes que la page n'en tient, on réduit le zoom
+  // au prorata plutôt que de déborder sur une page 2.
+  const nRows=(rows.match(/<tr/g)||[]).length+1; // + ligne d'en-tête
+  const z=Math.min(1,44/Math.max(nRows,1));
   printDoc(html,
-    '@page{size:A4 landscape;margin:8mm}'
-    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F}'
-    +'#printwrap h1{font-size:16px;margin:0 0 2px}'
-    +'#printwrap .sub{font-size:11px;color:#6B4226;margin:0 0 6px}'
-    +'#printwrap table{border-collapse:collapse;width:100%;font-size:10.5px}'
-    +'#printwrap th,#printwrap td{border:1px solid #999;padding:2.5px 4px;text-align:center}'
-    +'#printwrap thead{display:table-header-group}'
-    +'#printwrap tr{page-break-inside:avoid}'
+    '@page{size:A4 landscape;margin:5mm}'
+    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F;zoom:'+z.toFixed(3)+'}'
+    +'#printwrap h1{font-size:14px;margin:0 0 1px}'
+    +'#printwrap .sub{font-size:9.5px;color:#6B4226;margin:0 0 4px}'
+    +'#printwrap table{border-collapse:collapse;width:100%;font-size:9.5px}'
+    +'#printwrap th,#printwrap td{border:1px solid #999;padding:1.5px 3px;text-align:center;line-height:1.25}'
+    +'#printwrap th{padding:1px 3px}'
     +'#printwrap td.pn{text-align:left;font-weight:bold;white-space:nowrap}'
-    +'#printwrap td.pn small{font-weight:normal;color:#777}'
-    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:9.5px;letter-spacing:.5px;'
+    +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:8px}'
+    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:8.5px;letter-spacing:.5px;padding:1px 4px;'
     +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'#printwrap td.auto{font-style:italic;color:#6B4226}');
 }
