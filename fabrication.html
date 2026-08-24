@@ -2257,9 +2257,10 @@ function planPrintWeek(){
   // si la semaine compte plus de lignes que la page n'en tient, on réduit le zoom
   // au prorata plutôt que de déborder sur une page 2.
   const nRows=(rows.match(/<tr/g)||[]).length+1; // + ligne d'en-tête
-  const z=Math.min(1,44/Math.max(nRows,1));
+  // v20.212 — portrait (demande Phil) : plus de hauteur, ~60 lignes tiennent sans réduction
+  const z=Math.min(1,60/Math.max(nRows,1));
   printDoc(html,
-    '@page{size:A4 landscape;margin:5mm}'
+    '@page{size:A4 portrait;margin:6mm}'
     +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F;zoom:'+z.toFixed(3)+'}'
     +'#printwrap h1{font-size:14px;margin:0 0 1px}'
     +'#printwrap .sub{font-size:9.5px;color:#6B4226;margin:0 0 4px}'
