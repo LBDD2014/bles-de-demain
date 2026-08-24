@@ -485,6 +485,8 @@ color: var(--gold-dark); line-height: 1.2;
 .prod-shop-net.net-v .net-val { color: var(--green); }
 .prod-shop-net.net-sa .net-val { color: var(--blue); }
 .prod-shop-net.net-zero .net-val { color: #BBB; }
+/* v20.198 — prévis ET réappro remplis pour St-Avertin : on retient le max, on le signale */
+.prod-shop-net.sa-conflit { color: var(--red); font-weight: 700; }
 .ecart-badge {
 display: inline-block; padding: 4px 0; border-radius: 5px;
 font-size: 13px; font-weight: 700; text-align: center; width: 100%;
@@ -2402,7 +2404,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.197';
+const APP_VERSION  = 'v20.198';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7598,7 +7600,9 @@ const showResteJ1 = isLocalBoul || isLocalTour;
 // (le Local a déjà la sienne depuis v20.181, alimentée par les restes de St-Avertin)
 const showResteNet = isVeignePat || isToursProd;
 // v20.20 — Prod. Boulangers Local : pas de colonne SA (doublon avec Matin SA — ce que St-Av commande = ce qu'elle reçoit le matin)
-const showVTS = !isVeignePat && !isLocalBoul && !isToursProd;
+// v20.198 — Touriers : colonne SA retirée (fusionnée dans « Besoin St-Av »),
+// comme chez les Boulangers depuis v20.20
+const showVTS = !isVeignePat && !isLocalBoul && !isLocalTour && !isToursProd;
 // v20.168 — Boulangers Local : colonnes V/T pour les réassorts supply=local (Pain de mie…)
 const showVTBoul = isLocalBoul;
 const activeMarketsForGrid = (isVeignePat || isToursProd) ? [] : activeMarkets;
@@ -7651,6 +7655,17 @@ cS = (supS === 'veigne') ? parseQty(vS && vS.commander) : 0;
 // v20.165 — Touriers : les réassorts Veigné/Tours sont du SURGELÉ pioché au congélo
 // (Stock Tourier → À préparer ❄️), pas de la production → exclus du plan et du total.
 if (isLocalTour) { cV = 0; cT = 0; }
+// v20.198 — Touriers : « Matin SA » (previs) et « SA » (réappro) exprimaient le MÊME
+// besoin de St-Avertin par deux chemins, et le Total les additionnait. La v20.20 avait
+// déjà tranché chez les Boulangers (« ce que St-Av commande = ce qu'elle reçoit le
+// matin ») ; les Touriers avaient été oubliés. On retient le plus grand des deux :
+// additionner ferait produire le double en silence, ce qui part à la poubelle le soir.
+const saPrevisRaw = productionStAvSalesByProduct[p.id] || 0;
+const saReapproRaw = isLocalTour ? cS : 0;
+// Les deux remplis = anomalie à regarder (double saisie, ou besoin réel qu'on ignore).
+// On la signale sur la ligne au lieu de trancher en silence.
+const saDouble = isLocalTour && saReapproRaw > 0 && saPrevisRaw > 0;
+if (isLocalTour) cS = 0; // le besoin St-Av passe désormais par la seule colonne fusionnée
 // v20.168 — Boulangers Local : les réassorts V/T supply=local (ex : Pain de mie)
 // comptent et s'affichent (v20.17 masquait V/T car ils cuisent leur pain sur place,
 // mais le pain de mie vient du Local → il était invisible). SA reste via Matin SA (v20.20).
@@ -7679,7 +7694,10 @@ const cMatinV = showResteNet ? productionNetQty(isToursProd ? 'tours' : 'veigne'
 const veignePatVisibleCats = ['traiteur', 'patisserie_gros', 'gateaux_secs'];
 const matinSAEligible = showMatinSA && (!isVeignePat || veignePatVisibleCats.indexOf(p.category) !== -1);
 const stAvSale = productionStAvSalesFromTable[p.id] || {};
-const cMatinSARaw = matinSAEligible ? (productionStAvSalesByProduct[p.id] || 0) : 0;
+// v20.198 — Touriers : besoin St-Av = max(prévis, réappro), jamais la somme
+const cMatinSARaw = matinSAEligible
+  ? (isLocalTour ? Math.max(saPrevisRaw, saReapproRaw) : (productionStAvSalesByProduct[p.id] || 0))
+  : 0;
 // v20.192 — Veigné produit aussi pour St-Av : son reste d'hier réduit d'autant son besoin
 const cMatinSA = (showResteNet && matinSAEligible) ? productionNetQty('saint-avertin', p, cMatinSARaw) : cMatinSARaw;
 const cAprem = showApremSA ? (stAvSale.aprem || 0) : 0;
@@ -7709,6 +7727,7 @@ p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinVRaw, matinS
 aprem: cAprem, reste: cReste, resteBrut: cResteBrut, resteNet: cResteNet, pros: cPros,
 // v20.197 — net par boutique : « pour Veigné il en faut 3, pour St-Av 0 »
 matinVNet: cMatinV, matinSANet: cMatinSA,
+saDouble: saDouble, saPrevis: saPrevisRaw, saReappro: saReapproRaw,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -7880,7 +7899,7 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   }
   if (showMatinSA) {
     const matinSATitle = isLocalBoul ? 'Besoin pain saisi par la vendeuse St-Av'
-                       : (isLocalTour ? 'Besoin viennoiserie cuite saisi par la vendeuse St-Av'
+                       : (isLocalTour ? 'Besoin de St-Avertin : son prévis (onglet Ventes) ou son réappro (Cmd Local) — on retient le plus grand des deux, jamais la somme'
                        : 'Matin St-Avertin (pour le traiteur produit par Veigné)');
     headerHtml += '<span class="col-c" style="color:var(--blue)" title="' + escapeHtml(matinSATitle) + '">Matin SA</span>';
   }
@@ -7987,6 +8006,12 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
       const inpSA = '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
       rowHtml += '<div class="prod-shop-cell">' + inpSA
         + shopNetHtml(r.matinSA, r.matinSANet, showResteNet, 'net-sa', 'St-Avertin')
+        // v20.198 — prévis ET réappro remplis le même jour : on retient le plus grand,
+        // mais on le dit. Trancher en silence masquerait soit une double saisie, soit
+        // un besoin réel qu'on est en train d'ignorer.
+        + (r.saDouble
+            ? '<div class="prod-shop-net sa-conflit" title="' + escapeHtml('St-Avertin a saisi les deux : prévis ' + formatQty(r.saPrevis) + ' (onglet Ventes) et réappro ' + formatQty(r.saReappro) + ' (Cmd Local). C\'est le même besoin écrit deux fois → on retient ' + formatQty(Math.max(r.saPrevis, r.saReappro)) + ', jamais la somme. À vérifier avec la boutique.') + '">⚠️ ' + formatQty(r.saPrevis) + '/' + formatQty(r.saReappro) + '</div>'
+            : '')
         + '</div>';
     } else {
       rowHtml += '<div class="cell zero" style="color:#CCC">—</div>';
