@@ -2481,7 +2481,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.200';
+const APP_VERSION  = 'v20.201';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3455,6 +3455,8 @@ await loadVeigneSalesForProduction(currentReapproDate);
 await loadStAvSalesForProduction(currentReapproDate);
 // v20.192 — restes de la veille (Veigné + St-Av) pour déduire du « à produire »
 await loadProductionNetInputs(['veigne', 'saint-avertin'], currentReapproDate);
+// v20.201 — plaquettes à faire ici pour des commandes produites ailleurs
+await loadPlaquettesForProduction(currentReapproDate);
 }
 if (currentBoutique === 'tours') {
 await loadToursSalesForProduction(currentReapproDate);
@@ -7158,6 +7160,72 @@ productionSpecialByProduct[it.product_id] = (productionSpecialByProduct[it.produ
 });
 }
 
+// v20.201 — Plaquettes à faire à Veigné pour des commandes produites AILLEURS.
+//
+// Cas réel du 25/08 : 2 Tartes Vigneronnes (produites au Local, routage correct)
+// avec la note « Joyeux anniversaire ». La plaquette, elle, se fabrique à Veigné
+// en pâtisserie — mais une commande n'a qu'UN seul production_shop, donc Veigné
+// ne voyait jamais cette commande et la plaquette passait à la trappe.
+//
+// On ne devine pas ce qui est une plaquette (« 60 ans Martine » n'en dit pas le
+// mot) : dès qu'une commande porte une note, Veigné la voit. Les notes sont
+// rares, et une note « attention allergie » qui remonte au pâtissier est utile
+// aussi. Zéro saisie en plus pour l'équipe, zéro oubli possible.
+let productionPlaqueOrders = [];
+
+async function loadPlaquettesForProduction(date) {
+  productionPlaqueOrders = [];
+  const { data, error } = await supa.from('special_orders').select('*')
+    .eq('tenant_id', TENANT_ID)
+    .eq('pickup_date', date)
+    .neq('production_shop', 'veigne')   // celles produites ICI sont déjà dans le bloc Spéciales
+    .not('notes', 'is', null);
+  if (error || !data || !data.length) return;
+  const vivantes = data.filter(function(o) {
+    return String(o.notes || '').trim() && o.status !== 'annulee';
+  });
+  if (!vivantes.length) return;
+  const { data: items } = await supa.from('special_order_items').select('*')
+    .in('order_id', vivantes.map(function(o) { return o.id; }));
+  productionPlaqueOrders = vivantes.map(function(o) {
+    o.items = (items || []).filter(function(i) { return i.order_id === o.id; });
+    return o;
+  }).sort(function(a, b) {
+    return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99'));
+  });
+}
+
+// Bloc affiché sur l'écran de production de Veigné.
+function plaquettesBlockHtml() {
+  if (!productionPlaqueOrders.length) return '';
+  let h = '<div class="prod-specials-box" style="border-color:var(--brown-mid)">'
+    + '<div class="prod-specials-header" style="background:var(--brown-mid)">'
+    + '<span>✏️ <strong>Plaquettes &amp; messages</strong> — ' + productionPlaqueOrders.length
+    + ' commande' + (productionPlaqueOrders.length > 1 ? 's' : '') + ' produite'
+    + (productionPlaqueOrders.length > 1 ? 's' : '') + ' ailleurs</span></div>'
+    + '<div class="prod-specials-body">'
+    + '<div style="font-size:11.5px;color:var(--grey-light);padding:2px 2px 8px">'
+    + 'Le gâteau est fait dans une autre boutique — la plaquette, elle, se fait ici.</div>';
+  productionPlaqueOrders.forEach(function(o) {
+    const heure = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—';
+    const prods = (o.items || []).map(function(it) {
+      const n = it.product_id
+        ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id)
+        : (it.product_name_custom || '?');
+      return escapeHtml(n) + ' ×' + (parseQty(it.qty) || 0);
+    }).join(' · ');
+    h += '<div class="prod-special-row">'
+      + '<div class="prod-special-meta"><strong>' + escapeHtml(heure) + '</strong> · '
+      + escapeHtml(o.customer_name || '(sans nom)')
+      + ' · 🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop)
+      + ' · ➜ produit par ' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</div>'
+      + (prods ? '<div class="prod-special-items"><span class="prod-special-item">' + prods + '</span></div>' : '')
+      + '<div class="sp-note" style="margin-top:5px">⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>'
+      + '</div>';
+  });
+  return h + '</div></div>';
+}
+
 function subscribeRealtimeProduction() {
 if (realtimeChannelProduction) supa.removeChannel(realtimeChannelProduction);
 realtimeChannelProduction = supa.channel('prod_reappros')
@@ -7334,6 +7402,7 @@ await loadVeigneSalesForProduction(currentReapproDate);
 await loadStAvSalesForProduction(currentReapproDate);
 // v20.192 — restes de la veille du nouveau jour
 await loadProductionNetInputs(['veigne', 'saint-avertin'], currentReapproDate);
+await loadPlaquettesForProduction(currentReapproDate);
 }
 // v20.192 — Tours n'était pas rechargé du tout : changer de jour gardait l'ancien prévis
 if (currentBoutique === 'tours' && currentVue === 'production') {
@@ -7934,6 +8003,9 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   }
   html += '</div>';
 }
+
+// v20.201 — Veigné fabrique les plaquettes, y compris pour des gâteaux produits ailleurs
+if (isVeignePat) html += plaquettesBlockHtml();
 
 const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
 if (hasReportable) {
@@ -16269,7 +16341,25 @@ if (it.category === '__custom') {
 html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Description</label>';
 html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_name_custom || '') + '" placeholder="ex: Piece montee 30 personnes" oninput="handleSpecialItemField(' + idx + ', \'product_name_custom\', this.value)"></div>';
 } else if (it.category) {
-const prodsInCat = products.filter(function(p) { return p.actif && p.category === it.category; });
+// v20.201 — L'app tient DEUX catalogues parallèles (usage 'ventes' / 'reappro'),
+// avec parfois le même nom des deux côtés. Le 25/08, une vendeuse a choisi le
+// « Croissant » du catalogue réassort pour une commande client : les 18 pièces
+// sont tombées sur une ligne à part au lieu de s'ajouter aux 48 de la production.
+// On masque donc la version réassort QUAND une version vendue porte le même nom.
+// On ne filtre pas tous les réassorts : « Chausson aux Pommes Rayées » n'existe
+// que de ce côté-là et doit rester commandable.
+const prodsInCat = (function() {
+  const list = products.filter(function(p) { return p.actif && p.category === it.category; });
+  const nomsVendus = new Set(list
+    .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
+    .map(function(p) { return String(p.name || '').trim().toLowerCase(); }));
+  return list.filter(function(p) {
+    if (p.id === it.product_id) return true;              // ne jamais faire disparaître un choix déjà enregistré
+    const u = p.usage || 'reappro';
+    if (u === 'ventes' || u === 'both') return true;
+    return !nomsVendus.has(String(p.name || '').trim().toLowerCase());
+  });
+})();
 prodsInCat.sort(function(a, b) { return a.name.localeCompare(b.name); });
 html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Produit</label>';
 html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'product_id\', this.value)">';
