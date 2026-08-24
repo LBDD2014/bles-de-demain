@@ -473,6 +473,18 @@ background: #FAF8F4; font-family: inherit; -moz-appearance: textfield;
 .prod-input.matin-sa-input.has-prod { background: #EEF4FA; border-color: var(--blue); }
 .prod-input.matin-sa-input:focus { background: white; border-color: var(--blue); }
 .prod-input.just-updated { animation: flash 1s; }
+/* v20.197 — Net à produire PAR BOUTIQUE, sous sa case de prévis.
+   Avant, les restes de Veigné et de St-Avertin étaient fusionnés dans une seule
+   colonne : impossible de savoir pour qui on produisait quoi. */
+.prod-shop-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prod-shop-net {
+text-align: center; font-size: 10px; font-weight: 700; white-space: nowrap;
+color: var(--gold-dark); line-height: 1.2;
+}
+.prod-shop-net .net-val { font-size: 12px; }
+.prod-shop-net.net-v .net-val { color: var(--green); }
+.prod-shop-net.net-sa .net-val { color: var(--blue); }
+.prod-shop-net.net-zero .net-val { color: #BBB; }
 .ecart-badge {
 display: inline-block; padding: 4px 0; border-radius: 5px;
 font-size: 13px; font-weight: 700; text-align: center; width: 100%;
@@ -2390,7 +2402,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.196';
+const APP_VERSION  = 'v20.197';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7434,6 +7446,34 @@ function handleApremSAFromLocal(el) {
 // v20.181 — handleResteJ1FromLocal() supprimée : la colonne Reste est passée en lecture seule
 // (elle affiche le reste d'HIER chez St-Avertin, saisi par la vendeuse dans son onglet Ventes).
 
+// v20.197 — Ligne « net » sous la case de prévis d'une boutique.
+// Répond à la question du pâtissier : « pour QUI, et combien ? ». On n'affiche
+// rien s'il n'y a pas de reste à déduire : la case seule suffit alors.
+function shopNetHtml(brut, net, actif, cls, shopLabel) {
+  if (!actif) return '';
+  const b = brut || 0, n = net || 0;
+  if (b === n) return '';
+  const ded = b - n;
+  const signe = ded > 0 ? '−' + formatQty(ded) : '+' + formatQty(-ded);
+  const titre = ded > 0
+    ? shopLabel + ' : ' + formatQty(b) + ' prévus, ' + formatQty(ded) + ' déjà en vitrine (gardés hier soir) → ' + formatQty(n) + ' à produire'
+    : shopLabel + ' : Sortie jour corrigée à la main dans Ventes → ' + formatQty(n) + ' à produire';
+  return '<div class="prod-shop-net ' + cls + (n === 0 ? ' net-zero' : '') + '" title="' + escapeHtml(titre) + '">'
+    + signe + ' <span class="net-val">' + formatQty(n) + '</span></div>';
+}
+
+// v20.197 — Met à jour le net d'une boutique SANS toucher à l'input : le
+// reconstruire ferait perdre le focus et le curseur en pleine saisie.
+function refreshShopNet(input, brut, net, actif, cls, shopLabel) {
+  if (!input) return;
+  const wrap = input.parentElement;
+  if (!wrap || !wrap.classList.contains('prod-shop-cell')) return;
+  const ancien = wrap.querySelector('.prod-shop-net');
+  if (ancien) ancien.remove();
+  const html = shopNetHtml(brut, net, actif, cls, shopLabel);
+  if (html) wrap.insertAdjacentHTML('beforeend', html);
+}
+
 // Helper commun : recalcule Total = Matin V + Matin SA + Spé pour une ligne
 // v20.22 — Matin SA depuis previs (cohérent avec Veigné). Au Local Boul, on inclut Aprem - Reste J-1 (sales St-Av).
 function recomputeRowTotal(el, pid) {
@@ -7475,6 +7515,10 @@ function recomputeRowTotal(el, pid) {
   totalCell.textContent = formatQty(mV + mSA + aprem - reste + spe + pros);
   // v20.181b — la ligne reste marquée tant qu'un reste d'hier est déduit
   totalCell.classList.toggle('total-ajuste', reste > 0 || resteNet > 0);
+  // v20.197 — les nets par boutique suivent la saisie, sinon ils affichent l'ancien
+  // chiffre et le pâtissier prépare la mauvaise quantité pour la mauvaise boutique.
+  refreshShopNet(row.querySelector('.matin-v-input'), mVRaw, mV, showResteNetV, 'net-v', isToursProdV ? 'Tours' : 'Veigné');
+  refreshShopNet(row.querySelector('.matin-sa-input'), mSARaw, mSA, showResteNetV, 'net-sa', 'St-Avertin');
 }
 
 function renderProduction() {
@@ -7571,7 +7615,6 @@ const fixedColsBefore = '1.3fr'
   + (showMatinSA ? ' 0.65fr' : '')
   + (showApremSA ? ' 0.65fr' : '')
   + (showResteJ1 ? ' 0.65fr' : '')
-  + (showResteNet ? ' 0.65fr' : '')
   + (showVTS ? ((isLocalBoul || isLocalTour) ? ' 0.5fr' : ' 0.5fr 0.5fr 0.5fr') : '')
   + (showVTBoul ? ' 0.5fr 0.5fr' : '')
   + (showSpe ? ' 0.55fr' : '')
@@ -7664,6 +7707,8 @@ return {
 // éditables et écrivent dans `previs`. La déduction vit dans la colonne « Reste hier ».
 p: p, veigne: cV, tours: cT, savertin: cS, spe: cSpe, matinV: cMatinVRaw, matinSA: cMatinSARaw,
 aprem: cAprem, reste: cReste, resteBrut: cResteBrut, resteNet: cResteNet, pros: cPros,
+// v20.197 — net par boutique : « pour Veigné il en faut 3, pour St-Av 0 »
+matinVNet: cMatinV, matinSANet: cMatinSA,
 markets: marketVals, total: total,
 totalReassort: totalReassort,
 produitRaw: pl.produit, stockRaw: pl.stock,
@@ -7845,10 +7890,6 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
   if (showResteJ1) {
     headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Ce qui restait en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du Total">Reste SA hier</span>';
   }
-  if (showResteNet) {
-    // v20.192
-    headerHtml += '<span class="col-c" style="color:var(--gold-dark)" title="Ce qui a été gardé hier soir (Reste J-1 + J-2 saisi dans Ventes) — déjà en vitrine, donc retiré du Total. La Perte n\'est jamais déduite : ce qui est jeté est à refaire.">Reste hier</span>';
-  }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
       // v20.17 — Boulangers Local : seul SA est pertinent (Veigné + Tours autonomes pour le pain)
@@ -7927,7 +7968,13 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
   if (showMatinV) {
     // v20.10 — Matin V éditable : le boulanger ajuste si la vendeuse a mal estimé
     const matinDisp = r.matinV > 0 ? formatQty(r.matinV) : '';
-    rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-v-input' + (r.matinV > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinDisp) + '" placeholder="-" oninput="handleMatinVInput(this)" onfocus="this.select()" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:700">';
+    const inpV = '<input type="text" inputmode="decimal" class="prod-input matin-v-input' + (r.matinV > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinDisp) + '" placeholder="-" oninput="handleMatinVInput(this)" onfocus="this.select()" style="color:' + (r.matinV > 0 ? 'var(--green)' : 'inherit') + ';font-weight:700">';
+    // v20.197 — net de CETTE boutique sous sa case (avant, les restes Veigné et
+    // St-Av étaient additionnés dans une colonne unique : on ne savait plus pour
+    // qui on produisait quoi).
+    rowHtml += '<div class="prod-shop-cell">' + inpV
+      + shopNetHtml(r.matinV, r.matinVNet, showResteNet, 'net-v', isToursProd ? 'Tours' : 'Veigné')
+      + '</div>';
   }
   if (showMatinSA) {
     // v20.11 — Matin SA éditable pour catégorie traiteur à Veigné Pâtissier
@@ -7937,7 +7984,10 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
     const matinSAEditable = !isVeignePat || veignePatVisibleCatsR.indexOf(r.p.category) !== -1;
     if (matinSAEditable) {
       const matinSADisp = r.matinSA > 0 ? formatQty(r.matinSA) : '';
-      rowHtml += '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
+      const inpSA = '<input type="text" inputmode="decimal" class="prod-input matin-sa-input' + (r.matinSA > 0 ? ' has-prod' : '') + '" data-pid="' + r.p.id + '" value="' + escapeHtml(matinSADisp) + '" placeholder="-" oninput="handleMatinSAInput(this)" onfocus="this.select()" style="color:' + (r.matinSA > 0 ? 'var(--blue)' : 'inherit') + ';font-weight:700">';
+      rowHtml += '<div class="prod-shop-cell">' + inpSA
+        + shopNetHtml(r.matinSA, r.matinSANet, showResteNet, 'net-sa', 'St-Avertin')
+        + '</div>';
     } else {
       rowHtml += '<div class="cell zero" style="color:#CCC">—</div>';
     }
@@ -7956,14 +8006,6 @@ let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + 
       ? 'Il restait ' + formatQty(r.resteBrut) + ' à St-Avertin hier soir, mais elle ne commande que ' + formatQty(r.reste) + ' aujourd\'hui — on ne déduit pas plus que le besoin'
       : 'Reste en vitrine à St-Avertin hier soir (J-1 + J-2) — déduit du total';
     rowHtml += '<div class="cell ' + (r.reste > 0 ? '' : 'zero') + '" title="' + escapeHtml(resteTitre) + '" style="color:' + (r.reste > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.reste > 0 ? '700' : '400') + '">' + (r.reste > 0 ? '−' + formatQty(r.reste) : '0') + '</div>';
-  }
-  if (showResteNet) {
-    // v20.192 — lecture seule : c'est la journée d'hier de la vendeuse, pas la nôtre.
-    // Valeur négative = déduit du Total. Positive (rare) = la vendeuse a corrigé sa
-    // « Sortie jour » à la hausse sur Ventes, on suit sa correction.
-    const rn = r.resteNet || 0;
-    const rnTxt = rn > 0 ? '−' + formatQty(rn) : (rn < 0 ? '+' + formatQty(-rn) : '0');
-    rowHtml += '<div class="cell ' + (rn !== 0 ? '' : 'zero') + '" title="Gardé hier soir et déjà en vitrine ce matin — retiré du Total. La Perte n\'est pas déduite." style="color:' + (rn !== 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (rn !== 0 ? '700' : '400') + '">' + rnTxt + '</div>';
   }
   if (showVTS) {
     if (isLocalBoul || isLocalTour) {
