@@ -189,6 +189,7 @@
   .pcell{width:74px;border:1px solid #ddd;border-radius:5px;padding:6px 3px;text-align:center;font-size:13.5px}
   .pcell:focus{outline:none;border-color:var(--gold);background:#FFFCF4}
   .pcell::placeholder{color:var(--brown-mid);opacity:.95;font-style:italic;font-weight:bold} /* v20.209 — levain calculé : l'italique le distingue d'une saisie, mais il doit se LIRE (l'or pâle ne passait pas) */
+  .pcell.pnote{width:100%;min-width:88px;text-align:left;font-size:11px} /* v20.214 — texte libre (empois, melanges...) */
   .plan-tbl tr.plan-sec td{text-align:left;color:#fff;font-weight:bold;font-size:11.5px;letter-spacing:.6px;padding:5px 8px;border-color:rgba(0,0,0,.08)}
   .plan-tbl td.pname{border-left-width:4px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -1040,7 +1041,7 @@ async function pdFillFromPlan(){
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
   setSync('🟢 connecté');
   const valById={};(vl.data||[]).forEach(v=>{valById[v.ligne_id]=v.valeur;});
-  const m=planMapJour(lg.data||[],valById);
+  const m=planMapJour((lg.data||[]).filter(l=>l.section!=='notes'&&l.section!=='levains'),valById);
   pdDay=m.jour;pdMelange=m.melange;
   pdRenderAll();pdAutoSave();
   const n=Object.keys(pdDay).length,nm=Object.keys(pdMelange).length;
@@ -2174,7 +2175,8 @@ const PLAN_SECTIONS=[
   {key:'speciaux',label:'SPÉCIAUX',color:'var(--orange)'},
   {key:'bio',label:'PAINS BIO / SPÉCIAUX',color:'var(--green)'},
   {key:'levains',label:'LEVAINS',color:'var(--gold-dark)'},
-  {key:'viennoiserie',label:'VIENNOISERIE / PÂTE SUCRÉE',color:'var(--brown-mid)'}
+  {key:'viennoiserie',label:'VIENNOISERIE / PÂTE SUCRÉE',color:'var(--brown-mid)'},
+  {key:'notes',label:'PRÉPARATIONS DU JOUR',color:'var(--grey)'}   // v20.214 — empois, mélanges, inventaire… rattachés à leur jour
 ];
 const planSecOf=lg=>{const k=lg&&lg.section;return PLAN_SECTIONS.some(s=>s.key===k)?k:'pains';};
 const planSecColor=k=>(PLAN_SECTIONS.find(s=>s.key===k)||{}).color||'var(--grey)';
@@ -2240,7 +2242,7 @@ function planPrintWeek(){
           let v=String(planVals[lg.id+'_'+iso]||'').trim();
           let auto=false;
           if(!v&&k){const t=levByDay[iso];if(t&&t[k]>0.05){v=String(calcR05(t[k]));auto=true;}}
-          return '<td'+(auto?' class="auto"':'')+'>'+(v||'')+'</td>';
+          return '<td'+(auto?' class="auto"':(sec.key==='notes'?' class="note"':''))+'>'+(v||'')+'</td>';
         }).join('')+'</tr>';
     });
   });
@@ -2258,7 +2260,8 @@ function planPrintWeek(){
   // d'après le nombre de lignes : ~65 lignes tiennent à 9,5 px, donc moins de
   // lignes = texte proportionnellement plus gros. Bornes 7-17 px : jamais
   // illisible, jamais grotesque. Une seule page dans tous les cas.
-  const nRows=(rows.match(/<tr/g)||[]).length+1; // + ligne d'en-tête
+  const nNotes=planLignes.filter(l=>planSecOf(l)==='notes').length;
+  const nRows=(rows.match(/<tr/g)||[]).length+1+nNotes; // + en-tête, notes comptées double (texte qui s'étale)
   // Géométrie réelle : page utile ≈ 1077 px (297−12 mm), une ligne ≈ 1,66×police
   // + 2 px de bordures, le titre ≈ 3×police. On résout la police qui remplit
   // exactement, avec 7 % de marge (les navigateurs arrondissent les hauteurs).
@@ -2274,7 +2277,8 @@ function planPrintWeek(){
     +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:.82em}'
     +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:.88em;letter-spacing:.5px;padding:.12em .45em;'
     +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'#printwrap td.auto{font-style:italic;color:#6B4226}');
+    +'#printwrap td.auto{font-style:italic;color:#6B4226}'
+    +'#printwrap td.note{white-space:normal;text-align:left;font-size:.8em;line-height:1.2}');
 }
 
 function planRender(){
@@ -2309,10 +2313,11 @@ function planRender(){
       +'<button class="ico-btn" onclick="planMove('+lg.id+',1)"'+(idx===sibs.length-1?' disabled':'')+'>↓</button>'
       +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
+    const estNote=planSecOf(lg)==='notes';
     for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
       let ph='';
       if(levKey&&!String(val).trim()){const t=levByDay[iso];const q=t?t[levKey]:0;if(q>0.05)ph=String(calcR05(q));}
-      r+='<td><input class="pcell" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
+      r+='<td><input class="pcell'+(estNote?' pnote':'')+'" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
     return r+'</tr>';
   };
   PLAN_SECTIONS.forEach(sec=>{
