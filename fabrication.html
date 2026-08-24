@@ -181,8 +181,13 @@
   .plan-tbl th{background:var(--gold-light);color:var(--brown);font-size:11.5px;line-height:1.2}
   .plan-tbl td.pname{text-align:left;min-width:130px;font-weight:bold;font-size:12.5px}
   .plan-tbl .pu{font-size:10px;color:var(--grey-light);font-weight:normal}
-  .plan-ctrls{display:flex;gap:1px;margin-top:2px}
-  .pcell{width:52px;border:1px solid #ddd;border-radius:5px;padding:6px 2px;text-align:center;font-size:13px}
+  .plan-ctrls{display:flex;gap:2px;margin-top:2px}
+  /* v20.203 — boutons compacts : ils servaient rarement mais imposaient la largeur
+     de la colonne Produit, au détriment des 7 colonnes de jours. */
+  .plan-ctrls .ico-btn{padding:3px 6px;font-size:12px;border-radius:6px}
+  /* v20.203 — 52px ne suffisaient pas : « 75+75+75 » (3 pétrins) était tronqué et illisible. */
+  .pcell{width:74px;border:1px solid #ddd;border-radius:5px;padding:6px 3px;text-align:center;font-size:13.5px}
+  .pcell:focus{outline:none;border-color:var(--gold);background:#FFFCF4}
   .plan-tbl tr.plan-sec td{text-align:left;color:#fff;font-weight:bold;font-size:11.5px;letter-spacing:.6px;padding:5px 8px;border-color:rgba(0,0,0,.08)}
   .plan-tbl td.pname{border-left-width:4px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
