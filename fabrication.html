@@ -286,10 +286,13 @@
       <button class="btn" id="planScanBtn" onclick="document.getElementById('planPhoto').click()">📷 Scanner la feuille</button>
       <span class="hint" style="margin:0">remplit la semaine affichée</span>
     </div>
-    <label style="display:flex;align-items:center;gap:7px;font-size:13px;margin:6px 0;cursor:pointer">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0">
+    <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
       <input type="checkbox" id="planHideChk" style="width:auto;transform:scale(1.2)" onchange="planHideEmpty=this.checked;localStorage.setItem('planHideEmpty',this.checked?'1':'');planRender()">
       Masquer les lignes non remplies cette semaine
     </label>
+    <button class="btn ghost sm" style="margin-left:auto" onclick="planPrintWeek()">📄 Imprimer la semaine (A4)</button>
+    </div>
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
@@ -2195,6 +2198,77 @@ async function planLoad(){
   setSync('🟢 connecté');
   planLignes=lg.data||[];planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
 }
+const LEV_MAP={'levaindur':'levainDur','levainliquide':'levainLiq','levainliquidepatesucree':'levainSuc'};
+// v20.210 — levains de la semaine, partagé entre l'affichage du planning et son impression
+function planCalcLevainsSemaine(){
+  const levByDay={};
+  if(!planLignes.some(lg=>planSecOf(lg)==='levains')||!Object.keys(recettesMap||{}).length)return levByDay;
+  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+    const valById={};planLignes.forEach(l=>{valById[l.id]=planVals[l.id+'_'+iso]||'';});
+    const m=planMapJour(planLignes.filter(l=>planSecOf(l)!=='levains'),valById);
+    const t={levainDur:0,levainLiq:0,levainSuc:0};
+    Object.keys(m.jour).forEach(pid=>m.jour[pid].forEach(b=>{const c=pdCompute({pid:pid,qte:b.qte,hydra:b.hydra});
+      if(c){t.levainDur+=c.levainDur;t.levainLiq+=c.levainLiq;t.levainSuc+=c.levainSuc;}}));
+    levByDay[iso]=t;
+  }
+  return levByDay;
+}
+
+// v20.210 — Impression A4 paysage de la semaine (convention 📄 A4, méthode printDoc
+// v20.140). On imprime ce que l'écran montre : mêmes lignes (coche « masquer »
+// respectée), levains calculés imprimés comme des valeurs — un placeholder ne
+// s'imprime pas.
+function planPrintWeek(){
+  const end=pdAddDays(planWeekStart,6);
+  const levByDay=planCalcLevainsSemaine();
+  const jours=[];for(let i=0;i<7;i++)jours.push(pdAddDays(planWeekStart,i));
+  const remplie=lg=>{
+    if(jours.some(iso=>String(planVals[lg.id+'_'+iso]||'').trim()))return true;
+    const k=LEV_MAP[fabNorm(lg.nom)];
+    return !!(k&&jours.some(iso=>{const t=levByDay[iso];return t&&t[k]>0.05;}));
+  };
+  let rows='';
+  PLAN_SECTIONS.forEach(sec=>{
+    let sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
+    if(planHideEmpty)sibs=sibs.filter(remplie);
+    if(!sibs.length)return;
+    rows+='<tr class="psec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
+    sibs.forEach(lg=>{
+      const k=LEV_MAP[fabNorm(lg.nom)];
+      rows+='<tr><td class="pn">'+lg.nom+' <small>'+(lg.unite||'')+'</small></td>'
+        +jours.map(iso=>{
+          let v=String(planVals[lg.id+'_'+iso]||'').trim();
+          let auto=false;
+          if(!v&&k){const t=levByDay[iso];if(t&&t[k]>0.05){v=String(calcR05(t[k]));auto=true;}}
+          return '<td'+(auto?' class="auto"':'')+'>'+(v||'')+'</td>';
+        }).join('')+'</tr>';
+    });
+  });
+  const dowFull=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const heads=jours.map(iso=>{const d=pdParse(iso);return '<th>'+dowFull[d.getDay()]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</th>';}).join('');
+  const siteLbl=(SITES.find(x=>x[0]===planSite)||['','?'])[1];
+  const html='<div class="pw">'
+    +'<h1>Planning de production — '+siteLbl+'</h1>'
+    +'<div class="sub">Semaine du '+planFr(planWeekStart)+' au '+planFr(end)
+    +' · <i>chiffres italiques = levain calculé</i></div>'
+    +'<table><thead><tr><th style="text-align:left">Produit</th>'+heads+'</tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>';
+  printDoc(html,
+    '@page{size:A4 landscape;margin:8mm}'
+    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F}'
+    +'#printwrap h1{font-size:16px;margin:0 0 2px}'
+    +'#printwrap .sub{font-size:11px;color:#6B4226;margin:0 0 6px}'
+    +'#printwrap table{border-collapse:collapse;width:100%;font-size:10.5px}'
+    +'#printwrap th,#printwrap td{border:1px solid #999;padding:2.5px 4px;text-align:center}'
+    +'#printwrap thead{display:table-header-group}'
+    +'#printwrap tr{page-break-inside:avoid}'
+    +'#printwrap td.pn{text-align:left;font-weight:bold;white-space:nowrap}'
+    +'#printwrap td.pn small{font-weight:normal;color:#777}'
+    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:9.5px;letter-spacing:.5px;'
+    +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'#printwrap td.auto{font-style:italic;color:#6B4226}');
+}
+
 function planRender(){
   const chk=document.getElementById('planHideChk');if(chk)chk.checked=planHideEmpty;
   const end=pdAddDays(planWeekStart,6);
@@ -2210,19 +2284,7 @@ function planRender(){
   // depuis le planning ») et on somme le levain de chaque recette. Affiché en
   // GRIS dans la ligne levain tant que rien n'est saisi à la main — une saisie
   // manuelle garde toujours le dernier mot.
-  const LEV_MAP={'levaindur':'levainDur','levainliquide':'levainLiq','levainliquidepatesucree':'levainSuc'};
-  const levByDay={};
-  const aDesLevains=planLignes.some(lg=>planSecOf(lg)==='levains');
-  if(aDesLevains&&Object.keys(recettesMap||{}).length){
-    for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
-      const valById={};planLignes.forEach(l=>{valById[l.id]=planVals[l.id+'_'+iso]||'';});
-      const m=planMapJour(planLignes.filter(l=>planSecOf(l)!=='levains'),valById);
-      const t={levainDur:0,levainLiq:0,levainSuc:0};
-      Object.keys(m.jour).forEach(pid=>m.jour[pid].forEach(b=>{const c=pdCompute({pid:pid,qte:b.qte,hydra:b.hydra});
-        if(c){t.levainDur+=c.levainDur;t.levainLiq+=c.levainLiq;t.levainSuc+=c.levainSuc;}}));
-      levByDay[iso]=t;
-    }
-  }
+  const levByDay=planCalcLevainsSemaine();
   const ligneRemplie=lg=>{
     for(let i=0;i<7;i++){if(String(planVals[lg.id+'_'+pdAddDays(planWeekStart,i)]||'').trim())return true;}
     const k=LEV_MAP[fabNorm(lg.nom)];
