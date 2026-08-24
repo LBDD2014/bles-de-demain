@@ -959,7 +959,10 @@ async function pdSetDate(iso){pdDate=iso;await pdLoadDay();pdRenderWeekStrip();}
 // les mélanges de Prod. du jour. Les levains sortent ensuite tout seuls (pdRenderLevain).
 // Correspondance planning → produit par le NOM (lignes renommées le 24/08 pour coller
 // aux produits) + alias pour le langage d'équipe qu'on ne veut pas renommer.
-const PD_PLAN_ALIAS={'croissant':'pr_pate_levee_feuilletee'}; // la pâte des croissants
+const PD_PLAN_ALIAS={
+  'croissant':'pr_pate_levee_feuilletee',   // la pâte des croissants
+  'baguetteordinaire':'pr_pain_blanc'       // même pâte que le Pain blanc (Phil 24/08)
+};
 async function pdFillFromPlan(){
   if(!pdDate){toast('Choisis un jour');return;}
   const aDeja=Object.keys(pdDay).length||Object.keys(pdMelange).length;
@@ -980,6 +983,7 @@ async function pdFillFromPlan(){
   (lg.data||[]).forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
   pdDay={};pdMelange={};
   const ignorees=[];const besoinBase={}; // basePid -> kg de pâte demandés par les déclinaisons sans pétrissée
+  const farineAcc={}; // pid -> kg de farine cumulés (façonnages multiples d'une même pâte)
   (lg.data||[]).forEach(l=>{
     const raw=String(valById[l.id]||'').trim();if(!raw)return;
     const total=calcParseNum(raw);if(!total)return;
@@ -1008,9 +1012,21 @@ async function pdFillFromPlan(){
       }
       return;
     }
-    if(pid&&recettesMap[pid]&&pdHasBac(pid)){pdDay[pid]=[{qte:total,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];return;}
+    if(pid&&recettesMap[pid]){
+      // v20.206 — deux façonnages d'une même pâte (Pain blanc + Baguette ordinaire) :
+      // on additionne leur FARINE (conversion du planning) dans le même pétrin.
+      if(+l.kg_farine_unite){farineAcc[pid]=(farineAcc[pid]||0)+total*(+l.kg_farine_unite);return;}
+      if(pdHasBac(pid)){pdDay[pid]=[{qte:total,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];return;}
+    }
     // sans recette : si sa pâte est écrite en kg, c'est du façonnage pur (le planning suffit)
     if(!(l.pate&&kgPates.has(l.pate)))ignorees.push(l.nom);
+  });
+  // pétrins constitués par addition de farine (Pain blanc = ses bacs + ceux de la Baguette ordinaire)
+  Object.keys(farineAcc).forEach(pid=>{
+    if(pdDay[pid])return; // une ligne kg l'a déjà écrit
+    const f=farineAcc[pid];if(!(f>0))return;
+    const qte=pdHasBac(pid)?Math.round((pdKgToBac(pid,f)||0)*2)/2:Math.round(f*2)/2;
+    if(qte>0)pdDay[pid]=[{qte:qte,hydra:(pdHydraPref[pid]!=null?pdHydraPref[pid]:undefined)}];
   });
   // pétrins déduits des déclinaisons (Essentiel/Idéal, Pain blanc…) — arrondi au ½ bac SUP.
   Object.keys(besoinBase).forEach(base=>{
