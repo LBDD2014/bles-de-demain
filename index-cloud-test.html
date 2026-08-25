@@ -433,6 +433,17 @@ padding: 10px 12px; font-family: Georgia, serif; font-weight: 700;
 font-size: 13px; color: var(--brown); background: #FAF5EA;
 border-bottom: 1px solid #F0EAE0;
 }
+/* v20.215 — sections colorées du Planning (Fabrication) reprises sur les listes de pains */
+.plan-sec-title {
+padding: 6px 12px; font-weight: 700; font-size: 11px; letter-spacing: .6px;
+text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
+}
+.plan-edge-pains { box-shadow: inset 4px 0 0 var(--blue); }
+.plan-edge-speciaux { box-shadow: inset 4px 0 0 var(--orange); }
+.plan-edge-bio { box-shadow: inset 4px 0 0 var(--green); }
+.plan-edge-levains { box-shadow: inset 4px 0 0 var(--gold-dark); }
+.plan-edge-viennoiserie { box-shadow: inset 4px 0 0 var(--brown-mid); }
+.plan-edge-autres { box-shadow: inset 4px 0 0 #B9B4A6; }
 .prod-row {
 display: grid; grid-template-columns: 1.3fr 0.5fr 0.5fr 0.5fr 0.55fr 0.7fr 0.7fr 0.7fr;
 padding: 8px 6px; border-bottom: 1px solid #F5F0E5; gap: 3px; align-items: center;
@@ -2481,7 +2492,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.201';
+const APP_VERSION  = 'v20.215';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2515,6 +2526,104 @@ function isProdBoulProduct(p) {
   if (!p) return false;
   return p.category === 'pains' || PROD_BOUL_EXTRA_IDS.indexOf(p.id) !== -1;
 }
+
+// v20.215 — L'ordre du Planning semaine (Fabrication, site Le Local) devient LA
+// référence des listes de pains : mêmes sections colorées (Pains / Spéciaux /
+// Bio / Viennoiserie), même ordre de lignes. Correspondance par NOM, comme le
+// bouton « Remplir depuis le planning » côté Fabrication. Si le planning est
+// indisponible (table vide, hors ligne), chaque écran garde son tri historique.
+const PLAN_SEC_DEFS = [
+  { key: 'pains',        label: 'Pains',                      color: 'var(--blue)' },
+  { key: 'speciaux',     label: 'Spéciaux',                   color: 'var(--orange)' },
+  { key: 'bio',          label: 'Pains Bio / Spéciaux',       color: 'var(--green)' },
+  { key: 'levains',      label: 'Levains',                    color: 'var(--gold-dark)' },
+  { key: 'viennoiserie', label: 'Viennoiserie / Pâte sucrée', color: 'var(--brown-mid)' },
+  { key: 'autres',       label: 'Autres pains',               color: '#B9B4A6' }
+];
+// Noms qui diffèrent entre l'app ventes et le planning (norm → norm planning)
+const PLAN_NAME_ALIAS = {
+  'painau3chocolat': '3chocolats',
+  'painausarrasin': 'sarrazin',
+  'painaumais': 'mais',
+  'painauxnoix': 'noix',
+  'painordinaire': 'painblanc',
+  'petitspainsblanc': 'painblanc',
+  'demitradgraines': 'traditiongraines',
+  'petitspainsgraines': 'traditiongraines',
+  'blesanciens': 'blesdepop',
+  'seiglecitron': 'meteilcitron'
+};
+const planNorm = function(x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+var planOrderMap = null; // norm(nom ligne planning) -> {sec, rank}
+async function loadPlanningOrder() {
+  try {
+    const { data, error } = await supa.from('fab_planning_lignes')
+      .select('nom,section,ordre,id').eq('actif', true).eq('site', 'local')
+      .order('ordre', { ascending: true }).order('id', { ascending: true });
+    if (error || !data || !data.length) return;
+    const m = {}, cnt = {};
+    const secKeys = PLAN_SEC_DEFS.map(function(s) { return s.key; });
+    data.forEach(function(l) {
+      if (l.section === 'notes') return; // préparations du jour : pas des produits
+      const sec = secKeys.indexOf(l.section) !== -1 ? l.section : 'pains';
+      cnt[sec] = (cnt[sec] || 0) + 1;
+      const k = planNorm(l.nom);
+      if (k && !m[k]) m[k] = { sec: sec, rank: cnt[sec] };
+    });
+    // « Essentiel (nature) » et « Focaccia plaques » doivent aussi répondre au nom court
+    Object.keys(m).forEach(function(k) {
+      const court = k.replace(/nature$/, '').replace(/plaques$/, '');
+      if (court !== k && court && !m[court]) m[court] = m[k];
+    });
+    planOrderMap = m;
+  } catch (e) { /* réseau/planning KO → tri historique conservé */ }
+}
+function planInfoForName(name) {
+  if (!planOrderMap) return null;
+  let n = planNorm(name);
+  if (PLAN_NAME_ALIAS[n]) n = PLAN_NAME_ALIAS[n];
+  if (planOrderMap[n]) return { sec: planOrderMap[n].sec, rank: planOrderMap[n].rank, approx: 0 };
+  // Déclinaisons (« Mathis 1,5 kg », « Tourte de Meule Grande », « Demi Tradition »…) :
+  // la ligne planning la plus longue contenue dans le nom du produit — classées
+  // juste APRÈS le produit exact (approx: 1)
+  let best = null, bestLen = 0;
+  Object.keys(planOrderMap).forEach(function(k) {
+    if (k.length > bestLen && n.indexOf(k) !== -1) { best = planOrderMap[k]; bestLen = k.length; }
+  });
+  return best ? { sec: best.sec, rank: best.rank, approx: 1 } : null;
+}
+// Découpe une liste « pains » en groupes dans l'ordre du planning.
+// items = produits ou lignes {p:produit} ; getName(x) → nom. null si planning indisponible.
+function planGroupBreads(items, getName) {
+  if (!planOrderMap) return null;
+  const buckets = {};
+  items.forEach(function(x) {
+    const info = planInfoForName(getName(x));
+    const sec = info ? info.sec : 'autres';
+    (buckets[sec] = buckets[sec] || []).push({ x: x, rank: info ? info.rank : 9999, approx: info ? info.approx : 0 });
+  });
+  const groups = [];
+  PLAN_SEC_DEFS.forEach(function(def) {
+    const list = buckets[def.key];
+    if (!list || !list.length) return;
+    list.sort(function(a, b) { return (a.rank - b.rank) || (a.approx - b.approx) || getName(a.x).localeCompare(getName(b.x), 'fr'); });
+    groups.push({ key: def.key, label: def.label, color: def.color, items: list.map(function(e) { return e.x; }) });
+  });
+  return groups;
+}
+// Intercale des marqueurs de section dans une liste (les rendus les transforment en bandeaux)
+function planSeqBreads(items, getName) {
+  const groups = planGroupBreads(items, getName);
+  if (!groups) return null;
+  const seq = [];
+  groups.forEach(function(g) {
+    seq.push({ _plansec: g });
+    g.items.forEach(function(x) { seq.push(x); });
+  });
+  return seq;
+}
+function planSecTitleHtml(g) { return '<div class="plan-sec-title" style="background:' + g.color + '">' + g.label + '</div>'; }
+function planEdgeCls(key) { return key ? ' plan-edge-' + key : ''; }
 
 const BOUTIQUE_NAMES = {
   'veigne': 'Veigné', 'tours': 'Tours', 'saint-avertin': 'St-Avertin',
@@ -2922,6 +3031,7 @@ try {
     initProInterface(_proToken);
   } else {
     loadProducts();
+    loadPlanningOrder(); // v20.215 — ordre des pains = Planning semaine (Fabrication)
   }
   // v20.26 — subscribeRealtimeProducts est appelé après init dans loadProducts
 } catch (err) { showInitError(err); }
@@ -3972,9 +4082,13 @@ Object.keys(byCat).sort(function(a, b) {
 const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
 return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 }).forEach(function(cat) {
-html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
-byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); }).forEach(function(r) {
-html += '<div class="produit-row" style="grid-template-columns:1fr 100px">';
+// v20.215 — pains dans l'ordre du Planning (bandeaux colorés)
+let curPlanKey = null;
+const seqSA = (cat === 'pains') ? planSeqBreads(byCat[cat], function(r) { return r.p.name; }) : null;
+if (!seqSA) html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+(seqSA || byCat[cat].sort(function(a, b) { return a.p.name.localeCompare(b.p.name); })).forEach(function(r) {
+if (r._plansec) { html += planSecTitleHtml(r._plansec); curPlanKey = r._plansec.key; return; }
+html += '<div class="produit-row' + planEdgeCls(curPlanKey) + '" style="grid-template-columns:1fr 100px">';
 // v20.38 — Conditionnement sous le nom
 const condTxtTr = formatConditioning(r.p);
 html += '<div><div class="produit-name">' + escapeHtml(r.p.name) + '</div>' + (condTxtTr ? '<div class="produit-unit">' + escapeHtml(condTxtTr) + '</div>' : '') + '</div>';
@@ -4267,6 +4381,15 @@ let html = '<div class="section reappro-section">'
   }
 
 cats.forEach(function(cat) {
+// v20.215 — pains dans l'ordre du Planning (bandeaux colorés) ; sinon tri historique
+const groups = (cat === 'pains') ? planGroupBreads(byCat[cat], function(p) { return p.name; }) : null;
+if (groups) {
+groups.forEach(function(g) {
+html += planSecTitleHtml(g);
+g.items.forEach(function(p) { html += renderReapproRow(p, type, g.key); });
+});
+return;
+}
 html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
 const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
 sorted.forEach(function(p) { html += renderReapproRow(p, type); });
@@ -4275,7 +4398,7 @@ html += '</div>';
 return html;
 }
 
-function renderReapproRow(p, type) {
+function renderReapproRow(p, type, planKey) {
 const val = reapprosData[p.id] || { avoir: '', commander: '', previs: '', sent_at: null };
 const isSent = !!val.sent_at;
 const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
@@ -4286,7 +4409,7 @@ const vpSt = veignePatStockData[p.id] || null;
 const hasFill = (type === 'previs')
   ? (val.previs != null && val.previs !== '')
   : ((val.commander != null && val.commander !== '') || (val.avoir != null && val.avoir !== ''));
-let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + '"' + (type !== 'previs' ? ' style="grid-template-columns:1fr 140px"' : '') + '>';
+let html = '<div class="produit-row' + (isSent ? ' row-sent' : '') + (hasFill ? ' row-filled' : '') + planEdgeCls(planKey) + '"' + (type !== 'previs' ? ' style="grid-template-columns:1fr 140px"' : '') + '>';
 // v20.33 — Conditionnement à côté du unit
 const condTxt = formatConditioning(p);
 // v20.34 — Cible "doit avoir" pour la boutique courante (affichée si renseignée)
@@ -4764,7 +4887,11 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
 + '<span class="col-lbl">% Perte</span>'
 + '<span class="col-lbl">Rupture</span>'
 + '</div>';
-  ps.forEach(function(p) {
+  // v20.215 — pains dans l'ordre du Planning (marqueurs de section intercalés)
+  let curPlanKey = null;
+  const psSeq = (cat === 'pains' && planSeqBreads(ps, function(p) { return p.name; })) || ps;
+  psSeq.forEach(function(p) {
+  if (p._plansec) { secRows += planSecTitleHtml(p._plansec); curPlanKey = p._plansec.key; return; }
   const d = salesData[p.id] || {};
   const prevRaw = previsRaw[p.id];
   const prevFilled = prevRaw != null && prevRaw !== '';
@@ -4823,7 +4950,7 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
     prevCell = '<div class="v-prev-ro" title="Quantité commandée (externe)">' + (prevDisplay ? '<span class="ro-arrow">↳</span> ' + escapeHtml(prevDisplay) : '<span style="color:#bbb">-</span>') + '</div>';
   }
   nbVisibles++;
-  secRows += '<div class="ventes-row v201">'
+  secRows += '<div class="ventes-row v201' + planEdgeCls(curPlanKey) + '">'
 + '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
@@ -8105,8 +8232,12 @@ html += '<div class="prod-table">' + headerHtml;
 cats.forEach(function(cat) {
 const isReportable = REPORTABLE_CATS.indexOf(cat) !== -1;
 const catLabel = (CAT_LABELS[cat] || cat) + (isReportable ? ' <span style="font-size:10px;color:var(--gold);font-weight:700">(reportable)</span>' : '');
-html += '<div class="prod-cat-title">' + catLabel + '</div>';
-byCat[cat].forEach(function(r) {
+// v20.215 — pains dans l'ordre du Planning : les bandeaux colorés remplacent le titre « Pains »
+let curPlanKey = null;
+const seqProd = (cat === 'pains') ? planSeqBreads(byCat[cat], function(r) { return r.p.name; }) : null;
+if (!seqProd) html += '<div class="prod-cat-title">' + catLabel + '</div>';
+(seqProd || byCat[cat]).forEach(function(r) {
+if (r._plansec) { html += planSecTitleHtml(r._plansec); curPlanKey = r._plansec.key; return; }
 const p = r.produitVal || 0;
 const s = r.stockVal || 0;
 const dispo = p + s;
@@ -8121,7 +8252,7 @@ ecartHtml = '<span class="ecart-badge ' + eCls + '">' + eTxt + '</span>';
 }
 const prodCls = r.produitRaw ? 'has-prod' : '';
 const stockCls = r.stockRaw ? 'has-stock' : '';
-let rowHtml = '<div class="prod-row" style="grid-template-columns:' + gridTpl + '">'
+let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + '" style="grid-template-columns:' + gridTpl + '">'
 
 // v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
@@ -15355,8 +15486,12 @@ cats.forEach(function(cat) {
 html += '<div class="section reappro-section">';
 html += '<div class="section-header section-header-reappro"><span>' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:12px;color:#888;font-weight:500">(' + byCat[cat].length + ')</span></span></div>';
 html += '<div class="col-header"><span class="col-lbl">Produit</span><span class="col-lbl">J1 hier</span><span class="col-lbl cmd">À produire</span></div>';
-const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+// v20.215 — pains dans l'ordre du Planning (marqueurs de section intercalés)
+let curPlanKey = null;
+const sorted = (cat === 'pains' && planSeqBreads(byCat[cat], function(p) { return p.name; }))
+  || ((cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); }));
 sorted.forEach(function(p) {
+if (p._plansec) { html += planSecTitleHtml(p._plansec); curPlanKey = p._plansec.key; return; }
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
 const j1v = j1[p.id] || 0;
 const filled = pv !== '' && pv != null;
@@ -15365,7 +15500,7 @@ const defaultQty = getDefaultQty(currentBoutique, p.id, currentPrevisDate);
 const displayValue = filled ? pv : (defaultQty != null ? String(defaultQty) : '');
 const isDefault = !filled && defaultQty != null;
 const inputClasses = 'qty-input cmd ' + (filled ? 'has-value' : '') + (isDefault ? ' is-default' : '');
-html += '<div class="produit-row' + (filled ? ' row-filled' : '') + '">';
+html += '<div class="produit-row' + (filled ? ' row-filled' : '') + planEdgeCls(curPlanKey) + '">';
 // v20.33 — Conditionnement
 const condTxtPrv = formatConditioning(p);
 const unitLinePrv = escapeHtml(p.unit || '') + (condTxtPrv ? (p.unit ? ' · ' : '') + escapeHtml(condTxtPrv) : '');

@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.154</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.215</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -642,13 +642,15 @@ function prodNom(id){const p=produits.find(x=>x.id===id);return p?p.nom:id;}
 
 async function loadAll(){
   setSync('chargement…');
-  const [f,i,p]=await Promise.all([
+  const [f,i,p,pl]=await Promise.all([
     supa.from('fab_fournisseurs').select('*').order('nom'),
     supa.from('fab_ingredients').select('*').order('nom'),
-    supa.from('fab_produits').select('*').order('nom')
+    supa.from('fab_produits').select('*').order('nom'),
+    supa.from('fab_planning_lignes').select('nom,section,ordre,id').eq('actif',true).eq('site','local').order('ordre').order('id') // v20.215 — ordre du planning pour les Recettes
   ]);
   if(f.error||i.error||p.error){setSync('⚠️ erreur');toast('Erreur de connexion Supabase');console.error(f.error||i.error||p.error);return;}
   fournisseurs=f.data||[];ingredients=i.data||[];produits=p.data||[];
+  buildRecPlanMap(pl.error?[]:(pl.data||[]));
   await loadRecettesMap();
   setSync('🟢 connecté');
   fillSelectors();gesRender();
@@ -661,9 +663,40 @@ async function loadRecettesMap(){
   recettesMap={};_dpfCache={};
   (r.data||[]).forEach(rec=>{recettesMap[rec.produit_id]=Object.assign({},rec,{lignes:rec.fab_recette_lignes||[]});});
 }
+// v20.215 — Ordre du planning pour les Recettes (liste Produit + export PDF), demande Phil.
+// Correspondance par nom, comme « Remplir depuis le planning » (fabNorm + PD_PLAN_ALIAS).
+let recPlanMap={}; // produit_id -> {secIdx, rank}
+const REC_SEC_EMOJI={pains:'🟦',speciaux:'🟧',bio:'🟩',levains:'🟨',viennoiserie:'🟫',notes:'⬜'};
+function buildRecPlanMap(lignes){
+  recPlanMap={};
+  const prodByNom={};produits.forEach(p=>{prodByNom[fabNorm(p.nom)]=p.id;});
+  const cnt={};
+  (lignes||[]).forEach(l=>{
+    if(l.section==='notes')return; // préparations du jour : texte libre, pas des produits
+    const secIdx=Math.max(0,PLAN_SECTIONS.findIndex(s=>s.key===l.section));
+    cnt[secIdx]=(cnt[secIdx]||0)+1;
+    const n=fabNorm(l.nom);
+    const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[n.replace(/nature$/,'').replace(/plaques$/,'')];
+    if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx]};
+  });
+}
+// Tri d'une liste de produits/items dans l'ordre du planning ({secIdx,rank} sinon groupe « Autres » à la fin)
+function recPlanSort(a,b,nomA,nomB){
+  const ia=recPlanMap[a]||{secIdx:98,rank:9999},ib=recPlanMap[b]||{secIdx:98,rank:9999};
+  return (ia.secIdx-ib.secIdx)||(ia.rank-ib.rank)||nomA.localeCompare(nomB,'fr');
+}
 function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
-  document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'+opt(produits,'id','nom');
+  // v20.215 — liste Produit groupée comme le Planning (sections + ordre), « Autres & préparations » à la fin
+  const recGroups=PLAN_SECTIONS.filter(s=>s.key!=='notes').map((s,idx)=>({label:(REC_SEC_EMOJI[s.key]||'')+' '+s.label,items:[]}));
+  const recAutres={label:'⬜ AUTRES & PRÉPARATIONS',items:[]};
+  produits.forEach(p=>{const inf=recPlanMap[p.id];(inf?recGroups[inf.secIdx]:recAutres).items.push(p);});
+  recGroups.push(recAutres);
+  document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'
+    +recGroups.filter(g=>g.items.length).map(g=>{
+      g.items.sort((a,b)=>recPlanSort(a.id,b.id,a.nom,b.nom));
+      return '<optgroup label="'+g.label+'">'+opt(g.items,'id','nom')+'</optgroup>';
+    }).join('');
   document.getElementById('livIng').innerHTML=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?'':' (non bio)')+(x.code_fournisseur?' · '+x.code_fournisseur:'')+'</option>').join('');
   renderSiteSel();
   document.getElementById('livSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
@@ -1533,12 +1566,20 @@ function lotSoldeExport(){
 /* ---------- EXPORT PDF DE TOUTES LES RECETTES ---------- */
 function recExportAll(){
   const today=new Date().toLocaleDateString('fr-FR');
+  // v20.215 — même ordre que le Planning semaine (sections + rang), « Autres » à la fin
   const items=Object.keys(recettesMap).map(pid=>{
     const rec=recettesMap[pid];const nom=prodNom(pid);return {nom,pid,rec};
-  }).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  }).sort((a,b)=>recPlanSort(a.pid,b.pid,a.nom,b.nom));
   let html='<div class="rx-head">Les Blés de Demain — Recettes</div>'
     +'<div class="rx-meta">'+items.length+' recettes · document généré le '+today+'</div>';
+  let curSec=null;
   items.forEach(it=>{
+    const secIdx=(recPlanMap[it.pid]||{}).secIdx;
+    const sec=secIdx!=null?PLAN_SECTIONS[secIdx]:{key:'_autres',label:'AUTRES & PRÉPARATIONS',color:'var(--grey)'};
+    if(sec.label!==curSec){
+      curSec=sec.label;
+      html+='<div class="rx-item" style="background:'+sec.color+';color:#fff;font-weight:bold;letter-spacing:.6px;padding:6px 10px;border-radius:6px;page-break-inside:avoid">'+(sec.key==='_autres'?'⬜':(REC_SEC_EMOJI[sec.key]||''))+' '+sec.label+'</div>';
+    }
     const r=it.rec;const prod=produits.find(p=>p.id===it.pid)||{};
     const sub='Pour '+(r.rendement_base||1)+' '+(r.unite_base||'kg de farine')+(r.hydratation_pct!=null?' · hydratation '+r.hydratation_pct+'%':'');
     const lignes=(r.lignes||[]).map(l=>'<tr><td>'+ingNom(l.ingredient_id)+(l.note?' <span class="rx-note">('+String(l.note).replace(/[<>]/g,'')+')</span>':'')+'</td><td class="q">'+l.quantite+' '+(l.unite||'kg')+'</td></tr>').join('');
