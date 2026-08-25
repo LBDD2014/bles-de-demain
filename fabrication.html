@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.219</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.220</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -666,7 +666,7 @@ async function loadRecettesMap(){
 // v20.215 — Ordre du planning pour les Recettes (liste Produit + export PDF), demande Phil.
 // Correspondance par nom, comme « Remplir depuis le planning » (fabNorm + PD_PLAN_ALIAS).
 let recPlanMap={}; // produit_id -> {secIdx, rank}
-const REC_SEC_EMOJI={pains:'🟦',speciaux:'🟧',bio:'🟩',levains:'🟨',viennoiserie:'🟫',notes:'⬜'};
+const REC_SEC_EMOJI={pains:'🟦',speciaux:'🟧',bio:'🟩',levains:'🟨',viennoiserie:'🟫',secs:'🍪',notes:'⬜'};
 function buildRecPlanMap(lignes){
   recPlanMap={};
   const prodByNom={};produits.forEach(p=>{prodByNom[fabNorm(p.nom)]=p.id;});
@@ -682,15 +682,22 @@ function buildRecPlanMap(lignes){
     const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[court];
     if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx],approx:0};
   });
-  // v20.219 — section forcée pour les produits SANS ligne planning (Phil : Burger Betterave → Spéciaux)
-  const SEC_OVERRIDE={'burgerbetterave':'speciaux'};
+  // v20.219 — section forcée pour les produits SANS ligne planning.
+  // 'secs' = pseudo-section « Produits secs » (secIdx 90, hors planning), Phil 25/08 : Pain d'épices.
+  const SEC_OVERRIDE={'burgerbetterave':'speciaux','paindepices':'secs'};
+  // v20.220 — déclinaisons dont le nom ne contient pas celui de la pâte (Phil : les
+  // Sandwichs sont des déclinaisons de la Tradition, comme aux pesées)
+  const REC_ALIAS_DECL={'sandwichs':'tradition','sandwichcourgenoix':'tradition'};
   // v20.218 — déclinaisons (« Tradition (nature) », « Petits pains Tradition »…) : la ligne
   // planning la plus longue contenue dans le nom du produit, classées juste APRÈS le produit exact
   produits.forEach(p=>{
     if(recPlanMap[p.id])return;
     const n=fabNorm(p.nom);
     const ov=SEC_OVERRIDE[n];
+    if(ov==='secs'){recPlanMap[p.id]={secIdx:90,rank:9998,approx:1};return;}
     if(ov){recPlanMap[p.id]={secIdx:Math.max(0,PLAN_SECTIONS.findIndex(s=>s.key===ov)),rank:9998,approx:1};return;}
+    const al=REC_ALIAS_DECL[n];
+    if(al&&normMap[al]){recPlanMap[p.id]={secIdx:normMap[al].secIdx,rank:normMap[al].rank,approx:1};return;}
     let best=null,bl=0;
     // 5 lettres mini : sinon « maïs »/« noix » attrapent Empois de maïs ou Sandwich courge-noix
     Object.keys(normMap).forEach(k=>{if(k.length>=5&&k.length>bl&&n.indexOf(k)!==-1){best=normMap[k];bl=k.length;}});
@@ -706,9 +713,14 @@ function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
   // v20.215 — liste Produit groupée comme le Planning (sections + ordre), « Autres & préparations » à la fin
   const recGroups=PLAN_SECTIONS.filter(s=>s.key!=='notes').map((s,idx)=>({label:(REC_SEC_EMOJI[s.key]||'')+' '+s.label,items:[]}));
+  const recSecs={label:'🍪 PRODUITS SECS',items:[]}; // v20.220 — pseudo-section hors planning (Pain d'épices…)
   const recAutres={label:'⬜ AUTRES & PRÉPARATIONS',items:[]};
-  produits.forEach(p=>{const inf=recPlanMap[p.id];(inf?recGroups[inf.secIdx]:recAutres).items.push(p);});
-  recGroups.push(recAutres);
+  produits.forEach(p=>{
+    const inf=recPlanMap[p.id];
+    const g=!inf?recAutres:(inf.secIdx===90?recSecs:(recGroups[inf.secIdx]||recAutres));
+    g.items.push(p);
+  });
+  recGroups.push(recSecs);recGroups.push(recAutres);
   document.getElementById('recProd').innerHTML='<option value="">— choisir —</option>'
     +recGroups.filter(g=>g.items.length).map(g=>{
       g.items.sort((a,b)=>recPlanSort(a.id,b.id,a.nom,b.nom));
@@ -1592,7 +1604,9 @@ function recExportAll(){
   let curSec=null;
   items.forEach(it=>{
     const secIdx=(recPlanMap[it.pid]||{}).secIdx;
-    const sec=secIdx!=null?PLAN_SECTIONS[secIdx]:{key:'_autres',label:'AUTRES & PRÉPARATIONS',color:'var(--grey)'};
+    const sec=secIdx==null?{key:'_autres',label:'AUTRES & PRÉPARATIONS',color:'var(--grey)'}
+      :(secIdx===90?{key:'secs',label:'PRODUITS SECS',color:'var(--brown-mid)'}
+      :(PLAN_SECTIONS[secIdx]||{key:'_autres',label:'AUTRES & PRÉPARATIONS',color:'var(--grey)'}));
     if(sec.label!==curSec){
       curSec=sec.label;
       html+='<div class="rx-item" style="background:'+sec.color+';color:#fff;font-weight:bold;letter-spacing:.6px;padding:6px 10px;border-radius:6px;page-break-inside:avoid">'+(sec.key==='_autres'?'⬜':(REC_SEC_EMOJI[sec.key]||''))+' '+sec.label+'</div>';
