@@ -2492,7 +2492,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.217';
+const APP_VERSION  = 'v20.218';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2547,12 +2547,23 @@ const PLAN_NAME_ALIAS = {
   'painaumais': 'mais',
   'painauxnoix': 'noix',
   'painordinaire': 'painblanc',
-  'petitspainsblanc': 'painblanc',
-  'demitradgraines': 'traditiongraines',
-  'petitspainsgraines': 'traditiongraines',
   'blesanciens': 'blesdepop',
   'seiglecitron': 'meteilcitron',
   'petitepeautre': 'engrain' // Phil 25/08 : Petit Épeautre = Engrain → Pains bio
+};
+// Déclinaisons rattachées à une ligne planning (classées juste APRÈS le produit, comme
+// « Mathis 1,5 kg »). Phil 25/08 : Céréales = Tradition graines ; Demi Céréales = demi-graines
+// = une Tradition graines coupée en 2 ; pâte/pâton de pizza = pâte à Tradition (5 kg / 20 pièces).
+const PLAN_ALIAS_DECL = {
+  'cereales': 'traditiongraines',
+  'demicereales': 'traditiongraines',
+  'demigraines': 'traditiongraines',
+  'demitradgraines': 'traditiongraines',
+  'petitspainsgraines': 'traditiongraines',
+  'petitspainsblanc': 'painblanc',
+  'pateapizza': 'tradition',
+  'patondepizza': 'tradition',
+  'patonpizza': 'tradition'
 };
 // v20.217 — Section forcée pour les produits SANS ligne planning (Phil 25/08).
 // ⚠️ Pains aux Figues : déclinaison de la pâte Essentiel mais PAS bio (les figues
@@ -2593,6 +2604,8 @@ function planInfoForName(name) {
   if (PLAN_SEC_OVERRIDE[n]) return { sec: PLAN_SEC_OVERRIDE[n], rank: 9998, approx: 1 }; // fin de section, ordre alpha
   if (PLAN_NAME_ALIAS[n]) n = PLAN_NAME_ALIAS[n];
   if (planOrderMap[n]) return { sec: planOrderMap[n].sec, rank: planOrderMap[n].rank, approx: 0 };
+  const decl = PLAN_ALIAS_DECL[n];
+  if (decl && planOrderMap[decl]) return { sec: planOrderMap[decl].sec, rank: planOrderMap[decl].rank, approx: 1 };
   // Déclinaisons (« Mathis 1,5 kg », « Tourte de Meule Grande », « Demi Tradition »…) :
   // la ligne planning la plus longue contenue dans le nom du produit — classées
   // juste APRÈS le produit exact (approx: 1)
