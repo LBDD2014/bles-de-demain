@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.220</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.221</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -382,7 +382,7 @@
 <section id="mov" class="page">
   <div class="card">
     <h2>Dispatch (Local → boutiques)</h2>
-    <p class="hint">🚚 Matière bio sortie du Local et livrée à une boutique. Elle sort du stock du Local et entre dans celui de la boutique.</p>
+    <p class="hint">🚚 Matière sortie du Local et livrée à une boutique (bio + farines non bio en dépannage). Elle sort du stock du Local et entre dans celui de la boutique. Le bilan bio, lui, ne compte que le bio.</p>
     <div class="row">
       <div><label>Matière</label><select id="movIng" onchange="setMovQty()"></select></div>
       <div><label>Quantité</label><span id="movQteWrap"></span></div>
@@ -735,7 +735,10 @@ function fillSelectors(){
   document.getElementById('perSite').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('perDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('invDate').value=new Date().toISOString().slice(0,10);
-  document.getElementById('movIng').innerHTML=opt(ingredients.filter(x=>x.bio&&x.categorie!=='levain'),'id','nom');
+  // v20.221 — comme Livraisons/Inventaire : matières bio + TOUTES les farines (Phil 25/08 :
+  // dépannage de farine de Tradition à une boutique → doit sortir du stock du Local).
+  // Le bilan bio n'affiche que les matières bio : les dispatchs non bio ne le polluent pas.
+  document.getElementById('movIng').innerHTML=ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain').map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?'':' (non bio)')+'</option>').join('');
   document.getElementById('movFrom').innerHTML=SITES.map(s=>'<option value="'+s[0]+'">'+s[1]+'</option>').join('');
   document.getElementById('movTo').innerHTML=SITES.map(s=>'<option value="'+s[0]+'"'+(s[0]==='veigne'?' selected':'')+'>'+s[1]+'</option>').join('');
   document.getElementById('movDate').value=new Date().toISOString().slice(0,10);
