@@ -2610,8 +2610,9 @@ function planInfoForName(name) {
   // la ligne planning la plus longue contenue dans le nom du produit — classées
   // juste APRÈS le produit exact (approx: 1)
   let best = null, bestLen = 0;
+  // 5 lettres mini : les noms courts (« maïs », « noix ») attrapaient des produits sans rapport
   Object.keys(planOrderMap).forEach(function(k) {
-    if (k.length > bestLen && n.indexOf(k) !== -1) { best = planOrderMap[k]; bestLen = k.length; }
+    if (k.length >= 5 && k.length > bestLen && n.indexOf(k) !== -1) { best = planOrderMap[k]; bestLen = k.length; }
   });
   return best ? { sec: best.sec, rank: best.rank, approx: 1 } : null;
 }

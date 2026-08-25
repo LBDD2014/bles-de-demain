@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.215</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.218</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -670,20 +670,32 @@ const REC_SEC_EMOJI={pains:'🟦',speciaux:'🟧',bio:'🟩',levains:'🟨',vien
 function buildRecPlanMap(lignes){
   recPlanMap={};
   const prodByNom={};produits.forEach(p=>{prodByNom[fabNorm(p.nom)]=p.id;});
-  const cnt={};
+  const normMap={},cnt={}; // norm(nom ligne) -> {secIdx, rank}
   (lignes||[]).forEach(l=>{
     if(l.section==='notes')return; // préparations du jour : texte libre, pas des produits
     const secIdx=Math.max(0,PLAN_SECTIONS.findIndex(s=>s.key===l.section));
     cnt[secIdx]=(cnt[secIdx]||0)+1;
     const n=fabNorm(l.nom);
-    const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[n.replace(/nature$/,'').replace(/plaques$/,'')];
-    if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx]};
+    if(n&&!normMap[n])normMap[n]={secIdx:secIdx,rank:cnt[secIdx]};
+    const court=n.replace(/nature$/,'').replace(/plaques$/,''); // « Essentiel (nature) » répond aussi à « Essentiel »
+    if(court!==n&&court&&!normMap[court])normMap[court]=normMap[n];
+    const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[court];
+    if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx],approx:0};
+  });
+  // v20.218 — déclinaisons (« Tradition (nature) », « Petits pains Tradition »…) : la ligne
+  // planning la plus longue contenue dans le nom du produit, classées juste APRÈS le produit exact
+  produits.forEach(p=>{
+    if(recPlanMap[p.id])return;
+    const n=fabNorm(p.nom);let best=null,bl=0;
+    // 5 lettres mini : sinon « maïs »/« noix » attrapent Empois de maïs ou Sandwich courge-noix
+    Object.keys(normMap).forEach(k=>{if(k.length>=5&&k.length>bl&&n.indexOf(k)!==-1){best=normMap[k];bl=k.length;}});
+    if(best)recPlanMap[p.id]={secIdx:best.secIdx,rank:best.rank,approx:1};
   });
 }
 // Tri d'une liste de produits/items dans l'ordre du planning ({secIdx,rank} sinon groupe « Autres » à la fin)
 function recPlanSort(a,b,nomA,nomB){
   const ia=recPlanMap[a]||{secIdx:98,rank:9999},ib=recPlanMap[b]||{secIdx:98,rank:9999};
-  return (ia.secIdx-ib.secIdx)||(ia.rank-ib.rank)||nomA.localeCompare(nomB,'fr');
+  return (ia.secIdx-ib.secIdx)||(ia.rank-ib.rank)||((ia.approx||0)-(ib.approx||0))||nomA.localeCompare(nomB,'fr');
 }
 function fillSelectors(){
   const opt=(arr,val,lbl)=>arr.map(x=>'<option value="'+x[val]+'">'+x[lbl]+'</option>').join('');
