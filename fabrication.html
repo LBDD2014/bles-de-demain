@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.218</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.219</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -682,11 +682,16 @@ function buildRecPlanMap(lignes){
     const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[court];
     if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx],approx:0};
   });
+  // v20.219 — section forcée pour les produits SANS ligne planning (Phil : Burger Betterave → Spéciaux)
+  const SEC_OVERRIDE={'burgerbetterave':'speciaux'};
   // v20.218 — déclinaisons (« Tradition (nature) », « Petits pains Tradition »…) : la ligne
   // planning la plus longue contenue dans le nom du produit, classées juste APRÈS le produit exact
   produits.forEach(p=>{
     if(recPlanMap[p.id])return;
-    const n=fabNorm(p.nom);let best=null,bl=0;
+    const n=fabNorm(p.nom);
+    const ov=SEC_OVERRIDE[n];
+    if(ov){recPlanMap[p.id]={secIdx:Math.max(0,PLAN_SECTIONS.findIndex(s=>s.key===ov)),rank:9998,approx:1};return;}
+    let best=null,bl=0;
     // 5 lettres mini : sinon « maïs »/« noix » attrapent Empois de maïs ou Sandwich courge-noix
     Object.keys(normMap).forEach(k=>{if(k.length>=5&&k.length>bl&&n.indexOf(k)!==-1){best=normMap[k];bl=k.length;}});
     if(best)recPlanMap[p.id]={secIdx:best.secIdx,rank:best.rank,approx:1};
