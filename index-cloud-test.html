@@ -2492,7 +2492,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.216';
+const APP_VERSION  = 'v20.217';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2554,6 +2554,14 @@ const PLAN_NAME_ALIAS = {
   'seiglecitron': 'meteilcitron',
   'petitepeautre': 'engrain' // Phil 25/08 : Petit Épeautre = Engrain → Pains bio
 };
+// v20.217 — Section forcée pour les produits SANS ligne planning (Phil 25/08).
+// ⚠️ Pains aux Figues : déclinaison de la pâte Essentiel mais PAS bio (les figues
+// ne le sont pas) → Spéciaux, jamais dans le bandeau vert Bio.
+const PLAN_SEC_OVERRIDE = {
+  'paindumois': 'speciaux',
+  'painsauxfigues': 'speciaux',
+  'painauxfigues': 'speciaux'
+};
 const planNorm = function(x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
 var planOrderMap = null; // norm(nom ligne planning) -> {sec, rank}
 async function loadPlanningOrder() {
@@ -2582,6 +2590,7 @@ async function loadPlanningOrder() {
 function planInfoForName(name) {
   if (!planOrderMap) return null;
   let n = planNorm(name);
+  if (PLAN_SEC_OVERRIDE[n]) return { sec: PLAN_SEC_OVERRIDE[n], rank: 9998, approx: 1 }; // fin de section, ordre alpha
   if (PLAN_NAME_ALIAS[n]) n = PLAN_NAME_ALIAS[n];
   if (planOrderMap[n]) return { sec: planOrderMap[n].sec, rank: planOrderMap[n].rank, approx: 0 };
   // Déclinaisons (« Mathis 1,5 kg », « Tourte de Meule Grande », « Demi Tradition »…) :
