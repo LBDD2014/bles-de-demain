@@ -2492,7 +2492,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.215';
+const APP_VERSION  = 'v20.216';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2551,7 +2551,8 @@ const PLAN_NAME_ALIAS = {
   'demitradgraines': 'traditiongraines',
   'petitspainsgraines': 'traditiongraines',
   'blesanciens': 'blesdepop',
-  'seiglecitron': 'meteilcitron'
+  'seiglecitron': 'meteilcitron',
+  'petitepeautre': 'engrain' // Phil 25/08 : Petit Épeautre = Engrain → Pains bio
 };
 const planNorm = function(x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
 var planOrderMap = null; // norm(nom ligne planning) -> {sec, rank}
@@ -4391,7 +4392,8 @@ g.items.forEach(function(p) { html += renderReapproRow(p, type, g.key); });
 return;
 }
 html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
-const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+// v20.216 — même ordre manuel (stock_sort) que Ventes/Stocks pour les autres catégories
+const sorted = (cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(stockSortCmp);
 sorted.forEach(function(p) { html += renderReapproRow(p, type); });
 });
 html += '</div>';
@@ -4777,13 +4779,22 @@ function toggleVentesHideEmpty() {
 // depuis le congélo. Les tartelettes fraîches de Veigné (Citron Meringuée, Fraise) restent
 // dans Petits Gâteaux. Pas de critère automatique par nom ou par supply : « Citron Meringuée »
 // a supply=local pour Tours et serait attrapée à tort.
+// v20.216 (Phil 25/08) : section renommée « Tarterie et flan », élargie aux flans 4/6 pers
+// et aux tartes 6 pers (Amandine, Pommes, Vigneronne).
 const VENTES_TARTELETTE_CAT = 'tartelettes';
 const VENTES_TARTELETTE_IDS = [
   'tap',      // Tartelette Pomme
   'vpg_vig',  // Tartelette Vigneronne
   'tpo',      // Tartelette Poires Amandines
   'vpg_abp',  // Tartelette Abricot Pistache
-  'tab'       // Tartelette Abricot Pistache (version réappro, au cas où elle passe en vente)
+  'tab',      // Tartelette Abricot Pistache (version réappro, au cas où elle passe en vente)
+  'fl4',      // Flan 4 pers.
+  'fl6',      // Flan 6 pers.
+  'flan_4_pers_copie_d4w846', // Flan 4 pers. (doublon usage — même règle que 'tab')
+  'flan_6_pers_copie_e1mdqo', // Flan 6 pers. (doublon usage)
+  'vgg_am6',  // Tarte Amandine 6 pers.
+  'tarte_aux_pommes_6_pers_qnj3et', // Tarte aux pommes 6 pers
+  'vgg_vig6'  // Tarte Vigneronne 6 pers.
 ];
 function isTarteletteProduct(p) {
   return !!p && VENTES_TARTELETTE_IDS.indexOf(p.id) !== -1;
@@ -4873,7 +4884,7 @@ let secRows = '';
 let nbVisibles = 0;
 const isTartSec = (cat === VENTES_TARTELETTE_CAT);
 const secSortie = isTartSec ? true : usesSortieModel(cat); // tartelettes : modèle gâteaux conservé
-const secLabel = isTartSec ? 'Viennoiserie — Tartelettes' : (CAT_LABELS[cat] || cat);
+const secLabel = isTartSec ? 'Tarterie et flan' : (CAT_LABELS[cat] || cat); // v20.216 — renommée (Phil 25/08)
 const secHeader = '<div class="section"><div class="section-header">' + secLabel + '</div>'
 
 + '<div class="ventes-col-header v201">'
@@ -4888,7 +4899,10 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
 + '<span class="col-lbl">Rupture</span>'
 + '</div>';
   // v20.215 — pains dans l'ordre du Planning (marqueurs de section intercalés)
+  // v20.216 — autres catégories : ordre manuel (stock_sort, mêmes flèches ↑↓ que les stocks)
   let curPlanKey = null;
+  if (cat !== 'pains') ps.sort(stockSortCmp);
+  const psArrowIds = (cat !== 'pains') ? ps.map(function(p) { return p.id; }) : null;
   const psSeq = (cat === 'pains' && planSeqBreads(ps, function(p) { return p.name; })) || ps;
   psSeq.forEach(function(p) {
   if (p._plansec) { secRows += planSecTitleHtml(p._plansec); curPlanKey = p._plansec.key; return; }
@@ -4952,6 +4966,7 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
   nbVisibles++;
   secRows += '<div class="ventes-row v201' + planEdgeCls(curPlanKey) + '">'
 + '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
++ (psArrowIds ? stockSortArrows(p.id, psArrowIds) : '') // v20.216 — réordonner à la main (sauf pains = ordre du Planning)
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
@@ -14520,7 +14535,8 @@ async function moveStockSort(pid, dir, pidsJson) {
     }
   }
   setSyncStatus('ok');
-  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  if (currentVue === 'ventes') renderVentes(); // v20.216 — flèches ↑↓ aussi sur l'onglet Ventes
+  else if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
   else if (currentVue === 'stock_pat') renderStockVeignePat();
   else renderStock();
 }
@@ -15489,7 +15505,7 @@ html += '<div class="col-header"><span class="col-lbl">Produit</span><span class
 // v20.215 — pains dans l'ordre du Planning (marqueurs de section intercalés)
 let curPlanKey = null;
 const sorted = (cat === 'pains' && planSeqBreads(byCat[cat], function(p) { return p.name; }))
-  || ((cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(function(a, b) { return a.name.localeCompare(b.name); }));
+  || ((cat === 'pains') ? sortProductsPriority(byCat[cat]) : byCat[cat].slice().sort(stockSortCmp)); // v20.216 — ordre manuel partagé
 sorted.forEach(function(p) {
 if (p._plansec) { html += planSecTitleHtml(p._plansec); curPlanKey = p._plansec.key; return; }
 const pv = previsData[p.id] == null ? '' : previsData[p.id];
