@@ -2511,7 +2511,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.222';
+const APP_VERSION  = 'v20.227';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -16923,16 +16923,20 @@ html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_na
 // On masque donc la version réassort QUAND une version vendue porte le même nom.
 // On ne filtre pas tous les réassorts : « Chausson aux Pommes Rayées » n'existe
 // que de ce côté-là et doit rester commandable.
+// v20.227 — le rapprochement des deux catalogues ignore désormais accents et
+// ponctuation (planNorm). En comparant les noms bruts, « Éclair Café » (réassort)
+// ne voyait pas « Eclair Cafe » (vendu) et restait proposé : le 30/08, 6 éclairs
+// sont partis sur la ligne réassort. Même cas « Brioche Feuilletée Garnie ».
 const prodsInCat = (function() {
   const list = products.filter(function(p) { return p.actif && p.category === it.category; });
   const nomsVendus = new Set(list
     .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
-    .map(function(p) { return String(p.name || '').trim().toLowerCase(); }));
+    .map(function(p) { return planNorm(p.name); }));
   return list.filter(function(p) {
     if (p.id === it.product_id) return true;              // ne jamais faire disparaître un choix déjà enregistré
     const u = p.usage || 'reappro';
     if (u === 'ventes' || u === 'both') return true;
-    return !nomsVendus.has(String(p.name || '').trim().toLowerCase());
+    return !nomsVendus.has(planNorm(p.name));
   });
 })();
 prodsInCat.sort(function(a, b) { return a.name.localeCompare(b.name); });
