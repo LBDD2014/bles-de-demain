@@ -803,7 +803,7 @@ border: 1px solid #EDE4D1; border-radius: 8px; cursor: pointer;
 box-shadow: 0 1px 3px rgba(61,43,31,0.04);
 }
 .sp-card:active { transform: scale(0.99); }
-.sp-card.status-livree { opacity: 0.6; }
+.sp-card.status-livree { opacity: 0.42; }  /* v20.229 — client venu : on n'en parle plus */
 .sp-card.status-annulee { opacity: 0.4; text-decoration: line-through; }
 .sp-card-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .sp-card-hdr strong { font-size: 14px; color: var(--brown); }
@@ -823,7 +823,8 @@ padding: 3px 9px; border-radius: 10px; font-size: 10px; font-weight: 700;
 text-transform: uppercase; letter-spacing: 0.3px;
 }
 .sp-st-brouillon { background: #EDE4D1; color: var(--brown-mid); }
-.sp-st-confirmee { background: #FFE8B4; color: var(--gold-dark); }
+.sp-st-confirmee,
+.sp-st-brouillon { background: #FFE8B4; color: var(--gold-dark); }  /* v20.229 — « À préparer » */
 .sp-st-prete     { background: #D6F1DE; color: #2B7C3F; }
 .sp-st-livree    { background: var(--green); color: white; }
 .sp-st-annulee   { background: #F5D5CE; color: var(--red); }
@@ -2511,7 +2512,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.228';
+const APP_VERSION  = 'v20.229';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -16244,7 +16245,7 @@ paiement: d.paiement || 'non_regle',
 acompte_montant: d.paiement === 'acompte' ? (parseQty(d.acompte_montant) || null) : null,
 pickup_date: d.pickup_date,
 pickup_time: d.pickup_time || null,
-status: d.status || 'brouillon',
+status: d.status || 'confirmee',
 notes: d.notes ? d.notes.trim() : null,
 updated_at: nowISO
 };
@@ -16402,15 +16403,23 @@ selectedSpecialDay = iso;
 renderSpecials();
 }
 
+// v20.229 — DEUX coches, pas quatre étapes (Phil, 27/08) : « quand les vendeuses
+// mettent de côté, qu'ils soient marqués mis de côté ; une fois que le client est
+// venu, une coche, et ça met la commande en transparence — on n'en parle plus et
+// tout le monde sait que le client est venu ».
+// Les valeurs en base ne changent PAS (tout le reste de l'app filtre sur
+// livree/annulee) : on ne touche qu'aux mots et à l'enchaînement.
+//   confirmee = À préparer (état de départ) · prete = Mis de côté · livree = Venu chercher
+// 'brouillon' n'est plus créé ; le libellé reste pour d'éventuelles vieilles lignes.
 const STATUS_LBL = {
-'brouillon': 'Brouillon',
-'confirmee': 'Confirmee',
-'prete':     'Prete',
-'livree':    'Livree',
-'annulee':   'Annulee'
+'brouillon': 'À préparer',
+'confirmee': 'À préparer',
+'prete':     'Mis de côté',
+'livree':    'Venu chercher',
+'annulee':   'Annulée'
 };
 const STATUS_NEXT = {
-'brouillon': 'confirmee',
+'brouillon': 'prete',
 'confirmee': 'prete',
 'prete':     'livree',
 'livree':    'livree',
@@ -16579,7 +16588,7 @@ paiement: 'non_regle',      // v20.185 — non_regle | acompte | regle
 acompte_montant: '',
 pickup_date: selectedSpecialDay || currentSpecialWeekStart,
 pickup_time: '',
-status: 'brouillon',
+status: 'confirmee',
 notes: '',
 items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
 };
@@ -16600,7 +16609,7 @@ paiement: o.paiement || 'non_regle',
 acompte_montant: o.acompte_montant == null ? '' : String(o.acompte_montant).replace('.', ','),
 pickup_date: o.pickup_date,
 pickup_time: o.pickup_time || '',
-status: o.status || 'brouillon',
+status: o.status || 'confirmee',
 notes: o.notes || '',
 items: (o.items || []).map(function(it) {
 const p = it.product_id ? products.find(function(x) { return x.id === it.product_id; }) : null;
@@ -16845,7 +16854,7 @@ html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, 
 // Status (si edit)
 if (isEdit) {
 html += '<div class="sp-form-row"><label class="sp-lbl">Statut</label><select class="sp-input" onchange="handleSpecialFormField(\'status\', this.value)">';
-['brouillon', 'confirmee', 'prete', 'livree', 'annulee'].forEach(function(s) {
+['confirmee', 'prete', 'livree', 'annulee'].forEach(function(s) {
 html += '<option value="' + s + '"' + (d.status === s ? ' selected' : '') + '>' + STATUS_LBL[s] + '</option>';
 });
 html += '</select></div>';
