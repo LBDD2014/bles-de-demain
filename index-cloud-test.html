@@ -806,6 +806,9 @@ box-shadow: 0 1px 3px rgba(61,43,31,0.04);
 .sp-card:active { transform: scale(0.99); }
 .sp-card.status-livree { opacity: 0.42; }  /* v20.229 — client venu : on n'en parle plus */
 .sp-card.status-annulee { opacity: 0.4; text-decoration: line-through; }
+/* v20.233 — avertissement de delai (48h / 72h les jours de fete). Visible mais pas bloquant. */
+.cmd-delai-warn { background: #FDEEDC; border-left: 4px solid var(--orange); color: var(--brown);
+  border-radius: 6px; padding: 8px 11px; margin: 8px 0 4px; font-size: 12.5px; line-height: 1.4; }
 .sp-card-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .sp-card-hdr strong { font-size: 14px; color: var(--brown); }
 .sp-card-time { font-size: 12px; color: var(--gold-dark); font-weight: 600; }
@@ -2513,7 +2516,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.232';
+const APP_VERSION  = 'v20.233';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3814,6 +3817,12 @@ async function loadFeteOrders() {
   feteOrders = q.error ? [] : (q.data || []);
 }
 function feteEUR(n) { return (Math.round((+n || 0) * 100) / 100).toFixed(2).replace('.', ',') + ' €'; }
+function feteMajDelai() {
+  const w = document.getElementById('feteDelaiWarn');
+  if (!w) return;
+  const dd = document.getElementById('feteDate'), tt = document.getElementById('feteTime');
+  w.innerHTML = cmdDelaiWarnHtml(dd ? dd.value : '', tt ? tt.value : '');
+}
 function feteButoirPasse() { return !!(feteActive && feteActive.butoir && new Date() > new Date(feteActive.butoir)); }
 function feteOrderTotal(items) { return (items || []).reduce(function(s, it) { return s + (+it.prix || 0) * (+it.qty || 0); }, 0); }
 
@@ -3856,7 +3865,10 @@ function feteFormHtml() {
   let html = '<div class="section reappro-section"><div class="section-header section-header-reappro"><span>' + (ed ? '✏️ Modifier la commande' : '📝 Nouvelle commande') + '</span></div><div style="padding:10px 12px">';
   html += '<div class="fete-frow"><label>Client *</label><input type="text" id="feteCust" value="' + escapeHtml(d.customer_name || '') + '" placeholder="Nom du client"></div>';
   html += '<div class="fete-frow"><label>Téléphone *</label><input type="tel" id="fetePhone" value="' + escapeHtml(d.customer_phone || '') + '" placeholder="06…"></div>';
-  html += '<div class="fete-frow"><label>Retrait le *</label><input type="date" id="feteDate" min="' + feteActive.date_debut + '" max="' + feteActive.date_fin + '" value="' + (d.pickup_date || feteActive.date_fin) + '"> à <input type="time" id="feteTime" value="' + escapeHtml(d.pickup_time || '') + '"></div>';
+  // v20.233 — l'avertissement de délai se recalcule à chaque changement de date/heure
+  // (le formulaire Fêtes n'est pas re-rendu tout seul, contrairement aux Spéciales)
+  html += '<div class="fete-frow"><label>Retrait le *</label><input type="date" id="feteDate" min="' + feteActive.date_debut + '" max="' + feteActive.date_fin + '" value="' + (d.pickup_date || feteActive.date_fin) + '" oninput="feteMajDelai()"> à <input type="time" id="feteTime" value="' + escapeHtml(d.pickup_time || '') + '" oninput="feteMajDelai()"></div>';
+  html += '<div id="feteDelaiWarn">' + cmdDelaiWarnHtml(d.pickup_date || feteActive.date_fin, d.pickup_time) + '</div>';
   let curG = null;
   feteProducts.filter(function(fp) { return fp.actif !== false; }).forEach(function(fp) {
     if (fp.groupe !== curG) { curG = fp.groupe; html += '<div class="fete-sec">' + escapeHtml(curG || 'PRODUITS') + '</div>'; }
@@ -16450,6 +16462,43 @@ const SHOP_COLOR_CLASS = {
 };
 const DOW_ABBR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
+// v20.233 — DÉLAI DE COMMANDE (Phil, 27/08) : « les deux, 72h pile, avertissement
+// pas blocage, et fais le J-2 partout ».
+//   · jours ordinaires        → 48 h (le J-2 annoncé dans les règles, jamais codé jusqu'ici)
+//   · 24, 25 et 31 décembre   → 72 h (jours denses)
+// AVERTISSEMENT SEULEMENT : la vendeuse enregistre quand même. Le calcul est à
+// l'heure près (« 72h pile »), pas en jours pleins.
+// S'applique aux commandes spéciales ET à l'onglet Fêtes.
+const CMD_JOURS_DENSES = ['12-24', '12-25', '12-31'];
+const CMD_DELAI_NORMAL_H = 48;
+const CMD_DELAI_DENSE_H = 72;
+function cmdJourDense(iso) { return CMD_JOURS_DENSES.indexOf(String(iso || '').slice(5)) !== -1; }
+function cmdDelaiRequisH(iso) { return cmdJourDense(iso) ? CMD_DELAI_DENSE_H : CMD_DELAI_NORMAL_H; }
+// Heure de retrait non renseignée → on suppose l'ouverture (07:00), le cas le plus tendu
+function cmdHeuresRestantes(iso, time) {
+  const t = String(time || '').slice(0, 5) || '07:00';
+  return (new Date(iso + 'T' + t) - new Date()) / 3600000;
+}
+// null = rien à signaler. Une date DÉJÀ PASSÉE ne déclenche rien : c'est du
+// rattrapage assumé (le menu propose exprès les 7 derniers jours).
+function cmdDelaiEtat(iso, time) {
+  if (!iso) return null;
+  const restant = cmdHeuresRestantes(iso, time);
+  if (restant < 0) return null;
+  const requis = cmdDelaiRequisH(iso);
+  return restant < requis ? { requis: requis, restant: restant, dense: cmdJourDense(iso) } : null;
+}
+function cmdDelaiWarnHtml(iso, time) {
+  const s = cmdDelaiEtat(iso, time);
+  if (!s) return '';
+  const reste = s.restant < 24
+    ? Math.max(0, Math.round(s.restant)) + ' h'
+    : (Math.round(s.restant / 24 * 10) / 10).toString().replace('.', ',') + ' jours';
+  return '<div class="cmd-delai-warn">⚠️ <strong>Hors délai</strong> — '
+    + (s.dense ? 'ce jour-là il faut <strong>72 h</strong> (jour de fête)' : 'il faut <strong>48 h</strong> (J-2)')
+    + ', il n\'en reste que ' + reste + '. Tu peux enregistrer, mais préviens le fournil.</div>';
+}
+
 function renderSpecials() {
 if (specialFormMode) {
 renderSpecialOrderForm();
@@ -16843,12 +16892,13 @@ dateOpts.forEach(function(o) {
 html += '<option value="' + o.v + '"' + (d.pickup_date === o.v ? ' selected' : '') + '>' + escapeHtml(o.l) + '</option>';
 });
 html += '</select></div>';
-html += '<div><label class="sp-lbl">Heure</label><select class="sp-input" onchange="handleSpecialFormField(\'pickup_time\', this.value)">';
+html += '<div><label class="sp-lbl">Heure</label><select class="sp-input" onchange="handleSpecialFormField(\'pickup_time\', this.value); renderSpecials()">';
 timeOpts.forEach(function(o) {
 html += '<option value="' + o.v + '"' + (d.pickup_time === o.v ? ' selected' : '') + '>' + escapeHtml(o.l) + '</option>';
 });
 html += '</select></div>';
 html += '</div>';
+html += cmdDelaiWarnHtml(d.pickup_date, d.pickup_time); // v20.233 — 48h / 72h les jours de fête
 
 // Items
 html += '<div class="sp-items-section"><div class="sp-items-title">Produits commandes</div>';
