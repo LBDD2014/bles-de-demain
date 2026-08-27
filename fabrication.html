@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.223</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.224</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -2226,12 +2226,38 @@ async function calcFromPlan(){
   // le mercredi 26/08 réclamait 175 kg de Tradition au lieu de 150).
   // Filet de sécurité : pas de ligne kg ce jour-là → la déclinaison compte (la somme
   // des bacs EST alors la pétrissée, cas Essentiel/Idéal ou Pain blanc).
+  // v20.224 — RÈGLE (Phil, 27/08) : « si je dois faire 4 bacs de burger, 4 de hotdog,
+  // 2 baguettes viennoise chocolat et 5 baguettes viennoise, on saurait s'il faut faire
+  // un pétrin de 10 ou de 50 kg ». La case « kg de farine pour 1 bac » n'est remplie que
+  // sur une partie des lignes (aucune déclinaison de la Viennoise) — quand elle est vide
+  // on lit la RECETTE, comme « Remplir depuis le planning » : bacs → kg de pâte → farine.
+  // Un seul cerveau, et ça suit tout seul quand une recette change.
+  const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[fabNorm(p.nom)]=p.id;});
+  const findPid=nom=>PD_PLAN_ALIAS[fabNorm(nom)]||prodByNom[fabNorm(nom)]||null;
+  // Nom de groupe de chaque pâte de base, repris de sa ligne en kg (« La Viennoise » → « Viennoise »)
+  const grpOfBase={};
+  (lg.data||[]).forEach(l=>{if(l.unite!=='kg')return;const pid=findPid(l.nom);if(pid&&!grpOfBase[pid])grpOfBase[pid]=l.pate||l.nom;});
+  // Farine d'une ligne dont la case est vide → {kg, groupe} déduits de la recette, sinon null
+  const parRecette=(l,num)=>{
+    const pid=findPid(l.nom);if(!pid||!recettesMap[pid])return null;
+    const ip=ing_pate_of(pid); // déclinaison : « X kg de pâte Y par bac »
+    const base=ip?Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ip):null;
+    if(base&&doughPerKgFlour(base)>0){
+      const nomBase=(produits.find(p=>p.id===base)||{}).nom;
+      return {kg:num*melangePateParBac(pid)/doughPerKgFlour(base),grp:grpOfBase[base]||nomBase||l.nom};
+    }
+    if(pdHasBac(pid))return {kg:pdRowKgFlour({pid:pid,qte:num}),grp:l.pate||l.nom}; // pâte à elle seule, saisie en bacs
+    return null;
+  };
   const kgPates=new Set();
   (lg.data||[]).forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
   const byPate={};
-  (lg.data||[]).forEach(l=>{const num=calcParseNum(valById[l.id]);if(!num||!l.kg_farine_unite)return;
-    if(l.unite!=='kg'&&l.pate&&kgPates.has(l.pate))return; // déclinaison d'une pétrissée déjà écrite
-    const p=l.pate||l.nom;byPate[p]=(byPate[p]||0)+num*(+l.kg_farine_unite);});
+  (lg.data||[]).forEach(l=>{const num=calcParseNum(valById[l.id]);if(!num)return;
+    let p=l.pate||l.nom,kg;
+    if(l.kg_farine_unite)kg=num*(+l.kg_farine_unite);
+    else{const r=parRecette(l,num);if(!r)return;kg=r.kg;p=r.grp;}
+    if(l.unite!=='kg'&&kgPates.has(p))return; // déclinaison d'une pétrissée déjà écrite en kg
+    byPate[p]=(byPate[p]||0)+kg;});
   const pates=Object.keys(byPate).sort((a,b)=>a.localeCompare(b));
   const box=document.getElementById('calcPlanResult');
   const siteLbl='<div class="hint" style="margin:0 0 4px">📍 '+((SITES.find(s=>s[0]===planSite)||['','?'])[1])+'</div>';
