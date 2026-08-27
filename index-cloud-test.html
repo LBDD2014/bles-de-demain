@@ -459,6 +459,7 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .fete-frow input[type=text], .fete-frow input[type=tel] { flex: 1; min-width: 150px; }
 .fete-card { background: #fff; border: 1px solid #e8e0cf; border-radius: 10px; margin: 6px 10px; padding: 10px 12px; }
 .fete-card.annulee { opacity: .5; }
+.fete-card.recuperee { opacity: .42; }  /* v20.229b — client venu : on n'en parle plus */
 .fete-card-top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
 .fete-st { font-size: 12px; font-weight: 700; }
 .fete-card-sub { font-size: 12.5px; color: #6b6d76; margin-top: 2px; }
@@ -2512,7 +2513,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.229';
+const APP_VERSION  = 'v20.230';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3820,7 +3821,7 @@ function renderFetes() {
   const mc = document.getElementById('main-content');
   if (!feteActive) { mc.innerHTML = '<div class="empty-state">Aucune fête active en ce moment.</div>'; return; }
   const showProd = (currentBoutique === 'local' || currentBoutique === 'veigne');
-  const nOrders = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique && o.status !== 'annulee'; }).length;
+  const nOrders = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique && o.status !== 'annulee' && o.status !== 'recuperee'; }).length;
   let html = '<div class="fete-banner"><span><strong>' + escapeHtml(feteActive.label) + '</strong> — commandes clients</span>'
     + '<small>Retraits du ' + escapeHtml(formatDateFr(feteActive.date_debut)) + ' au ' + escapeHtml(formatDateFr(feteActive.date_fin))
     + (feteActive.butoir ? ' · commandes jusqu\'au ' + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '') + '</small></div>';
@@ -3938,7 +3939,10 @@ async function feteSave() {
 function feteListHtml() {
   const mine = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
   if (!mine.length) return '<div class="empty-state">Aucune commande ' + escapeHtml(feteActive.label) + ' pour cette boutique.</div>';
-  const ST = { a_faire: ['À préparer', 'var(--orange)'], prete: ['Prête', 'var(--blue)'], recuperee: ['Récupérée ✓', 'var(--green)'], annulee: ['Annulée', 'var(--red)'] };
+  // v20.229b — mêmes mots que les commandes clients (Phil, 27/08 : « aligne les deux
+  // écrans pour Noël »). Les valeurs en base ne bougent pas : a_faire / prete /
+  // recuperee / annulee restent, seuls les libellés et les couleurs changent.
+  const ST = { a_faire: ['À préparer', 'var(--orange)'], prete: ['Mis de côté', '#2B7C3F'], recuperee: ['Venu chercher', 'var(--green)'], annulee: ['Annulée', 'var(--red)'] };
   let html = '', curD = null;
   mine.forEach(function(o) {
     if (o.pickup_date !== curD) { curD = o.pickup_date; html += '<div class="fete-sec" style="margin:12px 10px 4px">Retrait ' + escapeHtml(formatDateFr(curD)) + '</div>'; }
@@ -3946,14 +3950,14 @@ function feteListHtml() {
     const payTxt = o.paiement === 'regle' ? 'Réglé ✓'
       : (o.paiement === 'acompte' ? 'Acompte ' + feteEUR(o.acompte || 0) + ' — reste ' + feteEUR((o.total || 0) - (o.acompte || 0))
       : 'À régler ' + feteEUR(o.total || 0));
-    html += '<div class="fete-card' + (o.status === 'annulee' ? ' annulee' : '') + '">'
+    html += '<div class="fete-card' + (o.status === 'annulee' ? ' annulee' : '') + (o.status === 'recuperee' ? ' recuperee' : '') + '">'
       + '<div class="fete-card-top"><strong>' + (o.pickup_time ? escapeHtml(String(o.pickup_time).slice(0, 5)) + ' · ' : '') + escapeHtml(o.customer_name) + '</strong><span class="fete-st" style="color:' + st[1] + '">' + st[0] + '</span></div>'
       + (o.customer_phone ? '<div class="fete-card-sub">📞 ' + escapeHtml(o.customer_phone) + '</div>' : '')
       + '<div class="fete-card-items">' + (o.items || []).map(function(it) { return escapeHtml(it.qty + '× ' + it.nom + (it.taille ? ' ' + it.taille : '')); }).join(' · ') + '</div>'
       + '<div class="fete-card-sub"><b>' + feteEUR(o.total || 0) + '</b> · ' + escapeHtml(payTxt) + (o.notes ? ' · ✏️ ' + escapeHtml(o.notes) : '') + '</div>'
       + '<div class="btn-row" style="margin-top:6px">'
-      + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">→ Prête</button>' : '')
-      + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">→ Récupérée</button>' : '')
+      + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
+      + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button>' : '')
       + '<button class="btn-grey" onclick="printFeteTicket(\'' + o.id + '\')">🖨 Ticket</button>'
       + (o.status !== 'recuperee' && o.status !== 'annulee'
         ? '<button class="btn-grey" onclick="feteEdit(\'' + o.id + '\')">✏️ Modifier</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'annulee\')">✖ Annuler</button>'
