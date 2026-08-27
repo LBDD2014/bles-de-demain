@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.221</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.223</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -295,6 +295,7 @@
     <button class="btn ghost sm" style="margin-left:auto" onclick="planPrintWeek()">📄 Imprimer la semaine (A4)</button>
     </div>
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
+    <div id="planMasquees" style="margin-top:10px"></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
       <select id="planNewSection" style="flex:1"><option value="pains">Pains</option><option value="speciaux">Spéciaux</option><option value="bio">Pains bio</option><option value="levains">Levains</option><option value="viennoiserie">Viennoiserie</option></select>
@@ -2242,7 +2243,7 @@ async function calcFromPlan(){
 }
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
-let planWeekStart='',planLignes=[],planVals={},planSite='local',planScanData=[];
+let planWeekStart='',planLignes=[],planMasquees=[],planVals={},planSite='local',planScanData=[];
 let planHideEmpty=localStorage.getItem('planHideEmpty')==='1'; // v20.207 — masquer les lignes vides
 // planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
@@ -2268,12 +2269,16 @@ function planSetWeek(d){
 async function planLoad(){
   const end=pdAddDays(planWeekStart,6);setSync('chargement…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('*').eq('actif',true).eq('site',planSite).order('ordre').order('id'),
+    supa.from('fab_planning_lignes').select('*').eq('site',planSite).order('ordre').order('id'),
     supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
   setSync('🟢 connecté');
-  planLignes=lg.data||[];planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
+  // v20.223 — les lignes masquées (actif=false) restent chargées pour pouvoir les remettre.
+  const toutes=lg.data||[];
+  planLignes=toutes.filter(l=>l.actif!==false);
+  planMasquees=toutes.filter(l=>l.actif===false);
+  planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
 }
 const LEV_MAP={'levaindur':'levainDur','levainliquide':'levainLiq','levainliquidepatesucree':'levainSuc'};
 // v20.210 — levains de la semaine, partagé entre l'affichage du planning et son impression
@@ -2387,6 +2392,7 @@ function planRender(){
       +'<button class="ico-btn" onclick="planMove('+lg.id+',-1)"'+(idx===0?' disabled':'')+'>↑</button>'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',1)"'+(idx===sibs.length-1?' disabled':'')+'>↓</button>'
       +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
+      +'<button class="ico-btn" onclick="planMasquer('+lg.id+')" title="Masquer ce produit (récupérable)">🙈</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
     const estNote=planSecOf(lg)==='notes';
     for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
@@ -2405,7 +2411,27 @@ function planRender(){
   });
   body+='</tbody>';
   document.getElementById('planTbl').innerHTML=head+body;
+  planRenderMasquees();
 }
+// v20.223 — Produits masqués : rangés sous le tableau, remis en 1 clic (demande
+// Phil : Tours et Veigné partent du planning du Local et enlèvent ce qu'ils ne font pas).
+function planRenderMasquees(){
+  const box=document.getElementById('planMasquees');if(!box)return;
+  if(!planMasquees.length){box.innerHTML='';return;}
+  box.innerHTML='<details><summary style="cursor:pointer;font-size:13px;color:var(--grey-light);padding:6px 0">'
+    +'🙈 '+planMasquees.length+' produit'+(planMasquees.length>1?'s':'')+' masqué'+(planMasquees.length>1?'s':'')+' — cliquer pour les revoir</summary>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0">'
+    +planMasquees.map(lg=>'<button class="btn ghost sm" onclick="planDemasquer('+lg.id+')" title="Remettre dans le planning">↩️ '+lg.nom+'</button>').join('')
+    +'</div></details>';
+}
+async function planSetActif(id,actif){
+  const q=await supa.from('fab_planning_lignes').update({actif}).eq('id',id);
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  await planLoad();planRender();
+  toast(actif?'Produit remis ✓':'Produit masqué ✓');
+}
+const planMasquer=id=>planSetActif(id,false);
+const planDemasquer=id=>planSetActif(id,true);
 async function planSetVal(ligneId,iso,value){
   planVals[ligneId+'_'+iso]=value;setSync('enregistrement…');
   const q=await supa.from('fab_planning_valeurs').upsert({ligne_id:ligneId,date_jour:iso,valeur:value},{onConflict:'ligne_id,date_jour'});
