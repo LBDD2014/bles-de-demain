@@ -2513,7 +2513,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.230';
+const APP_VERSION  = 'v20.231';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -5525,6 +5525,12 @@ function boutiqueOuverte(boutique, iso) {
   const dow = new Date(iso + 'T12:00').getDay(); // 0=dim, 1=lundi
   if (boutique === 'tours')
     return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Tours fermé les jours fériés (pas de livraison pros)' };
+  // v20.231 — EXCEPTION NOËL (Phil, 27/08) : Saint-Avertin ferme le 25 décembre,
+  // quel que soit le jour de la semaine. Sans ça, la règle « ouvert sauf lundi »
+  // l'aurait annoncé OUVERT le vendredi 25/12/2026 — l'app aurait dit le contraire
+  // de la réalité le jour de Noël. Tours est déjà couvert par la règle ci-dessus.
+  if (boutique === 'saint-avertin' && iso.slice(5) === '12-25')
+    return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé le 25 décembre' };
   if (boutique === 'saint-avertin' && dow === 1)
     return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé (lundi)' };
   return { ferie: true, ouvert: true, matin: true, nom: nom, raison: 'Ouvert le matin · quantités comme un dimanche' };
