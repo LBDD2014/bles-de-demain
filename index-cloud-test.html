@@ -2513,7 +2513,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.231';
+const APP_VERSION  = 'v20.232';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -5522,6 +5522,13 @@ function boutiqueOuverte(boutique, iso) {
   if (!nom) return { ferie: false, ouvert: true, matin: false, nom: null, raison: '' };
   if (iso.slice(5) === '01-01')
     return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé — toutes les boutiques le 1er janvier' };
+  // v20.232 — 1er MAI (Phil, 27/08) : « les 3 boutiques sont fermées au 1er mai »,
+  // quel que soit le jour de la semaine. Sans ça, Veigné (« toujours ouvert ») et
+  // Saint-Avertin (« ouvert sauf lundi ») étaient annoncés ouverts.
+  // ⚠️ Le Local et les marchés ne sont PAS tranchés : ils restent sur la règle
+  // générale (ouvert le matin) — à confirmer par Phil.
+  if (iso.slice(5) === '05-01' && ['veigne', 'tours', 'saint-avertin'].indexOf(boutique) !== -1)
+    return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Fermé — les 3 boutiques le 1er mai' };
   const dow = new Date(iso + 'T12:00').getDay(); // 0=dim, 1=lundi
   if (boutique === 'tours')
     return { ferie: true, ouvert: false, matin: false, nom: nom, raison: 'Tours fermé les jours fériés (pas de livraison pros)' };
