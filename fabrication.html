@@ -192,6 +192,10 @@
   .pcell.pnote{width:100%;min-width:88px;text-align:left;font-size:11px} /* v20.214 — texte libre (empois, melanges...) */
   .plan-tbl tr.plan-sec td{text-align:left;color:#fff;font-weight:bold;font-size:11.5px;letter-spacing:.6px;padding:5px 8px;border-color:rgba(0,0,0,.08)}
   .plan-tbl td.pname{border-left-width:4px}
+  /* v20.226 — déclinaisons rangées sous leur pâte */
+  .plan-tbl td.pname.pdecl{padding-left:16px;font-weight:normal}
+  .plan-tbl .parr{color:var(--gold-dark);font-weight:bold;margin-right:3px}
+  .plan-tbl .pmere{font-size:10px;color:var(--grey-light);font-weight:normal;display:block}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .plan-add input,.plan-add select{padding:8px;border:1px solid var(--gold-light);border-radius:8px}
 </style>
@@ -205,7 +209,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.225</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.226</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -2287,6 +2291,36 @@ const PLAN_SECTIONS=[
   {key:'notes',label:'PRÉPARATIONS DU JOUR',color:'var(--grey)'}   // v20.214 — empois, mélanges, inventaire… rattachés à leur jour
 ];
 const planSecOf=lg=>{const k=lg&&lg.section;return PLAN_SECTIONS.some(s=>s.key===k)?k:'pains';};
+// v20.226 — Déclinaisons rangées SOUS leur pâte (Phil, 27/08 : « on pétrit 50 kg et
+// dedans on fait 5 bacs de burger, 4 bacs de baguette viennoise »). La ligne mère est
+// celle en kg ; ses filles sont les lignes de la même section dont la colonne « pâte de
+// base » porte son nom. Rien n'est déplacé en base, c'est un regroupement d'affichage :
+// l'ordre saisi est conservé entre mères et entre sœurs.
+// Pas de ligne en kg pour une pâte (Essentiel/Idéal, Pain blanc) = pas de mère, on ne
+// touche à rien : la somme des bacs EST la pétrissée.
+function planGroupes(secKey){
+  const sec=planLignes.filter(l=>planSecOf(l)===secKey);
+  const mereDe={};sec.forEach(l=>{if(l.unite==='kg'){const k=l.pate||l.nom;if(!mereDe[k])mereDe[k]=l;}});
+  const enfants={},racines=[];
+  sec.forEach(l=>{
+    const m=(l.unite!=='kg'&&l.pate)?mereDe[l.pate]:null;
+    if(m&&m.id!==l.id)(enfants[m.id]=enfants[m.id]||[]).push(l);
+    else racines.push(l);
+  });
+  return {racines:racines,enfants:enfants,mereDe:mereDe};
+}
+// Lignes d'une section dans l'ordre affiché : chaque mère suivie de ses filles
+function planLignesAffichees(secKey){
+  const g=planGroupes(secKey),out=[];
+  g.racines.forEach(r=>{out.push({lg:r,mere:null});(g.enfants[r.id]||[]).forEach(e=>out.push({lg:e,mere:r}));});
+  return out;
+}
+// Voisins pour les flèches ↑↓ : une déclinaison se déplace parmi ses sœurs, une pâte parmi les pâtes
+function planVoisins(lg){
+  const g=planGroupes(planSecOf(lg));
+  for(const k in g.enfants){if(g.enfants[k].some(x=>x.id===lg.id))return g.enfants[k];}
+  return g.racines;
+}
 const planSecColor=k=>(PLAN_SECTIONS.find(s=>s.key===k)||{}).color||'var(--grey)';
 const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
 function planEnter(){
@@ -2343,13 +2377,15 @@ function planPrintWeek(){
   };
   let rows='';
   PLAN_SECTIONS.forEach(sec=>{
-    let sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
-    if(planHideEmpty)sibs=sibs.filter(remplie);
+    let sibs=planLignesAffichees(sec.key); // v20.226 — même regroupement qu'à l'écran
+    if(planHideEmpty)sibs=sibs.filter(x=>remplie(x.lg));
     if(!sibs.length)return;
+    const vus={};sibs.forEach(x=>vus[x.lg.id]=1);
     rows+='<tr class="psec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
-    sibs.forEach(lg=>{
-      const k=LEV_MAP[fabNorm(lg.nom)];
-      rows+='<tr><td class="pn">'+lg.nom+' <small>'+(lg.unite||'')+'</small></td>'
+    sibs.forEach(x=>{
+      const lg=x.lg,k=LEV_MAP[fabNorm(lg.nom)];
+      const pref=x.mere?'↳ ':'',suff=(x.mere&&!vus[x.mere.id])?' <small>(de '+x.mere.nom+')</small>':'';
+      rows+='<tr><td class="pn'+(x.mere?' pdecl':'')+'">'+pref+lg.nom+' <small>'+(lg.unite||'')+'</small>'+suff+'</td>'
         +jours.map(iso=>{
           let v=String(planVals[lg.id+'_'+iso]||'').trim();
           let auto=false;
@@ -2387,6 +2423,7 @@ function planPrintWeek(){
     +'#printwrap th,#printwrap td{border:1px solid #999;padding:.18em .35em;text-align:center;line-height:1.3}'
     +'#printwrap td.pn{text-align:left;font-weight:bold;white-space:nowrap}'
     +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:.82em}'
+    +'#printwrap td.pn.pdecl{font-weight:normal;padding-left:1.1em}'
     +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:.88em;letter-spacing:.5px;padding:.12em .45em;'
     +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'#printwrap td.auto{font-style:italic;color:#6B4226}'
@@ -2415,10 +2452,15 @@ function planRender(){
     if(k){for(let i=0;i<7;i++){const t=levByDay[pdAddDays(planWeekStart,i)];if(t&&t[k]>0.05)return true;}}
     return false;
   };
-  const renderLine=(lg,sibs)=>{
+  const renderLine=(lg,sibs,mere,mereVisible)=>{
     const idx=sibs.indexOf(lg),col=planSecColor(planSecOf(lg));
     const levKey=LEV_MAP[fabNorm(lg.nom)];
-    let r='<tr><td class="pname" style="border-left-color:'+col+'">'+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span>'
+    // v20.226 — une fille sous sa mère : ↳ + retrait. Si la mère est masquée (coche
+    // « lignes non remplies »), on écrit de quelle pâte elle sort, sinon le retrait
+    // ne veut plus rien dire.
+    let r='<tr><td class="pname'+(mere?' pdecl':'')+'" style="border-left-color:'+col+'">'
+      +(mere?'<span class="parr">↳</span>':'')+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span>'
+      +(mere&&!mereVisible?'<span class="pmere">sort de '+mere.nom+'</span>':'')
       +(levKey?'<span class="pu" style="color:var(--gold-dark)"> · calcul auto</span>':'')
       +'<div class="plan-ctrls">'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',-1)"'+(idx===0?' disabled':'')+'>↑</button>'
@@ -2434,12 +2476,13 @@ function planRender(){
     return r+'</tr>';
   };
   PLAN_SECTIONS.forEach(sec=>{
-    let sibs=planLignes.filter(lg=>planSecOf(lg)===sec.key);
-    if(!sibs.length)return;
-    const visibles=planHideEmpty?sibs.filter(ligneRemplie):sibs;
+    const rangees=planLignesAffichees(sec.key);
+    if(!rangees.length)return;
+    const visibles=planHideEmpty?rangees.filter(x=>ligneRemplie(x.lg)):rangees;
     if(!visibles.length)return;
+    const vus={};visibles.forEach(x=>vus[x.lg.id]=1);
     body+='<tr class="plan-sec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
-    visibles.forEach(lg=>body+=renderLine(lg,sibs));
+    visibles.forEach(x=>body+=renderLine(x.lg,planVoisins(x.lg),x.mere,!!(x.mere&&vus[x.mere.id])));
   });
   body+='</tbody>';
   document.getElementById('planTbl').innerHTML=head+body;
@@ -2511,7 +2554,7 @@ async function planSaveLine(id){
 }
 async function planMove(id,dir){
   const lg=planLignes.find(l=>l.id===id);if(!lg)return;
-  const sibs=planLignes.filter(l=>planSecOf(l)===planSecOf(lg));
+  const sibs=planVoisins(lg); // v20.226 — on se déplace dans son groupe, pas à travers les pâtes
   const k=sibs.indexOf(lg),j=k+dir;if(j<0||j>=sibs.length)return;
   const a=sibs[k],b=sibs[j];
   await supa.from('fab_planning_lignes').update({ordre:b.ordre||0}).eq('id',a.id);
