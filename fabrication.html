@@ -205,7 +205,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.224</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.225</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -678,9 +678,9 @@ function buildRecPlanMap(lignes){
     cnt[secIdx]=(cnt[secIdx]||0)+1;
     const n=fabNorm(l.nom);
     if(n&&!normMap[n])normMap[n]={secIdx:secIdx,rank:cnt[secIdx]};
-    const court=n.replace(/nature$/,'').replace(/plaques$/,''); // « Essentiel (nature) » répond aussi à « Essentiel »
+    const court=fabPlanCourt(n); // « Essentiel (nature) » répond aussi à « Essentiel »
     if(court!==n&&court&&!normMap[court])normMap[court]=normMap[n];
-    const pid=PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[court];
+    const pid=fabPidDeLigne(l.nom,prodByNom);
     if(pid&&!recPlanMap[pid])recPlanMap[pid]={secIdx:secIdx,rank:cnt[secIdx],approx:0};
   });
   // v20.219 — section forcée pour les produits SANS ligne planning.
@@ -1039,13 +1039,19 @@ const PD_PLAN_ALIAS={
   'baguetteordinaire':'pr_pain_blanc'       // même pâte que le Pain blanc (Phil 24/08)
 };
 const fabNorm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+// v20.225 \u2014 Un nom de ligne de planning \u2192 un produit fab. \u00ab (nature) \u00bb et \u00ab plaques \u00bb
+// sont un d\u00e9tail de fa\u00e7onnage, pas un autre produit : \u00ab Focaccia plaques \u00bb r\u00e9pond au
+// produit \u00ab Focaccia \u00bb. La r\u00e8gle existait pour l'ordre des Recettes mais pas pour
+// \u00ab Remplir depuis le planning \u00bb ni la Calculette, qui ignoraient la ligne en silence.
+const fabPlanCourt=n=>n.replace(/nature$/,'').replace(/plaques$/,'');
+const fabPidDeLigne=(nom,prodByNom)=>{const n=fabNorm(nom);return PD_PLAN_ALIAS[n]||prodByNom[n]||prodByNom[fabPlanCourt(n)]||null;};
 
 // v20.207 — Traduit UN JOUR de planning en pétrins + mélanges de Prod. du jour.
 // Partagé entre le bouton « Remplir depuis le planning » et le calcul automatique
 // des levains affiché dans le Planning : un seul cerveau, pas deux qui divergent.
 function planMapJour(lgRows, valById){
   const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[fabNorm(p.nom)]=p.id;});
-  const findPid=nom=>PD_PLAN_ALIAS[fabNorm(nom)]||prodByNom[fabNorm(nom)]||null;
+  const findPid=nom=>fabPidDeLigne(nom,prodByNom);
   const kgPates=new Set();
   lgRows.forEach(l=>{if(l.unite==='kg'&&calcParseNum(valById[l.id]))kgPates.add(l.pate||l.nom);});
   const jour={},melange={},ignorees=[],besoinBase={},farineAcc={};
@@ -2233,7 +2239,7 @@ async function calcFromPlan(){
   // on lit la RECETTE, comme « Remplir depuis le planning » : bacs → kg de pâte → farine.
   // Un seul cerveau, et ça suit tout seul quand une recette change.
   const prodByNom={};produits.forEach(p=>{if(p.actif!==false)prodByNom[fabNorm(p.nom)]=p.id;});
-  const findPid=nom=>PD_PLAN_ALIAS[fabNorm(nom)]||prodByNom[fabNorm(nom)]||null;
+  const findPid=nom=>fabPidDeLigne(nom,prodByNom);
   // Nom de groupe de chaque pâte de base, repris de sa ligne en kg (« La Viennoise » → « Viennoise »)
   const grpOfBase={};
   (lg.data||[]).forEach(l=>{if(l.unite!=='kg')return;const pid=findPid(l.nom);if(pid&&!grpOfBase[pid])grpOfBase[pid]=l.pate||l.nom;});
