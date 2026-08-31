@@ -212,7 +212,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.227</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.228</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -307,6 +307,7 @@
     </div>
     <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
     <div id="planMasquees" style="margin-top:10px"></div>
+    <div id="planJoursOff" style="margin-top:6px"></div>
     <div class="plan-add" style="margin-top:12px">
       <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
       <select id="planNewSection" style="flex:1"><option value="pains">Pains</option><option value="speciaux">Spéciaux</option><option value="bio">Pains bio</option><option value="levains">Levains</option><option value="viennoiserie">Viennoiserie</option></select>
@@ -2295,6 +2296,7 @@ async function calcFromPlan(){
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planMasquees=[],planVals={},planSite='local',planScanData=[];
 let planProd={},_planCopy=null; // v20.227 — production déjà saisie/validée de la semaine + presse-papier de copie
+let planJoursOff={},planJoursOffOK=false; // v20.228 — jour de fermeture par magasin (site -> '0,6')
 let planHideEmpty=localStorage.getItem('planHideEmpty')==='1'; // v20.207 — masquer les lignes vides
 // planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
@@ -2338,6 +2340,46 @@ function planVoisins(lg){
 }
 const planSecColor=k=>(PLAN_SECTIONS.find(s=>s.key===k)||{}).color||'var(--grey)';
 const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
+/* ---------- v20.228 — JOUR DE FERMETURE : cacher une colonne, la garder sous le coude ----------
+   Demande Phil (31/08) : le Local ferme le lundi, Tours le dimanche — la colonne pollue la
+   grille. Elle disparaît de l'écran, de l'impression, de la copie de semaine et de la
+   validation, mais rien n'est effacé : un jour masqué qui contient déjà des chiffres est
+   quand même affiché (avec un ⚠️), et il revient définitivement en un clic. */
+const planOffSet=()=>new Set(String(planJoursOff[planSite]||'').split(',').filter(x=>x!=='').map(Number));
+function planJoursVisibles(){
+  const off=planOffSet(),out=[];
+  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+    const rempli=off.has(i)&&planLignes.some(l=>String(planVals[l.id+'_'+iso]||'').trim());
+    if(off.has(i)&&!rempli)continue;
+    out.push({i:i,iso:iso,off:off.has(i)});}
+  return out;
+}
+async function planSetJourOff(i,on){
+  const off=planOffSet();if(on)off.add(i);else off.delete(i);
+  setSync('enregistrement…');
+  const q=await supa.from('fab_jours_off').upsert({site:planSite,jours:[...off].sort((a,b)=>a-b).join(','),updated_at:new Date().toISOString()},{onConflict:'site'});
+  if(q.error){setSync('⚠️');toast("Réglage indisponible — la migration v20.228 n'a pas encore été lancée");return;}
+  setSync('🟢 connecté');
+  await planLoad();planRender();
+  toast(PD_DAYS_FULL[i]+(on?' masqué 🙈':' réaffiché ✓'));
+}
+function planRenderJoursOff(){
+  const box=document.getElementById('planJoursOff');if(!box)return;
+  if(!planJoursOffOK){box.innerHTML='';return;} // table pas encore créée : on ne propose rien
+  const off=[...planOffSet()].sort((a,b)=>a-b);
+  let h='';
+  if(off.length){
+    h+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--grey-light);padding:4px 0">'
+      +'<span>🙈 Fermeture : '+off.map(i=>PD_DAYS_FULL[i]).join(', ')+'</span>'
+      +off.map(i=>'<button class="btn ghost sm" onclick="planSetJourOff('+i+',false)" title="Remontrer cette colonne">↩️ '+PD_DAYS_FULL[i]+'</button>').join('')
+      +'</div>';
+  }
+  h+='<details><summary style="cursor:pointer;font-size:13px;color:var(--grey-light);padding:6px 0">🗓 Jour de fermeture du magasin — cacher une colonne</summary>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0">'
+    +PD_DAYS_FULL.map((d,i)=>'<button class="btn '+(off.indexOf(i)>=0?'':'ghost')+' sm" onclick="planSetJourOff('+i+','+(off.indexOf(i)<0)+')">'+(off.indexOf(i)>=0?'🙈 ':'')+d+'</button>').join('')
+    +'</div><p class="hint">Un jour masqué disparaît de la grille et de l\'impression : il n\'est ni validé ni recopié. S\'il contient déjà des chiffres, il réapparaît tout seul avec un ⚠️.</p></details>';
+  box.innerHTML=h;
+}
 function planEnter(){
   if(!planWeekStart){const t=new Date();t.setHours(0,0,0,0);planWeekStart=pdISO(pdMonday(t));}
   planLoad().then(planRender);
@@ -2349,13 +2391,17 @@ function planSetWeek(d){
 }
 async function planLoad(){
   const end=pdAddDays(planWeekStart,6);setSync('chargement…');
-  const [lg,vl,pr]=await Promise.all([
+  const [lg,vl,pr,jo]=await Promise.all([
     supa.from('fab_planning_lignes').select('*').eq('site',planSite).order('ordre').order('id'),
     supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end),
-    supa.from('fab_production').select('date_prod,valide').eq('site',planSite).gte('date_prod',planWeekStart).lte('date_prod',end) // v20.227 — état de validation du jour
+    supa.from('fab_production').select('date_prod,valide').eq('site',planSite).gte('date_prod',planWeekStart).lte('date_prod',end), // v20.227 — état de validation du jour
+    supa.from('fab_jours_off').select('site,jours') // v20.228 — jours de fermeture (table absente = rien de masqué)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
   planProd={};(pr.data||[]).forEach(x=>{const d=planProd[x.date_prod]||(planProd[x.date_prod]={n:0,valide:true});d.n++;if(!x.valide)d.valide=false;});
+  // v20.228 — la table peut ne pas exister (migration pas encore lancée) : on n'affiche
+  // simplement pas le réglage et aucun jour n'est masqué, l'app tourne normalement.
+  planJoursOffOK=!jo.error;planJoursOff={};(jo.data||[]).forEach(x=>{planJoursOff[x.site]=x.jours||'';});
   setSync('🟢 connecté');
   // v20.223 — les lignes masquées (actif=false) restent chargées pour pouvoir les remettre.
   const toutes=lg.data||[];
@@ -2386,7 +2432,8 @@ function planCalcLevainsSemaine(){
 function planPrintWeek(){
   const end=pdAddDays(planWeekStart,6);
   const levByDay=planCalcLevainsSemaine();
-  const jours=[];for(let i=0;i<7;i++)jours.push(pdAddDays(planWeekStart,i));
+  const vis=planJoursVisibles(),NC=vis.length+1;      // v20.228 — le jour de fermeture ne s'imprime pas
+  const jours=vis.map(j=>j.iso);
   const remplie=lg=>{
     if(jours.some(iso=>String(planVals[lg.id+'_'+iso]||'').trim()))return true;
     const k=LEV_MAP[fabNorm(lg.nom)];
@@ -2398,7 +2445,7 @@ function planPrintWeek(){
     if(planHideEmpty)sibs=sibs.filter(x=>remplie(x.lg));
     if(!sibs.length)return;
     const vus={};sibs.forEach(x=>vus[x.lg.id]=1);
-    rows+='<tr class="psec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
+    rows+='<tr class="psec"><td colspan="'+NC+'" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
     sibs.forEach(x=>{
       const lg=x.lg,k=LEV_MAP[fabNorm(lg.nom)];
       const pref=x.mere?'↳ ':'',suff=(x.mere&&!vus[x.mere.id])?' <small>(de '+x.mere.nom+')</small>':'';
@@ -2452,11 +2499,13 @@ function planRender(){
   const end=pdAddDays(planWeekStart,6);
   document.getElementById('planWeekLbl').textContent='Semaine du '+planFr(planWeekStart)+' au '+planFr(end);
   const today=new Date().toISOString().slice(0,10);
+  const jours=planJoursVisibles(),NC=jours.length+1; // v20.228 — colonnes réellement affichées
   let head='<thead><tr><th style="text-align:left">Produit</th>';
-  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const d=pdParse(iso);head+='<th'+(iso===today?' style="background:var(--gold);color:#fff"':'')+'>'+PD_DAYS[i]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</th>';}
+  jours.forEach(j=>{const d=pdParse(j.iso);head+='<th'+(j.iso===today?' style="background:var(--gold);color:#fff"':'')+'>'+PD_DAYS[j.i]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)
+    +(j.off?'<div style="font-size:9px;color:var(--orange)" title="Jour de fermeture masqué, mais il contient des chiffres">⚠️ fermé</div>':'')+'</th>';});
   head+='</tr></thead>';
-  let body='<tbody>'+planValidRow();
-  if(!planLignes.length){body+='<tr><td colspan="8" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
+  let body='<tbody>'+planValidRow(jours);
+  if(!planLignes.length){body+='<tr><td colspan="'+NC+'" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
   // v20.207 — Levains calculés automatiquement pour chaque jour de la semaine :
   // on traduit le jour en pétrins (planMapJour, le même cerveau que « Remplir
   // depuis le planning ») et on somme le levain de chaque recette. Affiché en
@@ -2486,7 +2535,7 @@ function planRender(){
       +'<button class="ico-btn" onclick="planMasquer('+lg.id+')" title="Masquer ce produit (récupérable)">🙈</button>'
       +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
     const estNote=planSecOf(lg)==='notes';
-    for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const val=planVals[lg.id+'_'+iso]||'';
+    for(const j of jours){const iso=j.iso;const val=planVals[lg.id+'_'+iso]||'';
       let ph='';
       if(levKey&&!String(val).trim()){const t=levByDay[iso];const q=t?t[levKey]:0;if(q>0.05)ph=String(calcR05(q));}
       r+='<td><input class="pcell'+(estNote?' pnote':'')+'" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
@@ -2498,12 +2547,12 @@ function planRender(){
     const visibles=planHideEmpty?rangees.filter(x=>ligneRemplie(x.lg)):rangees;
     if(!visibles.length)return;
     const vus={};visibles.forEach(x=>vus[x.lg.id]=1);
-    body+='<tr class="plan-sec"><td colspan="8" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
+    body+='<tr class="plan-sec"><td colspan="'+NC+'" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
     visibles.forEach(x=>body+=renderLine(x.lg,planVoisins(x.lg),x.mere,!!(x.mere&&vus[x.mere.id])));
   });
   body+='</tbody>';
   document.getElementById('planTbl').innerHTML=head+body;
-  planRenderMasquees();
+  planRenderMasquees();planRenderJoursOff();
 }
 /* ---------- v20.227 — VALIDER LA JOURNÉE DEPUIS LE PLANNING ----------
    Demande Phil (31/08) : décompter les farines sans repasser par Prod. du jour.
@@ -2526,11 +2575,11 @@ function planJourRows(iso){
     if(q>0&&recettesMap[mp])rows.push({produit_id:mp,recette_id:recettesMap[mp].id,site:planSite,date_prod:iso,quantite:r2(q),valide:true});});
   return {rows:rows,ignorees:m.ignorees||[]};
 }
-function planValidRow(){
+function planValidRow(jours){
   const today=pdISO(new Date());
   let r='<tr class="plan-valid"><td class="pname" style="border-left-color:var(--green)">✓ Valider la journée'
     +'<span class="pu"> · décompte les farines du stock</span></td>';
-  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+  for(const j of (jours||planJoursVisibles())){const iso=j.iso;
     const p=planProd[iso],val=!!(p&&p.n&&p.valide);
     if(!planJourRempli(iso)){r+='<td style="text-align:center;color:#ccc">—</td>';continue;}
     const futur=iso>today;
@@ -2548,7 +2597,7 @@ async function planValiderJour(iso){
 }
 async function planValiderSemaine(){
   const today=pdISO(new Date()),isos=[],deja=[],futurs=[];
-  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+  for(const j of planJoursVisibles()){const iso=j.iso;   // v20.228 — un jour de fermeture masqué n'est pas validé
     if(!planJourRempli(iso))continue;
     if(iso>today){futurs.push(iso);continue;}                       // jour à venir : on ne décompte pas
     if(planProd[iso]&&planProd[iso].n&&planProd[iso].valide){deja.push(iso);continue;} // déjà validé : on n'y touche pas
@@ -2604,7 +2653,8 @@ async function planCopyPrevWeek(){
   (q.data||[]).forEach(v=>{if(String(v.valeur||'').trim()){vals[v.ligne_id+'_'+v.date_jour]=v.valeur;nSrc++;}});
   if(!nSrc){toast('La semaine du '+planFr(src)+' est vide — rien à copier');return;}
   let nCible=0;
-  planLignes.forEach(l=>{for(let i=0;i<7;i++){if(String(planVals[l.id+'_'+pdAddDays(planWeekStart,i)]||'').trim())nCible++;}});
+  const vis=planJoursVisibles(); // v20.228 — on ne recopie pas dans un jour de fermeture masqué
+  planLignes.forEach(l=>{vis.forEach(j=>{if(String(planVals[l.id+'_'+j.iso]||'').trim())nCible++;});});
   _planCopy={src:src,vals:vals};
   if(!nCible)return planCopyDo('ecraser');
   document.getElementById('modal').innerHTML='<h3>Copier la semaine du '+planFr(src)+'</h3>'
@@ -2618,10 +2668,10 @@ async function planCopyPrevWeek(){
 async function planCopyDo(mode){
   closeModal();
   if(!_planCopy)return;
-  const src=_planCopy.src,vals=_planCopy.vals,rows=[];
-  planLignes.forEach(l=>{for(let i=0;i<7;i++){
-    const cible=pdAddDays(planWeekStart,i);
-    const v=String(vals[l.id+'_'+pdAddDays(src,i)]||'');
+  const src=_planCopy.src,vals=_planCopy.vals,rows=[],vis=planJoursVisibles();
+  planLignes.forEach(l=>{for(const j of vis){
+    const cible=j.iso;
+    const v=String(vals[l.id+'_'+pdAddDays(src,j.i)]||'');
     const actuel=String(planVals[l.id+'_'+cible]||'');
     if(mode==='vides'){if(actuel.trim()||!v.trim())continue;}
     else if(v===actuel)continue;                            // « écraser » : on vide aussi ce que la semaine source n'avait pas
