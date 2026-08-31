@@ -196,6 +196,9 @@
   .plan-tbl td.pname.pdecl{padding-left:16px;font-weight:normal}
   .plan-tbl .parr{color:var(--gold-dark);font-weight:bold;margin-right:3px}
   .plan-tbl .pmere{font-size:10px;color:var(--grey-light);font-weight:normal;display:block}
+  /* v20.227 — bandeau « Valider la journée » en tête de grille */
+  .plan-tbl tr.plan-valid td{background:#F3F7F2}
+  .plan-tbl tr.plan-valid td.pname{color:var(--green);font-size:12px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .plan-add input,.plan-add select{padding:8px;border:1px solid var(--gold-light);border-radius:8px}
 </style>
@@ -209,7 +212,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.226</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.227</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -285,6 +288,10 @@
       <b id="planWeekLbl" style="flex:1;text-align:center;font-size:13px"></b>
       <button class="btn ghost sm" onclick="planSetWeek(1)">▶</button>
       <button class="btn ghost sm" onclick="planSetWeek(0)">Auj.</button>
+    </div>
+    <div class="btn-row" style="margin-bottom:8px">
+      <button class="btn ghost" onclick="planCopyPrevWeek()">⬇️ Copier la semaine précédente</button>
+      <button class="btn" onclick="planValiderSemaine()">✓ Valider la semaine (décompter les farines)</button>
     </div>
     <div class="btn-row" style="margin-bottom:8px">
       <input type="file" id="planPhoto" accept="image/*" capture="environment" style="display:none" onchange="planScanFile()">
@@ -1176,21 +1183,28 @@ function pdDayFarineRecap(){
 }
 // FLEURAGE : farine pour diviser/fariner, ~5% du total farine du jour, en Tradition Bio (toujours actif)
 const FLEURAGE_PCT=5;
-function pdDayFlourTotal(){
+// v20.227 — version générique (site + jour) : la validation depuis le Planning peut
+// porter sur un autre jour que celui affiché dans Prod. du jour.
+function pdFlourTotalFor(site,iso){
   let t=0;
-  bilProd.forEach(p=>{if(p.site===fabSite&&p.date_prod===pdDate&&p.valide){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+  bilProd.forEach(p=>{if(p.site===site&&p.date_prod===iso&&p.valide){const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
     const base=(+rl.quantite)*(+p.quantite/rb);const ing=_ingById[rl.ingredient_id];
     if(ing&&ing.categorie==='farine')t+=base;
     if(ing&&ing.categorie==='levain'&&ing.farine_levain_id){const r=(+ing.eau_ratio)||0;t+=base/(1+r);}
   });}});
   return t;
 }
-function pdFleurageKg(){return Math.round(pdDayFlourTotal()*FLEURAGE_PCT/100*100)/100;}
-async function pdSaveFleurage(){ // remplace la sortie fleurage du jour (recalcul à chaque validation)
-  await supa.from('fab_sorties').delete().eq('site',fabSite).eq('date_sortie',pdDate);
-  const fleur=pdFleurageKg();
-  if(fleur>0)await supa.from('fab_sorties').insert({ingredient_id:'ing_trad_bio',site:fabSite,date_sortie:pdDate,quantite_kg:fleur,valide:true});
+function pdDayFlourTotal(){return pdFlourTotalFor(fabSite,pdDate);}
+function pdFleurageKg(){return k2(pdDayFlourTotal()*FLEURAGE_PCT/100);}
+// v20.227 — on ne supprime QUE la ligne de fleurage (Tradition Bio) : avant, la
+// validation effaçait toutes les sorties du jour, donc les pesées de farine
+// non-bio saisies à la main dans « Sorties » disparaissaient du stock.
+async function pdSaveFleurageFor(site,iso){ // remplace la sortie fleurage du jour (recalcul à chaque validation)
+  await supa.from('fab_sorties').delete().eq('site',site).eq('date_sortie',iso).eq('ingredient_id','ing_trad_bio');
+  const fleur=k2(pdFlourTotalFor(site,iso)*FLEURAGE_PCT/100);
+  if(fleur>0)await supa.from('fab_sorties').insert({ingredient_id:'ing_trad_bio',site:site,date_sortie:iso,quantite_kg:fleur,valide:true});
 }
+async function pdSaveFleurage(){return pdSaveFleurageFor(fabSite,pdDate);}
 function pdRenderValidBar(){
   const box=document.getElementById('pdValidBar');if(!box)return;
   let h='<button class="btn" style="width:100%;'+(pdDayValide?'background:var(--green)':'')+'" onclick="pdValiderJour()">'+(pdDayValide?'✓ Journée validée — re-valider si rajout':'✓ Valider ma journée (décompter les farines)')+'</button>';
@@ -2280,6 +2294,7 @@ async function calcFromPlan(){
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planMasquees=[],planVals={},planSite='local',planScanData=[];
+let planProd={},_planCopy=null; // v20.227 — production déjà saisie/validée de la semaine + presse-papier de copie
 let planHideEmpty=localStorage.getItem('planHideEmpty')==='1'; // v20.207 — masquer les lignes vides
 // planSite piloté par le sélecteur de magasin global (setSite)
 const PLAN_SECTIONS=[
@@ -2334,11 +2349,13 @@ function planSetWeek(d){
 }
 async function planLoad(){
   const end=pdAddDays(planWeekStart,6);setSync('chargement…');
-  const [lg,vl]=await Promise.all([
+  const [lg,vl,pr]=await Promise.all([
     supa.from('fab_planning_lignes').select('*').eq('site',planSite).order('ordre').order('id'),
-    supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end)
+    supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur').gte('date_jour',planWeekStart).lte('date_jour',end),
+    supa.from('fab_production').select('date_prod,valide').eq('site',planSite).gte('date_prod',planWeekStart).lte('date_prod',end) // v20.227 — état de validation du jour
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
+  planProd={};(pr.data||[]).forEach(x=>{const d=planProd[x.date_prod]||(planProd[x.date_prod]={n:0,valide:true});d.n++;if(!x.valide)d.valide=false;});
   setSync('🟢 connecté');
   // v20.223 — les lignes masquées (actif=false) restent chargées pour pouvoir les remettre.
   const toutes=lg.data||[];
@@ -2438,7 +2455,7 @@ function planRender(){
   let head='<thead><tr><th style="text-align:left">Produit</th>';
   for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);const d=pdParse(iso);head+='<th'+(iso===today?' style="background:var(--gold);color:#fff"':'')+'>'+PD_DAYS[i]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</th>';}
   head+='</tr></thead>';
-  let body='<tbody>';
+  let body='<tbody>'+planValidRow();
   if(!planLignes.length){body+='<tr><td colspan="8" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
   // v20.207 — Levains calculés automatiquement pour chaque jour de la semaine :
   // on traduit le jour en pétrins (planMapJour, le même cerveau que « Remplir
@@ -2488,6 +2505,137 @@ function planRender(){
   document.getElementById('planTbl').innerHTML=head+body;
   planRenderMasquees();
 }
+/* ---------- v20.227 — VALIDER LA JOURNÉE DEPUIS LE PLANNING ----------
+   Demande Phil (31/08) : décompter les farines sans repasser par Prod. du jour.
+   Un clic sur la pastille d'un jour = « ⇩ Remplir depuis le planning » + « ✓ Valider
+   ma journée » pour ce jour et ce magasin : le planning FAIT FOI, il remplace la
+   saisie de Prod. du jour. La validation semaine saute les jours vides, les jours à
+   venir (on ne décompte pas du stock ce qui n'est pas encore pétri) et les jours
+   déjà validés (pour ne pas écraser un ajustement fait à la main après coup). */
+const planJourRempli=iso=>planLignes.some(l=>planSecOf(l)!=='notes'&&String(planVals[l.id+'_'+iso]||'').trim());
+// Traduit une colonne du planning en lignes de fab_production (même cerveau que « Remplir depuis le planning »)
+function planJourRows(iso){
+  const valById={};planLignes.forEach(l=>{valById[l.id]=planVals[l.id+'_'+iso]||'';});
+  const m=planMapJour(planLignes.filter(l=>planSecOf(l)!=='notes'&&planSecOf(l)!=='levains'),valById);
+  const rows=[];
+  Object.keys(m.jour).forEach(pid=>(m.jour[pid]||[]).forEach(b=>{
+    const kg=pdRowKgFlour({pid:pid,qte:b.qte});                       // bacs → kg de farine, comme Prod. du jour
+    if(kg>0)rows.push({produit_id:pid,recette_id:recettesMap[pid].id,site:planSite,date_prod:iso,quantite:r2(kg),valide:true});
+  }));
+  Object.keys(m.melange).forEach(mp=>{const q=parseFloat(m.melange[mp])||0; // mélange : quantite = nb de bacs
+    if(q>0&&recettesMap[mp])rows.push({produit_id:mp,recette_id:recettesMap[mp].id,site:planSite,date_prod:iso,quantite:r2(q),valide:true});});
+  return {rows:rows,ignorees:m.ignorees||[]};
+}
+function planValidRow(){
+  const today=pdISO(new Date());
+  let r='<tr class="plan-valid"><td class="pname" style="border-left-color:var(--green)">✓ Valider la journée'
+    +'<span class="pu"> · décompte les farines du stock</span></td>';
+  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+    const p=planProd[iso],val=!!(p&&p.n&&p.valide);
+    if(!planJourRempli(iso)){r+='<td style="text-align:center;color:#ccc">—</td>';continue;}
+    const futur=iso>today;
+    r+='<td style="text-align:center"><button class="btn sm'+(val?'':' ghost')+'" style="padding:4px 10px;font-size:12px'
+      +(val?';background:var(--green);border-color:var(--green)':'')+(futur?';opacity:.55':'')+'" onclick="planValiderJour(\''+iso+'\')" title="'
+      +(val?'Journée validée — cliquer pour recalculer':'Valider cette journée et décompter les farines')+'">✓</button></td>';}
+  return r+'</tr>';
+}
+async function planValiderJour(iso){
+  if(!planJourRempli(iso)){toast('Rien dans le planning ce jour-là');return;}
+  const p=planProd[iso],today=pdISO(new Date());
+  if(iso>today&&!confirm(pdLabel(iso)+' n\'est pas encore passé.\n\nValider maintenant décompte quand même les farines du stock. Continuer ?'))return;
+  else if(iso<=today&&p&&p.n&&!confirm(pdLabel(iso)+' : Prod. du jour contient déjà '+p.n+' ligne'+(p.n>1?'s':'')+(p.valide?' (déjà validée'+(p.n>1?'s':'')+')':'')+'.\n\nLe planning va les remplacer et les farines seront recalculées. Continuer ?'))return;
+  await planValiderJours([iso]);
+}
+async function planValiderSemaine(){
+  const today=pdISO(new Date()),isos=[],deja=[],futurs=[];
+  for(let i=0;i<7;i++){const iso=pdAddDays(planWeekStart,i);
+    if(!planJourRempli(iso))continue;
+    if(iso>today){futurs.push(iso);continue;}                       // jour à venir : on ne décompte pas
+    if(planProd[iso]&&planProd[iso].n&&planProd[iso].valide){deja.push(iso);continue;} // déjà validé : on n'y touche pas
+    isos.push(iso);}
+  if(!isos.length){toast(deja.length?'Tout est déjà validé cette semaine ✓':'Rien à valider cette semaine');return;}
+  const suite=(deja.length?'\n\n· '+deja.length+' journée'+(deja.length>1?'s':'')+' déjà validée'+(deja.length>1?'s':'')+' : pas touchée'+(deja.length>1?'s':''):'')
+    +(futurs.length?'\n· '+futurs.length+' jour'+(futurs.length>1?'s':'')+' à venir : ignoré'+(futurs.length>1?'s':'')+' (à valider le jour même)':'');
+  if(!confirm('Valider '+isos.length+' journée'+(isos.length>1?'s':'')+' : '+isos.map(planFr).join(', ')+' ?\n\nLe planning remplace la saisie de Prod. du jour et les farines sont décomptées du stock.'+suite))return;
+  await planValiderJours(isos);
+}
+async function planValiderJours(isos){
+  setSync('validation…');
+  const ign={},faits=[];
+  for(const iso of isos){
+    const r=planJourRows(iso);
+    (r.ignorees||[]).forEach(n=>ign[n]=1);
+    if(!r.rows.length)continue;
+    const del=await supa.from('fab_production').delete().eq('site',planSite).eq('date_prod',iso);
+    if(del.error){setSync('⚠️');toast(del.error.message);return;}
+    const ins=await supa.from('fab_production').insert(r.rows);
+    if(ins.error){setSync('⚠️');toast(ins.error.message);return;}
+    faits.push(iso);
+  }
+  if(!faits.length){setSync('🟢 connecté');toast('Aucune ligne du planning n\'a de recette rattachée');}
+  else{
+    await bilLoadRaw();                                    // les recettes sont nécessaires au calcul du fleurage
+    for(const iso of faits)await pdSaveFleurageFor(planSite,iso);   // fleurage 5% en Tradition Bio, jour par jour
+    await bilLoadRaw();
+    setSync('🟢 connecté');
+    toast(faits.length===1?'Journée validée — farines décomptées ✓':faits.length+' journées validées — farines décomptées ✓');
+  }
+  await planLoad();planRender();
+  if(pdWeekStart)await pdLoadWeek();                        // le bandeau de Prod. du jour suit
+  if(faits.indexOf(pdDate)>=0)await pdLoadDay();
+  const l=Object.keys(ign);
+  if(l.length)alert('Non repris (pas de recette rattachée) :\n· '+l.join('\n· ')+'\n\nCes lignes restent dans le Planning.');
+}
+
+/* ---------- v20.227 — COPIER LA SEMAINE PRÉCÉDENTE ----------
+   Demande Phil (31/08) : ne pas retaper une grille quasi identique. On recopie
+   jour pour jour (lundi→lundi) les lignes du magasin affiché, y compris les
+   « Préparations / à faire » et les levains saisis à la main. Semaine cible vide =
+   copie directe ; sinon on demande : tout écraser, ou compléter les trous. */
+async function planCopyPrevWeek(){
+  const src=pdAddDays(planWeekStart,-7),srcEnd=pdAddDays(src,6);
+  if(!planLignes.length){toast('Aucune ligne dans ce planning');return;}
+  setSync('lecture de la semaine précédente…');
+  const q=await supa.from('fab_planning_valeurs').select('ligne_id,date_jour,valeur')
+    .gte('date_jour',src).lte('date_jour',srcEnd).in('ligne_id',planLignes.map(l=>l.id));
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');
+  const vals={};let nSrc=0;
+  (q.data||[]).forEach(v=>{if(String(v.valeur||'').trim()){vals[v.ligne_id+'_'+v.date_jour]=v.valeur;nSrc++;}});
+  if(!nSrc){toast('La semaine du '+planFr(src)+' est vide — rien à copier');return;}
+  let nCible=0;
+  planLignes.forEach(l=>{for(let i=0;i<7;i++){if(String(planVals[l.id+'_'+pdAddDays(planWeekStart,i)]||'').trim())nCible++;}});
+  _planCopy={src:src,vals:vals};
+  if(!nCible)return planCopyDo('ecraser');
+  document.getElementById('modal').innerHTML='<h3>Copier la semaine du '+planFr(src)+'</h3>'
+    +'<p class="hint">La semaine affichée contient déjà <b>'+nCible+' case'+(nCible>1?'s':'')+' remplie'+(nCible>1?'s':'')+'</b>. Qu\'est-ce qu\'on en fait ?</p>'
+    +'<div class="btn-row" style="flex-direction:column;align-items:stretch;gap:8px">'
+    +'<button class="btn" onclick="planCopyDo(\'ecraser\')">↺ Tout remplacer par la semaine précédente</button>'
+    +'<button class="btn ghost" onclick="planCopyDo(\'vides\')">＋ Compléter seulement les cases vides</button>'
+    +'<button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
+  document.getElementById('modalBg').classList.add('show');
+}
+async function planCopyDo(mode){
+  closeModal();
+  if(!_planCopy)return;
+  const src=_planCopy.src,vals=_planCopy.vals,rows=[];
+  planLignes.forEach(l=>{for(let i=0;i<7;i++){
+    const cible=pdAddDays(planWeekStart,i);
+    const v=String(vals[l.id+'_'+pdAddDays(src,i)]||'');
+    const actuel=String(planVals[l.id+'_'+cible]||'');
+    if(mode==='vides'){if(actuel.trim()||!v.trim())continue;}
+    else if(v===actuel)continue;                            // « écraser » : on vide aussi ce que la semaine source n'avait pas
+    rows.push({ligne_id:l.id,date_jour:cible,valeur:v});
+  }});
+  if(!rows.length){toast('Rien à copier — la semaine est déjà identique');return;}
+  setSync('copie…');
+  const up=await supa.from('fab_planning_valeurs').upsert(rows,{onConflict:'ligne_id,date_jour'});
+  if(up.error){setSync('⚠️');toast(up.error.message);return;}
+  setSync('🟢 connecté');
+  await planLoad();planRender();
+  toast(rows.length+' case'+(rows.length>1?'s':'')+' copiée'+(rows.length>1?'s':'')+' depuis la semaine du '+planFr(src)+' ✓');
+}
+
 // v20.223 — Produits masqués : rangés sous le tableau, remis en 1 clic (demande
 // Phil : Tours et Veigné partent du planning du Local et enlèvent ce qu'ils ne font pas).
 function planRenderMasquees(){
