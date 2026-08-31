@@ -212,7 +212,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.228</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.229</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -241,6 +241,7 @@
       <button class="ico-btn" onclick="pdChangeWeek(1)">›</button>
     </div>
     <p class="hint" id="pdDayLabel" style="font-weight:bold;color:var(--gold-dark);margin-top:2px"></p>
+    <div id="pdValMois" style="margin:6px 0 2px"></div>
     <button class="btn ghost" style="margin:4px 0 8px;padding:8px 14px;font-size:13px" onclick="pdFillFromPlan()">⇩ Remplir depuis le planning</button>
     <label>Affichage des pesées</label>
     <div class="seg" id="fabUnit">
@@ -1147,6 +1148,7 @@ async function pdLoadDay(){
   });
   fabChecked={};pdRenderAll();
   if(pdDayValide&&!bilProd.length){bilLoadRaw().then(pdRenderValidBar);}else{pdRenderValidBar();}
+  valLoadMois().then(pdRenderValMois);   // v20.229 — compteur du mois
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
 async function pdDoSave(){
@@ -1160,6 +1162,85 @@ async function pdDoSave(){
   if(rows.length){const q=await supa.from('fab_production').insert(rows);if(q.error){setSync('⚠️');toast(q.error.message);return;}}
   setSync('🟢 connecté');pdDayValide=false;pdRenderValidBar();pdLoadWeek();
 }
+/* ---------- v20.229 — COMPTEUR DE JOURNÉES VALIDÉES (par site, sur le mois) ----------
+   Tout le reste en dépend : stock bio, Bilan bio / Bureau Veritas, conso matières
+   premières, futur cadencier. Constat du 31/08 : Tours valide ~25 jours par mois, le
+   Local 3 à 16 — donc les chiffres du Local sont faux. Ce bandeau rend l'oubli visible
+   le matin même, au-dessus de la saisie, et amène en un clic sur la journée à rattraper.
+   Dénominateur = jours du mois DÉJÀ PASSÉS, hors jour de fermeture du magasin
+   (fab_jours_off) — un férié compte donc comme un jour sans rien, on le voit et on passe. */
+let valMois='',valData=null;
+// PostgREST plafonne à 1000 lignes : on pagine (un mois × 3 sites peut dépasser).
+async function fabFetchAll(build){
+  let out=[],from=0;
+  for(let i=0;i<8;i++){
+    const q=await build(from,from+999);
+    if(q.error)return {error:q.error};
+    const d=q.data||[];out=out.concat(d);
+    if(d.length<1000)break;
+    from+=1000;
+  }
+  return {data:out};
+}
+const valFin=mois=>{const a=+mois.slice(0,4),m=+mois.slice(5,7);const d=new Date(a,m,0);return pdISO(d);};
+async function valLoadMois(force){
+  const mois=(pdDate||pdISO(new Date())).slice(0,7);
+  if(!force&&valMois===mois&&valData)return;
+  const deb=mois+'-01',fin=valFin(mois);
+  const [pr,jo]=await Promise.all([
+    fabFetchAll((a,b)=>supa.from('fab_production').select('site,date_prod,valide').gte('date_prod',deb).lte('date_prod',fin).order('date_prod').range(a,b)),
+    supa.from('fab_jours_off').select('site,jours')
+  ]);
+  if(pr.error){valData=null;return;}
+  if(!jo.error){planJoursOff={};(jo.data||[]).forEach(x=>{planJoursOff[x.site]=x.jours||'';});planJoursOffOK=true;}
+  const par={};
+  (pr.data||[]).forEach(x=>{const k=x.site+'_'+x.date_prod;const d=par[k]||(par[k]={n:0,valide:true});d.n++;if(!x.valide)d.valide=false;});
+  valMois=mois;valData=par;
+}
+// Un jour est « à faire » s'il est passé et que ce n'est pas le jour de fermeture du magasin.
+function valBilanSite(site){
+  const mois=valMois,fin=valFin(mois),today=pdISO(new Date());
+  const stop=(fin<today?fin:today);
+  const off=new Set(String(planJoursOff[site]||'').split(',').filter(x=>x!=='').map(Number));
+  const res={du:0,ok:0,aValider:[],vides:[]};
+  for(let iso=mois+'-01';iso<=stop;iso=pdAddDays(iso,1)){
+    if(off.has((pdParse(iso).getDay()+6)%7))continue;
+    res.du++;
+    const d=(valData||{})[site+'_'+iso];
+    if(d&&d.valide)res.ok++;
+    else if(d)res.aValider.push(iso);
+    else res.vides.push(iso);
+  }
+  return res;
+}
+const valMoisNom=m=>['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][+m.slice(5,7)-1]+' '+m.slice(0,4);
+function pdRenderValMois(){
+  const box=document.getElementById('pdValMois');if(!box)return;
+  if(!valData){box.innerHTML='';return;}
+  const b=valBilanSite(fabSite);
+  if(!b.du){box.innerHTML='';return;}
+  const pct=Math.round(b.ok/b.du*100);
+  const col=pct>=90?'var(--green)':(pct>=60?'var(--orange)':'var(--red)');
+  const chip=iso=>'<button class="btn ghost sm" style="padding:3px 8px;font-size:11.5px" onclick="pdGoDate(\''+iso+'\')">'+planFr(iso)+'</button>';
+  let h='<div style="background:var(--cream);border-radius:10px;padding:8px 10px;border-left:4px solid '+col+'">'
+    +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:13px">'
+    +'<b style="color:'+col+'">✓ '+b.ok+' / '+b.du+' journées validées</b>'
+    +'<span style="color:var(--grey-light)">en '+valMoisNom(valMois)+'</span></div>'
+    +'<div style="height:6px;border-radius:4px;background:#E8DCC2;margin:5px 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+'"></div></div>';
+  if(b.aValider.length)h+='<div style="font-size:12px;margin-top:4px;color:var(--red)"><b>⚠️ Saisi mais pas validé — les farines ne sont pas décomptées :</b><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">'+b.aValider.map(chip).join('')+'</div></div>';
+  if(b.vides.length)h+='<details style="margin-top:5px"><summary style="cursor:pointer;font-size:12px;color:var(--grey-light)">○ '+b.vides.length+' jour'+(b.vides.length>1?'s':'')+' sans rien de saisi (fériés compris)</summary>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">'+b.vides.map(chip).join('')+'</div></details>';
+  // les autres magasins, en petit : on se compare, ça fait avancer
+  const autres=SITES.filter(x=>x[0]!==fabSite).map(x=>{const o=valBilanSite(x[0]);return o.du?x[1]+' '+o.ok+'/'+o.du:null;}).filter(Boolean);
+  if(autres.length)h+='<div style="font-size:11.5px;color:var(--grey-light);margin-top:5px">'+autres.join(' · ')+'</div>';
+  box.innerHTML=h+'</div>';
+}
+async function pdGoDate(iso){ // aller sur une journée, même dans une autre semaine
+  pdWeekStart=pdISO(pdMonday(pdParse(iso)));
+  await pdLoadWeek();await pdSetDate(iso);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 async function pdValiderJour(){
   clearTimeout(_pdSaveTimer);await pdDoSave();          // on enregistre d'abord la saisie en cours (en brouillon)
   if(!pdEntries().some(e=>(parseFloat(e.qte)||0)>0)&&!Object.keys(pdMelange).some(m=>(parseFloat(pdMelange[m])||0)>0)){toast('Rien à valider pour ce jour');return;}
@@ -1167,6 +1248,7 @@ async function pdValiderJour(){
   const q=await supa.from('fab_production').update({valide:true}).eq('site',fabSite).eq('date_prod',pdDate);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
   setSync('🟢 connecté');pdDayValide=true;
+  await valLoadMois(true);pdRenderValMois();
   await bilLoadRaw();
   await pdSaveFleurage();   // fleurage 5% en Tradition Bio
   await bilLoadRaw();
@@ -2631,6 +2713,7 @@ async function planValiderJours(isos){
   }
   await planLoad();planRender();
   if(pdWeekStart)await pdLoadWeek();                        // le bandeau de Prod. du jour suit
+  await valLoadMois(true);pdRenderValMois();
   if(faits.indexOf(pdDate)>=0)await pdLoadDay();
   const l=Object.keys(ign);
   if(l.length)alert('Non repris (pas de recette rattachée) :\n· '+l.join('\n· ')+'\n\nCes lignes restent dans le Planning.');
