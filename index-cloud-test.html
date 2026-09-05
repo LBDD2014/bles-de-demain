@@ -2521,7 +2521,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.235';
+const APP_VERSION  = 'v20.236';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4746,9 +4746,19 @@ const prods = products.filter(function(p) {
 // v20.50 — écran de commande = uniquement les produits réappro (jamais la liste vente magasin)
 const u = p.usage || 'reappro';
 if (u !== 'reappro' && u !== 'both') return false;
-if (wantedCats.indexOf(p.category) === -1) return false;
 const sup = getProductSupply(p, boutiqueForSupply);
 if (sup == null) return false;
+// v20.236 — Le « sec » du pâtissier de Veigné (Brownie, Brookie, Diamants, Madeleines…)
+// vit en catégorie `sec_traiteur`, qui n'était pas dans la liste de l'onglet Cmd Veigné
+// Pât. : St-Avertin ne pouvait donc PAS commander ses brownies/brookies (signalé par
+// Phil le 05/09). Tours, lui, passe par un autre écran (renderReappro) où la règle est
+// « supply = veigne → section pâtisserie Veigné », donc il les avait déjà.
+// On n'ajoute que ce qui est LIVRÉ par Veigné : l'écran de Veigné, qui les produit sur
+// place (supply on_site), ne change pas. Le catalogue pâtissier (v20.78) reste le juge :
+// un produit n'apparaît que s'il y est actif et le magasin autorisé.
+const catOk = (wantedCats.indexOf(p.category) !== -1)
+  || (isPat && p.category === 'sec_traiteur' && sup === 'veigne');
+if (!catOk) return false;
 // Pâtisserie : à St-Av on exige supply='veigne' (livrée depuis Veigné).
 // À Veigné on accepte tout supply non null (Veigné Pâtissier produit sur place : 'on_site').
 if (isPat && boutiqueForSupply === 'saint-avertin' && sup !== 'veigne') return false;
