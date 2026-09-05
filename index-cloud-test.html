@@ -2516,7 +2516,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.233';
+const APP_VERSION  = 'v20.234';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -8284,10 +8284,22 @@ let allProducts;
 if (isToursProd) {
   // Réutilise la liste Ventes de Tours (cohérent avec la prévision Matin), limitée aux familles produites sur place
   const toursCats = ['pains', 'viennoiserie', 'brioches_special', 'traiteur'];
+  // v20.234 — LA TARTERIE MANQUAIT DEPUIS LA v20.52 (signalé par Tours, 31/08) : les
+  // catégories pâtisserie n'étaient pas dans la liste, donc les tartes (pommes,
+  // vigneronne, amandine — « les tartes fines » dans le langage de Phil), les
+  // tartelettes et les gâteaux secs n'apparaissaient JAMAIS dans « À produire »,
+  // alors que Prev.Pât de Tours les prévoit déjà (a_previs ON sur ces catégories).
+  // Règle : Tours ne produit que ce qu'elle reçoit surgelé du Local et cuit sur
+  // place (supply = local) ou ce qu'elle fait de A à Z (on_site) — même logique que
+  // la viennoiserie. Le frais livré fini par Veigné (fraisiers, éclairs, tartes aux
+  // fraises, citron meringuée…) n'a rien à faire ici, Tours n'a rien à produire dessus.
+  const toursCatsPat = ['patisserie_gros', 'patisserie_petits', 'gateaux_secs'];
   allProducts = getProductsForVentes().filter(function(p) {
-    if (toursCats.indexOf(p.category) === -1) return false;
     if (p.boutique_restriction && p.boutique_restriction !== 'tours') return false;
-    return true;
+    if (toursCats.indexOf(p.category) !== -1) return true;
+    if (toursCatsPat.indexOf(p.category) === -1) return false;
+    const supT = getProductSupply(p, 'tours');
+    return supT === 'local' || supT === 'on_site';
   });
 } else if (isLocalBoul) {
   allProducts = products.filter(isProdBoulProduct); // v20.178 — pains + viennoises du fournil
