@@ -30,3 +30,10 @@ on conflict (id) do update
 --    dès qu'on l'a, mettre conditioning_unit='grille' + conditioning_qty=N pour que
 --    l'app affiche « grille de N » au lieu de « grille »).
 update public.products set unit = 'pièce' where id = 'vv_wke';
+
+-- 4) Phil (08/09) : « 50 par grille environ » -> l'app affiche « grille de 50 »
+--    partout (commande, ventes, production), pour qu'on ne commande pas 50 grilles
+--    en croyant commander 50 chouquettes.
+update public.products
+   set conditioning_unit = 'grille', conditioning_qty = 50
+ where id = 'chouquette';
