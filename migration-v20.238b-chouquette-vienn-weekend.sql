@@ -24,3 +24,9 @@ on conflict (id) do update
 -- Vérification
 -- select id, name, category, unit, usage, supply_by_boutique
 --   from public.products where id in ('chouquette','vv_wke');
+
+-- 3) Unités confirmées par Phil (08/09) : la Vienn. du Week End se vend à la pièce,
+--    la Chouquette à la grille (nombre de pièces par grille non renseigné à ce jour —
+--    dès qu'on l'a, mettre conditioning_unit='grille' + conditioning_qty=N pour que
+--    l'app affiche « grille de N » au lieu de « grille »).
+update public.products set unit = 'pièce' where id = 'vv_wke';
