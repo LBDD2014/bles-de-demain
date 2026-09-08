@@ -813,6 +813,7 @@ box-shadow: 0 1px 3px rgba(61,43,31,0.04);
 .sp-card-hdr strong { font-size: 14px; color: var(--brown); }
 .sp-card-time { font-size: 12px; color: var(--gold-dark); font-weight: 600; }
 .sp-card-body { font-size: 12px; color: var(--brown-mid); line-height: 1.4; margin-bottom: 8px; }
+.sp-who { background:#F2EEE4; color: var(--brown-mid); border-radius:20px; padding:3px 9px; font-size:11.5px; font-weight:600; }
 .sp-libre-warn { margin-top: 6px; background: #FDEEDC; border-left: 3px solid var(--orange); border-radius: 6px; padding: 7px 9px; font-size: 11.5px; line-height: 1.35; color: var(--brown); }
 /* v20.235 — commande à cheval sur deux ateliers : la ligne des autres est estompée */
 .sp-line-other { opacity: .45; }
@@ -2521,7 +2522,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.236';
+const APP_VERSION  = 'v20.237';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2796,6 +2797,29 @@ let realtimeChannelDeliveries = null;
 let isLivreurMode = false;
 let isLocalMode = false;
 let productionData = {};
+// v20.237 — Prénoms par magasin : qui prend la commande, qui la remet.
+// Avant, on ne gardait que l'identifiant de la TABLETTE (created_by = dev_xxxx) :
+// deux vendeuses sur le même iPad étaient indiscernables. Liste gérée par Phil
+// (bouton « ⚙️ Prénoms »), volontairement séparée de l'Équipe/dotations où l'on ne
+// supprime jamais personne. Le prénom mémorisé sur la tablette évite de le
+// re-choisir à chaque commande — on se choisit une fois en début de service.
+let shopPeople = {};              // { site: [ {id, prenom, ordre} ] }
+let shopPeopleReady = false;      // false = migration v20.237 pas encore passée
+function peopleOf(site) { return (shopPeople[site] || []).slice(); }
+function rememberedPerson() {
+  try { return localStorage.getItem('sp_person_' + currentBoutique) || ''; } catch (e) { return ''; }
+}
+function rememberPerson(prenom) {
+  try { localStorage.setItem('sp_person_' + currentBoutique, prenom || ''); } catch (e) {}
+}
+async function loadShopPeople() {
+  const { data, error } = await supa.from('shop_people').select('*').eq('tenant_id', TENANT_ID).order('ordre').order('prenom');
+  if (error) { shopPeopleReady = false; return; }   // table absente : l'app continue sans le champ
+  shopPeopleReady = true;
+  shopPeople = {};
+  (data || []).forEach(function(r) { (shopPeople[r.site] = shopPeople[r.site] || []).push(r); });
+}
+
 // v20.7 — Commandes spéciales du jour à produire (pour onglet "À produire")
 let productionSpecialOrders = [];     // array de commandes (avec items inclus)
 let productionSpecialByProduct = {};  // map { product_id: total_qty }
@@ -3707,6 +3731,7 @@ markAllMessagesRead(); // ouvrir l'onglet = marquer les reçus comme lus (vide l
 if (!currentSpecialWeekStart) currentSpecialWeekStart = getMondayOf(currentDate);
 if (!selectedSpecialDay) selectedSpecialDay = currentDate;
 specialFormMode = null; specialFormDraft = null;
+await loadShopPeople();   // v20.237 — prénoms du magasin
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 subscribeRealtimeSpecialOrders();
 renderSpecials();
@@ -16341,6 +16366,11 @@ const cleanItems = (d.items || []).filter(function(it) {
 return (it.product_id || (it.product_name_custom && it.product_name_custom.trim()));
 });
 if (!cleanItems.length) { showToast('Au moins 1 produit', 'error'); return; }
+// v20.237 — qui prend la commande : obligatoire, comme le téléphone depuis la v20.185.
+// On ne bloque que si la liste du magasin existe (sinon on empêcherait de travailler).
+if (shopPeopleReady && peopleOf(d.origin_shop || currentBoutique).length && !(d.taken_by || '').trim()) {
+  showToast('Choisis qui prend la commande (👤)', 'error'); return;
+}
 
 setSyncStatus('syncing');
 const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: cleanItems, pickup_date: d.pickup_date });
@@ -16359,6 +16389,8 @@ status: d.status || 'confirmee',
 notes: d.notes ? d.notes.trim() : null,
 updated_at: nowISO
 };
+if (shopPeopleReady) orderRow.taken_by = (d.taken_by || '').trim() || null;   // v20.237
+if (orderRow.taken_by) rememberPerson(orderRow.taken_by);  // mémorisé sur cette tablette
 
 let orderId = d.id;
 if (orderId) {
@@ -16413,14 +16445,133 @@ renderSpecials();
 showToast('Commande supprimee', 'sync');
 }
 
-async function changeSpecialOrderStatus(oid, newStatus) {
+async function changeSpecialOrderStatus(oid, newStatus, givenBy) {
+// v20.237 — « Venu chercher » = la commande part avec le client : on demande qui la
+// remet, dans la liste du magasin où l'on se trouve. C'est la trace qui manque en cas
+// de litige (« qui lui a donné le gâteau ? »). Les autres changements de statut ne
+// demandent rien : ils ne sortent pas la marchandise.
+if (newStatus === 'livree' && !givenBy && shopPeopleReady && peopleOf(currentBoutique).length) {
+  openGivenByModal(oid);
+  return;
+}
 setSyncStatus('syncing');
-const { error } = await supa.from('special_orders').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', oid);
+const patch = { status: newStatus, updated_at: new Date().toISOString() };
+if (newStatus === 'livree' && givenBy) patch.given_by = givenBy;
+const { error } = await supa.from('special_orders').update(patch).eq('id', oid);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 const o = specialOrdersData.find(function(x) { return x.id === oid; });
-if (o) o.status = newStatus;
+if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; }
 renderSpecials();
+}
+
+/* ---------- v20.237 — GÉRER LES PRÉNOMS DU MAGASIN ----------
+   Phil : « je veux pouvoir ajouter le nombre de prénoms que je veux ainsi que les
+   supprimer », et « attention de ne mettre que les prénoms des employés du magasin ».
+   La liste est donc par magasin, et l'écran ne montre QUE celui où l'on se trouve.
+   Amorcée depuis l'Équipe par la migration, ensuite libre. */
+let peopleNewName = '';
+function openPeopleModal() {
+  peopleNewName = '';
+  let el = document.getElementById('people-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'people-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.classList.add('show');
+  renderPeopleModal();
+}
+function closePeopleModal() {
+  const el = document.getElementById('people-modal');
+  if (el) el.classList.remove('show');
+  renderSpecials();
+}
+function renderPeopleModal() {
+  const el = document.getElementById('people-modal');
+  if (!el) return;
+  const gens = peopleOf(currentBoutique);
+  let h = '<div class="modal" style="max-width:420px">'
+    + '<div class="modal-title">👤 Prénoms — ' + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique) + '</div>'
+    + '<div class="modal-sub">Qui peut prendre et remettre une commande ici. Ces prénoms n\'apparaissent que dans ce magasin.</div>';
+  if (!gens.length) {
+    h += '<div style="color:var(--brown-mid);font-style:italic;padding:8px 0">Aucun prénom pour l\'instant.</div>';
+  } else {
+    h += '<div style="max-height:44vh;overflow:auto;margin-bottom:12px">';
+    gens.forEach(function(g) {
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #F5F0E8">'
+        + '<span style="font-weight:600;color:var(--brown)">' + escapeHtml(g.prenom) + '</span>'
+        + '<button class="btn-grey" style="padding:5px 10px;font-size:12px" onclick="deletePerson(' + g.id + ')">✖ Retirer</button></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    + '<input id="people-new" class="sp-input" style="flex:1" placeholder="Nouveau prénom" value="' + escapeHtml(peopleNewName) + '" oninput="peopleNewName=this.value">'
+    + '<button class="btn-gold-sm" onclick="addPerson()">+ Ajouter</button></div>'
+    + '<button class="btn-grey" style="width:100%" onclick="closePeopleModal()">Fermer</button></div>';
+  el.innerHTML = h;
+  const inp = document.getElementById('people-new');
+  if (inp && peopleNewName) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+async function addPerson() {
+  const nom = (peopleNewName || '').trim();
+  if (!nom) { showToast('Écris un prénom', 'error'); return; }
+  const gens = peopleOf(currentBoutique);
+  if (gens.some(function(g) { return g.prenom.toLowerCase() === nom.toLowerCase(); })) {
+    showToast('Ce prénom est déjà dans la liste', 'error'); return;
+  }
+  const ordre = gens.length ? Math.max.apply(null, gens.map(function(g) { return g.ordre || 0; })) + 10 : 10;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('shop_people').insert({ tenant_id: TENANT_ID, site: currentBoutique, prenom: nom, ordre: ordre });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  peopleNewName = '';
+  await loadShopPeople();
+  renderPeopleModal();
+  showToast(nom + ' ajouté', 'sync');
+}
+async function deletePerson(id) {
+  const g = peopleOf(currentBoutique).find(function(x) { return x.id === id; });
+  if (!g) return;
+  if (!confirm('Retirer ' + g.prenom + ' de la liste ?\n\nLes commandes déjà prises à son nom ne changent pas.')) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from('shop_people').delete().eq('id', id);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  if (rememberedPerson() === g.prenom) rememberPerson('');
+  await loadShopPeople();
+  renderPeopleModal();
+}
+
+// v20.237 — « Qui remet ? » : gros boutons, un tap, on ne fait pas patienter le client.
+function openGivenByModal(oid) {
+  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+  let el = document.getElementById('givenby-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'givenby-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  const memo = rememberedPerson();
+  const gens = peopleOf(currentBoutique).slice().sort(function(a, b) {
+    // le prénom du service en tête : c'est presque toujours lui
+    if (a.prenom === memo) return -1;
+    if (b.prenom === memo) return 1;
+    return 0;
+  });
+  el.innerHTML = '<div class="modal" style="max-width:420px">'
+    + '<div class="modal-title">🤝 Qui remet la commande ?</div>'
+    + '<div class="modal-sub">' + escapeHtml((o && o.customer_name) || '') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'
+    + gens.map(function(g) {
+        return '<button class="btn-gold-sm" style="padding:10px 14px;font-size:14px'
+          + (g.prenom === memo ? ';box-shadow:0 0 0 2px var(--gold-dark)' : '') + '" onclick="confirmGivenBy(\'' + oid + '\', \'' + String(g.prenom).replace(/'/g, "\\'") + '\')">'
+          + escapeHtml(g.prenom) + '</button>';
+      }).join('')
+    + '</div>'
+    + '<button class="btn-grey" style="width:100%" onclick="closeGivenByModal()">Annuler</button></div>';
+  el.classList.add('show');
+}
+function closeGivenByModal() {
+  const el = document.getElementById('givenby-modal');
+  if (el) el.classList.remove('show');
+}
+function confirmGivenBy(oid, prenom) {
+  closeGivenByModal();
+  rememberPerson(prenom);
+  changeSpecialOrderStatus(oid, 'livree', prenom);
 }
 
 function printSpecialOrderTicket(oid) {
@@ -16454,6 +16605,8 @@ if (o.origin_shop !== o.production_shop) {
 html += '<div class="ticket-row"><span>Production :</span>' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</div>';
 }
 if (o.status) html += '<div class="ticket-row"><span>Statut :</span>' + escapeHtml(STATUS_LBL[o.status] || o.status) + '</div>';
+// v20.237 — la personne qui a pris la commande, pour pouvoir revenir vers elle
+if (o.taken_by) html += '<div class="ticket-row"><span>Prise par :</span><strong>' + escapeHtml(o.taken_by) + '</strong></div>';
 // v20.185 — paiement sur le ticket
 const payTxt = o.paiement === 'regle' ? 'Réglé ✓' : (o.paiement === 'acompte' ? 'Acompte ' + formatQty(o.acompte_montant || 0) + ' € — reste à encaisser' : 'À régler au retrait');
 html += '<div class="ticket-row"><span>Paiement :</span><strong>' + escapeHtml(payTxt) + '</strong></div>';
@@ -16609,7 +16762,9 @@ html += '</div>';
 
 // Nouvelle commande CTA (sauf Local qui ne prend pas de commandes client)
 if (currentBoutique !== 'local') {
-html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button></div>';
+html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button>'
+  + (shopPeopleReady ? '<div style="text-align:right;margin-top:6px"><button class="btn-gold-sm" onclick="openPeopleModal()">⚙️ Prénoms (' + peopleOf(currentBoutique).length + ')</button></div>' : '')
+  + '</div>';
 }
 
 // Filtrer les commandes du jour sélectionné
@@ -16721,6 +16876,9 @@ if (o.notes && String(o.notes).trim()) {
 }
 html += '<div class="sp-card-footer">';
 html += '<span class="sp-status-badge sp-st-' + o.status + '">' + STATUS_LBL[o.status] + '</span>';
+// v20.237 — qui a pris / qui a remis
+if (o.taken_by) html += '<span class="sp-who">👤 ' + escapeHtml(o.taken_by) + '</span>';
+if (o.given_by) html += '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>';
 // v20.185 — pastille paiement (visible d'un coup d'œil au retrait)
 if (o.paiement === 'regle') html += '<span style="background:#EAF3EC;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Réglé</span>';
 else if (o.paiement === 'acompte') html += '<span style="background:#FDEEDC;color:var(--orange);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Acompte ' + formatQty(o.acompte_montant || 0) + ' €</span>';
@@ -16748,6 +16906,7 @@ pickup_date: selectedSpecialDay || currentSpecialWeekStart,
 pickup_time: '',
 status: 'confirmee',
 notes: '',
+taken_by: rememberedPerson(),   // v20.237 — la personne du début de service, modifiable
 items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
 };
 loadSpecialClientsIndex(); // v20.185 — mémoire clients (suggestion nom + téléphone)
@@ -16769,6 +16928,7 @@ pickup_date: o.pickup_date,
 pickup_time: o.pickup_time || '',
 status: o.status || 'confirmee',
 notes: o.notes || '',
+taken_by: o.taken_by || '',   // v20.237
 items: (o.items || []).map(function(it) {
 const p = it.product_id ? products.find(function(x) { return x.id === it.product_id; }) : null;
 return {
@@ -17009,6 +17169,25 @@ html += '<button type="button" class="sp-plaque-btn" onclick="setSpecialNote(\''
 });
 html += '</div>';
 html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, decoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
+
+// v20.237 — Qui prend la commande. Obligatoire, choisi dans la liste du magasin
+// (jamais au clavier : sur tablette une liste évite les fautes, cf. règle v20.71).
+// Pré-rempli avec le dernier prénom utilisé sur CETTE tablette.
+if (shopPeopleReady) {
+  const gens = peopleOf(d.origin_shop || currentBoutique);
+  html += '<div class="sp-form-row"><label class="sp-lbl">👤 Commande prise par <span style="color:var(--red)">*</span></label>';
+  if (!gens.length) {
+    html += '<div class="sp-libre-warn">Aucun prénom pour ce magasin. Ajoute-les avec le bouton <strong>⚙️ Prénoms</strong> en haut de l\'écran.</div>';
+  } else {
+    html += '<select class="sp-input" onchange="handleSpecialFormField(\'taken_by\', this.value)">';
+    html += '<option value="">-- qui prend la commande ? --</option>';
+    gens.forEach(function(g) {
+      html += '<option value="' + escapeHtml(g.prenom) + '"' + (d.taken_by === g.prenom ? ' selected' : '') + '>' + escapeHtml(g.prenom) + '</option>';
+    });
+    html += '</select>';
+  }
+  html += '</div>';
+}
 
 // Status (si edit)
 if (isEdit) {
