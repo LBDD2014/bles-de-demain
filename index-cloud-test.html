@@ -2522,7 +2522,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.237';
+const APP_VERSION  = 'v20.238';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3806,6 +3806,7 @@ if (currentBoutique === 'local') livreurDayData = await loadLivreurDayRow(todayI
 renderMetro();
 } else if (v === 'fetes') {
 // v20.222 — onglet éphémère Fêtes (commandes clients à prix)
+await loadShopPeople();   // v20.238 — mêmes prénoms que les Spéciales
 await loadFeteOrders();
 renderFetes();
 } else if (v === 'fetes_admin') {
@@ -3915,6 +3916,21 @@ function feteFormHtml() {
     + '<option value="regle"' + (d.paiement === 'regle' ? ' selected' : '') + '>Réglé ✓</option></select>'
     + '<input type="text" inputmode="decimal" id="feteAcompte" placeholder="Acompte €" value="' + (d.acompte != null ? escapeHtml(String(d.acompte).replace('.', ',')) : '') + '" style="width:110px;flex:0 1 auto;min-width:0"></div>';
   html += '<div class="fete-frow"><label>Notes</label><input type="text" id="feteNotes" value="' + escapeHtml(d.notes || '') + '" placeholder="Précisions, message…"></div>';
+  // v20.238 — qui prend la commande, comme sur les Spéciales (v20.237) : liste du
+  // magasin, obligatoire, pré-remplie avec le prénom du service sur cette tablette.
+  if (shopPeopleReady) {
+    const gens = peopleOf(currentBoutique);
+    html += '<div class="fete-frow"><label>👤 Prise par *</label>';
+    if (!gens.length) {
+      html += '<span style="font-size:12px;color:var(--orange)">Aucun prénom pour ce magasin (⚙️ Prénoms dans l\'onglet Spéciales).</span>';
+    } else {
+      const sel = d.taken_by || rememberedPerson();
+      html += '<select id="feteTakenBy"><option value="">-- qui prend la commande ? --</option>'
+        + gens.map(function(g) { return '<option value="' + escapeHtml(g.prenom) + '"' + (sel === g.prenom ? ' selected' : '') + '>' + escapeHtml(g.prenom) + '</option>'; }).join('')
+        + '</select>';
+    }
+    html += '</div>';
+  }
   html += '<div class="btn-row" style="padding:8px 0 4px">'
     + '<button class="btn-gold" onclick="feteSave()">' + (ed ? '✓ Enregistrer les modifications' : '✓ Enregistrer + 🖨 ticket') + '</button>'
     + (ed ? '<button class="btn-grey" onclick="feteEditingId=null;renderFetes()">Annuler</button>' : '')
@@ -3949,6 +3965,12 @@ async function feteSave() {
     if (q > 0) items.push({ fp_id: fp.id, nom: fp.nom, taille: fp.taille || '', prix: +fp.prix || 0, qty: q, prod_site: fp.prod_site || 'veigne' });
   });
   if (!items.length) { showToast('Aucun produit choisi', 'error'); return; }
+  // v20.238 — qui prend la commande : obligatoire dès qu'il y a une liste
+  const takenSel = document.getElementById('feteTakenBy');
+  const takenBy = takenSel ? (takenSel.value || '').trim() : '';
+  if (shopPeopleReady && peopleOf(currentBoutique).length && !takenBy) {
+    showToast('Choisis qui prend la commande (👤)', 'error'); return;
+  }
   const pay = document.getElementById('fetePay').value;
   const acompte = parseFloat((document.getElementById('feteAcompte').value || '').replace(',', '.'));
   const row = {
@@ -3959,6 +3981,8 @@ async function feteSave() {
     paiement: pay, acompte: (pay === 'acompte' && !isNaN(acompte)) ? acompte : null,
     notes: (document.getElementById('feteNotes').value || '').trim() || null
   };
+  if (shopPeopleReady) row.taken_by = takenBy || null;   // v20.238
+  if (takenBy) rememberPerson(takenBy);
   setSyncStatus('syncing');
   let saved = null;
   if (feteEditingId) {
@@ -3997,6 +4021,9 @@ function feteListHtml() {
       + (o.customer_phone ? '<div class="fete-card-sub">📞 ' + escapeHtml(o.customer_phone) + '</div>' : '')
       + '<div class="fete-card-items">' + (o.items || []).map(function(it) { return escapeHtml(it.qty + '× ' + it.nom + (it.taille ? ' ' + it.taille : '')); }).join(' · ') + '</div>'
       + '<div class="fete-card-sub"><b>' + feteEUR(o.total || 0) + '</b> · ' + escapeHtml(payTxt) + (o.notes ? ' · ✏️ ' + escapeHtml(o.notes) : '') + '</div>'
+      + ((o.taken_by || o.given_by) ? '<div class="fete-card-sub" style="margin-top:3px">'
+          + (o.taken_by ? '<span class="sp-who">👤 ' + escapeHtml(o.taken_by) + '</span> ' : '')
+          + (o.given_by ? '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>' : '') + '</div>' : '')
       + '<div class="btn-row" style="margin-top:6px">'
       + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
       + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button>' : '')
@@ -4008,10 +4035,17 @@ function feteListHtml() {
   });
   return html;
 }
-async function feteStatus(id, st) {
+async function feteStatus(id, st, givenBy) {
   if (st === 'annulee' && !confirm('Annuler cette commande ?')) return;
+  // v20.238 — « Venu chercher » : la commande part avec le client, on demande qui la remet
+  if (st === 'recuperee' && !givenBy && shopPeopleReady && peopleOf(currentBoutique).length) {
+    openGivenByModal(id, 'fete');
+    return;
+  }
   setSyncStatus('syncing');
-  const r = await supa.from('fete_orders').update({ status: st, updated_at: new Date().toISOString() }).eq('id', id);
+  const patch = { status: st, updated_at: new Date().toISOString() };
+  if (st === 'recuperee' && givenBy) patch.given_by = givenBy;
+  const r = await supa.from('fete_orders').update(patch).eq('id', id);
   if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
   setSyncStatus('ok');
   await loadFeteOrders(); renderFetes();
@@ -4077,6 +4111,7 @@ function printFeteTicket(oid) {
   } else {
     html += '<div class="ticket-row"><span>Paiement :</span><strong>À régler au retrait</strong></div>';
   }
+  if (o.taken_by) html += '<div class="ticket-row"><span>Prise par :</span><strong>' + escapeHtml(o.taken_by) + '</strong></div>'; // v20.238
   if (o.notes) html += '<div class="ticket-notes"><strong>Notes :</strong> ' + escapeHtml(o.notes) + '</div>';
   html += '<div class="ticket-footer">Les Bles de Demain</div></div>';
   printDiv.innerHTML = html;
@@ -16540,8 +16575,11 @@ async function deletePerson(id) {
 }
 
 // v20.237 — « Qui remet ? » : gros boutons, un tap, on ne fait pas patienter le client.
-function openGivenByModal(oid) {
-  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+function openGivenByModal(oid, kind) {
+  kind = kind || 'special';
+  const o = (kind === 'fete')
+    ? (feteOrders || []).find(function(x) { return x.id === oid; })
+    : specialOrdersData.find(function(x) { return x.id === oid; });
   let el = document.getElementById('givenby-modal');
   if (!el) { el = document.createElement('div'); el.id = 'givenby-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
   const memo = rememberedPerson();
@@ -16557,7 +16595,7 @@ function openGivenByModal(oid) {
     + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'
     + gens.map(function(g) {
         return '<button class="btn-gold-sm" style="padding:10px 14px;font-size:14px'
-          + (g.prenom === memo ? ';box-shadow:0 0 0 2px var(--gold-dark)' : '') + '" onclick="confirmGivenBy(\'' + oid + '\', \'' + String(g.prenom).replace(/'/g, "\\'") + '\')">'
+          + (g.prenom === memo ? ';box-shadow:0 0 0 2px var(--gold-dark)' : '') + '" onclick="confirmGivenBy(\'' + oid + '\', \'' + String(g.prenom).replace(/'/g, "\\'") + '\', \'' + kind + '\')">'
           + escapeHtml(g.prenom) + '</button>';
       }).join('')
     + '</div>'
@@ -16568,10 +16606,11 @@ function closeGivenByModal() {
   const el = document.getElementById('givenby-modal');
   if (el) el.classList.remove('show');
 }
-function confirmGivenBy(oid, prenom) {
+function confirmGivenBy(oid, prenom, kind) {
   closeGivenByModal();
   rememberPerson(prenom);
-  changeSpecialOrderStatus(oid, 'livree', prenom);
+  if (kind === 'fete') feteStatus(oid, 'recuperee', prenom);
+  else changeSpecialOrderStatus(oid, 'livree', prenom);
 }
 
 function printSpecialOrderTicket(oid) {
