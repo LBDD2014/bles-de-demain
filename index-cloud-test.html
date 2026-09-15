@@ -2050,6 +2050,7 @@ max-width: 90vw; text-align: center;
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.sync { background: var(--blue); }
 .toast.error { background: var(--red); }
+.toast.warn { background: var(--orange); }
 
 /* Alerte message livreur — modal qui RESTE jusqu'au tap "J'ai vu" */
 .msg-alert-overlay {
@@ -2522,7 +2523,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.238';
+const APP_VERSION  = 'v20.239';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7033,11 +7034,16 @@ const DISPATCH_BIO_MAP = {
 const DISPATCH_BIO_SITES = ['veigne', 'tours'];
 
 // Quantité à tracer : nb d'unités livrées × contenu du conditionnement (sac de 25, BIB 5 L…)
+// v20.239 — garde-fou : Veigné tapait « 25 » ou « 50 » en pensant kg, l'app comptait 25 ou
+// 50 SACS (625 / 1 250 kg vers une boutique, 5 fois en août-sept). Au-delà de
+// DISPATCH_BIO_MAX_UNITES conditionnements, le nombre saisi est pris tel quel (déjà en kg/L).
+const DISPATCH_BIO_MAX_UNITES = 10;
 function dispatchBioQty(p, r) {
   const nb = (r.qty_livree != null && r.qty_livree !== '') ? parseQty(r.qty_livree) : parseQty(r.commander);
   if (!(nb > 0)) return 0;
   const parUnite = (p.conditioning_qty != null && p.conditioning_qty > 0) ? Number(p.conditioning_qty) : 1;
-  return Math.round(nb * parUnite * 1000) / 1000;
+  if (parUnite > 1 && nb > DISPATCH_BIO_MAX_UNITES) return { qte: nb, enKg: true };
+  return { qte: Math.round(nb * parUnite * 1000) / 1000, enKg: false };
 }
 
 async function syncDispatchBio(r, p, annuler) {
@@ -7049,7 +7055,7 @@ async function syncDispatchBio(r, p, annuler) {
     await supa.from('fab_mouvements').delete().eq('reappro_id', r.id);
     return;
   }
-  const qte = dispatchBioQty(p, r);
+  const { qte, enKg } = dispatchBioQty(p, r);
   if (!(qte > 0)) return;
   // Pas d'upsert : PostgREST ne sait pas viser un index unique PARTIEL (celui-ci ignore
   // les NULL des dispatchs saisis à la main). On efface puis on réinsère — même effet,
@@ -7067,7 +7073,8 @@ async function syncDispatchBio(r, p, annuler) {
   if (error) { showToast('Dispatch bio : ' + error.message, 'error'); return; }
   const ingLbl = { 'ing_bp': 'Blés de pop', 'ing_engrain': 'Engrain', 'ing_huile_bio': 'Huile bio' }[ing] || ing;
   const unite = (ing === 'ing_huile_bio') ? 'L' : 'kg';
-  showToast('🚚 Dispatch bio créé : ' + formatQty(qte) + ' ' + unite + ' ' + ingLbl + ' → ' + (BOUTIQUE_NAMES[r.boutique_id] || r.boutique_id), 'sync');
+  showToast('🚚 Dispatch bio créé : ' + formatQty(qte) + ' ' + unite + ' ' + ingLbl + ' → ' + (BOUTIQUE_NAMES[r.boutique_id] || r.boutique_id)
+    + (enKg ? ' (quantité lue en ' + unite + ', pas en ' + (p.conditioning_unit || 'unités') + ')' : ''), enKg ? 'warn' : 'sync');
 }
 
 async function maybeDeductStock(rid, wasAlreadyLivre) {
