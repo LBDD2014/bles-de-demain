@@ -11,7 +11,7 @@
     --ink:#2E3044; --ink-soft:#66646E; --line:#E7DDC7;
     --gold:#CEAB52; --gold-dark:#8B6914;
     --warn-bg:#F7E3E0; --warn:#B83232;
-    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59;
+    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59; --inventaire:#8B6914;
     --shadow:0 1px 2px rgba(46,48,68,.05), 0 8px 22px rgba(46,48,68,.07);
   }
   @media (prefers-color-scheme:dark){
@@ -20,7 +20,7 @@
       --ink:#F3EEE2; --ink-soft:#AEA99D; --line:#3D3F4D;
       --gold:#E8D5A3; --gold-dark:#E8D5A3;
       --warn-bg:#3A2723; --warn:#E58A7E;
-      --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C;
+      --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C; --inventaire:#E8D5A3;
       --shadow:0 1px 2px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.30);
     }
   }
@@ -29,7 +29,7 @@
     --ink:#2E3044; --ink-soft:#66646E; --line:#E7DDC7;
     --gold:#CEAB52; --gold-dark:#8B6914;
     --warn-bg:#F7E3E0; --warn:#B83232;
-    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59;
+    --vendeur:#2C5F8A; --boulanger:#6B4226; --tourier:#C4610F; --patissier:#4A7C59; --inventaire:#8B6914;
     --shadow:0 1px 2px rgba(46,48,68,.05), 0 8px 22px rgba(46,48,68,.07);
   }
   :root[data-theme="dark"]{
@@ -37,7 +37,7 @@
     --ink:#F3EEE2; --ink-soft:#AEA99D; --line:#3D3F4D;
     --gold:#E8D5A3; --gold-dark:#E8D5A3;
     --warn-bg:#3A2723; --warn:#E58A7E;
-    --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C;
+    --vendeur:#8FBCE0; --boulanger:#C79B77; --tourier:#E79A55; --patissier:#8FB89C; --inventaire:#E8D5A3;
     --shadow:0 1px 2px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.30);
   }
 
@@ -76,6 +76,33 @@
   .role-btn[data-role="boulanger"]{--role:var(--boulanger)}
   .role-btn[data-role="tourier"]{--role:var(--tourier)}
   .role-btn[data-role="patissier"]{--role:var(--patissier)}
+  .role-btn[data-role="inventaire"]{--role:var(--inventaire)}
+  @media (min-width:560px){.picker{grid-template-columns:repeat(5,1fr)}}
+  .role-btn[data-role="inventaire"]{grid-column:span 2}
+  @media (min-width:560px){.role-btn[data-role="inventaire"]{grid-column:auto}}
+
+  /* fiche inventaire */
+  .pieges{margin:14px 0 0; padding:0; list-style:none}
+  .pieges li{display:flex; gap:10px; align-items:flex-start; padding:9px 12px; margin-top:8px;
+    background:var(--warn-bg); border-radius:10px; font-size:15px; color:var(--ink)}
+  .pieges li .x{color:var(--warn); font-weight:800; flex:0 0 auto}
+  .exemple{margin-top:10px; padding:10px 14px; border-left:3px solid var(--role); background:var(--surface-2);
+    border-radius:0 10px 10px 0; font-size:14.5px; color:var(--ink-soft)}
+  .exemple b{color:var(--ink)}
+  .printbtn{margin-top:18px; width:100%; padding:11px; border-radius:11px; cursor:pointer;
+    background:var(--surface); border:1.5px solid var(--line); color:var(--ink); font:inherit; font-size:15px; font-weight:650}
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none; padding:0; font-size:13.5px; line-height:1.4; color:#000}
+    .picker,.lede,.common,.printbtn,.foot{display:none!important}
+    .panel{display:none!important}
+    .panel.printing{display:block!important; margin-top:8px; animation:none}
+    .card{box-shadow:none; border:1px solid #bbb; border-top:4px solid #8B6914; padding:14px 16px; page-break-inside:avoid}
+    .lbl-mini{margin:12px 0 0}
+    ol.steps>li{padding-bottom:9px}
+    .pieges li{background:#f3e5e2; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .golden{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  }
 
   /* panels */
   .panel{display:none; margin-top:18px}
@@ -137,6 +164,7 @@
     <button class="role-btn" data-role="boulanger" role="tab" aria-selected="false" aria-controls="p-boulanger"><span class="rico">🥖</span>Boulanger</button>
     <button class="role-btn" data-role="tourier"   role="tab" aria-selected="false" aria-controls="p-tourier"><span class="rico">🥐</span>Tourier</button>
     <button class="role-btn" data-role="patissier" role="tab" aria-selected="false" aria-controls="p-patissier"><span class="rico">🍰</span>Pâtissier</button>
+    <button class="role-btn" data-role="inventaire" role="tab" aria-selected="false" aria-controls="p-inventaire"><span class="rico">📋</span>Inventaire</button>
   </div>
 
   <!-- VENDEUR -->
@@ -205,6 +233,42 @@
     </div>
   </section>
 
+
+  <!-- INVENTAIRE FARINES (v20.241 — fiche pour le comptage de fin de mois) -->
+  <section class="panel" id="p-inventaire" style="--role:var(--inventaire)">
+    <div class="card">
+      <div class="p-head"><span class="p-emoji">📋</span><h2 class="p-title">Faire l'inventaire des farines</h2></div>
+      <span class="p-where">📱 App Suivi bio → 📋 Inventaire → ton magasin</span>
+
+      <p class="lbl-mini">Quand</p>
+      <p style="margin:6px 0 0">Le <b>dernier jour de chaque mois</b>, une fois la prod du jour terminée. Si tu comptes le lendemain matin, c'est bon aussi, <b>tant que tu n'as pas encore touché à la farine</b>.</p>
+
+      <p class="lbl-mini">Comment</p>
+      <ol class="steps">
+        <li><span class="st-t">Avant de compter : les bons de la semaine sont-ils saisis ?</span><span class="st-d">Va dans <span class="tab">📦 Livraisons</span> et vérifie que la farine reçue cette semaine (le bon du mardi…) est bien rentrée. Sinon elle sera comptée deux fois.</span></li>
+        <li><span class="st-t">Compte <u>toute</u> la farine bio présente</span><span class="st-d">Les sacs pleins, les sacs entamés, <b>et la farine déjà pesée dans les bacs pour demain</b>. Tant qu'elle n'est pas dans une prod validée, elle est encore en stock.</span>
+          <div class="exemple">Sac entamé ? Estime au quart : plein = <b>25</b> · trois-quarts = <b>20</b> · moitié = <b>12</b> · un fond = <b>6</b>.</div></li>
+        <li><span class="st-t">Ouvre <span class="tab">📋 Inventaire</span> et choisis ton magasin</span><span class="st-d">En haut de l'app Suivi bio (Le Local, Veigné ou Tours).</span></li>
+        <li><span class="st-t">Mets la date du <b>dernier jour du mois</b></span><span class="st-d">Toujours, même si tu comptes le 1<sup>er</sup> au matin. C'est la « photo » de fin de mois.</span></li>
+        <li><span class="st-t">Saisis chaque farine, en kg</span><span class="st-d">Une farine que tu n'as pas du tout ? Mets <b>0</b>, ne la laisse pas vide.</span></li>
+        <li><span class="st-t">Enregistre</span><span class="st-d">La colonne <b>Écart</b> compare ton comptage au calcul de l'app. Elle n'est pas là pour te juger — on ne « corrige » jamais un chiffre pour la faire coller.</span></li>
+      </ol>
+
+      <p class="lbl-mini">Un gros écart ?</p>
+      <p style="margin:6px 0 0; color:var(--ink-soft); font-size:15px">Souvent : un <b>bon de livraison pas saisi</b>, une <b>journée de prod pas validée</b>, ou un sac cassé jeté sans le noter dans <span class="tab">🗑️ Pertes</span>. Dis-le à Phil, on regarde ensemble.</p>
+
+      <p class="lbl-mini">Les 3 pièges</p>
+      <ul class="pieges">
+        <li><span class="x">✕</span><span>Oublier la farine <b>déjà pesée dans les bacs</b> → le stock repart trop bas.</span></li>
+        <li><span class="x">✕</span><span>Compter <b>avant</b> d'avoir saisi le bon reçu dans la semaine → farine comptée deux fois.</span></li>
+        <li><span class="x">✕</span><span>Dater du jour où tu comptes au lieu du <b>dernier jour du mois</b> → une journée de prod disparaît du calcul.</span></li>
+      </ul>
+
+      <div class="golden"><span class="ic">⭐</span><span><b>La règle d'or :</b> un comptage, c'est une <b>photo</b>. Après, l'app repart de là — tout ce qui est avant ne compte plus.</span></div>
+      <button class="printbtn" onclick="printInventaire()">🖨️ Imprimer cette fiche</button>
+    </div>
+  </section>
+
   <div class="common">💬 <b>Pour tout le monde :</b> l'onglet <b>Messages</b> sert à se parler entre équipes (daté, tous sites). Et le principe de base de l'app : <b>ce que tu saisis chez toi devient visible pour ceux qui produisent ou livrent pour toi.</b></div>
 
   <p class="foot">Les Blés de Demain — guide de l'app. Un doute ? Demande à Phil. 🍞</p>
@@ -214,7 +278,7 @@
   (function(){
     var btns = Array.prototype.slice.call(document.querySelectorAll('.role-btn'));
     var panels = {
-      vendeur:'p-vendeur', boulanger:'p-boulanger', tourier:'p-tourier', patissier:'p-patissier'
+      vendeur:'p-vendeur', boulanger:'p-boulanger', tourier:'p-tourier', patissier:'p-patissier', inventaire:'p-inventaire'
     };
     function select(role){
       btns.forEach(function(b){ b.setAttribute('aria-selected', b.dataset.role===role ? 'true':'false'); });
@@ -226,6 +290,12 @@
     btns.forEach(function(b){
       b.addEventListener('click', function(){ select(b.dataset.role); });
     });
+    // ?role=inventaire → ouvre directement la fiche
+    var m=/[?&]role=([a-z]+)/.exec(location.search); if(m && panels[m[1]]) select(m[1]);
+    window.printInventaire=function(){
+      var el=document.getElementById('p-inventaire'); el.classList.add('printing');
+      window.print(); setTimeout(function(){ el.classList.remove('printing'); }, 500);
+    };
   })();
 </script>
 </body>
