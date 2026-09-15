@@ -2026,7 +2026,9 @@ function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);ret
 async function bilLoadRaw(){
   const [lv,pr,pe,mv,inv,so]=await Promise.all([
     supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg,numero_lot,numero_bon,fournisseur_id'),
-    supa.from('fab_production').select('site,date_prod,quantite,valide,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))'),
+    // v20.240 — paginé : Supabase plafonne à 1000 lignes par requête, la production en avait 2567
+    // → plus de la moitié des journées manquaient au Bilan/Inventaire (conso sous-comptée, stocks gonflés en orange)
+    fabFetchAll((a,b)=>supa.from('fab_production').select('site,date_prod,quantite,valide,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))').order('id').range(a,b)),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
     supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
     supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false}),
