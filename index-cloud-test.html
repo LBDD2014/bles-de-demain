@@ -2540,7 +2540,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.248';
+const APP_VERSION  = 'v20.249';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -14560,6 +14560,36 @@ async function tourierCatalogUnlock() {
   if (!ok) return;
   tourierCatalogUnlocked = true; renderStock();
 }
+// v20.249 — retirer une ligne du congélo tourier (mode chef).
+// La suppression en base demande le droit DELETE sur tourier_stock, retiré à l'app en
+// juillet (migration-securite-v1b) : si la migration v20.249 n'a pas été passée, on le dit
+// en clair au lieu d'afficher une erreur technique.
+async function tourierRemoveLigne(pid) {
+  const p = products.find(function(x) { return x.id === pid; }) || {};
+  const st = tourierStockData[pid] || {};
+  const stock = Number(st.stock) || 0;
+  if (stock !== 0) {
+    showToast('Il reste ' + formatQty(stock) + ' en stock sur « ' + (p.name || pid) + ' » — mets le stock à 0 avant de retirer la ligne.', 'error');
+    return;
+  }
+  if (!confirm('Retirer « ' + (p.name || pid) + ' » du congélo tourier ?\n\nLe produit reste au catalogue : tu pourras le réinscrire plus tard. Rien n\'est supprimé côté produit.')) return;
+  setSyncStatus('syncing');
+  const r = await supa.from('tourier_stock').delete().eq('tenant_id', TENANT_ID).eq('product_id', pid);
+  if (r.error) {
+    setSyncStatus('error');
+    const msg = String(r.error.message || '');
+    showToast(/permission|denied|401|403/i.test(msg)
+      ? 'Suppression refusée par la base : la migration v20.249 n\'a pas encore été passée.'
+      : msg, 'error');
+    return;
+  }
+  setSyncStatus('ok');
+  delete tourierStockData[pid];
+  showToast('« ' + (p.name || pid) + ' » retiré du congélo', 'sync');
+  await loadTourierStock();
+  renderStock();
+}
+
 async function tourierToggleActif(pid) {
   const p = products.find(function(x) { return x.id === pid; });
   const next = p ? (p.tourier_actif === false) : true;
@@ -15310,7 +15340,14 @@ function renderStock() {
       else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
       html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
       let ctrl = '';
-      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button><button class="iconbtn-pat" onclick="editProConditioning(\'' + e.p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>' + stockSortArrows(e.p.id, catPids) + '</div>';
+      if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button><button class="iconbtn-pat" onclick="editProConditioning(\'' + e.p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>'
+        // v20.249 — retirer une ligne du congélo. Sert aux doublons : un même produit a
+        // souvent une fiche vente ET une fiche réassort, et les deux se retrouvaient
+        // inscrites — celle qui ne porte pas le stock traînait à 0 (11 cas au 22/09).
+        // Retirer ≠ désactiver (⬜) : on enlève la ligne du congélo, le produit reste au
+        // catalogue et peut être réinscrit. On refuse tant qu'il reste du stock.
+        + '<button class="iconbtn-pat" onclick="tourierRemoveLigne(\'' + e.p.id + '\')" title="retirer du congélo">🗑</button>'
+        + stockSortArrows(e.p.id, catPids) + '</div>';
       html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + ' ❄️</div><div class="produit-unit">' + escapeHtml(tourierUnitLabel(e.p)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</div>' + ctrl + '</div>';
       html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
       html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
