@@ -2362,6 +2362,14 @@ outline: none; border-color: var(--gold); background: white;
 .ferie-bar.ferme { background:#F7E4E4; border-color:var(--red); color:var(--red); }
 /* Commande spéciale en lecture seule (À produire pour une autre boutique) — v20.62 */
 .sp-card.sp-readonly { cursor: default; }
+.sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
+.sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
+.sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
+.sp-rep-days { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.sp-rep-days button, .sp-rep-weeks button { min-width:52px; padding:10px 8px; font-size:14px; border-radius:8px; border:1px solid var(--gold); background:#fff; color:var(--brown); }
+.sp-rep-days button.on, .sp-rep-weeks button.on { background:var(--gold); color:#fff; font-weight:bold; }
+.sp-rep-weeks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.sp-rep-recap { font-size:13px; color:var(--brown); background:var(--cream); border-radius:8px; padding:8px 10px; margin-bottom:12px; }
 .sp-ro-badge { font-size:11px; color:var(--grey-light); background:#EEE8DC; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 </style>
 
@@ -2540,7 +2548,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.249';
+const APP_VERSION  = 'v20.250';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -16664,6 +16672,213 @@ if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; 
 renderSpecials();
 }
 
+/* ---------- v20.250 — COMMANDES RÉPÉTÉES (clients réguliers) ----------
+   Phil : « j'ai des commandes récurrentes, genre à Veigné une ficelle sans sel tous
+   les jours ». On coche les jours + une durée, l'app crée d'un coup une vraie commande
+   par jour (chacune se prépare / se coche « venu chercher » comme les autres).
+   Toutes portent le même serie_id (= id de la commande d'origine), ce qui permet de
+   prolonger ou d'arrêter la série. Les fériés où la boutique est FERMÉE sont sautés
+   (boutiqueOuverte). Le paiement repart à « non réglé » : on paie à chaque passage. */
+let repeatDraft = null;
+const REP_DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];   // Lun → Dim
+const REP_WEEKS = [1, 2, 4, 8];
+
+// Dates à créer : après la dernière date déjà couverte, sur N semaines, jours cochés,
+// boutique ouverte, et jamais deux fois le même jour dans la série.
+function repeatSpecialDates(startISO, weeks, dows, shop, skipSet) {
+  const out = [], sautes = [];
+  for (let i = 1; i <= weeks * 7; i++) {
+    const iso = addDaysISO(startISO, i);
+    const dow = new Date(iso + 'T12:00').getDay();
+    if (dows.indexOf(dow) === -1) continue;
+    if (skipSet && skipSet[iso]) continue;
+    const st = boutiqueOuverte(shop, iso);
+    if (!st.ouvert) { sautes.push({ iso: iso, nom: st.nom }); continue; }
+    out.push(iso);
+  }
+  return { dates: out, sautes: sautes };
+}
+
+async function openRepeatSpecialModal(oid) {
+  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+  if (!o) return;
+  // Dates déjà prises par la série (elle peut déborder de la semaine affichée)
+  const taken = {};
+  let last = o.pickup_date;
+  if (o.serie_id) {
+    const { data } = await supa.from('special_orders').select('id,pickup_date').eq('serie_id', o.serie_id);
+    (data || []).forEach(function(r) { taken[r.pickup_date] = true; if (r.pickup_date > last) last = r.pickup_date; });
+  }
+  // On ne crée jamais dans le passé
+  const today = serviceDateISO();
+  const start = last < today ? addDaysISO(today, -1) : last;
+  const dowOrig = new Date(o.pickup_date + 'T12:00').getDay();
+  repeatDraft = { oid: oid, start: start, taken: taken, weeks: 4,
+                  dows: o.serie_id ? REP_DOW_ORDER.slice() : [dowOrig] };
+  // Série existante : on reprend les jours déjà utilisés
+  if (o.serie_id) {
+    const used = {};
+    Object.keys(taken).forEach(function(iso) { used[new Date(iso + 'T12:00').getDay()] = true; });
+    const d2 = REP_DOW_ORDER.filter(function(d) { return used[d]; });
+    if (d2.length) repeatDraft.dows = d2;
+  }
+  let el = document.getElementById('repeat-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'repeat-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.classList.add('show');
+  renderRepeatSpecialModal();
+}
+function closeRepeatSpecialModal() {
+  const el = document.getElementById('repeat-modal');
+  if (el) el.classList.remove('show');
+  repeatDraft = null;
+}
+function toggleRepeatDow(d) {
+  if (!repeatDraft) return;
+  const i = repeatDraft.dows.indexOf(d);
+  if (i === -1) repeatDraft.dows.push(d); else repeatDraft.dows.splice(i, 1);
+  renderRepeatSpecialModal();
+}
+function setRepeatWeeks(n) {
+  if (!repeatDraft) return;
+  repeatDraft.weeks = n;
+  renderRepeatSpecialModal();
+}
+function fmtRepDate(iso) {
+  const dd = new Date(iso + 'T12:00');
+  return DOW_ABBR[dd.getDay()].toLowerCase() + '. ' + dd.getDate() + ' ' + ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][dd.getMonth()];
+}
+function renderRepeatSpecialModal() {
+  const el = document.getElementById('repeat-modal');
+  const r = repeatDraft;
+  if (!el || !r) return;
+  const o = specialOrdersData.find(function(x) { return x.id === r.oid; });
+  if (!o) return;
+  const res = repeatSpecialDates(r.start, r.weeks, r.dows, o.origin_shop, r.taken);
+  const what = (o.items || []).map(function(it) { return (parseQty(it.qty) || 1) + '× ' + specialItemName(it, '?'); }).join(' + ');
+  let h = '<div class="modal" style="max-width:480px">'
+    + '<div class="modal-title">🔁 Répéter la commande</div>'
+    + '<div class="modal-sub">' + escapeHtml(o.customer_name || '') + ' — ' + escapeHtml(what) + '</div>'
+    + '<div class="sp-lbl" style="margin-bottom:6px">Quels jours ?</div><div class="sp-rep-days">';
+  REP_DOW_ORDER.forEach(function(d) {
+    h += '<button type="button" class="' + (r.dows.indexOf(d) !== -1 ? 'on' : '') + '" onclick="toggleRepeatDow(' + d + ')">' + DOW_ABBR[d] + '</button>';
+  });
+  h += '</div><div class="sp-lbl" style="margin-bottom:6px">Pendant combien de temps ?</div><div class="sp-rep-weeks">';
+  REP_WEEKS.forEach(function(n) {
+    h += '<button type="button" class="' + (r.weeks === n ? 'on' : '') + '" onclick="setRepeatWeeks(' + n + ')">' + n + ' sem.</button>';
+  });
+  h += '</div><div class="sp-rep-recap" id="sp-rep-recap">';
+  if (!res.dates.length) {
+    h += 'Aucune commande à créer : coche au moins un jour.';
+  } else {
+    h += '<strong>' + res.dates.length + ' commande' + (res.dates.length > 1 ? 's' : '') + '</strong> du '
+      + fmtRepDate(res.dates[0]) + ' au ' + fmtRepDate(res.dates[res.dates.length - 1]) + '.';
+  }
+  if (res.sautes.length) {
+    h += '<br>🔒 Sautée' + (res.sautes.length > 1 ? 's' : '') + ' (boutique fermée) : '
+      + res.sautes.map(function(x) { return fmtRepDate(x.iso) + (x.nom ? ' (' + escapeHtml(x.nom) + ')' : ''); }).join(', ');
+  }
+  h += '</div><div class="sp-form-actions">'
+    + '<button class="btn-grey" onclick="closeRepeatSpecialModal()">Annuler</button>'
+    + '<button class="btn-gold" ' + (res.dates.length ? '' : 'disabled ') + 'onclick="confirmRepeatSpecial()">Créer ' + res.dates.length + ' commande' + (res.dates.length > 1 ? 's' : '') + '</button>'
+    + '</div></div>';
+  el.innerHTML = h;
+}
+
+async function confirmRepeatSpecial() {
+  const r = repeatDraft;
+  if (!r) return;
+  const o = specialOrdersData.find(function(x) { return x.id === r.oid; });
+  if (!o) return;
+  const res = repeatSpecialDates(r.start, r.weeks, r.dows, o.origin_shop, r.taken);
+  if (!res.dates.length) return;
+  setSyncStatus('syncing');
+  const serieId = o.serie_id || o.id;
+  const nowISO = new Date().toISOString();
+  if (!o.serie_id) {
+    const { error } = await supa.from('special_orders').update({ serie_id: serieId }).eq('id', o.id);
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  }
+  const items = o.items || [];
+  const orderRows = res.dates.map(function(iso) {
+    return {
+      tenant_id: TENANT_ID,
+      origin_shop: o.origin_shop,
+      production_shop: computeOrderProductionShop({ origin_shop: o.origin_shop, items: items, pickup_date: iso }),
+      customer_name: o.customer_name,
+      customer_phone: o.customer_phone || null,
+      paiement: 'non_regle',
+      acompte_montant: null,
+      pickup_date: iso,
+      pickup_time: o.pickup_time || null,
+      status: 'confirmee',
+      notes: o.notes || null,
+      taken_by: o.taken_by || null,
+      serie_id: serieId,
+      created_by: DEVICE_ID,
+      created_at: nowISO,
+      updated_at: nowISO
+    };
+  });
+  const { data: created, error: e1 } = await supa.from('special_orders').insert(orderRows).select('id,pickup_date');
+  if (e1) { setSyncStatus('error'); showToast(e1.message, 'error'); return; }
+  const itemRows = [];
+  (created || []).forEach(function(c) {
+    items.forEach(function(it, idx) {
+      itemRows.push({
+        order_id: c.id,
+        product_id: it.product_id || null,
+        product_name_custom: it.product_name_custom || null,
+        qty: parseQty(it.qty) || 1,
+        unit_price: it.unit_price == null ? null : it.unit_price,
+        notes: it.notes || null,
+        tranche: !!it.tranche,
+        position: idx
+      });
+    });
+  });
+  if (itemRows.length) {
+    const { error: e2 } = await supa.from('special_order_items').insert(itemRows);
+    if (e2) { setSyncStatus('error'); showToast(e2.message, 'error'); return; }
+  }
+  setSyncStatus('ok');
+  closeRepeatSpecialModal();
+  specialFormMode = null;
+  specialFormDraft = null;
+  await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+  renderSpecials();
+  showToast('🔁 ' + res.dates.length + ' commande' + (res.dates.length > 1 ? 's' : '') + ' créée' + (res.dates.length > 1 ? 's' : ''), 'sync');
+}
+
+// Le client arrête : on supprime les commandes À VENIR de la série (à partir de demain)
+// qui ne sont pas encore parties. Le passé et aujourd'hui restent intacts.
+async function stopSpecialSerie(oid) {
+  const o = specialOrdersData.find(function(x) { return x.id === oid; });
+  if (!o || !o.serie_id) return;
+  const today = serviceDateISO();
+  const { data, error } = await supa.from('special_orders').select('id,pickup_date,status')
+    .eq('serie_id', o.serie_id).gt('pickup_date', today);
+  if (error) { showToast(error.message, 'error'); return; }
+  const aSuppr = (data || []).filter(function(x) { return x.status !== 'livree'; });
+  if (!aSuppr.length) {
+    showToast('Aucune commande à venir dans cette série', 'error');
+    return;
+  }
+  if (!confirm('Arrêter la série de ' + (o.customer_name || '') + ' ?\n\n' + aSuppr.length
+    + ' commande' + (aSuppr.length > 1 ? 's' : '') + ' à venir (à partir de demain) ' + (aSuppr.length > 1 ? 'seront supprimées' : 'sera supprimée')
+    + '.\nCelles d\'aujourd\'hui et d\'avant ne bougent pas.')) return;
+  setSyncStatus('syncing');
+  const ids = aSuppr.map(function(x) { return x.id; });
+  await supa.from('special_order_items').delete().in('order_id', ids);
+  const { error: e2 } = await supa.from('special_orders').delete().in('id', ids);
+  if (e2) { setSyncStatus('error'); showToast(e2.message, 'error'); return; }
+  setSyncStatus('ok');
+  specialFormMode = null;
+  specialFormDraft = null;
+  await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
+  renderSpecials();
+  showToast('⏹ Série arrêtée — ' + ids.length + ' commande' + (ids.length > 1 ? 's' : '') + ' supprimée' + (ids.length > 1 ? 's' : ''), 'sync');
+}
+
 /* ---------- v20.237 — GÉRER LES PRÉNOMS DU MAGASIN ----------
    Phil : « je veux pouvoir ajouter le nombre de prénoms que je veux ainsi que les
    supprimer », et « attention de ne mettre que les prénoms des employés du magasin ».
@@ -17062,6 +17277,7 @@ return '<span class="sp-line-other">' + txt + ' <em>&rarr; ' + escapeHtml(BOUTIQ
 const editAttr = isMine ? ' onclick="openEditSpecialOrder(\'' + o.id + '\')"' : '';
 let html = '<div class="sp-card status-' + o.status + (isMine ? '' : ' sp-readonly') + '"' + editAttr + '>';
 html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
+if (o.serie_id) html += '<span class="sp-serie-badge">🔁 régulier</span>';
 if (!isMine) html += '<span class="sp-ro-badge">👁 lecture seule</span>';
 if (o.pickup_time) html += '<span class="sp-card-time">🕔 ' + escapeHtml(o.pickup_time) + '</span>';
 html += '</div>';
@@ -17399,6 +17615,24 @@ html += '<div class="sp-form-row"><label class="sp-lbl">Statut</label><select cl
 html += '<option value="' + s + '"' + (d.status === s ? ' selected' : '') + '>' + STATUS_LBL[s] + '</option>';
 });
 html += '</select></div>';
+}
+
+// v20.250 — client régulier (ex. une ficelle sans sel tous les jours à Veigné) :
+// on répète la commande sur les jours cochés au lieu de la ressaisir chaque matin.
+if (isEdit) {
+  const so = specialOrdersData.find(function(x) { return x.id === d.id; });
+  html += '<div class="sp-serie-box">';
+  if (so && so.serie_id) {
+    html += '<div class="sp-serie-txt">🔁 Commande régulière : elle revient toute seule les jours prévus.</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    html += '<button class="btn-gold-sm" style="padding:10px 14px" onclick="openRepeatSpecialModal(\'' + d.id + '\')">🔁 Prolonger</button>';
+    html += '<button class="btn-grey" style="padding:10px 14px" onclick="stopSpecialSerie(\'' + d.id + '\')">⏹ Arrêter la série</button>';
+    html += '</div>';
+  } else {
+    html += '<div class="sp-serie-txt">Client qui revient souvent pour la même chose ?</div>';
+    html += '<button class="btn-gold-sm" style="padding:10px 14px" onclick="openRepeatSpecialModal(\'' + d.id + '\')">🔁 Répéter cette commande</button>';
+  }
+  html += '</div>';
 }
 
 // Actions
