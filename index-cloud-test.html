@@ -2536,7 +2536,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.245';
+const APP_VERSION  = 'v20.246';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3101,22 +3101,64 @@ function clearProductFilter() {
   if (clear) clear.remove();
   applyProductFilter();
 }
+// v20.246 — la loupe existait sur Réappro et Prévis seulement. Ces deux sélecteurs
+// recensent maintenant TOUTES les lignes de produit de l'app (Ventes, Stock, Traiteur,
+// Production, Marché, Fêtes…) : c'est la seule liste à compléter si un nouvel écran
+// arrive avec une autre classe de ligne.
+const FILTER_ROW_SEL  = '.produit-row, .market-row, .stock-row, .ventes-row, .traiteur-row, .prod-row, .prod-reassort-row';
+const FILTER_NAME_SEL = '.produit-name, .prod-name, .prod-reassort-name';
 function applyProductFilter() {
   const q = productFilterQuery;
   const mc = document.getElementById('main-content');
   if (!mc) return;
-  const rows = mc.querySelectorAll('.produit-row, .market-row, .stock-row');
+  const rows = mc.querySelectorAll(FILTER_ROW_SEL);
   rows.forEach(function(row) {
-    const nameEl = row.querySelector('.produit-name, .prod-name');
+    const nameEl = row.querySelector(FILTER_NAME_SEL);
     if (!nameEl) return;
     const matches = !q || nameEl.textContent.toLowerCase().includes(q);
     row.style.display = matches ? '' : 'none';
   });
 }
 
+// v20.246 — la loupe sur TOUS les écrans qui listent des produits (Phil, 22/09).
+// Plutôt que d'ajouter l'appel à la main dans onze fonctions de rendu (et leurs vingt-cinq
+// sorties), on regarde ce qui vient d'être affiché : dès qu'un écran pose au moins 8 lignes
+// de produit et n'a pas déjà sa barre, on la glisse sous la barre de date. Un écran qui
+// arrivera plus tard l'aura donc sans qu'on y pense.
+// Le seuil évite une barre inutile sur une liste de 3 lignes qui tient dans l'écran.
+const FILTER_MIN_ROWS = 8;
+function ensureProductFilter() {
+  const mc = document.getElementById('main-content');
+  if (!mc) return;
+  if (mc.querySelector('.product-filter')) { applyProductFilter(); return; }
+  let nb = 0;
+  mc.querySelectorAll(FILTER_ROW_SEL).forEach(function(r) { if (r.querySelector(FILTER_NAME_SEL)) nb++; });
+  if (nb < FILTER_MIN_ROWS) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = renderProductFilter();
+  const bar = wrap.firstElementChild;
+  if (!bar) return;
+  // Sous la barre de date / semaine quand il y en a une, sinon tout en haut.
+  const head = mc.querySelector(':scope > .date-bar, :scope > .sp-week-bar, :scope > .recap-week-bar, :scope > .prod-filter-bar, :scope > .market-bar');
+  mc.insertBefore(bar, head ? head.nextSibling : mc.firstChild);
+  applyProductFilter();
+}
+// On surveille le remplacement du contenu principal (childList) : poser la barre est
+// une mutation, mais le tour suivant la voit déjà en place et s'arrête là.
+let productFilterWatching = false;
+function startProductFilterWatch() {
+  if (productFilterWatching) return;
+  const mc = document.getElementById('main-content');
+  if (!mc || typeof MutationObserver === 'undefined') return;
+  productFilterWatching = true;
+  new MutationObserver(function() { ensureProductFilter(); }).observe(mc, { childList: true });
+  ensureProductFilter();
+}
+
 try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = APP_VERSION + ' · ' + DEVICE_ID;
+  startProductFilterWatch();  // v20.246 — loupe automatique sur les écrans de produits
   // v21.3.0 — Détection magic link interface pro (URL ?pro_token=...)
   const _proToken = new URLSearchParams(window.location.search).get('pro_token');
   if (_proToken) {
