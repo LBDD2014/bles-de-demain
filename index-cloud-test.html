@@ -2362,6 +2362,22 @@ outline: none; border-color: var(--gold); background: white;
 .ferie-bar.ferme { background:#F7E4E4; border-color:var(--red); color:var(--red); }
 /* Commande spéciale en lecture seule (À produire pour une autre boutique) — v20.62 */
 .sp-card.sp-readonly { cursor: default; }
+.ard-btn { display:inline-block; margin-top:3px; font-size:11px; padding:3px 8px; border-radius:10px; border:1px solid var(--gold); background:#FFFDF7; color:var(--brown-mid); max-width:100%; white-space:normal; text-align:left; }
+.ard-sum { font-size:11px; color:var(--brown-mid); margin-top:2px; line-height:1.35; }
+.ard-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #EEE8DC; }
+.ard-nom { flex:1; font-size:15px; color:var(--brown); }
+.ard-pm { width:46px; height:46px; border-radius:10px; border:1.5px solid var(--gold); background:#fff; font-size:22px; color:var(--brown); }
+.ard-q { min-width:36px; text-align:center; font-size:18px; font-weight:bold; color:var(--brown); }
+.ard-total { margin:12px 0; font-size:14px; color:var(--brown); }
+.ard-edit-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid #EEE8DC; }
+.ard-edit-nom { flex:1 1 160px; margin:0; }
+.ard-chk { padding:8px 10px; border-radius:8px; border:1px solid var(--gold); background:#fff; color:var(--grey-light); font-size:13px; }
+.ard-chk.on { background:var(--green); border-color:var(--green); color:#fff; }
+.ard-panel { border:1px solid var(--gold-light); border-left:4px solid var(--gold); border-radius:10px; background:#FFFDF7; padding:10px 12px; margin:10px 0; }
+.ard-panel-hdr { display:flex; align-items:center; gap:6px; font-size:14px; color:var(--brown); margin-bottom:6px; }
+.ard-panel-line { font-size:13px; color:var(--brown); margin:3px 0; }
+.ard-chip { display:inline-block; background:#fff; border:1px solid var(--gold-light); border-radius:12px; padding:2px 10px; margin:2px 4px 2px 0; font-size:13px; }
+.ard-chip em { font-style:normal; font-size:11px; color:var(--grey-light); }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2548,7 +2564,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.250';
+const APP_VERSION  = 'v20.251';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3709,6 +3725,7 @@ productionSupplierMode = (currentBoutique === 'veigne') ? 'veigne' : 'local';
 await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
+if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
 if (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
@@ -5160,6 +5177,9 @@ day_closed: r.day_closed === true  // v20.5 — journée validée explicitement
 });
 // v20 : Auto-fill Matin depuis Prévis (J-1) - ResteJ1 (J-1), ou depuis Réappro envoyé
 await autoFillMatinFromYesterday(b, date);
+// v20.251 — ardoise des garnitures (focaccias) + détail du jour
+await loadArdoise();
+await loadArdoiseDetail([b], date);
 }
 
 async function autoFillMatinFromYesterday(b, date) {
@@ -5549,15 +5569,15 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
   }
   nbVisibles++;
   secRows += '<div class="ventes-row v201' + planEdgeCls(curPlanKey) + '">'
-+ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div></div>'
++ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div>' + ardoiseNameExtraHtml(p.id) + '</div>'
 + (psArrowIds ? stockSortArrows(p.id, psArrowIds) : '') // v20.216 — réordonner à la main (sauf pains = ordre du Planning)
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
 + prevCell
 + '<input type="text" inputmode="none" readonly min="0" class="v-inp aprem '    + (apremAuto ? 'is-auto' : (apremVal !== '' ? 'has' : '')) + '" data-pid="' + p.id + '" data-field="aprem"    data-np-label="' + (isCakeP ? 'Sortie jour' : 'Après-midi') + ' — ' + escapeHtml(p.name) + '" value="' + apremVal + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-half="1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + String(rj).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-half="1" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + String(rj2).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
-+ '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-half="1" data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + String(pe).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="openNumpad(this)">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j1 ' + (rj !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j1" data-np-half="1" data-np-label="Reste J-1 — ' + escapeHtml(p.name) + '" value="' + String(rj).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="' + (isArdoiseProduct(p.id) ? 'openArdoiseSaisie(this)' : 'openNumpad(this)') + '">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp reste_j2 ' + (rj2 !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="reste_j2" data-np-half="1" data-np-label="Reste J-2 — ' + escapeHtml(p.name) + '" value="' + String(rj2).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="' + (isArdoiseProduct(p.id) ? 'openArdoiseSaisie(this)' : 'openNumpad(this)') + '">'
++ '<input type="text" inputmode="none" readonly min="0" class="v-inp perte '    + (pe !== '' ? 'has' : '') + '" data-pid="' + p.id + '" data-field="perte"    data-np-half="1" data-np-label="Perte — ' + escapeHtml(p.name) + '" value="' + String(pe).replace('.', ',') + '" placeholder="-" oninput="handleSaleInput(this)" onclick="' + (isArdoiseProduct(p.id) ? 'openArdoiseSaisie(this)' : 'openNumpad(this)') + '">'
 + '<div id="vendu_' + p.id + '" class="v-vendu' + (vendu === null ? ' zero' : '') + '">' + (vendu === null ? '-' : vendu) + '</div>'
 + '<div id="perte_' + p.id + '" class="v-perte ' + perteCls + '">' + perteTxt + '</div>'
 + '<button id="rupt_' + p.id + '" class="v-rupture-btn ' + ruptCls + '" onclick="openRuptureModal(\'' + p.id + '\')">' + ruptTxt + '</button>'
@@ -5978,6 +5998,9 @@ days.forEach(function(d) { recapWeekData[d] = []; });
 if (!recapWeekData[r.date]) recapWeekData[r.date] = [];
 recapWeekData[r.date].push(r);
 });
+// v20.251 — détail des restes/pertes par garniture (focaccias)
+await loadArdoise();
+await loadArdoiseDetail([b], monday, sunday);
 }
 
 // v20.160 — "Matin" d'une ligne pour le Récap : sales.matin, sinon le Prévis du jour
@@ -6259,6 +6282,8 @@ html += '<div class="top-item"><div class="top-rank r' + (i+1) + '">' + (i+1) + 
   });
   html += '</div>';
   }
+
+html += ardoiseRecapHtml(currentBoutique, currentWeekStart);   // v20.251 — focaccias par garniture
 
 if (weekStats.produit === 0) {
 html += `<div class="empty-state">Aucune donnée de vente pour cette semaine.<br><br>Saisis des ventes dans l'onglet "Ventes" pour voir ton récap ici.</div>`;
@@ -8162,6 +8187,7 @@ currentReapproDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'
 await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
+if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
 // v20.7 — recharger les spéciales pour le nouveau jour
 if (currentBoutique === 'veigne' || currentBoutique === 'local') {
 await loadSpecialOrdersForProduction(currentReapproDate);
@@ -8712,6 +8738,7 @@ if (isLocalBoul || isLocalTour) {
 // (production_shop pour les spéciales, supply = le site pour les réassorts).
 html += specialsProductionBannerHtml();
 html += tourierReassortBannerHtml();
+html += ardoisePanelHtml();   // v20.251 — focaccias : garnitures du moment + restes de la veille
 
 // v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
 // v20.19 — Le Local Prod. Boulangers/Touriers : même règle (KPI simplifié)
@@ -9143,6 +9170,9 @@ product_notes:      r.product_notes || '',
 decoupe:            r.decoupe || null // v20.175
 };
 });
+// v20.251 — ardoise des garnitures (focaccias) + détail des pertes du marché
+await loadArdoise();
+await loadArdoiseDetail([marketId], date);
 }
 
 async function loadMarketEntriesForDate(marketId, date) {
@@ -9519,11 +9549,15 @@ html += '<div class="market-row">'
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
 + (formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
++ ardoiseNameExtraHtml(r.p.id)   // v20.251 — garnitures du moment
 + '</div>'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsM  + '" data-pid="' + r.p.id + '" data-field="marche"            value="' + escapeHtml(r.marcheRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsC  + '" data-pid="' + r.p.id + '" data-field="commande"          value="' + escapeHtml(r.commandeRaw     || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
 + '<input type="text" inputmode="decimal" class="market-input ' + clsCt + '" data-pid="' + r.p.id + '" data-field="commande_tranchee" value="' + escapeHtml(r.commandeTranRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
-+ '<input type="text" inputmode="decimal" class="market-input ' + clsP  + '" data-pid="' + r.p.id + '" data-field="pertes"            value="' + escapeHtml(r.pertesRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">'
++ (isArdoiseProduct(r.p.id) && ardoiseActiveSlots(currentMarketId, r.p.id).length
+  // v20.251 — pertes détaillées par garniture : la case ouvre la fenêtre de détail
+  ? '<input type="text" readonly class="market-input ' + clsP  + '" data-pid="' + r.p.id + '" data-field="pertes" value="' + escapeHtml(r.pertesRaw || '') + '" placeholder="-" oninput="handleMarketInput(this)" onclick="openArdoiseSaisie(this)">'
+  : '<input type="text" inputmode="decimal" class="market-input ' + clsP  + '" data-pid="' + r.p.id + '" data-field="pertes"            value="' + escapeHtml(r.pertesRaw       || '') + '" placeholder="-" oninput="handleMarketInput(this)" onfocus="this.select()">')
 + '<input type="text" class="market-note-inline" data-pid="' + r.p.id + '" data-field="product_notes" value="' + escapeHtml(r.notesRaw || '') + '" placeholder="ex: 600g, tranche..." oninput="handleMarketInput(this)">'
 + '</div>';
 // v20.175 — sous-ligne découpe (÷ bac) ou rappel pesée, si le produit est configuré
@@ -16670,6 +16704,352 @@ setSyncStatus('ok');
 const o = specialOrdersData.find(function(x) { return x.id === oid; });
 if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; }
 renderSpecials();
+}
+
+/* ---------- v20.251 — ARDOISE DES GARNITURES (focaccias) ----------
+   Phil (22/09) : on fait des focaccias à Veigné (pour Veigné + St-Avertin), à Tours
+   (pour Tours) et au Local (pour les marchés). Les garnitures changent au fil des
+   saisons : « je veux marquer les sortes du moment sans que ce soit gravé dans le
+   marbre ». Le vrai besoin : « quand il y a des restes le soir, il faut que je sache
+   lesquels c'est » — pour le Reste ET la Perte.
+   → 1 ardoise par site qui fabrique, 4 cases qu'on réécrit librement.
+   → chaque boutique / marché coche les garnitures qu'il a.
+   → Ventes (Reste J-1, J-2, Perte) et Tableau marché (Pertes) : la case ouvre le
+     détail par garniture, le total remplit la case comme avant. La ligne Ventes reste
+     UNE ligne « Foccaccia » : prévis, matin, vendu ne changent pas.
+   → chaque détail garde le NOM du jour : l'historique reste juste quand l'ardoise change.
+   → les boulangers (qui les fabriquent) voient l'ardoise + les restes de la veille. */
+const ARDOISE_PIDS = ['vt_fou'];          // produits à garnitures variables (à étendre à la main)
+const ARDOISE_SLOTS = 4;
+// Qui fabrique pour qui (Phil, 22/09)
+const ARDOISE_LIEUX_BY_SITE = {
+  veigne: ['veigne', 'saint-avertin'],
+  tours:  ['tours'],
+  local:  ['amboise', 'beaujardin']
+};
+const ARDOISE_CHAMP_LBL = { reste_j1: 'Reste J-1', reste_j2: 'Reste J-2', perte: 'Perte', pertes: 'Pertes' };
+let ardoiseRows = [];      // ardoise_variantes (tous sites, ~12 lignes)
+let ardoiseDetail = {};    // 'lieu|date|pid|champ' → { slot: { nom, qty } }
+let ardoiseSaisie = null;  // fenêtre de saisie en cours
+let ardoiseEdit = null;    // fenêtre d'édition de l'ardoise en cours
+
+function isArdoiseProduct(pid) { return ARDOISE_PIDS.indexOf(pid) !== -1; }
+function ardoiseSiteFor(lieu) {
+  if (ARDOISE_LIEUX_BY_SITE[lieu] && lieu !== 'local') return lieu;   // veigne, tours
+  const sites = Object.keys(ARDOISE_LIEUX_BY_SITE);
+  for (let i = 0; i < sites.length; i++) {
+    if (ARDOISE_LIEUX_BY_SITE[sites[i]].indexOf(lieu) !== -1) return sites[i];
+  }
+  return lieu === 'local' ? 'local' : null;
+}
+// Les 4 cases d'une ardoise (cases vides comprises)
+function ardoiseSlots(site, pid) {
+  const out = [];
+  for (let s = 1; s <= ARDOISE_SLOTS; s++) {
+    const r = ardoiseRows.find(function(x) { return x.site === site && x.product_id === pid && Number(x.slot) === s; });
+    out.push({ slot: s, nom: (r && r.nom) || '', boutiques: (r && r.boutiques) || {} });
+  }
+  return out;
+}
+// Garnitures qu'un lieu (boutique ou marché) propose : nom rempli + pas décoché chez lui
+function ardoiseActiveSlots(lieu, pid) {
+  const site = ardoiseSiteFor(lieu);
+  if (!site) return [];
+  return ardoiseSlots(site, pid).filter(function(s) {
+    return s.nom.trim() && s.boutiques[lieu] !== false;
+  });
+}
+async function loadArdoise() {
+  const { data, error } = await supa.from('ardoise_variantes').select('*').eq('tenant_id', TENANT_ID);
+  if (!error) ardoiseRows = data || [];
+}
+async function loadArdoiseDetail(lieux, dateFrom, dateTo) {
+  const { data, error } = await supa.from('variantes_detail').select('*')
+    .eq('tenant_id', TENANT_ID).in('lieu', lieux)
+    .gte('date', dateFrom).lte('date', dateTo || dateFrom);
+  if (error) return;
+  (data || []).forEach(function(r) {
+    const k = r.lieu + '|' + r.date + '|' + r.product_id + '|' + r.champ;
+    if (!ardoiseDetail[k]) ardoiseDetail[k] = {};
+    ardoiseDetail[k][r.slot] = { nom: r.nom || '', qty: r.qty == null ? 0 : Number(r.qty) };
+  });
+}
+function ardoiseDetailGet(lieu, date, pid, champ) {
+  return ardoiseDetail[lieu + '|' + date + '|' + pid + '|' + champ] || {};
+}
+// « Tomate-olive 2 · Chèvre-miel 1 » (seulement les quantités non nulles)
+function ardoiseDetailTxt(lieu, date, pid, champ) {
+  const d = ardoiseDetailGet(lieu, date, pid, champ);
+  return Object.keys(d).sort().filter(function(s) { return d[s].qty > 0; })
+    .map(function(s) { return d[s].nom + ' ' + formatQty(d[s].qty); }).join(' · ');
+}
+// Contexte de l'écran en cours : où et quel jour on saisit
+function ardoiseCtx() {
+  if (currentVue === 'marche') return { lieu: currentMarketId, date: currentMarketDate };
+  return { lieu: currentBoutique, date: currentDate };
+}
+
+// --- Saisie du détail (Ventes : Reste J-1 / J-2 / Perte · Marché : Pertes) ---
+function openArdoiseSaisie(inp) {
+  const pid = inp.getAttribute('data-pid'), champ = inp.getAttribute('data-field');
+  const ctx = ardoiseCtx();
+  const slots = ardoiseActiveSlots(ctx.lieu, pid);
+  // Pas de garniture sur l'ardoise : on saisit comme avant
+  if (!slots.length) { if (currentVue === 'marche') { inp.readOnly = false; inp.focus(); } else openNumpad(inp); return; }
+  const prev = ardoiseDetailGet(ctx.lieu, ctx.date, pid, champ);
+  const qty = {};
+  slots.forEach(function(s) {
+    // on retrouve la quantité par NOM (la case a pu changer de place sur l'ardoise)
+    const hit = Object.keys(prev).find(function(k) { return prev[k].nom === s.nom; });
+    qty[s.slot] = hit ? prev[hit].qty : 0;
+  });
+  ardoiseSaisie = { pid: pid, champ: champ, lieu: ctx.lieu, date: ctx.date, slots: slots, qty: qty,
+                    avant: String(inp.value || '').trim() };
+  let el = document.getElementById('ardoise-saisie-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'ardoise-saisie-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.classList.add('show');
+  renderArdoiseSaisie();
+}
+function ardoiseSaisieTotal() {
+  const a = ardoiseSaisie;
+  return a.slots.reduce(function(t, s) { return t + (a.qty[s.slot] || 0); }, 0);
+}
+function renderArdoiseSaisie() {
+  const el = document.getElementById('ardoise-saisie-modal');
+  const a = ardoiseSaisie;
+  if (!el || !a) return;
+  const p = products.find(function(x) { return x.id === a.pid; });
+  const total = ardoiseSaisieTotal();
+  let h = '<div class="modal" style="max-width:420px">'
+    + '<div class="modal-title">🍕 ' + escapeHtml(ARDOISE_CHAMP_LBL[a.champ] || a.champ) + ' — ' + escapeHtml(p ? p.name : '') + '</div>'
+    + '<div class="modal-sub">Combien de chaque garniture ?</div>';
+  a.slots.forEach(function(s) {
+    h += '<div class="ard-row"><span class="ard-nom">' + escapeHtml(s.nom) + '</span>'
+      + '<button type="button" class="ard-pm" onclick="ardoiseStep(' + s.slot + ',-1)">−</button>'
+      + '<span class="ard-q">' + formatQty(a.qty[s.slot] || 0) + '</span>'
+      + '<button type="button" class="ard-pm" onclick="ardoiseStep(' + s.slot + ',1)">+</button></div>';
+  });
+  h += '<div class="ard-total">Total : <strong>' + formatQty(total) + '</strong>'
+    + (a.avant !== '' && ardoiseDetailTxt(a.lieu, a.date, a.pid, a.champ) === '' ? ' <span style="color:var(--grey-light)">(déjà saisi sans détail : ' + escapeHtml(a.avant) + ')</span>' : '')
+    + '</div>'
+    + '<div class="sp-form-actions">'
+    + '<button class="btn-grey" onclick="closeArdoiseSaisie()">Annuler</button>'
+    + '<button class="btn-gold" onclick="confirmArdoiseSaisie()">Valider</button>'
+    + '</div></div>';
+  el.innerHTML = h;
+}
+function ardoiseStep(slot, delta) {
+  if (!ardoiseSaisie) return;
+  const q = (ardoiseSaisie.qty[slot] || 0) + delta;
+  ardoiseSaisie.qty[slot] = Math.max(0, q);
+  renderArdoiseSaisie();
+}
+function closeArdoiseSaisie() {
+  const el = document.getElementById('ardoise-saisie-modal');
+  if (el) el.classList.remove('show');
+  ardoiseSaisie = null;
+}
+async function confirmArdoiseSaisie() {
+  const a = ardoiseSaisie;
+  if (!a) return;
+  const total = ardoiseSaisieTotal();
+  // 1) la case habituelle reçoit le total, par le même chemin que le pavé numérique
+  const inp = document.querySelector('input[data-pid="' + a.pid + '"][data-field="' + a.champ + '"]');
+  if (inp) {
+    inp.value = String(total).replace('.', ',');
+    try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+  }
+  closeArdoiseSaisie();
+  // 2) le détail, avec le nom du jour
+  const nowISO = new Date().toISOString();
+  const rows = a.slots.map(function(s) {
+    return { tenant_id: TENANT_ID, lieu: a.lieu, date: a.date, product_id: a.pid, champ: a.champ,
+             slot: s.slot, nom: s.nom, qty: a.qty[s.slot] || 0, updated_by: DEVICE_ID, updated_at: nowISO };
+  });
+  const k = a.lieu + '|' + a.date + '|' + a.pid + '|' + a.champ;
+  ardoiseDetail[k] = {};
+  rows.forEach(function(r) { ardoiseDetail[k][r.slot] = { nom: r.nom, qty: r.qty }; });
+  setSyncStatus('syncing');
+  const { error } = await supa.from('variantes_detail').upsert(rows, { onConflict: 'tenant_id,lieu,date,product_id,champ,slot' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const sum = document.getElementById('ard-sum-' + a.pid);
+  if (sum) sum.innerHTML = ardoiseSummaryHtml(a.lieu, a.date, a.pid);
+}
+// Petit résumé sous le nom du produit (Ventes / Marché)
+function ardoiseSummaryHtml(lieu, date, pid) {
+  const champs = currentVue === 'marche' ? ['pertes'] : ['reste_j1', 'reste_j2', 'perte'];
+  return champs.map(function(c) {
+    const t = ardoiseDetailTxt(lieu, date, pid, c);
+    return t ? '<div>' + escapeHtml(ARDOISE_CHAMP_LBL[c]) + ' : ' + escapeHtml(t) + '</div>' : '';
+  }).join('');
+}
+// Bouton + résumé à glisser sous le nom du produit
+function ardoiseNameExtraHtml(pid) {
+  if (!isArdoiseProduct(pid)) return '';
+  const ctx = ardoiseCtx();
+  const slots = ardoiseActiveSlots(ctx.lieu, pid);
+  return '<button type="button" class="ard-btn" onclick="openArdoiseEdit(\'' + pid + '\')">🍕 '
+    + (slots.length ? escapeHtml(slots.map(function(s) { return s.nom; }).join(', ')) : 'garnitures ?') + '</button>'
+    + '<div class="ard-sum" id="ard-sum-' + pid + '">' + ardoiseSummaryHtml(ctx.lieu, ctx.date, pid) + '</div>';
+}
+
+// --- L'ardoise elle-même : noms (site qui fabrique) + coches (chaque lieu) ---
+function openArdoiseEdit(pid, site) {
+  const lieu = site || ardoiseCtx().lieu;
+  site = site || ardoiseSiteFor(lieu);
+  if (!site) return;
+  // Seul le site qui fabrique réécrit les noms ; les autres cochent ce qu'ils ont.
+  const fabricant = (lieu === site);
+  ardoiseEdit = { pid: pid, site: site, lieu: lieu, fabricant: fabricant,
+                  lieux: fabricant ? ARDOISE_LIEUX_BY_SITE[site] : [lieu] };
+  let el = document.getElementById('ardoise-edit-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'ardoise-edit-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.classList.add('show');
+  renderArdoiseEdit();
+}
+function renderArdoiseEdit() {
+  const el = document.getElementById('ardoise-edit-modal');
+  const e = ardoiseEdit;
+  if (!el || !e) return;
+  const p = products.find(function(x) { return x.id === e.pid; });
+  let h = '<div class="modal" style="max-width:460px">'
+    + '<div class="modal-title">🍕 ' + escapeHtml(p ? p.name : '') + ' — garnitures du moment</div>'
+    + '<div class="modal-sub">Ardoise de ' + escapeHtml(BOUTIQUE_NAMES[e.site] || e.site)
+    + (e.fabricant ? ' · écris les garnitures, efface quand ça change' : ' · coche celles que tu as') + '</div>';
+  ardoiseSlots(e.site, e.pid).forEach(function(s) {
+    h += '<div class="ard-edit-row">';
+    if (e.fabricant) {
+      h += '<input class="sp-input ard-edit-nom" type="text" maxlength="30" value="' + escapeHtml(s.nom) + '" placeholder="Garniture ' + s.slot + '" onchange="saveArdoiseNom(' + s.slot + ', this.value)">';
+    } else {
+      h += '<span class="ard-nom">' + (s.nom ? escapeHtml(s.nom) : '<span style="color:#bbb">(vide)</span>') + '</span>';
+    }
+    if (s.nom) {
+      e.lieux.forEach(function(l) {
+        const on = s.boutiques[l] !== false;
+        h += '<button type="button" class="ard-chk' + (on ? ' on' : '') + '" onclick="toggleArdoiseLieu(' + s.slot + ', \'' + l + '\')">'
+          + (on ? '✓ ' : '') + escapeHtml(BOUTIQUE_NAMES[l] || l) + '</button>';
+      });
+    }
+    h += '</div>';
+  });
+  h += '<button class="btn-gold" style="width:100%;margin-top:10px" onclick="closeArdoiseEdit()">Fermer</button></div>';
+  el.innerHTML = h;
+}
+async function saveArdoiseRow(slot, patch) {
+  const e = ardoiseEdit;
+  const cur = ardoiseSlots(e.site, e.pid)[slot - 1];
+  const row = { tenant_id: TENANT_ID, site: e.site, product_id: e.pid, slot: slot,
+                nom: cur.nom || null, boutiques: cur.boutiques || {}, updated_at: new Date().toISOString() };
+  Object.assign(row, patch);
+  const i = ardoiseRows.findIndex(function(x) { return x.site === e.site && x.product_id === e.pid && Number(x.slot) === slot; });
+  if (i === -1) ardoiseRows.push(row); else ardoiseRows[i] = Object.assign({}, ardoiseRows[i], row);
+  setSyncStatus('syncing');
+  const { error } = await supa.from('ardoise_variantes').upsert(row, { onConflict: 'tenant_id,site,product_id,slot' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+}
+async function saveArdoiseNom(slot, val) {
+  if (!ardoiseEdit) return;
+  await saveArdoiseRow(slot, { nom: String(val || '').trim() || null });
+  renderArdoiseEdit();
+}
+async function toggleArdoiseLieu(slot, lieu) {
+  if (!ardoiseEdit) return;
+  const cur = ardoiseSlots(ardoiseEdit.site, ardoiseEdit.pid)[slot - 1];
+  const b = Object.assign({}, cur.boutiques);
+  b[lieu] = (b[lieu] === false);   // décoché ↔ coché (coché par défaut)
+  await saveArdoiseRow(slot, { boutiques: b });
+  renderArdoiseEdit();
+}
+function closeArdoiseEdit() {
+  const el = document.getElementById('ardoise-edit-modal');
+  if (el) el.classList.remove('show');
+  ardoiseEdit = null;
+  if (currentVue === 'ventes') renderVentes();
+  else if (currentVue === 'marche') renderMarket();
+  else if (currentVue === 'production' || currentVue === 'prod_boul') renderProduction();
+}
+
+// --- Encadré boulangers : l'ardoise + les restes/pertes de la veille ---
+async function loadArdoiseProduction(site, date) {
+  await loadArdoise();
+  const lieux = ARDOISE_LIEUX_BY_SITE[site] || [];
+  // Marchés : 1×/semaine → on remonte 2 semaines pour retrouver le dernier
+  await loadArdoiseDetail(lieux, addDaysISO(date, site === 'local' ? -14 : -1), date);
+}
+function ardoiseProdSite() {
+  if (currentBoutique === 'veigne' && currentVue === 'production') return 'veigne';
+  if (currentBoutique === 'tours' && currentVue === 'production') return 'tours';
+  if (currentBoutique === 'local' && currentVue === 'prod_boul') return 'local';
+  return null;
+}
+function ardoisePanelHtml() {
+  const site = ardoiseProdSite();
+  if (!site) return '';
+  const veille = addDaysISO(currentReapproDate, -1);
+  let html = '';
+  ARDOISE_PIDS.forEach(function(pid) {
+    const p = products.find(function(x) { return x.id === pid; });
+    if (!p || !p.actif) return;
+    const slots = ardoiseSlots(site, pid).filter(function(s) { return s.nom.trim(); });
+    html += '<div class="ard-panel"><div class="ard-panel-hdr">🍕 <strong>' + escapeHtml(p.name) + '</strong> — garnitures du moment'
+      + '<button type="button" class="btn-gold-sm" style="margin-left:auto" onclick="openArdoiseEdit(\'' + pid + '\', \'' + site + '\')">✏️ Ardoise</button></div>';
+    if (!slots.length) {
+      html += '<div class="ard-panel-line" style="color:var(--grey-light)">Ardoise vide : touche ✏️ pour écrire les garnitures.</div>';
+    } else {
+      html += '<div class="ard-panel-line">' + slots.map(function(s) {
+        const chez = ARDOISE_LIEUX_BY_SITE[site].filter(function(l) { return s.boutiques[l] !== false; })
+          .map(function(l) { return BOUTIQUE_NAMES[l] || l; });
+        return '<span class="ard-chip">' + escapeHtml(s.nom)
+          + (ARDOISE_LIEUX_BY_SITE[site].length > 1 ? ' <em>' + escapeHtml(chez.join(' + ') || 'personne') + '</em>' : '') + '</span>';
+      }).join('') + '</div>';
+    }
+    // Restes et pertes : la veille pour les boutiques, le dernier marché pour les marchés
+    ARDOISE_LIEUX_BY_SITE[site].forEach(function(l) {
+      let date = veille;
+      if (MARKET_IDS.indexOf(l) !== -1) {
+        date = null;
+        Object.keys(ardoiseDetail).forEach(function(k) {
+          const parts = k.split('|');
+          if (parts[0] === l && parts[2] === pid && parts[1] <= currentReapproDate && (!date || parts[1] > date)) date = parts[1];
+        });
+      }
+      const champs = MARKET_IDS.indexOf(l) !== -1 ? ['pertes'] : ['reste_j1', 'reste_j2', 'perte'];
+      const txt = date ? champs.map(function(c) {
+        const t = ardoiseDetailTxt(l, date, pid, c);
+        return t ? escapeHtml(ARDOISE_CHAMP_LBL[c]) + ' : ' + escapeHtml(t) : '';
+      }).filter(Boolean).join(' — ') : '';
+      html += '<div class="ard-panel-line"><strong>' + escapeHtml(BOUTIQUE_NAMES[l] || l) + '</strong>'
+        + (date ? ' <span style="color:var(--grey-light)">(' + escapeHtml(formatDateFr(date)) + ')</span>' : '') + ' : '
+        + (txt || '<span style="color:var(--grey-light)">rien de noté</span>') + '</div>';
+    });
+    html += '</div>';
+  });
+  return html;
+}
+
+// --- Récap (Phil) : la semaine, garniture par garniture ---
+function ardoiseRecapHtml(b, monday) {
+  if (!ardoiseSiteFor(b)) return '';
+  const days = weekDaysFromMonday(monday);
+  let html = '';
+  ARDOISE_PIDS.forEach(function(pid) {
+    const p = products.find(function(x) { return x.id === pid; });
+    if (!p) return;
+    const lignes = [];
+    days.forEach(function(d) {
+      ['reste_j1', 'reste_j2', 'perte'].forEach(function(c) {
+        const t = ardoiseDetailTxt(b, d, pid, c);
+        if (t) lignes.push('<div class="ard-panel-line"><strong>' + escapeHtml(formatDateFr(d)) + '</strong> · '
+          + escapeHtml(ARDOISE_CHAMP_LBL[c]) + ' : ' + escapeHtml(t) + '</div>');
+      });
+    });
+    html += '<div class="ard-panel"><div class="ard-panel-hdr">🍕 <strong>' + escapeHtml(p.name) + '</strong> — restes et pertes par garniture</div>'
+      + (lignes.join('') || '<div class="ard-panel-line" style="color:var(--grey-light)">Rien de détaillé cette semaine.</div>')
+      + '</div>';
+  });
+  return html;
 }
 
 /* ---------- v20.250 — COMMANDES RÉPÉTÉES (clients réguliers) ----------
