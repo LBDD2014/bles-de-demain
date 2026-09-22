@@ -814,6 +814,10 @@ box-shadow: 0 1px 3px rgba(61,43,31,0.04);
 .sp-card-time { font-size: 12px; color: var(--gold-dark); font-weight: 600; }
 .sp-card-body { font-size: 12px; color: var(--brown-mid); line-height: 1.4; margin-bottom: 8px; }
 .sp-who { background:#F2EEE4; color: var(--brown-mid); border-radius:20px; padding:3px 9px; font-size:11.5px; font-weight:600; }
+.orph-banner { margin: 10px 14px; background: #FDEEDC; border-left: 4px solid var(--orange); border-radius: 8px; padding: 10px 12px; }
+.orph-title { font-size: 13.5px; font-weight: 700; color: var(--brown); margin-bottom: 4px; }
+.orph-list { font-size: 13px; color: var(--brown); line-height: 1.5; }
+.orph-hint { font-size: 11.5px; color: var(--grey-light); margin-top: 5px; line-height: 1.35; }
 .sp-psearch { margin-bottom: 7px; }
 .sp-psearch-box { display: flex; align-items: center; gap: 6px; background: var(--cream); border: 1px solid var(--gold-light); border-radius: 8px; padding: 6px 9px; }
 .sp-psearch-box .filter-icon { font-size: 14px; opacity: .55; }
@@ -2536,7 +2540,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.247';
+const APP_VERSION  = 'v20.248';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7153,6 +7157,7 @@ if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
 let veignePatDate = todayISO();
 // v20.247 — Veigné en premier : sa propre boutique commande au pâtissier comme les autres.
 let veignePatReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
+let veignePatOrphelins = [];  // v20.248 — commandes reçues que cet écran ne peut pas préparer
 
 async function loadVeignePatStock() {
   const { data, error } = await supa.from('veigne_pat_stock').select('*').eq('tenant_id', TENANT_ID);
@@ -7165,13 +7170,13 @@ async function loadVeignePatStock() {
 // Commandes réassort (Veigné boutique, Tours, St-Av) envoyées et pas encore préparées, pour le jour affiché (produits suivis)
 async function loadVeignePatReassort() {
   veignePatReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
+  veignePatOrphelins = [];
   const { data, error } = await supa.from('reappros').select('*')
     .eq('tenant_id', TENANT_ID).eq('service_date', veignePatDate)
     .in('boutique_id', ['veigne', 'tours', 'saint-avertin'])
     .not('sent_at', 'is', null); // v20.76 — on garde aussi les préparés pour les afficher avec ✓ "fait"
   if (error) return;
   (data || []).forEach(function(r) {
-    if (!veignePatStockData[r.product_id]) return;
     if (!(parseQty(r.commander) > 0)) return;
     const p = products.find(function(x) { return x.id === r.product_id; });
     if (!p) return;
@@ -7182,6 +7187,9 @@ async function loadVeignePatReassort() {
     const sup = getProductSupply(p, r.boutique_id);
     const attendu = (r.boutique_id === 'veigne') ? 'on_site' : 'veigne';
     if (sup !== attendu) return;
+    // v20.248 — même garde-fou qu'au Local : le produit n'est pas au catalogue du pâtissier,
+    // on le signale au lieu de laisser la commande disparaître (Quiche, Crêpes, Diamants…).
+    if (!veignePatStockData[r.product_id]) { veignePatOrphelins.push(r); return; }
     if (veignePatReassort[r.boutique_id]) veignePatReassort[r.boutique_id].push(r);
   });
 }
@@ -7358,9 +7366,10 @@ function renderStockVeignePat() {
     });
     html += '</div>';
   });
-  if (!anyReassort) {
+  if (!anyReassort && !veignePatOrphelins.length) {
     html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes de Veigné, Tours et St-Av apparaissent ici une fois envoyées.)</div>';
   }
+  html += orphelinsBannerHtml(veignePatOrphelins, 'ton catalogue pâtissier');
 
   // SECTION 2 — Mon stock
   html += stockPeriodToggleHtml();
@@ -14589,6 +14598,7 @@ function stockHideEmptyBarHtml(nbMasquees) {
 // ===================== v20.81 — Stock Tourier sur le modèle pâtissier (Entrée/Stock/Mini/À partir) =====================
 let tourierStockData = {};   // { product_id: {stock, mini, ...} }
 let tourierReassort = {};    // { boutique: [reappro rows] }
+let tourierOrphelins = [];   // v20.248 — commandes reçues que cet écran ne peut pas préparer
 let tourierDate = todayISO();
 
 async function loadTourierStock() {
@@ -14598,23 +14608,53 @@ async function loadTourierStock() {
   else (data || []).forEach(function(r) { tourierStockData[r.product_id] = r; });
   await loadTourierReassort();
 }
+// v20.248 — LE BANDEAU DES COMMANDES SANS DESTINATAIRE.
+// Une commande n'est « à préparer » que si le produit est inscrit au catalogue de l'atelier
+// (tourier_stock au Local, veigne_pat_stock chez le pâtissier). Sinon elle partait, le
+// livreur la marquait livrée, et personne ne l'avait jamais vue — en silence. Constaté le
+// 22/09 : 30 Brioches Gabriel à Veigné, les Quiches et Crêpes de Tours, les Coonies.
+// On ne devine rien et on ne corrige rien tout seul : on montre, et l'équipe appelle.
+function orphelinsBannerHtml(rows, quoi) {
+  if (!rows || !rows.length) return '';
+  const parLigne = {};
+  rows.forEach(function(r) {
+    const p = products.find(function(x) { return x.id === r.product_id; }) || {};
+    const k = (p.name || r.product_id) + '|' + r.boutique_id;
+    parLigne[k] = (parLigne[k] || 0) + (parseQty(r.commander) || 0);
+  });
+  const items = Object.keys(parLigne).map(function(k) {
+    const bits = k.split('|');
+    return '<strong>' + escapeHtml(bits[0]) + '</strong> ×' + formatQty(parLigne[k])
+      + ' <span style="opacity:.75">(' + escapeHtml(BOUTIQUE_NAMES[bits[1]] || bits[1]) + ')</span>';
+  }).join(' · ');
+  const n = Object.keys(parLigne).length;
+  return '<div class="orph-banner">'
+    + '<div class="orph-title">⚠️ ' + n + ' commande' + (n > 1 ? 's' : '') + ' que cet écran ne peut pas préparer</div>'
+    + '<div class="orph-list">' + items + '</div>'
+    + '<div class="orph-hint">Ces produits ne sont pas dans ' + quoi + '. Prépare-les quand même si tu sais les faire, puis préviens Phil pour qu\'ils soient ajoutés.</div>'
+    + '</div>';
+}
+
 async function loadTourierReassort() {
   tourierReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
+  tourierOrphelins = [];
   const { data, error } = await supa.from('reappros').select('*')
     .eq('tenant_id', TENANT_ID).eq('service_date', tourierDate)
     .in('boutique_id', ['veigne', 'tours', 'saint-avertin'])
     .not('sent_at', 'is', null);
   if (error) return;
   (data || []).forEach(function(r) {
-    if (!tourierStockData[r.product_id]) return;
     if (!(parseQty(r.commander) > 0)) return;
     const p = products.find(function(x) { return x.id === r.product_id; });
     // v20.164 — le congélo tourier couvre aussi la pâtisserie/bases suivies au stock
-    // (tartelettes, bretons, fonds… commandés SURGELÉS par les boutiques). Le garde-fou
-    // reste l'appartenance à tourier_stock (testée juste au-dessus).
+    // (tartelettes, bretons, fonds… commandés SURGELÉS par les boutiques).
     const catsTourier = ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'gateaux_secs', 'bases_patisserie'];
     if (!p || catsTourier.indexOf(p.category) === -1) return;
     if (getProductSupply(p, r.boutique_id) !== 'local') return;
+    // v20.248 — la commande nous revient, mais le produit n'est pas au congélo : avant, on
+    // la jetait sans rien dire et personne ne la préparait (30 Brioches Gabriel le 22/09).
+    // On la garde de côté pour l'afficher en bandeau plutôt que de la perdre.
+    if (!tourierStockData[r.product_id]) { tourierOrphelins.push(r); return; }
     if (tourierReassort[r.boutique_id]) tourierReassort[r.boutique_id].push(r);
   });
 }
@@ -15226,7 +15266,8 @@ function renderStock() {
     });
     html += '</div>';
   });
-  if (!anyR) html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes des magasins apparaissent ici une fois envoyées.)</div>';
+  if (!anyR && !tourierOrphelins.length) html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes des magasins apparaissent ici une fois envoyées.)</div>';
+  html += orphelinsBannerHtml(tourierOrphelins, 'la liste de ton congélo');
 
   // SECTION 2 — Mon stock
   html += stockPeriodToggleHtml();
