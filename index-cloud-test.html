@@ -2523,7 +2523,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.243';
+const APP_VERSION  = 'v20.244';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7902,9 +7902,7 @@ function plaquettesBlockHtml() {
   productionPlaqueOrders.forEach(function(o) {
     const heure = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—';
     const prods = (o.items || []).map(function(it) {
-      const n = it.product_id
-        ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id)
-        : (it.product_name_custom || '?');
+      const n = specialItemName(it, it.product_id);
       return escapeHtml(n) + ' ×' + (parseQty(it.qty) || 0);
     }).join(' · ');
     h += '<div class="prod-special-row">'
@@ -8685,7 +8683,7 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
         if (o.items && o.items.length) {
           html += '<div class="prod-special-items">';
           o.items.forEach(function(it) {
-            const pname = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id) : (it.product_name_custom || '?');
+            const pname = specialItemName(it, it.product_id);
             // v20.235 — les lignes d'un autre atelier restent visibles mais estompées
             const psIt = getItemProductionShop(it, o);
             const autre = (psIt !== currentBoutique);
@@ -8696,7 +8694,7 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
           // v20.193 — note par produit (décoration sur une ligne précise)
           o.items.forEach(function(it) {
             if (!it.notes || !String(it.notes).trim()) return;
-            const pname = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || it.product_id) : (it.product_name_custom || '?');
+            const pname = specialItemName(it, it.product_id);
             html += '<div class="sp-note sp-note-item" style="margin-top:4px">✏️ <strong>' + escapeHtml(pname) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
           });
         }
@@ -16334,6 +16332,21 @@ return originShop;
 // Elle reste rattachée à l'atelier de la commande — c'est le comportement actuel et
 // il convient aux vraies saisies libres (number cake, pièce montée). La vendeuse est
 // prévenue à la saisie que cette ligne ne partira nulle part toute seule (v20.235).
+// v20.244 — « indiv. » sur les petits gâteaux dans les Spéciales (Phil, 22/09 : un
+// « Fraisier » individuel et un « Fraisier 4 pers » se ressemblent sur la carte, le ticket
+// et l'écran de production ; la catégorie choisie à la saisie n'était plus visible ensuite).
+// Le nom du produit ne change pas ailleurs (Ventes, Stock Pât., planning).
+function specialProductName(p) {
+  if (!p || !p.name) return '';
+  return p.category === 'patisserie_petits' ? p.name + ' indiv.' : p.name;
+}
+function specialItemName(it, fallback) {
+  if (it && it.product_id) {
+    const p = products.find(function(x) { return x.id === it.product_id; });
+    return specialProductName(p) || fallback || it.product_id;
+  }
+  return (it && it.product_name_custom) || fallback || '?';
+}
 function getItemProductionShop(it, o) {
   if (!it || !it.product_id) return o.production_shop || o.origin_shop;
   return getProductionShopForProduct(it.product_id, o.origin_shop, o.pickup_date);
@@ -16350,9 +16363,7 @@ function orderShopsBreakdown(o) {
   const par = {};
   (o.items || []).forEach(function(it) {
     const ps = getItemProductionShop(it, o);
-    const nom = it.product_id
-      ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?')
-      : (it.product_name_custom || 'ligne libre');
+    const nom = it.product_id ? specialItemName(it, '?') : (it.product_name_custom || 'ligne libre');
     (par[ps] = par[ps] || []).push(nom);
   });
   return par;
@@ -16663,7 +16674,7 @@ const payTxt = o.paiement === 'regle' ? 'Réglé ✓' : (o.paiement === 'acompte
 html += '<div class="ticket-row"><span>Paiement :</span><strong>' + escapeHtml(payTxt) + '</strong></div>';
 html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qté</th></tr></thead><tbody>';
 (o.items || []).forEach(function(it) {
-const name = it.product_id ? ((products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
+const name = specialItemName(it, '?');
 html += '<tr><td>' + escapeHtml(name) + (it.tranche ? ' 🔪 tranché' : '') + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td></tr>';
 });
 html += '</tbody></table>';
@@ -16867,7 +16878,7 @@ const agg = {};
 consolOrders.forEach(function(o) {
 (o.items || []).forEach(function(it) {
 const key = it.product_id || ('custom:' + (it.product_name_custom || ''));
-const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
+const name = specialItemName(it, '?');
 if (!agg[key]) agg[key] = { name: name, qty: 0 };
 agg[key].qty += parseQty(it.qty) || 0;
 });
@@ -16900,7 +16911,7 @@ const nbItems = (o.items || []).reduce(function(s, it) { return s + (parseQty(it
 // vient chercher un tout) mais on estompe celles qui ne sont pas pour nous, avec le nom de
 // l'atelier qui s'en charge. Chacun voit ce qu'il doit faire, personne ne produit en double.
 const summary = (o.items || []).map(function(it) {
-const name = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
+const name = specialItemName(it, '?');
 const txt = escapeHtml((parseQty(it.qty) || 1) + 'x ' + name + (it.tranche ? ' 🔪' : ''));
 const ps = getItemProductionShop(it, o);
 if (ps === currentBoutique) return '<span class="sp-line-mine">' + txt + '</span>';
@@ -16917,7 +16928,7 @@ html += '<div class="sp-card-body">' + summary + '</div>';
 // v20.193 — notes par produit (décoration, message sur une ligne précise)
 (o.items || []).forEach(function(it) {
   if (!it.notes || !String(it.notes).trim()) return;
-  const nm = it.product_id ? (products.find(function(p) { return p.id === it.product_id; }) || {}).name || '?' : (it.product_name_custom || '?');
+  const nm = specialItemName(it, '?');
   html += '<div class="sp-note sp-note-item">✏️ <strong>' + escapeHtml(nm) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
 });
 // v20.193 — note de commande (message à écrire sur le gâteau, allergie…) :
@@ -17359,18 +17370,13 @@ prodsInCat.sort(function(a, b) { return a.name.localeCompare(b.name); });
 html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Produit</label>';
 html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'product_id\', this.value)">';
 html += '<option value="">-- choisir --</option>';
-// v20.228 — ❄️ sur les produits de RÉASSORT (Phil, 27/08 : « les éclairs pas frais,
-// ils sont décongelés »). C'est le seul écran où les deux catalogues se croisent :
-// ~30 lignes surgelées parmi ~157. Le flocon dit à la vendeuse « celui-là est au
-// congélo, il faut le sortir la veille ». Même sens que le Stock Tourier ❄️.
-// Ailleurs on ne met rien : dans Réappro tout est surgelé, dans Ventes rien ne l'est.
+// v20.228 mettait un ❄️ sur les produits de RÉASSORT ; retiré en v20.244 (Phil, 22/09 :
+// pas de flocon dans les commandes du magasin — le surgelé, c'est l'affaire de l'atelier).
 prodsInCat.forEach(function(p) {
-const surgele = (p.usage || 'reappro') === 'reappro';
 html += '<option value="' + p.id + '"' + (it.product_id === p.id ? ' selected' : '') + '>'
-  + escapeHtml(p.name) + (surgele ? ' ❄️' : '') + '</option>';
+  + escapeHtml(specialProductName(p)) + '</option>';
 });
 html += '</select></div>';
-html += '<div class="sp-lbl-sm" style="opacity:.7;margin-top:2px">❄️ = surgelé, à sortir du congélateur la veille</div>';
 }
 
 // v20.74 — case Trancher (pains uniquement)
