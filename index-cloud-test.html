@@ -814,6 +814,19 @@ box-shadow: 0 1px 3px rgba(61,43,31,0.04);
 .sp-card-time { font-size: 12px; color: var(--gold-dark); font-weight: 600; }
 .sp-card-body { font-size: 12px; color: var(--brown-mid); line-height: 1.4; margin-bottom: 8px; }
 .sp-who { background:#F2EEE4; color: var(--brown-mid); border-radius:20px; padding:3px 9px; font-size:11.5px; font-weight:600; }
+.sp-psearch { margin-bottom: 7px; }
+.sp-psearch-box { display: flex; align-items: center; gap: 6px; background: var(--cream); border: 1px solid var(--gold-light); border-radius: 8px; padding: 6px 9px; }
+.sp-psearch-box .filter-icon { font-size: 14px; opacity: .55; }
+.sp-psearch-box input { flex: 1; border: 0; background: transparent; font-size: 14px; color: var(--brown); outline: none; min-width: 0; }
+.sp-psearch-box input::placeholder { color: #B5A78D; }
+.sp-psearch-box .filter-clear { border: 0; background: transparent; font-size: 15px; color: var(--grey-light); padding: 0 2px; }
+.sp-psearch-res { margin-top: 4px; border: 1px solid var(--gold-light); border-radius: 8px; overflow: hidden; background: var(--white); }
+.sp-psearch-res:empty { display: none; }
+.sp-psearch-hit { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #F0E8D8; background: var(--white); padding: 9px 10px; font-size: 13.5px; color: var(--brown); }
+.sp-psearch-hit:last-child { border-bottom: 0; }
+.sp-psearch-hit:active { background: var(--cream); }
+.sp-psearch-hit .h-cat { display: block; font-size: 11px; color: var(--grey-light); margin-top: 1px; }
+.sp-psearch-none { padding: 9px 10px; font-size: 12.5px; color: var(--grey-light); }
 .sp-libre-warn { margin-top: 6px; background: #FDEEDC; border-left: 3px solid var(--orange); border-radius: 6px; padding: 7px 9px; font-size: 11.5px; line-height: 1.35; color: var(--brown); }
 /* v20.235 — commande à cheval sur deux ateliers : la ligne des autres est estompée */
 .sp-line-other { opacity: .45; }
@@ -2523,7 +2536,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.244';
+const APP_VERSION  = 'v20.245';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -17288,6 +17301,66 @@ html += '</div>';
 mc.innerHTML = html;
 }
 
+// v20.245 — 🔍 chercher un produit à la saisie d'une commande (Phil, 22/09).
+// Avant : il fallait deviner la bonne catégorie, puis dérouler jusqu'à ~40 lignes sur
+// tablette. On tape maintenant 2 lettres et on choisit dans toutes les catégories d'un
+// coup ; le clic remplit catégorie ET produit. La liste déroulante reste, inchangée.
+// Même règle de doublons que le menu (v20.201/227) : on masque la version réassort
+// quand un produit vendu porte le même nom.
+function specialSearchHits(q, currentPid) {
+  const n = planNorm(q);
+  if (n.length < 2) return [];
+  const actifs = products.filter(function(p) { return p.actif; });
+  const nomsVendus = new Set(actifs
+    .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
+    .map(function(p) { return planNorm(p.name); }));
+  const hits = actifs.filter(function(p) {
+    if (planNorm(p.name).indexOf(n) === -1) return false;
+    if (p.id === currentPid) return true;
+    const u = p.usage || 'reappro';
+    if (u === 'ventes' || u === 'both') return true;
+    return !nomsVendus.has(planNorm(p.name));
+  });
+  hits.sort(function(a, b) { return specialProductName(a).localeCompare(specialProductName(b)); });
+  return hits.slice(0, 12);
+}
+function specialSearchResultsHtml(idx, q, currentPid) {
+  if (planNorm(q).length < 2) return '';
+  const hits = specialSearchHits(q, currentPid);
+  if (!hits.length) return '<div class="sp-psearch-none">Aucun produit. Vérifie l\'orthographe, ou passe par la catégorie ci-dessous.</div>';
+  return hits.map(function(p) {
+    return '<button type="button" class="sp-psearch-hit" onclick="specialSearchPick(' + idx + ', \'' + p.id + '\')">'
+      + escapeHtml(specialProductName(p))
+      + '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span></button>';
+  }).join('');
+}
+// Pas de re-rendu complet à chaque lettre : on garde le clavier ouvert et le focus.
+function handleSpecialItemSearch(idx, val) {
+  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
+  const it = specialFormDraft.items[idx];
+  it.recherche = val;
+  const box = document.getElementById('sp-psearch-res-' + idx);
+  if (box) box.innerHTML = specialSearchResultsHtml(idx, val, it.product_id);
+  const clr = document.getElementById('sp-psearch-clr-' + idx);
+  if (clr) clr.style.display = val ? '' : 'none';
+}
+function specialSearchPick(idx, pid) {
+  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
+  const p = products.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  const it = specialFormDraft.items[idx];
+  it.category = p.category;
+  it.product_id = pid;
+  it.product_name_custom = '';
+  it.recherche = '';
+  renderSpecials();
+}
+function specialSearchClear(idx) {
+  handleSpecialItemSearch(idx, '');
+  const inp = document.getElementById('sp-psearch-inp-' + idx);
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+
 function renderSpecialItemRow(it, idx) {
 const cats = Array.from(new Set(products.filter(function(p) { return p.actif; }).map(function(p) { return p.category; })));
 const catOrder = Object.keys(CAT_LABELS);
@@ -17298,7 +17371,17 @@ return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
 
 let html = '<div class="sp-item-row">';
 html += '<div class="sp-item-hdr"><strong>Produit ' + (idx + 1) + '</strong>';
+const qRech = it.recherche || '';
 html += '<button class="sp-item-del" onclick="removeSpecialItem(' + idx + ')">✖</button></div>';
+
+// v20.245 — 🔍 raccourci : trouver le produit sans passer par la catégorie
+html += '<div class="sp-psearch"><div class="sp-psearch-box">'
+  + '<span class="filter-icon">🔍</span>'
+  + '<input id="sp-psearch-inp-' + idx + '" type="text" autocomplete="off" placeholder="Chercher un produit…" value="' + escapeHtml(qRech) + '" oninput="handleSpecialItemSearch(' + idx + ', this.value)">'
+  + '<button type="button" class="filter-clear" id="sp-psearch-clr-' + idx + '" title="Effacer" style="' + (qRech ? '' : 'display:none') + '" onclick="specialSearchClear(' + idx + ')">✕</button>'
+  + '</div>'
+  + '<div class="sp-psearch-res" id="sp-psearch-res-' + idx + '">' + specialSearchResultsHtml(idx, qRech, it.product_id) + '</div>'
+  + '</div>';
 
 // Qty + Catégorie sur même ligne
 html += '<div class="sp-item-grid">';
