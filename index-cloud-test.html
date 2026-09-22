@@ -2536,7 +2536,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.246';
+const APP_VERSION  = 'v20.247';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7151,7 +7151,8 @@ if (p.category !== 'viennoiserie' && p.category !== 'brioches_special') return;
 
 // v20.48 — Le stock se décompte quand Veigné marque le réassort « préparé » (plus à la livraison)
 let veignePatDate = todayISO();
-let veignePatReassort = { 'tours': [], 'saint-avertin': [] };
+// v20.247 — Veigné en premier : sa propre boutique commande au pâtissier comme les autres.
+let veignePatReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
 
 async function loadVeignePatStock() {
   const { data, error } = await supa.from('veigne_pat_stock').select('*').eq('tenant_id', TENANT_ID);
@@ -7161,19 +7162,26 @@ async function loadVeignePatStock() {
   await loadVeignePatReassort();
 }
 
-// Commandes réassort Tours/St-Av envoyées et pas encore préparées, pour le jour affiché (produits suivis)
+// Commandes réassort (Veigné boutique, Tours, St-Av) envoyées et pas encore préparées, pour le jour affiché (produits suivis)
 async function loadVeignePatReassort() {
-  veignePatReassort = { 'tours': [], 'saint-avertin': [] };
+  veignePatReassort = { 'veigne': [], 'tours': [], 'saint-avertin': [] };
   const { data, error } = await supa.from('reappros').select('*')
     .eq('tenant_id', TENANT_ID).eq('service_date', veignePatDate)
-    .in('boutique_id', ['tours', 'saint-avertin'])
+    .in('boutique_id', ['veigne', 'tours', 'saint-avertin'])
     .not('sent_at', 'is', null); // v20.76 — on garde aussi les préparés pour les afficher avec ✓ "fait"
   if (error) return;
   (data || []).forEach(function(r) {
     if (!veignePatStockData[r.product_id]) return;
     if (!(parseQty(r.commander) > 0)) return;
     const p = products.find(function(x) { return x.id === r.product_id; });
-    if (!p || getProductSupply(p, r.boutique_id) !== 'veigne') return;
+    if (!p) return;
+    // v20.247 — la boutique de Veigné ne se voyait pas dans son propre atelier (signalé par
+    // les pâtissiers le 22/09) : la requête ne lisait que Tours et St-Av, et ce filtre exigeait
+    // « livré par Veigné » alors qu'à Veigné la pâtisserie est SUR PLACE. Ses 9 gâteaux du
+    // 21/09 sont donc restés invisibles. Pour Veigné on accepte donc 'on_site'.
+    const sup = getProductSupply(p, r.boutique_id);
+    const attendu = (r.boutique_id === 'veigne') ? 'on_site' : 'veigne';
+    if (sup !== attendu) return;
     if (veignePatReassort[r.boutique_id]) veignePatReassort[r.boutique_id].push(r);
   });
 }
@@ -7317,7 +7325,7 @@ function renderStockVeignePat() {
 
   // SECTION 1 — Réassort à préparer, séparé par boutique
   let anyReassort = false;
-  [['tours', 'Tours'], ['saint-avertin', 'St-Avertin']].forEach(function(b) {
+  [['veigne', 'Veigné (boutique)'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin']].forEach(function(b) {
     const list = (veignePatReassort[b[0]] || []).slice().sort(function(a, c) {
       const pa = a.prepared_at ? 1 : 0, pc = c.prepared_at ? 1 : 0; // non-faits en premier
       if (pa !== pc) return pa - pc;
@@ -7351,16 +7359,16 @@ function renderStockVeignePat() {
     html += '</div>';
   });
   if (!anyReassort) {
-    html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes Tours/St-Av apparaissent ici une fois envoyées.)</div>';
+    html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes de Veigné, Tours et St-Av apparaissent ici une fois envoyées.)</div>';
   }
 
   // SECTION 2 — Mon stock
   html += stockPeriodToggleHtml();
-  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse quand tu marques un réassort « préparé ». <strong>À partir</strong> = réassorts Tours/St-Av à préparer pour la prochaine livraison.');
+  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse quand tu marques un réassort « préparé ». <strong>À partir</strong> = réassorts à préparer (boutique de Veigné + Tours/St-Av).');
 
   // v20.75 — réassorts qui vont partir, par produit (somme Tours + St-Av)
   const outByProduct = {};
-  ['tours', 'saint-avertin'].forEach(function(b) {
+  ['veigne', 'tours', 'saint-avertin'].forEach(function(b) {  // v20.247 — Veigné compte aussi
     (veignePatReassort[b] || []).forEach(function(r) {
       if (r.prepared_at) return; // déjà parti / fait → ne compte plus dans "à partir"
       outByProduct[r.product_id] = (outByProduct[r.product_id] || 0) + (parseQty(r.commander) || 0);
