@@ -2564,7 +2564,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.252';
+const APP_VERSION  = 'v20.253';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4345,6 +4345,12 @@ const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
 const prevData = await loadReapprosDate(currentBoutique, prevISO);
 const pids = Object.keys(prevData).filter(function(pid) {
 const v = prevData[pid];
+// v20.253 — Phil (23/09) : « quand on a envoyé, ça remet à zéro ». Une commande DÉJÀ
+// ENVOYÉE ne revient plus toute seule la semaine suivante : sur tablette, les valeurs
+// recopiées partaient en brouillon et un « Envoyer » recommandait sans le vouloir.
+// Pour la reprendre, les boutons ↩️ / 📅 (sur demande). Un brouillon jamais envoyé,
+// lui, continue d'être reproposé.
+if (v.sent_at) return false;
 return (v.avoir && v.avoir !== '') || (v.commander && v.commander !== '') || (v.previs !== '' && v.previs != null);
 });
 if (!pids.length) return;
@@ -4467,6 +4473,51 @@ const d = new Date(currentReapproDate + 'T12:00');
 d.setDate(d.getDate() - 7);
 const prevISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 await copyFromDateToCurrent(prevISO, 'la semaine dernière');
+}
+
+// v20.253 — ↩️ / 📅 sur les écrans de commande St-Av (+ Cmd Veigné Pât. de Veigné) :
+// on ne reprend que les produits affichés. « Dernière fois » = la date la plus récente
+// (avant celle-ci) où l'un de ces produits a été commandé.
+let reapproScreenPids = [];
+async function copyReapproScreen(mode) {
+  const pids = reapproScreenPids.slice();
+  if (!pids.length) return;
+  let srcISO = null;
+  if (mode === 'lastweek') {
+    srcISO = addDaysISO(currentReapproDate, -7);
+  } else {
+    const { data, error } = await supa.from('reappros').select('service_date,product_id,commander,avoir')
+      .eq('tenant_id', TENANT_ID).eq('boutique_id', currentBoutique)
+      .lt('service_date', currentReapproDate).in('product_id', pids)
+      .order('service_date', { ascending: false }).limit(500);
+    if (error) { showToast(error.message, 'error'); return; }
+    const hit = (data || []).find(function(r) { return (r.commander && r.commander !== '') || (r.avoir && r.avoir !== ''); });
+    if (hit) srcISO = hit.service_date;
+  }
+  const prevData = srcISO ? await loadReapprosDate(currentBoutique, srcISO) : {};
+  const keep = pids.filter(function(pid) {
+    const v = prevData[pid];
+    return v && ((v.commander && v.commander !== '') || (v.avoir && v.avoir !== ''));
+  });
+  if (!keep.length) { showToast('Rien à reprendre' + (srcISO ? ' du ' + formatDateFr(srcISO) : ''), 'error'); return; }
+  if (!confirm('Reprendre ' + keep.length + ' produit' + (keep.length > 1 ? 's' : '') + ' de la commande du ' + formatDateFr(srcISO) + ' ?\n\nRien ne part tant que tu ne touches pas « Envoyer ».')) return;
+  setSyncStatus('syncing');
+  const nowISO = new Date().toISOString();
+  const rows = keep.map(function(pid) {
+    return {
+      tenant_id: TENANT_ID, boutique_id: currentBoutique, product_id: pid,
+      service_date: currentReapproDate,
+      avoir: prevData[pid].avoir || null,
+      commander: prevData[pid].commander || null,
+      updated_by: DEVICE_ID, updated_at: nowISO
+    };
+  });
+  const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  await loadReappros(currentBoutique);
+  renderReapproByContext();
+  showToast(keep.length + ' produit' + (keep.length > 1 ? 's' : '') + ' repris — vérifie puis Envoyer', 'sync');
 }
 
 async function copyFromDateToCurrent(prevISO, label) {
@@ -4928,6 +4979,21 @@ let html = '<div class="date-bar">'
 + '</div>';
 
 html += manageProductsButtonHtml();
+
+// v20.253 — écran vide : reprendre une commande passée, seulement sur demande,
+// et seulement les produits de CET écran (pas ceux de Cmd Local, etc.)
+reapproScreenPids = prods.map(function(p) { return p.id; });
+const nbSaisis = prods.filter(function(p) {
+  const v = reapprosData[p.id];
+  return v && ((v.commander && v.commander !== '') || (v.avoir && v.avoir !== ''));
+}).length;
+if (prods.length && !nbSaisis) {
+  html += '<div class="copy-prev-box"><div class="copy-prev-txt">Écran vide. Tu peux reprendre :</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn-gold" onclick="copyReapproScreen(\'last\')">↩️ Comme la dernière fois</button>'
+    + '<button class="btn-gold" onclick="copyReapproScreen(\'lastweek\')">📅 Comme la semaine dernière</button>'
+    + '</div></div>';
+}
 
 if (!prods.length) {
 html += '<div class="empty-state">Aucun produit.<br>Vérifie en BackOffice que ' + emptyHint + ' sont bien configurés avec <em>supply St-Av = ' + supplierLabel + '</em>.</div>';
