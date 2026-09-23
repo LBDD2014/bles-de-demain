@@ -2564,7 +2564,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.251';
+const APP_VERSION  = 'v20.252';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -16663,6 +16663,17 @@ const { error } = await supa.from('special_order_items').insert(itemRows);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 }
 
+// v20.252 — commande régulière cochée à la création : on crée la série d'un coup
+let nbSerie = 0;
+if (!d.id && d.repeat && d.repeat.on) {
+  const res = repeatSpecialDates(newOrderRepeatStart(d.pickup_date), d.repeat.weeks, d.repeat.dows, d.origin_shop, {});
+  if (res.dates.length) {
+    const err = await insertSerieCopies(Object.assign({}, orderRow, { id: orderId, serie_id: null, items: itemRows }), res.dates);
+    if (err) { setSyncStatus('error'); showToast('Commande créée, mais la série a échoué : ' + err, 'error'); }
+    else nbSerie = res.dates.length;
+  }
+}
+
 setSyncStatus('ok');
 specialFormMode = null;
 specialFormDraft = null;
@@ -16672,7 +16683,7 @@ currentSpecialWeekStart = getMondayOf(d.pickup_date);
 }
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 renderSpecials();
-showToast('Commande enregistrée', 'sync');
+showToast(nbSerie ? '🔁 Commande enregistrée + ' + nbSerie + ' à venir' : 'Commande enregistrée', 'sync');
 }
 
 async function deleteSpecialOrder(oid) {
@@ -17052,6 +17063,33 @@ function ardoiseRecapHtml(b, monday) {
   return html;
 }
 
+// v20.252 — récurrence dès la prise de commande (formulaire « Nouvelle commande »)
+// Jamais de copie dans le passé (commande saisie en rattrapage).
+function newOrderRepeatStart(pickup) {
+  const today = serviceDateISO();
+  return pickup < today ? addDaysISO(today, -1) : pickup;
+}
+function toggleNewOrderRepeat() {
+  const d = specialFormDraft;
+  if (!d) return;
+  if (d.repeat && d.repeat.on) d.repeat.on = false;
+  else d.repeat = { on: true, weeks: 4, dows: [new Date((d.pickup_date || serviceDateISO()) + 'T12:00').getDay()] };
+  renderSpecials();
+}
+function toggleNewOrderRepeatDow(dw) {
+  const r = specialFormDraft && specialFormDraft.repeat;
+  if (!r) return;
+  const i = r.dows.indexOf(dw);
+  if (i === -1) r.dows.push(dw); else r.dows.splice(i, 1);
+  renderSpecials();
+}
+function setNewOrderRepeatWeeks(n) {
+  const r = specialFormDraft && specialFormDraft.repeat;
+  if (!r) return;
+  r.weeks = n;
+  renderSpecials();
+}
+
 /* ---------- v20.250 — COMMANDES RÉPÉTÉES (clients réguliers) ----------
    Phil : « j'ai des commandes récurrentes, genre à Veigné une ficelle sans sel tous
    les jours ». On coche les jours + une durée, l'app crée d'un coup une vraie commande
@@ -17164,22 +17202,17 @@ function renderRepeatSpecialModal() {
   el.innerHTML = h;
 }
 
-async function confirmRepeatSpecial() {
-  const r = repeatDraft;
-  if (!r) return;
-  const o = specialOrdersData.find(function(x) { return x.id === r.oid; });
-  if (!o) return;
-  const res = repeatSpecialDates(r.start, r.weeks, r.dows, o.origin_shop, r.taken);
-  if (!res.dates.length) return;
-  setSyncStatus('syncing');
+// Crée une commande par date, copie de `o` (champs + lignes produit), toutes reliées
+// par serie_id (= id de la commande d'origine). Renvoie un message d'erreur, ou null.
+async function insertSerieCopies(o, dates) {
   const serieId = o.serie_id || o.id;
   const nowISO = new Date().toISOString();
   if (!o.serie_id) {
     const { error } = await supa.from('special_orders').update({ serie_id: serieId }).eq('id', o.id);
-    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+    if (error) return error.message;
   }
   const items = o.items || [];
-  const orderRows = res.dates.map(function(iso) {
+  const orderRows = dates.map(function(iso) {
     return {
       tenant_id: TENANT_ID,
       origin_shop: o.origin_shop,
@@ -17200,7 +17233,7 @@ async function confirmRepeatSpecial() {
     };
   });
   const { data: created, error: e1 } = await supa.from('special_orders').insert(orderRows).select('id,pickup_date');
-  if (e1) { setSyncStatus('error'); showToast(e1.message, 'error'); return; }
+  if (e1) return e1.message;
   const itemRows = [];
   (created || []).forEach(function(c) {
     items.forEach(function(it, idx) {
@@ -17218,8 +17251,21 @@ async function confirmRepeatSpecial() {
   });
   if (itemRows.length) {
     const { error: e2 } = await supa.from('special_order_items').insert(itemRows);
-    if (e2) { setSyncStatus('error'); showToast(e2.message, 'error'); return; }
+    if (e2) return e2.message;
   }
+  return null;
+}
+
+async function confirmRepeatSpecial() {
+  const r = repeatDraft;
+  if (!r) return;
+  const o = specialOrdersData.find(function(x) { return x.id === r.oid; });
+  if (!o) return;
+  const res = repeatSpecialDates(r.start, r.weeks, r.dows, o.origin_shop, r.taken);
+  if (!res.dates.length) return;
+  setSyncStatus('syncing');
+  const err = await insertSerieCopies(o, res.dates);
+  if (err) { setSyncStatus('error'); showToast(err, 'error'); return; }
   setSyncStatus('ok');
   closeRepeatSpecialModal();
   specialFormMode = null;
@@ -18011,6 +18057,32 @@ if (isEdit) {
   } else {
     html += '<div class="sp-serie-txt">Client qui revient souvent pour la même chose ?</div>';
     html += '<button class="btn-gold-sm" style="padding:10px 14px" onclick="openRepeatSpecialModal(\'' + d.id + '\')">🔁 Répéter cette commande</button>';
+  }
+  html += '</div>';
+} else {
+  // v20.252 — Phil : « la récurrence client dès la prise de commande ». Même règle que
+  // le bouton 🔁 (jours cochés × semaines, fériés fermés sautés), sans rouvrir la commande.
+  const rp = d.repeat || { on: false };
+  html += '<div class="sp-serie-box">';
+  html += '<button type="button" class="ard-chk' + (rp.on ? ' on' : '') + '" style="padding:10px 14px;font-size:14px" onclick="toggleNewOrderRepeat()">'
+    + (rp.on ? '✓ ' : '') + '🔁 Commande régulière (le client revient)</button>';
+  if (rp.on) {
+    html += '<div class="sp-lbl" style="margin:10px 0 6px">Quels jours ?</div><div class="sp-rep-days">';
+    REP_DOW_ORDER.forEach(function(dw) {
+      html += '<button type="button" class="' + (rp.dows.indexOf(dw) !== -1 ? 'on' : '') + '" onclick="toggleNewOrderRepeatDow(' + dw + ')">' + DOW_ABBR[dw] + '</button>';
+    });
+    html += '</div><div class="sp-lbl" style="margin-bottom:6px">Pendant combien de temps ?</div><div class="sp-rep-weeks">';
+    REP_WEEKS.forEach(function(n) {
+      html += '<button type="button" class="' + (rp.weeks === n ? 'on' : '') + '" onclick="setNewOrderRepeatWeeks(' + n + ')">' + n + ' sem.</button>';
+    });
+    html += '</div>';
+    const res = repeatSpecialDates(newOrderRepeatStart(d.pickup_date), rp.weeks, rp.dows, d.origin_shop || currentBoutique, {});
+    html += '<div class="sp-rep-recap">';
+    html += res.dates.length
+      ? '1 commande le ' + fmtRepDate(d.pickup_date) + ' <strong>+ ' + res.dates.length + ' autre' + (res.dates.length > 1 ? 's' : '') + '</strong> jusqu\'au ' + fmtRepDate(res.dates[res.dates.length - 1]) + '.'
+      : 'Coche au moins un jour.';
+    if (res.sautes.length) html += '<br>🔒 Sautée' + (res.sautes.length > 1 ? 's' : '') + ' (boutique fermée) : ' + res.sautes.map(function(x) { return fmtRepDate(x.iso); }).join(', ');
+    html += '</div>';
   }
   html += '</div>';
 }

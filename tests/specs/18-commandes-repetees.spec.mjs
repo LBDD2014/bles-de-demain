@@ -134,4 +134,56 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Dès la prise de commande — « Commande régulière » crée la commande + la série',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbFicelle() });
+      await gotoApp(page);
+      await enterBoutique(page, 'veigne');
+      await page.evaluate(() => setVue('specials'));
+      await page.waitForTimeout(400);
+      const ids = await page.evaluate(async () => {
+        openNewSpecialOrder();
+        Object.assign(specialFormDraft, { customer_name: 'M. Régulier', customer_phone: '0600000000',
+          pickup_date: '2026-07-23', taken_by: 'X' });
+        specialFormDraft.items = [{ product_id: 'vp_croissant', product_name_custom: '', qty: '1', notes: '', category: 'viennoiserie', tranche: false }];
+        toggleNewOrderRepeat();                 // jeudi pré-coché
+        const txt = document.getElementById('main-content').textContent;
+        toggleNewOrderRepeatDow(5);             // + vendredi
+        setNewOrderRepeatWeeks(2);
+        await upsertSpecialOrder();
+        return { txt, rows: window.__mockDB.special_orders.filter((o) => o.customer_name === 'M. Régulier') };
+      });
+      assert(ids.txt.indexOf('Pendant combien de temps') !== -1, 'jours + durée affichés quand on coche');
+      const dates = ids.rows.map((o) => o.pickup_date).sort();
+      const attendu = ['2026-07-23', '2026-07-24', '2026-07-30', '2026-07-31', '2026-08-06'];
+      assert(JSON.stringify(dates) === JSON.stringify(attendu), 'dates : ' + dates.join(', '));
+      const orig = ids.rows.find((o) => o.pickup_date === '2026-07-23');
+      assert(ids.rows.every((o) => o.serie_id === orig.id), 'toutes reliées à la 1re commande');
+      const nbItems = await page.evaluate(() => window.__mockDB.special_order_items.filter((i) => i.product_id === 'vp_croissant').length);
+      assert(nbItems === 6, '1 ligne produit par commande (5) + celle de la fixture : ' + nbItems);
+      await page.close();
+    },
+  },
+  {
+    name: 'Dès la prise de commande — case non cochée = une seule commande, comme avant',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbFicelle() });
+      await gotoApp(page);
+      await enterBoutique(page, 'veigne');
+      await page.evaluate(() => setVue('specials'));
+      await page.waitForTimeout(400);
+      const n = await page.evaluate(async () => {
+        openNewSpecialOrder();
+        Object.assign(specialFormDraft, { customer_name: 'M. Unique', customer_phone: '0600000000',
+          pickup_date: '2026-07-23', taken_by: 'X' });
+        specialFormDraft.items = [{ product_id: 'vp_croissant', product_name_custom: '', qty: '1', notes: '', category: 'viennoiserie', tranche: false }];
+        await upsertSpecialOrder();
+        const rows = window.__mockDB.special_orders.filter((o) => o.customer_name === 'M. Unique');
+        return { n: rows.length, serie: rows[0] && rows[0].serie_id };
+      });
+      assert(n.n === 1 && !n.serie, 'une seule commande sans série : ' + JSON.stringify(n));
+      await page.close();
+    },
+  },
 ];
