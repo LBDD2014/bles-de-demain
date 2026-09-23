@@ -109,7 +109,10 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
 - Tours : 3 sections (Pâtisserie Veigné + Surgelés Local + Ingrédients)
 - St-Avertin : 2 onglets séparés (Reap.Pain + Reap.Vienn-Brioche)
 - Bouton "Envoyer à X" par section
-- Valeurs persistantes semaine en semaine
+- ~~Valeurs persistantes semaine en semaine~~ → **v20.253 (23/09/2026)** : une commande
+  **déjà envoyée** ne se recopie plus toute seule (envoyé = remis à zéro). Seul un brouillon
+  jamais envoyé est reproposé à J+7. Reprise sur demande : ↩️ Comme la dernière fois /
+  📅 Comme la semaine dernière (écrans St-Av + Cmd Veigné Pât. ; Tours : Hier / Semaine dernière)
 - Priorité affichage : Tradition, Tradition Graines, Baguette Épeautre en tête
 
 **Stock Local** :
