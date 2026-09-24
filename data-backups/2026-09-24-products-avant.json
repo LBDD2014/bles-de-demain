@@ -1,0 +1,9 @@
+[{"id":"cereales_pain","name":"Céréales","actif":true,"pros_only_id":"fredeville_organisation"}, 
+ {"id":"bp_gpmie","name":"Grand Pain de Mie","actif":true,"pros_only_id":null}, 
+ {"id":"bp_mat250","name":"Mathis 250 g en boules","actif":true,"pros_only_id":null}, 
+ {"id":"bp_frutr","name":"Fruité Fredeville tranché","actif":true,"pros_only_id":null}, 
+ {"id":"bp_ppfred","name":"Petits Pains Essentiel 80g","actif":true,"pros_only_id":null}, 
+ {"id":"bp_ppblanc","name":"Petits pains blanc","actif":true,"pros_only_id":null}, 
+ {"id":"bp_ppgr","name":"Petits pains graines","actif":true,"pros_only_id":null}, 
+ {"id":"bp_dtg","name":"Demi trad graines","actif":true,"pros_only_id":null}, 
+ {"id":"mathis_800g","name":"Mathis 800 g","actif":true,"pros_only_id":null}]
