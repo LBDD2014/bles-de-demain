@@ -86,8 +86,14 @@
 
   const proto = Builder.prototype;
 
-  proto.select = function () {
-    if (this.action === 'select') { /* colonnes ignorées, on renvoie tout */ }
+  proto.select = function (cols) {
+    const self = this;
+    if (this.action === 'select') {
+      // colonnes ignorées, on renvoie tout — sauf les jointures « table(*) » (v20.257 :
+      // `pro_orders.select('*, pro_order_items(*)')`) : les lignes filles sont attachées.
+      this.embeds = [];
+      String(cols || '').replace(/([a-z_]+)\(\*\)/g, function (_, t) { self.embeds.push(t); return ''; });
+    }
     else this.selectAfterWrite = true;
     return this;
   };
@@ -125,6 +131,14 @@
     if (this.action === 'select') {
       result = applyOrder(rows.filter(function (r) { return matches(r, self.filters); }), this.orders);
       if (this.limitN != null) result = result.slice(0, this.limitN);
+      (this.embeds || []).forEach(function (t) {
+        const fk = self.table.replace(/s$/, '') + '_id';   // pro_orders → pro_order_id
+        result = result.map(function (r) {
+          const copy = clone(r);
+          copy[t] = tableRows(t).filter(function (c) { return String(c[fk]) === String(r.id); }).map(clone);
+          return copy;
+        });
+      });
     } else if (this.action === 'insert') {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload];
       list.forEach(function (r) {

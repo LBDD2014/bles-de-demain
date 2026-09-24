@@ -2571,7 +2571,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.256';
+const APP_VERSION  = 'v20.257';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11169,13 +11169,14 @@ function renderProInterface() {
 
 function renderProInterfaceOrdersList(orders, productsMap, pro, canShowActions) {
   let html = '';
-  orders.forEach(function(o) {
+  // v20.257 — les morceaux d'une même date (un par site) s'affichent comme UNE commande
+  mergeProOrdersByDate(orders).forEach(function(o) {
     const items = o.pro_order_items || [];
     let total = 0;
     items.forEach(function(it) {
       total += Number(it.qty || 0) * Number(it.prix_applique || 0);
     });
-    const boutiqueLbl = BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source;
+    const boutiqueLbl = (o.sources || [o.boutique_source]).map(function(b) { return BOUTIQUE_NAMES[b] || b; }).join(' + ');
     const statutLbl = ({ brouillon: 'Brouillon', confirme: 'Confirmée', livre: 'Livrée' })[o.statut] || o.statut;
     const statutColor = ({ brouillon: 'var(--brown-mid)', confirme: 'var(--blue)', livre: 'var(--green)' })[o.statut] || 'var(--brown-mid)';
     // v21.3.1 — Peut-on encore éditer/annuler ?
@@ -11258,14 +11259,19 @@ function openProInterfaceForm(orderId) {
   } else {
     const o = proInterfaceOrders.find(function(x) { return x.id === orderId; });
     if (!o) { proInterfaceFormOpen = null; renderProInterface(); return; }
+    // v20.257 — une commande peut être découpée par site : on rassemble ses morceaux
+    const sibs = proOrderSiblings(proInterfaceOrders, o);
+    let allItems = [];
+    sibs.forEach(function(x) { allItems = allItems.concat(x.pro_order_items || []); });
     proInterfaceDraft = {
       id: o.id,
+      orig_date: o.date_livraison,
       date_livraison: o.date_livraison,
       boutique_source: o.boutique_source,
       statut: o.statut || 'confirme',
-      notes: o.notes || '',
+      notes: o.notes || (sibs.map(function(x) { return x.notes; }).filter(Boolean)[0]) || '',
       ordered_by: proOrderByName(o) || '', // v20.173
-      items: (o.pro_order_items || []).map(function(it) {
+      items: allItems.map(function(it) {
         return { id: it.id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique };
       })
     };
@@ -11498,40 +11504,14 @@ async function saveProInterfaceOrder() {
     alert('Choisis qui passe la commande (👤 au-dessus des produits).');
     return;
   }
-  const orderRow = {
-    tenant_id: TENANT_ID,
-    pro_id: pro.id,
-    date_livraison: d.date_livraison,
-    boutique_source: d.boutique_source || pro.boutique_principale || 'local',
-    statut: d.statut || 'confirme',
-    notes: (d.notes || '').trim() || null,
-    created_by: (d.ordered_by || '').trim() ? 'pro_self:' + d.ordered_by.trim() : 'pro_self' // v20.173
-  };
-  let orderId = d.id;
-  if (!orderId) {
-    const res = await supa.from('pro_orders').insert(orderRow).select();
-    if (res.error || !res.data || !res.data.length) { alert('Erreur création : ' + (res.error ? res.error.message : 'inconnue')); return; }
-    orderId = res.data[0].id;
-  } else {
-    const res = await supa.from('pro_orders').update(orderRow).eq('id', orderId).select();
-    if (res.error) { alert('Erreur modif : ' + res.error.message); return; }
-    // Supprimer les items existants pour les remplacer
-    const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
-    if (del.error) { alert('Erreur nettoyage items : ' + del.error.message); return; }
-  }
-  // Insérer les items
-  if (cleanItems.length) {
-    const itemsRows = cleanItems.map(function(it) {
-      return {
-        pro_order_id: orderId,
-        product_id: it.product_id,
-        qty: Number(it.qty),
-        prix_applique: it.prix_applique != null ? Number(it.prix_applique) : getProAppliedPrice(pro, it.product_id)
-      };
-    });
-    const ins = await supa.from('pro_order_items').insert(itemsRows);
-    if (ins.error) { alert('Erreur items : ' + ins.error.message); return; }
-  }
+  // v20.257 — découpage par site selon « Sources par catégorie » de la fiche pro
+  const r = await saveProOrderSplit({
+    pro: pro, date: d.date_livraison, origDate: d.orig_date, editingId: d.id,
+    statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null,
+    created_by: (d.ordered_by || '').trim() ? 'pro_self:' + d.ordered_by.trim() : 'pro_self', // v20.173
+    items: cleanItems
+  });
+  if (r.error) { alert('Erreur enregistrement : ' + r.error); return; }
   // Recharger + fermer
   await loadProInterfaceOrders();
   proInterfaceFormOpen = null;
@@ -11547,7 +11527,9 @@ async function cancelProInterfaceOrder(orderId) {
     return;
   }
   if (!confirm('Annuler cette commande du ' + formatDateFr(o.date_livraison) + ' ?')) return;
-  const { error } = await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', orderId);
+  // v20.257 — tous les morceaux de la commande (un par site)
+  const ids = proOrderSiblings(proInterfaceOrders, o).map(function(x) { return x.id; });
+  const { error } = await supa.from('pro_orders').update({ statut: 'annule' }).in('id', ids.length ? ids : [orderId]);
   if (error) { alert('Erreur annulation : ' + error.message); return; }
   await loadProInterfaceOrders();
   renderProInterface();
@@ -13431,35 +13413,131 @@ async function applyGenerateRecurring() {
   let ok = 0, ko = 0;
   for (let i = 0; i < toCreate.length; i++) {
     const item = toCreate[i];
-    // 1) Insérer le pro_order
-    const orderRow = {
-      tenant_id: TENANT_ID,
-      pro_id: item.pro.id,
-      date_livraison: item.dateISO,
-      boutique_source: item.pro.boutique_principale || 'local',
-      statut: 'brouillon',
+    // v20.257 — une commande par site (« Sources par catégorie »), en brouillon
+    const r = await saveProOrderSplit({
+      pro: item.pro, date: item.dateISO, editingId: null, statut: 'brouillon',
       notes: 'Généré auto (' + (item.source === 'template' ? 'panier type' : 'historique ' + item.source.replace('lastorder:', '')) + ')',
-      created_by: 'v21.1 auto'
-    };
-    const { data: orderRes, error: oErr } = await supa.from('pro_orders').insert(orderRow).select();
-    if (oErr || !orderRes || !orderRes.length) { ko++; console.error('Création order échec:', oErr); continue; }
-    const orderId = orderRes[0].id;
-    // 2) Insérer les items avec prix appliqué
-    const itemsRows = item.items.map(function(it) {
-      return {
-        pro_order_id: orderId,
-        product_id: it.product_id,
-        qty: it.qty,
-        prix_applique: getProAppliedPrice(item.pro, it.product_id)
-      };
+      created_by: 'v21.1 auto',
+      items: item.items.map(function(it) { return { product_id: it.product_id, qty: it.qty, prix_applique: getProAppliedPrice(item.pro, it.product_id) }; })
     });
-    const { error: iErr } = await supa.from('pro_order_items').insert(itemsRows);
-    if (iErr) { ko++; console.error('Items échec:', iErr); continue; }
+    if (r.error) { ko++; console.error('Création order échec:', r.error); continue; }
     ok++;
   }
   setSyncStatus(ko > 0 ? 'error' : 'ok');
   closeGenerateRecurringModal();
   showToast(ok + ' commande(s) créée(s)' + (ko > 0 ? ', ' + ko + ' échec(s)' : ''), ko > 0 ? 'error' : 'sync');
+}
+
+// === v20.257 — « SOURCES PAR CATÉGORIE » : une commande pro découpée par site ===
+// Phil (24/09) : Château d'Artigny commande son pain au Local et, parfois, des cadres de
+// gâteaux surgelés faits par les pâtissiers de Veigné — que Veigné et le livreur doivent
+// voir. Le réglage « Sources par catégorie » existait dans la fiche pro mais n'était lu
+// nulle part : toute commande partait à la boutique principale.
+// Règle (option validée par Phil) : pour le pro, UNE commande par date. À l'enregistrement
+// l'app la découpe en une commande par site (même date, note, auteur) ; à la modification
+// elle rassemble les morceaux (« siblings ») puis redécoupe. Chaque site continue de voir
+// sa part comme avant (boutique_source), le livreur voit tout dans sa tournée.
+function proProductCategory(pid) {
+  const lists = [adminProducts, products, (typeof proInterfaceProducts !== 'undefined' ? proInterfaceProducts : [])];
+  for (let i = 0; i < lists.length; i++) {
+    const p = (lists[i] || []).find(function(x) { return x.id === pid; });
+    if (p) return p.category || null;
+  }
+  return null;
+}
+function proSourceForProduct(pro, pid) {
+  const principal = (pro && pro.boutique_principale) || 'local';
+  const cat = pid ? proProductCategory(pid) : null;
+  const spc = (pro && pro.sources_par_categorie) || {};
+  return (cat && spc[cat]) ? spc[cat] : principal;
+}
+function splitProItemsBySource(pro, items) {
+  const groups = {};
+  (items || []).forEach(function(it) {
+    const src = proSourceForProduct(pro, it.product_id);
+    (groups[src] = groups[src] || []).push(it);
+  });
+  return groups;
+}
+// Les morceaux d'une même commande : même pro, même date, pas annulés
+function proOrderSiblings(orders, o) {
+  return (orders || []).filter(function(x) {
+    return x.pro_id === o.pro_id && x.date_livraison === o.date_livraison && x.statut !== 'annule';
+  });
+}
+// Enregistre une commande pro en la découpant par site.
+// opts : { pro, date, statut, notes, created_by, items[{product_id, qty, prix_applique}],
+//          editingId, origDate } — items déjà nettoyés. Renvoie { error } ou { ids }.
+async function saveProOrderSplit(opts) {
+  const pro = opts.pro;
+  const principal = pro.boutique_principale || 'local';
+  const groups = splitProItemsBySource(pro, opts.items);
+  if (!Object.keys(groups).length) groups[principal] = [];   // note seule (demande spéciale)
+  let siblings = [];
+  if (opts.editingId) {
+    const { data } = await supa.from('pro_orders').select('id,boutique_source,statut')
+      .eq('tenant_id', TENANT_ID).eq('pro_id', pro.id)
+      .eq('date_livraison', opts.origDate || opts.date).neq('statut', 'annule');
+    siblings = data || [];
+  }
+  const used = [], ids = [];
+  const sources = Object.keys(groups);
+  for (let i = 0; i < sources.length; i++) {
+    const src = sources[i];
+    const row = {
+      tenant_id: TENANT_ID, pro_id: pro.id, date_livraison: opts.date, boutique_source: src,
+      statut: opts.statut || 'confirme', notes: opts.notes || null, created_by: opts.created_by
+    };
+    let target = siblings.find(function(s) { return s.boutique_source === src && used.indexOf(s.id) === -1; });
+    let orderId;
+    if (target) {
+      const res = await supa.from('pro_orders').update(row).eq('id', target.id).select();
+      if (res.error) return { error: res.error.message };
+      if (!res.data || !res.data.length) return { error: 'Modif bloquée par Supabase (RLS).' };
+      orderId = target.id; used.push(orderId);
+      const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
+      if (del.error) return { error: del.error.message };
+    } else {
+      const res = await supa.from('pro_orders').insert(row).select();
+      if (res.error) return { error: res.error.message };
+      if (!res.data || !res.data.length) return { error: 'Création bloquée par Supabase (RLS).' };
+      orderId = res.data[0].id;
+    }
+    ids.push(orderId);
+    if (groups[src].length) {
+      const rows = groups[src].map(function(it) {
+        return { pro_order_id: orderId, product_id: it.product_id, qty: Number(it.qty),
+                 prix_applique: it.prix_applique != null ? Number(it.prix_applique) : getProAppliedPrice(pro, it.product_id) };
+      });
+      const ins = await supa.from('pro_order_items').insert(rows);
+      if (ins.error) return { error: ins.error.message };
+    }
+  }
+  // Un morceau dont tous les produits ont été retirés : annulé (reste en historique)
+  for (let j = 0; j < siblings.length; j++) {
+    if (used.indexOf(siblings[j].id) !== -1) continue;
+    await supa.from('pro_order_items').delete().eq('pro_order_id', siblings[j].id);
+    await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', siblings[j].id);
+  }
+  return { ids: ids };
+}
+// Regroupe les morceaux d'une même commande pour l'affichage côté pro : un objet par date
+function mergeProOrdersByDate(orders) {
+  const out = [];
+  (orders || []).forEach(function(o) {
+    const m = out.find(function(x) { return x.pro_id === o.pro_id && x.date_livraison === o.date_livraison; });
+    if (!m) {
+      out.push(Object.assign({}, o, { ids: [o.id], sources: [o.boutique_source],
+        pro_order_items: (o.pro_order_items || []).slice() }));
+    } else {
+      m.ids.push(o.id);
+      if (m.sources.indexOf(o.boutique_source) === -1) m.sources.push(o.boutique_source);
+      m.pro_order_items = m.pro_order_items.concat(o.pro_order_items || []);
+      if (!m.notes && o.notes) m.notes = o.notes;
+      if (m.statut === 'brouillon' && o.statut === 'confirme') m.statut = 'confirme';
+    }
+  });
+  return out;
 }
 
 // === v21.0.4 — COMMANDES PROS (saisie côté boutique) ===
@@ -13519,7 +13597,7 @@ function getProAvailableProducts(pro) {
   });
 }
 
-function openProOrderForm(orderId) {
+async function openProOrderForm(orderId) {
   editingProOrderId = orderId;
   if (orderId === 'new') {
     // Date par défaut = demain
@@ -13538,14 +13616,22 @@ function openProOrderForm(orderId) {
   } else {
     const o = proOrdersData.find(function(x) { return x.id === orderId; });
     if (!o) { editingProOrderId = null; renderProOrders(); return; }
+    // v20.257 — on rassemble les morceaux (un par site) pour les rééditer ensemble.
+    // L'écran ne charge que les commandes de CE site : les autres morceaux viennent de la base.
+    const sr = await supa.from('pro_orders').select('*, pro_order_items(*)')
+      .eq('tenant_id', TENANT_ID).eq('pro_id', o.pro_id).eq('date_livraison', o.date_livraison).neq('statut', 'annule');
+    const sibs = (sr.data && sr.data.length) ? sr.data : [o];
+    let allItems = [];
+    sibs.forEach(function(x) { allItems = allItems.concat(x.pro_order_items || []); });
     proOrderDraft = {
       id: o.id,
+      orig_date: o.date_livraison,
       pro_id: o.pro_id,
       date_livraison: o.date_livraison,
       boutique_source: o.boutique_source,
       statut: o.statut || 'confirme',
-      notes: o.notes || '',
-      items: (o.pro_order_items || []).map(function(it) {
+      notes: o.notes || (sibs.map(function(x) { return x.notes; }).filter(Boolean)[0]) || '',
+      items: allItems.map(function(it) {
         return { id: it.id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique };
       })
     };
@@ -13614,50 +13700,16 @@ async function saveProOrder() {
   }
   setSyncStatus('syncing');
   const isNew = (editingProOrderId === 'new');
-  const orderRow = {
-    tenant_id: TENANT_ID,
-    pro_id: d.pro_id,
-    date_livraison: d.date_livraison,
-    boutique_source: d.boutique_source,
-    statut: d.statut || 'confirme',
-    notes: (d.notes || '').trim() || null,
-    created_by: currentBoutique
-  };
-  let orderId = d.id;
-  if (isNew) {
-    const res = await supa.from('pro_orders').insert(orderRow).select();
-    if (res.error) { setSyncStatus('error'); showToast(res.error.message, 'error'); return; }
-    if (!res.data || !res.data.length) {
-      setSyncStatus('error');
-      alert('Création bloquée par Supabase (RLS). Vérifie les policies sur pro_orders.');
-      return;
-    }
-    orderId = res.data[0].id;
-  } else {
-    const res = await supa.from('pro_orders').update(orderRow).eq('id', orderId).select();
-    if (res.error) { setSyncStatus('error'); showToast(res.error.message, 'error'); return; }
-    if (!res.data || !res.data.length) {
-      setSyncStatus('error');
-      alert('Modif bloquée par Supabase (RLS). Vérifie les policies sur pro_orders.');
-      return;
-    }
-    // Strategy : full-replace items. DELETE old, INSERT new.
-    const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
-    if (del.error) { setSyncStatus('error'); showToast('Erreur suppression items : ' + del.error.message, 'error'); return; }
-  }
-  // INSERT items
-  if (validItems.length) {
-    const itemsRows = validItems.map(function(it) {
-      return {
-        pro_order_id: orderId,
-        product_id: it.product_id,
-        qty: Number(it.qty),
-        prix_applique: it.prix_applique != null ? Number(it.prix_applique) : null
-      };
-    });
-    const insItems = await supa.from('pro_order_items').insert(itemsRows);
-    if (insItems.error) { setSyncStatus('error'); showToast('Erreur ajout items : ' + insItems.error.message, 'error'); return; }
-  }
+  // v20.257 — découpage par site selon « Sources par catégorie » de la fiche pro.
+  // Sans fiche connue, la boutique choisie dans le formulaire fait office de source unique.
+  const proFiche = adminPros.find(function(p) { return p.id === d.pro_id; })
+    || { id: d.pro_id, boutique_principale: d.boutique_source, sources_par_categorie: {} };
+  const r = await saveProOrderSplit({
+    pro: proFiche, date: d.date_livraison, origDate: d.orig_date, editingId: isNew ? null : d.id,
+    statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null, created_by: currentBoutique,
+    items: validItems
+  });
+  if (r.error) { setSyncStatus('error'); showToast(r.error, 'error'); return; }
   setSyncStatus('ok');
   await loadProOrders(currentBoutique);
   closeProOrderForm();
