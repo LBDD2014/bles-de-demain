@@ -2378,6 +2378,11 @@ outline: none; border-color: var(--gold); background: white;
 .ard-panel-line { font-size:13px; color:var(--brown); margin:3px 0; }
 .ard-chip { display:inline-block; background:#fff; border:1px solid var(--gold-light); border-radius:12px; padding:2px 10px; margin:2px 4px 2px 0; font-size:13px; }
 .ard-chip em { font-style:normal; font-size:11px; color:var(--grey-light); }
+.pa-warn { background:#FFF4E5; border-left:3px solid var(--orange); border-radius:6px; padding:8px 10px; font-size:13px; color:var(--brown); margin-bottom:10px; }
+.pa-img { display:block; width:100%; max-width:360px; margin:0 auto 10px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.15); }
+.pa-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pa-actions button { flex:1 1 160px; }
+.pa-msg { width:100%; min-height:220px; font-size:13px; font-family:inherit; border:1px solid var(--gold-light); border-radius:8px; padding:8px; margin-bottom:8px; box-sizing:border-box; }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2564,7 +2569,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.253';
+const APP_VERSION  = 'v20.254';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10637,6 +10642,241 @@ async function generateProMagicLink(proId, isRenew) {
   showToast(isRenew ? 'Magic link renouvelé' : 'Magic link généré', 'sync');
 }
 
+// === v20.254 — 📱 ENVOYER L'ACCÈS À UN PRO (lien + QR + message WhatsApp) ===
+// Phil (24/09) : « je veux leur envoyer un lien de commande et un QR code, une fois par
+// WhatsApp, avec un explicatif, en leur disant qu'il y a des heures butoir ». Choix :
+// vouvoiement, heure limite PAR JOUR de livraison (comme aujourd'hui), jours + heure
+// limite écrits sur l'image. L'image se fabrique dans la tablette (canvas), rien en base
+// à part le lien (magic_token) s'il n'existait pas encore.
+const SHOP_TELS = { local: '07 50 05 22 96', tours: '07 57 77 05 87', veigne: '07 57 77 05 39', 'saint-avertin': '09 80 99 96 52' };
+const PRO_DOW_ORDER = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+let proAccessState = null;   // { pro, url, blob }
+
+function proMagicUrl(token) {
+  return window.location.origin + window.location.pathname + '?pro_token=' + token;
+}
+function _hLbl(h) {           // '14:00' → '14h' · '14:30' → '14h30' · vide/23:59 → 'minuit'
+  if (!h || h === '23:59') return 'minuit';
+  const p = h.split(':');
+  return parseInt(p[0], 10) + 'h' + (p[1] && p[1] !== '00' ? p[1] : '');
+}
+// Une ligne par jour de livraison actif : { jour, limite, nonRegle }
+function proDeliveryLines(pro) {
+  const jl = pro.jours_livraison || {};
+  return PRO_DOW_ORDER.filter(function(j) { return jl[j] && jl[j].actif; }).map(function(j) {
+    const cfg = jl[j];
+    const dec = cfg.butoir_decalage != null ? Number(cfg.butoir_decalage) : -1;   // même défaut que proGetButoirForDate
+    const h = _hLbl(cfg.butoir_heure);
+    const iJour = DOW_NAMES.indexOf(j);
+    const jLim = DOW_NAMES[((iJour + dec) % 7 + 7) % 7];
+    let limite;
+    if (dec === 0) limite = h === 'minuit' ? 'le jour même' : 'le jour même avant ' + h;
+    else if (h === 'minuit') limite = 'avant ' + jLim + ' minuit';
+    else limite = 'avant ' + jLim + ' ' + h;
+    return { jour: j, limite: limite, nonRegle: !cfg.butoir_heure || dec === 0 };
+  });
+}
+function proAccessContact(pro) {
+  const cs = (pro.contacts || []).filter(function(c) { return c && (c.nom || c.tel); });
+  const c = cs.find(function(x) { return x.tel; }) || cs[0] || null;
+  return { nom: (c && c.nom) || pro.contact_nom || '', tel: (c && c.tel) || pro.contact_tel || '' };
+}
+function proAccessMessage(pro, url) {
+  const ct = proAccessContact(pro);
+  const src = pro.boutique_principale || 'local';
+  const tel = SHOP_TELS[src] || SHOP_TELS.local;
+  const lignes = proDeliveryLines(pro);
+  const cap = function(s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+  let m = 'Bonjour' + (ct.nom ? ' ' + ct.nom : '') + ' 👋\n\n'
+    + 'C\'est Phil, des Blés de Demain. Pour vous simplifier la vie, vous pouvez maintenant passer vos commandes vous-même, directement depuis votre téléphone, quand ça vous arrange.\n\n'
+    + '👉 Votre lien personnel :\n' + url + '\n(ou scannez le QR code en photo)\n\n'
+    + '*Comment ça marche :*\n'
+    + '1. Ouvrez le lien (ajoutez-le à vos favoris ou à votre écran d\'accueil pour le retrouver facilement)\n'
+    + '2. Touchez « + Nouvelle commande »\n'
+    + '3. Choisissez le jour de livraison\n'
+    + '4. Indiquez vos quantités et validez ✅\n\n'
+    + 'Vous pouvez modifier ou annuler une commande tant que l\'heure limite n\'est pas passée.\n\n'
+    + '*Heures limites :* pour que le fournil puisse s\'organiser et vous livrer dans de bonnes conditions, chaque jour de livraison a une heure limite de commande. Passé ce délai, la commande n\'est plus possible en ligne.\n';
+  if (lignes.length) {
+    m += lignes.map(function(l) { return '• Livraison ' + l.jour + ' : commande ' + l.limite; }).join('\n') + '\n';
+  }
+  m += '\nEn cas d\'imprévu, appelez-nous au ' + tel + ', on fera au mieux.\n\n'
+    + 'Ce lien est personnel, merci de ne pas le partager.\n\n'
+    + 'Merci pour votre confiance, à très vite 🥖\nPhil — Les Blés de Demain';
+  return m;
+}
+
+// QR : petite bibliothèque chargée seulement quand on en a besoin
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise(function(resolve, reject) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    s.onload = function() { resolve(); };
+    s.onerror = function() { reject(new Error('QR indisponible (connexion ?)')); };
+    document.head.appendChild(s);
+  });
+}
+function _loadImg(src) {
+  return new Promise(function(resolve) {
+    const im = new Image();
+    im.onload = function() { resolve(im); };
+    im.onerror = function() { resolve(null); };
+    im.src = src;
+  });
+}
+// L'image envoyée au pro : logo, nom, QR, mode d'emploi, jours + heure limite
+async function drawProAccessCard(pro, url) {
+  await loadQrLib();
+  const lignes = proDeliveryLines(pro);
+  const W = 1080, H = 1500 + Math.max(1, lignes.length) * 64;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const CREAM = '#FAF6EE', BROWN = '#3D2B1F', GOLD = '#CEAB52', MID = '#6B4226', GREY = '#474950';
+  g.fillStyle = CREAM; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#141414'; g.fillRect(0, 0, W, 260);
+  g.fillStyle = GOLD; g.fillRect(0, 260, W, 8);
+  const logo = await _loadImg('logo-splash.png.png');
+  if (logo) {
+    const r = Math.min(520 / logo.width, 220 / logo.height);
+    g.drawImage(logo, (W - logo.width * r) / 2, (260 - logo.height * r) / 2, logo.width * r, logo.height * r);
+  } else {
+    g.fillStyle = '#fff'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center';
+    g.fillText('Les Blés de Demain', W / 2, 155);
+  }
+  g.textAlign = 'center';
+  const txt = function(t, y, font, col) { g.font = font; g.fillStyle = col; g.fillText(t, W / 2, y); };
+  txt('Votre espace commande', 375, 'bold 62px Georgia, serif', BROWN);
+  txt(pro.nom || '', 445, '48px Georgia, serif', MID);
+  // QR
+  const qr = window.qrcode(0, 'M');
+  qr.addData(url); qr.make();
+  const n = qr.getModuleCount(), size = 600, cell = size / n, x0 = (W - size) / 2, y0 = 505;
+  g.fillStyle = '#fff'; g.strokeStyle = GOLD; g.lineWidth = 6;
+  if (g.roundRect) { g.beginPath(); g.roundRect(x0 - 28, y0 - 28, size + 56, size + 56, 28); g.fill(); g.stroke(); }
+  else { g.fillRect(x0 - 28, y0 - 28, size + 56, size + 56); g.strokeRect(x0 - 28, y0 - 28, size + 56, size + 56); }
+  g.fillStyle = '#2E3044';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (qr.isDark(r, c)) g.fillRect(Math.floor(x0 + c * cell), Math.floor(y0 + r * cell), Math.ceil(cell), Math.ceil(cell));
+  }
+  txt('Scannez avec l\'appareil photo', 1195, 'bold 44px Georgia, serif', BROWN);
+  txt('de votre téléphone pour commander', 1252, '40px Georgia, serif', GREY);
+  g.fillStyle = GOLD; g.fillRect(200, 1300, W - 400, 3);
+  txt('Vos livraisons', 1375, 'bold 42px Georgia, serif', BROWN);
+  let y = 1440;
+  if (!lignes.length) { txt('Jours à confirmer avec la boulangerie', y, 'italic 36px Georgia, serif', GREY); y += 64; }
+  lignes.forEach(function(l) {
+    g.font = 'bold 36px Georgia, serif';
+    const a = l.jour.charAt(0).toUpperCase() + l.jour.slice(1) + '  ·  ';
+    g.font = '36px Georgia, serif';
+    const b = 'commande ' + l.limite;
+    g.font = 'bold 36px Georgia, serif'; const wa = g.measureText(a).width;
+    g.font = '36px Georgia, serif'; const wb = g.measureText(b).width;
+    const xs = (W - wa - wb) / 2;
+    g.textAlign = 'left';
+    g.font = 'bold 36px Georgia, serif'; g.fillStyle = BROWN; g.fillText(a, xs, y);
+    g.font = '36px Georgia, serif'; g.fillStyle = MID; g.fillText(b, xs + wa, y);
+    g.textAlign = 'center';
+    y += 64;
+  });
+  txt('Commande avant l\'heure limite = livraison assurée', y + 30, 'italic 32px Georgia, serif', MID);
+  return new Promise(function(resolve) { cv.toBlob(function(b) { resolve({ blob: b, dataUrl: cv.toDataURL('image/png') }); }, 'image/png'); });
+}
+
+async function openProAccessModal(proId) {
+  let pro = (adminProsDraft && adminProsDraft.id === proId) ? adminProsDraft : adminPros.find(function(p) { return p.id === proId; });
+  if (!pro) return;
+  // Pas encore de lien : on le crée (sans renouveler un lien déjà envoyé)
+  if (!pro.magic_token) {
+    const tok = _generateMagicTokenString();
+    setSyncStatus('syncing');
+    const { error } = await supa.from('pros').update({ magic_token: tok }).eq('id', proId);
+    if (error) { setSyncStatus('error'); showToast('Erreur: ' + error.message, 'error'); return; }
+    setSyncStatus('ok');
+    pro.magic_token = tok;
+    const pc = adminPros.find(function(p) { return p.id === proId; });
+    if (pc) pc.magic_token = tok;
+  }
+  const url = proMagicUrl(pro.magic_token);
+  let el = document.getElementById('pro-access-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'pro-access-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.innerHTML = '<div class="modal" style="max-width:520px"><div class="modal-title">📱 Envoyer l\'accès — ' + escapeHtml(pro.nom || '') + '</div><div class="modal-sub">Préparation de l\'image…</div></div>';
+  el.classList.add('show');
+  let card;
+  try { card = await drawProAccessCard(pro, url); }
+  catch (e) { el.classList.remove('show'); showToast(e.message, 'error'); return; }
+  proAccessState = { pro: pro, url: url, blob: card.blob };
+  const lignes = proDeliveryLines(pro);
+  const nonRegles = lignes.filter(function(l) { return l.nonRegle; }).map(function(l) { return l.jour; });
+  const ct = proAccessContact(pro);
+  let h = '<div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">'
+    + '<div class="modal-title">📱 Envoyer l\'accès — ' + escapeHtml(pro.nom || '') + '</div>'
+    + '<div class="modal-sub">Une seule fois, par WhatsApp : l\'image + le message.</div>';
+  if (!lignes.length) {
+    h += '<div class="pa-warn">⚠️ Aucun jour de livraison coché : le pro ne pourra rien commander. Règle ses jours dans la fiche avant d\'envoyer.</div>';
+  } else if (nonRegles.length) {
+    h += '<div class="pa-warn">⚠️ Heure limite pas vraiment réglée pour : <strong>' + escapeHtml(nonRegles.join(', ')) + '</strong> (minuit ou le jour même). Règle-la dans « Jours de livraison » si besoin, puis rouvre cette fenêtre.</div>';
+  }
+  h += '<img class="pa-img" src="' + card.dataUrl + '" alt="QR code">'
+    + '<div class="pa-actions">'
+    + '<button class="btn-gold" onclick="proAccessShare()">📤 Partager l\'image</button>'
+    + '<button class="btn-gold" onclick="proAccessSaveImage()">💾 Enregistrer l\'image</button>'
+    + '</div>'
+    + '<div class="sp-lbl" style="margin:10px 0 4px">Le message (modifiable)</div>'
+    + '<textarea id="pa-msg" class="pa-msg">' + escapeHtml(proAccessMessage(pro, url)) + '</textarea>'
+    + '<div class="pa-actions">'
+    + '<button class="btn-gold" onclick="proAccessCopyMsg()">📋 Copier le message</button>'
+    + '<button class="btn-gold" style="background:#25D366;border-color:#25D366;color:#fff" onclick="proAccessWhatsApp()">💬 WhatsApp' + (ct.tel ? ' (' + escapeHtml(ct.tel) + ')' : '') + '</button>'
+    + '</div>'
+    + '<div class="pro-form-hint" style="margin-top:8px">Conseil : envoie d\'abord l\'image, puis le message. Si le lien a déjà été envoyé et fuité : « 🔄 Renouveler » dans la fiche, puis renvoie.</div>'
+    + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeProAccessModal()">Fermer</button>'
+    + '</div>';
+  el.innerHTML = h;
+  // la fiche affiche maintenant le lien
+  if (typeof renderAdminPros === 'function' && currentVue === 'pros') renderAdminPros();
+}
+function closeProAccessModal() {
+  const el = document.getElementById('pro-access-modal');
+  if (el) el.classList.remove('show');
+  proAccessState = null;
+}
+function _proAccessFileName() {
+  const n = (proAccessState && proAccessState.pro.nom) || 'pro';
+  return 'LBDD-commande-' + n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-') + '.png';
+}
+async function proAccessShare() {
+  const st = proAccessState;
+  if (!st) return;
+  const file = new File([st.blob], _proAccessFileName(), { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); } catch (e) { /* annulé */ }
+  } else {
+    proAccessSaveImage();
+  }
+}
+function proAccessSaveImage() {
+  const st = proAccessState;
+  if (!st) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(st.blob);
+  a.download = _proAccessFileName();
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast('Image enregistrée', 'sync');
+}
+function proAccessCopyMsg() {
+  const ta = document.getElementById('pa-msg');
+  if (!ta) return;
+  copyMagicLink(ta.value);   // même copie que le lien (presse-papier + secours)
+}
+function proAccessWhatsApp() {
+  const st = proAccessState, ta = document.getElementById('pa-msg');
+  if (!st || !ta) return;
+  let tel = String(proAccessContact(st.pro).tel || '').replace(/\D/g, '');
+  if (tel.length === 10 && tel.charAt(0) === '0') tel = '33' + tel.slice(1);   // 06… → 336…
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(ta.value), '_blank');
+}
+
 async function revokeProMagicLink(proId) {
   if (!confirm('Révoquer le magic link ?\n\nL\'URL existante ne marchera plus. Le pro ne pourra plus saisir ses commandes via son lien.')) return;
   setSyncStatus('syncing');
@@ -11186,7 +11426,7 @@ async function saveProInterfaceOrder() {
     const butoir = proGetButoirForDate(pro, d.date_livraison);
     if (butoir == null || Date.now() >= butoir) {
       const _src = pro.boutique_principale || 'local';
-      const _tels = { local: '07 50 05 22 96', tours: '07 57 77 05 87', veigne: '07 57 77 05 39', 'saint-avertin': '09 80 99 96 52' };
+      const _tels = SHOP_TELS;
       const _tel = _tels[_src] || _tels.local;
       const _bn = BOUTIQUE_NAMES[_src] || 'Le Local';
       alert('Trop tard pour commander en ligne pour ce jour — l\'heure limite est passée.\n\nPour un dépannage, appelez ' + _bn + ' au ' + _tel + ' : on verra ensemble si c\'est possible.');
@@ -12409,11 +12649,13 @@ function renderProForm(mc) {
         + '<div style="font-family:monospace;font-size:11px;color:var(--brown)">' + escapeHtml(fullUrl) + '</div>'
         + '</div>'
         + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + '<button class="btn-gold-sm" style="background:#25D366;border-color:#25D366;color:#fff" onclick="openProAccessModal(\'' + escapeHtml(d.id) + '\')">📱 Envoyer l\'accès</button>'
         + '<button class="btn-gold-sm" onclick="copyMagicLink(\'' + escapeHtml(fullUrl).replace(/'/g, "\\\'") + '\')">📋 Copier</button>'
         + '<button class="btn-gold-sm" onclick="generateProMagicLink(\'' + escapeHtml(d.id) + '\', true)">🔄 Renouveler</button>'
         + '<button class="btn-gold-sm" style="background:#FEF2F2;color:var(--red);border:1px solid var(--red)" onclick="revokeProMagicLink(\'' + escapeHtml(d.id) + '\')">🚫 Révoquer</button>'
         + '</div>';
     } else {
+      html += '<button class="btn-gold" style="background:#25D366;border-color:#25D366;color:#fff;margin-right:6px" onclick="openProAccessModal(\'' + escapeHtml(d.id) + '\')">📱 Envoyer l\'accès (lien + QR)</button>';
       html += '<button class="btn-gold" onclick="generateProMagicLink(\'' + escapeHtml(d.id) + '\', false)">🔗 Générer magic link</button>';
     }
     html += '</div>';
