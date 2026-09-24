@@ -2571,7 +2571,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.255';
+const APP_VERSION  = 'v20.256';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10449,10 +10449,12 @@ function openProForm(pid) {
           const cfg = src[j] || {};
           if (cfg.butoir_decalage != null || cfg.butoir_heure != null) {
             // Déjà au nouveau format
-            out[j] = { actif: !!cfg.actif, butoir_decalage: cfg.butoir_decalage != null ? cfg.butoir_decalage : -1, butoir_heure: cfg.butoir_heure || '', livraison: cfg.livraison || '' };
+            // v20.256 — `tournee` était oublié ici : la fiche rouverte affichait « Auto » et
+            // un nouvel enregistrement effaçait le réglage (signalé par Phil le 24/09).
+            out[j] = { actif: !!cfg.actif, butoir_decalage: cfg.butoir_decalage != null ? cfg.butoir_decalage : -1, butoir_heure: cfg.butoir_heure || '', livraison: cfg.livraison || '', tournee: cfg.tournee || '' };
           } else {
             // Ancien format { butoir } → on suppose "la veille" (decalage = -1)
-            out[j] = { actif: !!cfg.actif, butoir_decalage: -1, butoir_heure: cfg.butoir || '', livraison: cfg.livraison || '' };
+            out[j] = { actif: !!cfg.actif, butoir_decalage: -1, butoir_heure: cfg.butoir || '', livraison: cfg.livraison || '', tournee: cfg.tournee || '' };
           }
         });
         return out;
@@ -10549,7 +10551,7 @@ function handleProJourActif(jour) {
 function handleProJourField(jour, field, val) {
   if (!adminProsDraft) return;
   if (!adminProsDraft.jours_livraison[jour]) {
-    adminProsDraft.jours_livraison[jour] = { actif: true, butoir_decalage: -1, butoir_heure: '', livraison: '' };
+    adminProsDraft.jours_livraison[jour] = { actif: true, butoir_decalage: -1, butoir_heure: '', livraison: '', tournee: '' };
   }
   if (field === 'butoir_decalage') {
     adminProsDraft.jours_livraison[jour][field] = parseInt(val, 10);
