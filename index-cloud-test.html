@@ -2383,6 +2383,8 @@ outline: none; border-color: var(--gold); background: white;
 .pa-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .pa-actions button { flex:1 1 160px; }
 .pa-msg { width:100%; min-height:220px; font-size:13px; font-family:inherit; border:1px solid var(--gold-light); border-radius:8px; padding:8px; margin-bottom:8px; box-sizing:border-box; }
+.mj-spelist { border-left:3px solid var(--gold); padding-left:8px; margin-top:6px; }
+.mj-spe-hdr { font-size:12.5px; font-weight:700; color:var(--gold-dark); margin-bottom:2px; }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2569,7 +2571,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.254';
+const APP_VERSION  = 'v20.255';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -6673,6 +6675,13 @@ return html;
 let livreurDayData = null;      // ligne livreur_day du jour (metro_tours, extra_pros, done)
 let maJourneeReassorts = {};    // { veigne: n, tours: n } produits envoyés non préparés/livrés… (badge)
 let maJourneeSpecialesTours = 0;
+// v20.255 — Phil (24/09) : « quand il y a des commandes spéciales à livrer de Veigné à
+// Tours ou autre, il devait le voir ». Avant, seules celles pour Tours comptaient, et
+// en nombre seulement. Maintenant : toute commande du jour dont au moins une ligne se
+// fabrique AILLEURS que dans la boutique où le client vient la chercher, avec le nom,
+// le contenu, l'heure et l'endroit où la prendre — affichée à l'étape de la boutique.
+let maJourneeTransferts = {};   // { boutique_de_retrait: [{ nom, heure, lignes: [], de: [ateliers] }] }
+const MJ_SPE_STEP = { 'saint-avertin': 'samep', veigne: 'v2', tours: 'tours' };
 
 // Trame par jour de semaine (2=mardi … 6=samedi). h ≈ indicatif.
 // type : fixe | pause | pro (livraison pro nominative) | reassort (b=boutique)
@@ -6744,11 +6753,50 @@ async function loadMaJournee() {
     if (!p || getProductSupply(p, r.boutique_id) !== 'local') return;
     maJourneeReassorts[r.boutique_id]++;
   });
-  // Spéciales à déposer à Tours (produites ailleurs, retrait Tours aujourd'hui)
-  const { data: sp } = await supa.from('special_orders').select('id,status')
-    .eq('tenant_id', TENANT_ID).eq('origin_shop', 'tours').neq('production_shop', 'tours')
-    .eq('pickup_date', d0);
-  maJourneeSpecialesTours = (sp || []).filter(function(o) { return o.status !== 'annulee' && o.status !== 'livree'; }).length;
+  // Commandes spéciales du jour qui changent de site (fabriquées ailleurs que là où le
+  // client vient les chercher) — routage à la ligne, comme les ateliers (v20.235)
+  maJourneeTransferts = {};
+  const { data: sp } = await supa.from('special_orders').select('*')
+    .eq('tenant_id', TENANT_ID).eq('pickup_date', d0);
+  const actives = (sp || []).filter(function(o) { return o.status !== 'annulee' && o.status !== 'livree'; });
+  let its = [];
+  if (actives.length) {
+    const r2 = await supa.from('special_order_items').select('*').in('order_id', actives.map(function(o) { return o.id; })).order('position');
+    its = r2.data || [];
+  }
+  actives.forEach(function(o) {
+    o.items = its.filter(function(i) { return i.order_id === o.id; });
+    const dest = o.origin_shop;
+    if (!MJ_SPE_STEP[dest]) return;
+    const lignes = [], de = [];
+    o.items.forEach(function(it) {
+      const ps = getItemProductionShop(it, o);
+      if (!ps || ps === dest) return;
+      lignes.push((parseQty(it.qty) || 1) + ' ' + specialItemName(it, '?'));
+      if (de.indexOf(ps) === -1) de.push(ps);
+    });
+    if (!lignes.length) return;
+    (maJourneeTransferts[dest] = maJourneeTransferts[dest] || []).push({
+      nom: o.customer_name || '', heure: o.pickup_time || '', lignes: lignes, de: de
+    });
+  });
+  Object.keys(maJourneeTransferts).forEach(function(b) {
+    maJourneeTransferts[b].sort(function(a, c) { return (a.heure || '99').localeCompare(c.heure || '99'); });
+  });
+  maJourneeSpecialesTours = (maJourneeTransferts.tours || []).length;
+}
+
+// Liste détaillée des commandes spéciales à déposer dans une boutique
+function maJourneeSpeHtml(dest) {
+  const list = maJourneeTransferts[dest] || [];
+  if (!list.length) return '';
+  const DE = { local: 'charger au Local', veigne: 'prendre à Veigné', tours: 'prendre à Tours', 'saint-avertin': 'prendre à St-Avertin' };
+  return '<div class="mj-prolist mj-spelist"><div class="mj-spe-hdr">⭐ ' + list.length + ' commande' + (list.length > 1 ? 's' : '') + ' spéciale' + (list.length > 1 ? 's' : '') + ' à déposer</div>'
+    + list.map(function(t) {
+      return '<div><span class="who">' + escapeHtml(t.nom)
+        + (t.heure ? ' <span class="mj-butoir">⏰ ' + escapeHtml(String(t.heure).slice(0, 5).replace(':', 'h')) + '</span>' : '') + '</span>'
+        + '<span class="what">' + escapeHtml(t.lignes.join(' · ')) + ' — <b>' + escapeHtml(t.de.map(function(x) { return DE[x] || x; }).join(' + ')) + '</b></span></div>';
+    }).join('') + '</div>';
 }
 
 function maJourneeToggleDone(key) {
@@ -6885,13 +6933,13 @@ function renderMaJournee() {
       if (n > 0) badges += '<span class="mj-badge mj-b-reassort">📦 Réassort ' + (BOUTIQUE_NAMES[st.b] || st.b) + ' : ' + n + ' produit' + (n > 1 ? 's' : '') + ' à charger au Local</span>';
       else badges += '<span class="mj-badge mj-b-none">réassort pas encore envoyé par la boutique</span>';
       if (st.b === 'tours') {
-        if (maJourneeSpecialesTours > 0) badges += '<span class="mj-badge mj-b-spe">⭐ ' + maJourneeSpecialesTours + ' commande' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' spéciale' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' à déposer</span>';
+        if (maJourneeSpecialesTours > 0) extra += maJourneeSpeHtml('tours');
         if (livreurDayData && livreurDayData.metro_tours) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
       }
     }
     if (st.type === 'tours') {
       const any = maJourneeSpecialesTours > 0 || (livreurDayData && livreurDayData.metro_tours);
-      if (maJourneeSpecialesTours > 0) badges += '<span class="mj-badge mj-b-spe">⭐ ' + maJourneeSpecialesTours + ' commande' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' spéciale' + (maJourneeSpecialesTours > 1 ? 's' : '') + ' à déposer</span>';
+      if (maJourneeSpecialesTours > 0) extra += maJourneeSpeHtml('tours');
       if (livreurDayData && livreurDayData.metro_tours) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
       if (!any) { off = true; badges += '<span class="mj-badge mj-b-none">rien aujourd\'hui</span>'; }
     }
@@ -6932,6 +6980,10 @@ function renderMaJournee() {
       extra = '<div class="mj-prolist">' + list + '</div>'
         + '<button class="mj-addpro" onclick="event.stopPropagation();maJourneeAddPro()">＋ Ajouter une livraison aujourd\'hui</button>';
     }
+
+    // v20.255 — commandes spéciales à déposer à St-Avertin / Veigné (Tours : ci-dessus)
+    if (MJ_SPE_STEP['saint-avertin'] === st.k) extra += maJourneeSpeHtml('saint-avertin');
+    if (MJ_SPE_STEP.veigne === st.k) extra += maJourneeSpeHtml('veigne');
 
     html += '<div class="mj-step' + (isDone ? ' done' : '') + (off ? ' off' : '') + '">'
       + '<div class="mj-t">' + escapeHtml(st.h) + '</div>'
