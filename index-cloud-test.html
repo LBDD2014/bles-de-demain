@@ -2385,6 +2385,11 @@ outline: none; border-color: var(--gold); background: white;
 .pa-msg { width:100%; min-height:220px; font-size:13px; font-family:inherit; border:1px solid var(--gold-light); border-radius:8px; padding:8px; margin-bottom:8px; box-sizing:border-box; }
 .mj-spelist { border-left:3px solid var(--gold); padding-left:8px; margin-top:6px; }
 .mj-spe-hdr { font-size:12.5px; font-weight:700; color:var(--gold-dark); margin-bottom:2px; }
+.pro-quick-prod { background:#FFFDF7; border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+.pro-quick-title { font-weight:700; color:var(--brown); margin-bottom:6px; font-size:13px; }
+.pro-quick-prod label { display:block; font-size:11px; color:var(--brown-mid); font-weight:700; text-transform:uppercase; margin:6px 0 2px; }
+.pro-quick-chk { display:flex !important; align-items:center; gap:8px; text-transform:none !important; font-size:13px !important; font-weight:500 !important; margin-top:8px !important; }
+.pro-quick-chk input { width:18px; height:18px; }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2571,7 +2576,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.257';
+const APP_VERSION  = 'v20.258';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10472,6 +10477,7 @@ function openProForm(pid) {
 function closeProForm() {
   adminProsEditingId = null;
   adminProsDraft = null;
+  proQuickProd = null;   // v20.258
   renderAdminPros();
 }
 
@@ -12348,6 +12354,8 @@ function renderAdminPros() {
   if (!adminPros.length) {
     html += '<div class="empty-state" style="margin-top:20px">Aucun pro pour l\'instant.<br>Clique sur <strong>+ Nouveau pro</strong> pour commencer.</div>';
   } else {
+    // v20.258 — 🔍 retrouver un client par son nom, son contact ou son téléphone (Phil, 28/09)
+    html += '<div class="product-filter" style="margin-top:12px"><input type="search" class="product-filter-input" placeholder="🔍 Chercher un client…" value="' + escapeHtml(adminProsSearch) + '" oninput="handleProsSearch(this.value)"></div>';
     html += '<div class="pros-list">';
     adminPros.forEach(function(p) {
       const bp = BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale;
@@ -12360,7 +12368,8 @@ function renderAdminPros() {
       if (firstContact.tel) contactBits.push(escapeHtml(firstContact.tel));
       const moreSuffix = contacts.length > 1 ? ' <span style="color:var(--gold-dark);font-weight:700">+' + (contacts.length - 1) + '</span>' : '';
       const contactLine = contactBits.length ? (contactBits.join(' · ') + moreSuffix) : '<span style="color:#BBB">Pas de contact renseigné</span>';
-      html += '<div class="pro-card' + (p.actif ? '' : ' inactive') + '">'
+      const searchTxt = planNorm([p.nom, p.id].concat(contacts.map(function(c) { return (c.nom || '') + ' ' + (c.tel || ''); })).join(' '));
+      html += '<div class="pro-card' + (p.actif ? '' : ' inactive') + '" data-search="' + escapeHtml(searchTxt) + '">'
         + '<div class="pro-card-main">'
           + '<div class="pro-card-name">' + escapeHtml(p.nom) + ' <span class="pro-card-id">(' + escapeHtml(p.id) + ')</span></div>'
           + '<div class="pro-card-contact">' + contactLine + '</div>'
@@ -12378,6 +12387,16 @@ function renderAdminPros() {
     html += '</div>';
   }
   mc.innerHTML = html;
+  applyProsSearch();
+}
+// v20.258 — filtre de la liste des pros, sans re-rendu (le clavier tablette reste ouvert)
+let adminProsSearch = '';
+function handleProsSearch(val) { adminProsSearch = val || ''; applyProsSearch(); }
+function applyProsSearch() {
+  const q = planNorm(adminProsSearch);
+  document.querySelectorAll('.pros-list .pro-card').forEach(function(card) {
+    card.style.display = (!q || (card.getAttribute('data-search') || '').indexOf(q) !== -1) ? '' : 'none';
+  });
 }
 
 function renderProForm(mc) {
@@ -12403,7 +12422,7 @@ function renderProForm(mc) {
   let html = '<div class="pro-form-header">'
     + '<button class="modal-action cancel" onclick="closeProForm()">← Retour</button>'
     + '<div class="pro-form-title">' + (isNew ? 'Nouveau pro' : escapeHtml(d.nom || d.id)) + '</div>'
-    + '<button class="btn-gold" onclick="saveProForm()">' + (isNew ? 'Créer' : 'Enregistrer') + '</button>'
+    + '<button class="btn-gold" onclick="saveProForm()">' + (isNew ? 'Créer le client' : 'Enregistrer') + '</button>'
   + '</div>';
 
   html += '<div class="pro-form">';
@@ -12537,6 +12556,25 @@ function renderProForm(mc) {
             + '<button onclick="handleProCatalogueReset()" style="background:none;border:none;color:var(--gold-dark);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:11px;padding:0">Tout autoriser</button>')
     + '</div>'
     + '<input type="search" class="pro-input" placeholder="🔍 Filtrer un produit…" value="' + escapeHtml(adminProsCatalogueSearch) + '" oninput="handleProCatalogueSearch(this.value)" style="margin-bottom:10px">';
+  // v20.258 — créer un produit manquant sans quitter la fiche (Phil, 28/09 : « Khorasan
+  // petite boule 200 g cuit » n'existait pas). Créé en « réappro » (invisible des boutiques),
+  // coché aussitôt pour ce pro. Prix et conditionnement se règlent ensuite dans Produits.
+  if (!proQuickProd) {
+    html += '<button type="button" class="btn-gold-sm" style="margin-bottom:10px" onclick="openProQuickProd()">+ Créer un produit qui manque</button>';
+  } else {
+    const catOpts = Object.keys(CAT_LABELS).map(function(c) {
+      return '<option value="' + c + '"' + (proQuickProd.category === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c]) + '</option>';
+    }).join('');
+    html += '<div class="pro-quick-prod">'
+      + '<div class="pro-quick-title">Nouveau produit pour ' + escapeHtml(d.nom || 'ce client') + '</div>'
+      + '<label>Nom *</label><input type="text" class="pro-input" value="' + escapeHtml(proQuickProd.name) + '" placeholder="ex : Khorasan petite boule 200 g cuit" oninput="proQuickProd.name = this.value">'
+      + '<label>Catégorie *</label><select class="pro-input" onchange="proQuickProd.category = this.value"><option value="">- Choisir -</option>' + catOpts + '</select>'
+      + '<label class="pro-quick-chk"><input type="checkbox"' + (proQuickProd.reserve ? ' checked' : '') + ' onchange="proQuickProd.reserve = this.checked"> Réservé à ce client seulement (invisible des autres pros)</label>'
+      + '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-grey" onclick="closeProQuickProd()">Annuler</button>'
+      + '<button type="button" class="btn-gold" onclick="saveProQuickProd()">Créer et cocher</button></div>'
+      + '<div class="pro-form-hint" style="margin-top:6px">Prix et conditionnement se règlent ensuite dans l\'onglet Produits.</div>'
+      + '</div>';
+  }
 
   // Group active products by category for display
   const prodsByCat = {};
@@ -12702,8 +12740,43 @@ function renderProForm(mc) {
       + '</div>';
   }
 
+  // v20.258 — le bouton aussi en bas, là où on finit de remplir (Phil, 28/09)
+  html += '<div class="pro-form-header" style="margin-top:14px">'
+    + '<button class="modal-action cancel" onclick="closeProForm()">← Retour</button>'
+    + '<button class="btn-gold" onclick="saveProForm()">' + (isNew ? 'Créer le client' : 'Enregistrer') + '</button>'
+    + '</div>';
   html += '</div>';
   mc.innerHTML = html;
+}
+
+// v20.258 — création rapide d'un produit depuis la fiche pro
+let proQuickProd = null;
+function openProQuickProd() { proQuickProd = { name: '', category: 'pains', reserve: false }; renderAdminPros(); }
+function closeProQuickProd() { proQuickProd = null; renderAdminPros(); }
+async function saveProQuickProd() {
+  const q = proQuickProd, d = adminProsDraft;
+  if (!q || !d) return;
+  const name = (q.name || '').trim();
+  if (!name) { showToast('Nom obligatoire', 'error'); return; }
+  if (!q.category) { showToast('Catégorie obligatoire', 'error'); return; }
+  const isNew = (adminProsEditingId === 'new');
+  if (q.reserve && isNew) { showToast('Enregistre d\'abord le client pour lui réserver un produit', 'error'); return; }
+  const doublon = (adminProducts || []).find(function(p) { return planNorm(p.name) === planNorm(name) && p.actif; });
+  if (doublon && !confirm('« ' + doublon.name + ' » existe déjà. Créer quand même un deuxième produit ?')) return;
+  setSyncStatus('syncing');
+  const row = { id: genProductId(name), tenant_id: TENANT_ID, name: name, category: q.category, unit: null,
+                usage: 'reappro', actif: true, supply_by_boutique: {}, pros_only_id: q.reserve ? d.id : null };
+  const { data: ins, error } = await supa.from('products').insert(row).select();
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  if (!ins || !ins.length) { setSyncStatus('error'); showToast('Création bloquée par Supabase (RLS ?)', 'error'); return; }
+  setSyncStatus('ok');
+  await loadAdminProducts();
+  await loadProducts();
+  // coché tout de suite pour ce client (null = tout le catalogue autorisé, donc déjà visible)
+  if (Array.isArray(d.catalogue_restreint) && d.catalogue_restreint.indexOf(row.id) === -1) d.catalogue_restreint.push(row.id);
+  proQuickProd = null;
+  renderAdminPros();
+  showToast('Produit créé et coché — pense à Enregistrer la fiche', 'sync');
 }
 
 // === v21.0.5 — RÉCAP PAR PRO (historique facturation) ===
