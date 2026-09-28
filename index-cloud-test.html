@@ -2390,6 +2390,10 @@ outline: none; border-color: var(--gold); background: white;
 .pro-quick-prod label { display:block; font-size:11px; color:var(--brown-mid); font-weight:700; text-transform:uppercase; margin:6px 0 2px; }
 .pro-quick-chk { display:flex !important; align-items:center; gap:8px; text-transform:none !important; font-size:13px !important; font-weight:500 !important; margin-top:8px !important; }
 .pro-quick-chk input { width:18px; height:18px; }
+.pw-week-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; background:#fff; border-radius:14px; padding:10px 14px; box-shadow:0 2px 8px rgba(61,43,31,0.05); text-align:center; }
+.pw-week-nav > div { flex:1; font-size:13px; color:var(--brown); }
+.pw-week-nav > div span { font-size:11px; color:var(--brown-mid); }
+.pw-week-nav .tour-btn { flex:0 0 auto; min-width:48px; padding:8px 12px; }
 .pw-grid-box { background:#fff; border-radius:14px; padding:14px; margin-top:10px; box-shadow:0 2px 8px rgba(61,43,31,0.05); }
 .pw-grid-hdr { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .pw-grid-title { font-family:Georgia,serif; font-size:14px; font-weight:700; color:var(--brown); }
@@ -2596,7 +2600,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.259';
+const APP_VERSION  = 'v20.260';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2966,6 +2970,12 @@ let recapProLoading = false;
 let recapWeekStart = '';              // YYYY-MM-DD du lundi de la semaine affichée (init au 1er passage)
 let recapWeekOrders = [];             // pro_orders chargés (avec items) pour la semaine
 let recapWeekLoading = false;
+let proOrdersWeekGridOpen = false;    // v20.260 — grille de la semaine dans l'onglet Pros de l'équipe
+// v20.260 — la grille vit dans le BackOffice ET dans l'onglet Pros de chaque site : on
+// redessine l'écran où l'on se trouve.
+function rerenderProsWeekContext() {
+  if (currentVue === 'pros_orders') renderProOrders(); else renderAdminPros();
+}
 
 // v21.0.7 — Vue livreur : commandes pros à livrer du jour (toutes boutiques source)
 let livreurProOrders = [];            // pro_orders à livrer/livrés du jour
@@ -13106,20 +13116,20 @@ async function setRecapWeekOffset(offset) {
   if (!recapWeekStart) recapWeekStart = mondayOfWeek(todayISO());
   recapWeekStart = addDays(recapWeekStart, offset * 7);
   await loadRecapWeekOrders();
-  renderAdminPros();
+  rerenderProsWeekContext();
 }
 
 async function resetRecapWeekToCurrent() {
   recapWeekStart = mondayOfWeek(todayISO());
   await loadRecapWeekOrders();
-  renderAdminPros();
+  rerenderProsWeekContext();
 }
 
 async function loadRecapWeekOrders() {
   if (!recapWeekStart) recapWeekStart = mondayOfWeek(todayISO());
   const weekEnd = addDays(recapWeekStart, 6);
   recapWeekLoading = true;
-  renderAdminPros();
+  rerenderProsWeekContext();
   const { data, error } = await supa
     .from('pro_orders')
     .select('*, pro_order_items(*)')
@@ -13311,9 +13321,35 @@ function prosWeekGridOrders() {
 function setProsWeekGrid(mode, site) {
   if (mode) prosWeekGridMode = mode;
   if (site) prosWeekGridSite = site;
-  renderAdminPros();
+  rerenderProsWeekContext();
 }
-function prosWeekGridHtml(prosMap, productsMap) {
+// v20.260 — onglet Pros de l'équipe : la grille de SON site seulement (Phil : « que les
+// gars puissent y avoir accès » sans le code du BackOffice), derrière un bouton.
+async function toggleProOrdersWeekGrid() {
+  proOrdersWeekGridOpen = !proOrdersWeekGridOpen;
+  if (proOrdersWeekGridOpen) {
+    prosWeekGridSite = currentBoutique;
+    if (!recapWeekStart) recapWeekStart = mondayOfWeek(todayISO());
+    await loadRecapWeekOrders();
+  }
+  renderProOrders();
+}
+function proOrdersWeekGridBlockHtml() {
+  prosWeekGridSite = currentBoutique;
+  const weekEnd = addDays(recapWeekStart, 6);
+  const isCurrent = (recapWeekStart === mondayOfWeek(todayISO()));
+  const prosMap = {}; adminPros.forEach(function(p) { prosMap[p.id] = p; });
+  const productsMap = {}; (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+  let html = '<div class="pw-week-nav">'
+    + '<button class="tour-btn" onclick="setRecapWeekOffset(-1)">◀</button>'
+    + '<div><strong>Semaine du ' + escapeHtml(formatDateFr(recapWeekStart)) + '</strong><br><span>au ' + escapeHtml(formatDateFr(weekEnd)) + (isCurrent ? ' · en cours' : '') + '</span></div>'
+    + '<button class="tour-btn" onclick="setRecapWeekOffset(1)">▶</button>'
+    + '</div>';
+  if (!isCurrent) html += '<div style="text-align:center;margin-bottom:8px"><button class="btn-gold-sm" onclick="resetRecapWeekToCurrent()">⏎ Revenir à la semaine en cours</button></div>';
+  if (recapWeekLoading) return html + '<div class="empty-state">Chargement…</div>';
+  return html + prosWeekGridHtml(prosMap, productsMap, true);
+}
+function prosWeekGridHtml(prosMap, productsMap, teamMode) {
   const orders = prosWeekGridOrders();
   const days = [];
   for (let i = 0; i < 7; i++) days.push(addDays(recapWeekStart, i));
@@ -13325,11 +13361,11 @@ function prosWeekGridHtml(prosMap, productsMap) {
     + '<button class="' + (prosWeekGridMode === 'produit' ? 'on' : '') + '" onclick="setProsWeekGrid(\'produit\')">Par produit</button>'
     + '<button onclick="printProsWeekGrid()" title="Imprimer en A4">🖨️</button>'
     + '</div></div>'
-    + '<div class="pw-grid-btns pw-grid-sites">'
+    + (teamMode ? '' : '<div class="pw-grid-btns pw-grid-sites">'
     + sites.map(function(b) {
         return '<button class="' + (prosWeekGridSite === b ? 'on' : '') + '" onclick="setProsWeekGrid(null, \'' + b + '\')">' + (b === 'all' ? 'Tous les sites' : escapeHtml(BOUTIQUE_NAMES[b] || b)) + '</button>';
       }).join('')
-    + '</div>'
+    + '</div>')
     + '<div class="pw-grid-hint">Brouillon = commande récurrente pas encore confirmée (en italique, ⏳).</div>';
   html += '<div class="pw-grid-scroll" id="pw-grid-table">' + prosWeekGridTableHtml(orders, days, prosMap, productsMap) + '</div>';
   html += '</div>';
@@ -14115,12 +14151,15 @@ function renderProOrders() {
   if (currentBoutique === 'tours') html += ferieRappelProsHtml('tours');
   html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
     + '<button class="btn-gold" onclick="openProOrderForm(\'new\')">+ Nouvelle commande</button>'
+    + '<button class="btn-gold' + (proOrdersWeekGridOpen ? '' : '-sm') + '" style="' + (proOrdersWeekGridOpen ? 'background:var(--green);border-color:var(--green)' : 'padding:10px 14px') + '" onclick="toggleProOrdersWeekGrid()">🗓️ ' + (proOrdersWeekGridOpen ? 'Fermer la semaine' : 'Semaine') + '</button>'   // v20.260
     + '<div class="pro-period-filter">'
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'today' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'today\')">Aujourd\'hui</button>'
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'tomorrow' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'tomorrow\')">Demain</button>'
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'week' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'week\')">Semaine</button>'
     + '</div>'
   + '</div>';
+  // v20.260 — la grille de la semaine de CE site, pour l'équipe
+  if (proOrdersWeekGridOpen) html += proOrdersWeekGridBlockHtml();
   // v20.172 — filtre par boutique source (défaut : ma boutique)
   const srcF = proOrdersSourceFilter || currentBoutique;
   html += '<div class="pro-period-filter" style="margin-bottom:10px">'
