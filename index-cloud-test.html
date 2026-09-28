@@ -2600,7 +2600,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.260';
+const APP_VERSION  = 'v20.261';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -6761,14 +6761,15 @@ function maJourneeTrame(dow) {
 async function loadLivreurDayRow(dateISO) {
   const { data } = await supa.from('livreur_day').select('*')
     .eq('tenant_id', TENANT_ID).eq('date', dateISO).maybeSingle();
-  return data || { date: dateISO, metro_tours: false, extra_pros: [], done: {} };
+  return data || { date: dateISO, metro_tours: false, metro_veigne: false, extra_pros: [], done: {} };
 }
 async function saveLivreurDayRow(patch) {
-  const d = livreurDayData || { date: todayISO(), metro_tours: false, extra_pros: [], done: {} };
+  const d = livreurDayData || { date: todayISO(), metro_tours: false, metro_veigne: false, extra_pros: [], done: {} };
   Object.keys(patch).forEach(function(k2) { d[k2] = patch[k2]; });
   livreurDayData = d;
   const { error } = await supa.from('livreur_day').upsert({
     tenant_id: TENANT_ID, date: d.date, metro_tours: !!d.metro_tours,
+    metro_veigne: !!d.metro_veigne,   // v20.261 — même case pour Veigné (Phil, 29/09)
     extra_pros: d.extra_pros || [], done: d.done || {},
     updated_by: DEVICE_ID, updated_at: new Date().toISOString()
   }, { onConflict: 'tenant_id,date' });
@@ -6965,6 +6966,8 @@ function renderMaJournee() {
         if (hb) badges += '<span class="mj-badge mj-b-butoir">⏰ avant ' + escapeHtml(String(hb).slice(0, 5).replace(':', 'h')) + '</span>';
       } else badges += '<span class="mj-badge mj-b-none">pas de commande saisie</span>';
     }
+    // v20.261 — courses Metro à déposer à Veigné (case cochée par Phil au Récap courses)
+    if (st.k === 'v2' && livreurDayData && livreurDayData.metro_veigne) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
     if (st.type === 'reassort') {
       const n = maJourneeReassorts[st.b] || 0;
       if (n > 0) badges += '<span class="mj-badge mj-b-reassort">📦 Réassort ' + (BOUTIQUE_NAMES[st.b] || st.b) + ' : ' + n + ' produit' + (n > 1 ? 's' : '') + ' à charger au Local</span>';
@@ -19490,9 +19493,11 @@ function renderMetroHistorique(b) {
 }
 
 // v20.186 — bascule « courses Metro à livrer par le livreur » (côté Phil, Récap Metro)
-async function metroToggleLivreur() {
+async function metroToggleLivreur(site) {
   if (!livreurDayData || livreurDayData.date !== todayISO()) livreurDayData = await loadLivreurDayRow(todayISO());
-  await saveLivreurDayRow({ metro_tours: !livreurDayData.metro_tours });
+  const key = (site === 'veigne') ? 'metro_veigne' : 'metro_tours';   // v20.261
+  const patch = {}; patch[key] = !livreurDayData[key];
+  await saveLivreurDayRow(patch);
   renderMetro();
 }
 
@@ -19509,13 +19514,16 @@ function renderMetroRecap() {
     + '<button class="metro-btn warn" onclick="metroResetRun()">✅ Course faite</button>'
     + '</span></div>';
   // v20.186 — Phil coche → l'étape Tours du livreur s'allume « Courses Metro à livrer »
+  // v20.261 — même case pour Veigné (Phil, 29/09)
   if (currentBoutique === 'local') {
-    const mtOn = !!(livreurDayData && livreurDayData.metro_tours);
-    h += '<div class="info-banner" style="border-left-color:#6B4FA0;cursor:pointer" onclick="metroToggleLivreur()">'
-      + '<span style="font-size:17px;margin-right:6px">' + (mtOn ? '☑️' : '⬜') + '</span>'
-      + '<strong>🚚 Courses à faire livrer à Tours par le livreur</strong> (aujourd\'hui)'
-      + (mtOn ? ' — <span style="color:#6B4FA0;font-weight:700">il le verra sur sa feuille de route</span>' : '')
-      + '</div>';
+    [['tours', 'Tours'], ['veigne', 'Veigné']].forEach(function(site) {
+      const on = !!(livreurDayData && livreurDayData[site[0] === 'veigne' ? 'metro_veigne' : 'metro_tours']);
+      h += '<div class="info-banner" style="border-left-color:#6B4FA0;cursor:pointer" onclick="metroToggleLivreur(\'' + site[0] + '\')">'
+        + '<span style="font-size:17px;margin-right:6px">' + (on ? '☑️' : '⬜') + '</span>'
+        + '<strong>🚚 Courses à faire livrer à ' + site[1] + ' par le livreur</strong> (aujourd\'hui)'
+        + (on ? ' — <span style="color:#6B4FA0;font-weight:700">il le verra sur sa feuille de route</span>' : '')
+        + '</div>';
+    });
   }
   // v20.170 — saisies non envoyées : petite alerte pour appeler la boutique avant de partir
   const sitesNonEnvoyes = METRO_SITES.filter(function(s) { return metroDiffCount(s[0]) > 0; });
