@@ -2414,6 +2414,13 @@ outline: none; border-color: var(--gold); background: white;
 .pw-grid tr.pw-foot td { font-weight:700; background:#FAF6EE; }
 .pw-grid tr.pw-foot td span { font-weight:400; font-size:10px; color:var(--grey-light); }
 .pw-grid tr.pw-site td { text-align:left; font-weight:700; background:var(--gold-light); color:var(--brown); }
+.prod-done-btn { width:38px; height:38px; margin:auto; border-radius:50%; border:2px solid var(--gold); background:#fff; color:#fff; font-size:20px; font-weight:800; line-height:1; padding:0; }
+.prod-done-btn.on { background:var(--green); border-color:var(--green); }
+.prod-row.prod-done { opacity:.5; background:#F1F6F2; }
+.prod-row.prod-done .prod-done-btn { opacity:1; }
+.prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
+.prod-done-count.all { color:var(--green); }
+.lv-pret { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--green); border-radius:8px; padding:1px 7px; margin-left:4px; vertical-align:middle; }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2600,7 +2607,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.261';
+const APP_VERSION  = 'v20.262';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2918,6 +2925,39 @@ let productionStAvSalesFromTable = {};  // { product_id: { matin, aprem, reste_j
 let productionStAvRestesVeille = {};    // { product_id: reste_j1 + reste_j2 de la veille }
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
+// v20.262 — coche ✓ « ligne faite et partie » (Phil, 28-29/09) : par site × jour × produit
+let productionDoneData = {};      // { site: { product_id: done_at } }
+let productionHideDone = false;
+async function loadProductionDone(sites, date) {
+  productionDoneData = {};
+  const { data, error } = await supa.from('production_done').select('site,product_id,done_at')
+    .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
+  if (error) return;   // table absente ou hors ligne : l'écran marche comme avant
+  (data || []).forEach(function(r) {
+    if (!r.done_at) return;
+    (productionDoneData[r.site] = productionDoneData[r.site] || {})[r.product_id] = r.done_at;
+  });
+}
+function productionDoneAt(site, pid) {
+  return (productionDoneData[site] || {})[pid] || null;
+}
+async function toggleProductionDone(pid) {
+  const site = currentBoutique, date = currentReapproDate;
+  const wasDone = !!productionDoneAt(site, pid);
+  const nowISO = new Date().toISOString();
+  const done_at = wasDone ? null : nowISO;
+  (productionDoneData[site] = productionDoneData[site] || {})[pid] = done_at;
+  if (!done_at) delete productionDoneData[site][pid];
+  renderProduction();
+  setSyncStatus('syncing');
+  const { error } = await supa.from('production_done').upsert({
+    tenant_id: TENANT_ID, site: site, service_date: date, product_id: pid,
+    done_at: done_at, done_by: DEVICE_ID, updated_at: nowISO
+  }, { onConflict: 'tenant_id,site,service_date,product_id' });
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+}
+function toggleProductionHideDone() { productionHideDone = !productionHideDone; renderProduction(); }
 let productionLocalData = {};
 let realtimeChannelProductionLocal = null;
 let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
@@ -3770,6 +3810,7 @@ await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
 if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
+await loadProductionDone([currentBoutique], currentReapproDate); // v20.262
 if (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
@@ -6409,6 +6450,7 @@ const { data, error } = await supa.from('deliveries').select('*')
 .order('tour', { ascending: true }).order('position', { ascending: true });
 if (error) { showToast('Erreur: ' + error.message, 'error'); return; }
 deliveriesData = data || [];
+await loadProductionDone(['local', 'veigne', 'tours'], date);   // v20.262 — « ✓ prêt » côté livreur
 }
 
 function subscribeRealtimeDeliveries() {
@@ -6688,7 +6730,10 @@ html += '<div class="section-header section-header-reappro">'
   html += '<div class="livreur-row' + (isLivre ? ' validated' : '') + (isPartial ? ' partial' : '') + '">';
   // v20.38 — Conditionnement après le Cmd : X
   const condTxtLv = formatConditioning(p);
-  html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">Cmd : ' + cmdQty + (condTxtLv ? ' · ' + escapeHtml(condTxtLv) : '') + '</div></div>';
+  // v20.262 — le site qui fabrique a coché la ligne : c'est prêt à charger
+  const pretSite = getProductSupply(p, r.boutique_id);
+  const pret = !isLivre && pretSite && productionDoneAt(pretSite, p.id);
+  html += '<div><div class="produit-name">' + escapeHtml(p.name) + (pret ? ' <span class="lv-pret">✓ prêt</span>' : '') + '</div><div class="produit-unit">Cmd : ' + cmdQty + (condTxtLv ? ' · ' + escapeHtml(condTxtLv) : '') + '</div></div>';
   html += '<input type="number" inputmode="numeric" min="0" class="qty-input livreur-qty" data-rid="' + r.id + '" placeholder="' + cmdQty + '" value="' + (livreeQty != null ? livreeQty : '') + '" onchange="updateLivreeQty(this)">';
   html += '<button class="livreur-check ' + (isLivre ? 'checked' : '') + '" onclick="toggleLivre(\'' + r.id + '\', ' + isLivre + ')">✓</button>';
   html += '</div>';
@@ -6712,6 +6757,7 @@ return html;
 let livreurDayData = null;      // ligne livreur_day du jour (metro_tours, extra_pros, done)
 let maJourneeReassorts = {};    // { veigne: n, tours: n } produits envoyés non préparés/livrés… (badge)
 let maJourneeSpecialesTours = 0;
+let maJourneeReassortsPrets = {};   // v20.262 — { boutique: nb de produits déjà cochés « faits » au Local }
 // v20.255 — Phil (24/09) : « quand il y a des commandes spéciales à livrer de Veigné à
 // Tours ou autre, il devait le voir ». Avant, seules celles pour Tours comptaient, et
 // en nombre seulement. Maintenant : toute commande du jour dont au moins une ligne se
@@ -6782,6 +6828,8 @@ async function loadMaJournee() {
   await loadLivreurProOrders(d0);
   // Réassorts envoyés du jour, par boutique (badge « X produits chargés au Local »)
   maJourneeReassorts = { veigne: 0, tours: 0 };
+  maJourneeReassortsPrets = { veigne: 0, tours: 0 };   // v20.262
+  await loadProductionDone(['local', 'veigne', 'tours'], d0);
   const { data: rr } = await supa.from('reappros').select('boutique_id,product_id,commander,sent_at')
     .eq('tenant_id', TENANT_ID).eq('service_date', d0)
     .in('boutique_id', ['veigne', 'tours']).not('sent_at', 'is', null);
@@ -6790,6 +6838,7 @@ async function loadMaJournee() {
     const p = products.find(function(x) { return x.id === r.product_id; });
     if (!p || getProductSupply(p, r.boutique_id) !== 'local') return;
     maJourneeReassorts[r.boutique_id]++;
+    if (productionDoneAt('local', p.id)) maJourneeReassortsPrets[r.boutique_id] = (maJourneeReassortsPrets[r.boutique_id] || 0) + 1;   // v20.262
   });
   // Commandes spéciales du jour qui changent de site (fabriquées ailleurs que là où le
   // client vient les chercher) — routage à la ligne, comme les ateliers (v20.235)
@@ -6970,7 +7019,8 @@ function renderMaJournee() {
     if (st.k === 'v2' && livreurDayData && livreurDayData.metro_veigne) badges += '<span class="mj-badge mj-b-metro">🛒 Courses Metro à livrer</span>';
     if (st.type === 'reassort') {
       const n = maJourneeReassorts[st.b] || 0;
-      if (n > 0) badges += '<span class="mj-badge mj-b-reassort">📦 Réassort ' + (BOUTIQUE_NAMES[st.b] || st.b) + ' : ' + n + ' produit' + (n > 1 ? 's' : '') + ' à charger au Local</span>';
+      const np = maJourneeReassortsPrets[st.b] || 0;   // v20.262
+      if (n > 0) badges += '<span class="mj-badge mj-b-reassort">📦 Réassort ' + (BOUTIQUE_NAMES[st.b] || st.b) + ' : ' + n + ' produit' + (n > 1 ? 's' : '') + ' à charger au Local' + (np ? ' · <b>' + np + ' prêt' + (np > 1 ? 's' : '') + '</b>' : '') + '</span>';
       else badges += '<span class="mj-badge mj-b-none">réassort pas encore envoyé par la boutique</span>';
       if (st.b === 'tours') {
         if (maJourneeSpecialesTours > 0) extra += maJourneeSpeHtml('tours');
@@ -8351,6 +8401,7 @@ await loadProduction(currentReapproDate);
 await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
 if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
+await loadProductionDone([currentBoutique], currentReapproDate); // v20.262
 // v20.7 — recharger les spéciales pour le nouveau jour
 if (currentBoutique === 'veigne' || currentBoutique === 'local') {
 await loadSpecialOrdersForProduction(currentReapproDate);
@@ -8748,7 +8799,7 @@ const fixedColsBefore = '1.3fr'
   + (showSpe ? ' 0.55fr' : '')
   + (showProsCol ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
-const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '');
+const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '') + ' 46px';   // v20.262 — ✓
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
 
 const rows = allProducts.map(function(p) {
@@ -8993,10 +9044,16 @@ html += '<div class="copy-stock-box">'
 + '</div>';
   }
 
+// v20.262 — combien de lignes sont faites et parties
+const aFaire = filtered.filter(function(r) { return !r._plansec && r.total > 0; });
+const faites = aFaire.filter(function(r) { return !!productionDoneAt(currentBoutique, r.p.id); }).length;
 html += '<div class="prod-filter-bar"><label>'
 
 + '<input type="checkbox" ' + (productionFilterEmpty ? 'checked' : '') + ' onchange="toggleProductionFilter()">'
-+ '<span>Cacher les produits sans activité</span></label></div>';
++ '<span>Cacher les produits sans activité</span></label>'
++ (aFaire.length ? '<label style="margin-left:14px"><input type="checkbox" ' + (productionHideDone ? 'checked' : '') + ' onchange="toggleProductionHideDone()"><span>Cacher ce qui est fait</span></label>'
+  + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites</span>' : '')
++ '</div>';
 
 if (!filtered.length) {
 html += '<div class="prod-empty">'
@@ -9075,6 +9132,7 @@ let headerHtml = '<div class="prod-table-header" style="grid-template-columns:' 
       + '<span class="col-c col-stock">Stock</span>'
       + '<span class="col-c col-ecart">Écart</span>';
   }
+  headerHtml += '<span class="col-c" title="Ligne faite et partie">✓</span>';   // v20.262
   headerHtml += '</div>';
 
 html += '<div class="prod-table">' + headerHtml;
@@ -9102,7 +9160,9 @@ ecartHtml = '<span class="ecart-badge ' + eCls + '">' + eTxt + '</span>';
 }
 const prodCls = r.produitRaw ? 'has-prod' : '';
 const stockCls = r.stockRaw ? 'has-stock' : '';
-let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + '" style="grid-template-columns:' + gridTpl + '">'
+const rowDone = r.total > 0 && !!productionDoneAt(currentBoutique, r.p.id);   // v20.262
+if (rowDone && productionHideDone) return;
+let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' prod-done' : '') + '" style="grid-template-columns:' + gridTpl + '">'
 
 // v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
@@ -9208,6 +9268,10 @@ let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + '" style="grid-
       + '<input type="text" inputmode="decimal" class="prod-input ' + stockCls + '" data-pid="' + r.p.id + '" data-field="stock" value="' + escapeHtml(r.stockRaw || '') + '" placeholder="-" oninput="handleProductionInput(this)" onfocus="this.select()">'
       + '<div id="ecart_' + r.p.id + '" data-cmd="' + r.total + '">' + ecartHtml + '</div>';
   }
+  // v20.262 — ✓ ligne faite et partie (rien à cocher si rien à faire)
+  rowHtml += r.total > 0
+    ? '<button type="button" class="prod-done-btn' + (rowDone ? ' on' : '') + '" onclick="toggleProductionDone(\'' + r.p.id + '\')" title="Ligne faite et partie">' + (rowDone ? '✓' : '') + '</button>'
+    : '<div></div>';
   rowHtml += '</div>';
   html += rowHtml;
   });
