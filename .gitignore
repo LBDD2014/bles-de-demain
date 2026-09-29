@@ -2,3 +2,9 @@
 .DS_Store
 
 # Les exclusions des tests (node_modules, captures) sont dans tests/.gitignore
+
+# Réglages locaux de Claude Code (aperçu local, autorisations) — propres à ce Mac
+.claude/
+
+# Vieille copie de l'app dans le dossier des tests (les tests chargent ../index-cloud-test.html)
+tests/index-cloud-test.html
