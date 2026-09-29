@@ -200,6 +200,34 @@
   .plan-tbl tr.plan-valid td{background:#F3F7F2}
   .plan-tbl tr.plan-valid td.pname{color:var(--green);font-size:12px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  /* v20.267 — Planning plein écran : toute la largeur, lignes d'un seul étage, 2 moitiés côte à côte */
+  #plan.page{max-width:none;padding:10px 12px}
+  #plan .card{padding:10px 12px}
+  .plan-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .plan-head h2{margin:0 8px 0 0;font-size:16px}
+  .plan-head #planWeekLbl{font-size:13px;min-width:170px;text-align:center}
+  .plan-toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px}
+  .plan-toolbar .btn{margin:0}
+  .plan-sw{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;padding:4px 8px;border:1px solid var(--gold-light);border-radius:8px;background:#fff}
+  .plan-sw input{width:auto;margin:0;transform:scale(1.15)}
+  .plan-sw-edit{border-color:var(--gold)}
+  .plan-cols{display:flex;gap:14px;align-items:flex-start}
+  .plan-cols>.plan-col{flex:1 1 0;min-width:0}
+  .plan-tbl thead th{position:sticky;top:var(--plan-top,0px);z-index:3}
+  .plan-tbl th,.plan-tbl td{padding:1px 2px}
+  .plan-tbl td.pname{min-width:120px;padding:2px 6px;font-size:12px;line-height:1.25}
+  .pname-row{display:flex;align-items:center;gap:6px}
+  .pname-row .plan-ctrls{margin:0 0 0 auto;flex-shrink:0}
+  .pcell{width:100%;min-width:48px;box-sizing:border-box;padding:3px 1px;font-size:13px}
+  .pcell.pnote{min-width:48px;font-size:11px}
+  /* v20.267 — colonnes de jours à largeur fixe (« 75+75+50 » y tient) : toute la place restante va au nom du produit */
+  .plan-tbl thead th+th,.plan-tbl tbody td+td{width:70px}   /* v20.267 — ses 88 px imposaient 93 px à TOUTES les colonnes de jours ; texte complet au survol */
+  .plan-tbl tr.plan-sec td{padding:3px 8px;font-size:11px}
+  .plan-tbl tr.plan-valid td{padding:2px}
+  .plan-tbl tr.plan-valid .btn{padding:2px 9px!important}
+  #planTblWrap.plan-view ~ #planEditZone{display:none}
+  #planTblWrap.plan-edit ~ #planEditHint{display:none}
+  @media (max-width:640px){#planTblWrap{overflow-x:auto}}
   .plan-add input,.plan-add select{padding:8px;border:1px solid var(--gold-light);border-radius:8px}
 </style>
 </head>
@@ -212,7 +240,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.229</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.267</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -280,41 +308,45 @@
 </section>
 
 <!-- PLANNING SEMAINE -->
+<!-- v20.267 — Planning plein écran (Phil, 29/09) : toute la largeur, une ligne par produit,
+     boutons du haut sur une ligne, grille en 2 moitiés côte à côte sur grand écran,
+     ↑↓✏️🙈🗑 derrière l'interrupteur « ✏️ Modifier la liste » (mémorisé par appareil). -->
 <section id="plan" class="page">
   <div class="card">
-    <h2>📅 Planning semaine</h2>
-    <p class="hint">Ta grille de prod de la semaine, à remplir comme sur papier. Chaque magasin a sa propre liste (choisi en haut).</p>
-    <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
+    <div class="plan-head">
+      <h2>📅 Planning semaine</h2>
       <button class="btn ghost sm" onclick="planSetWeek(-1)">◀</button>
-      <b id="planWeekLbl" style="flex:1;text-align:center;font-size:13px"></b>
+      <b id="planWeekLbl"></b>
       <button class="btn ghost sm" onclick="planSetWeek(1)">▶</button>
       <button class="btn ghost sm" onclick="planSetWeek(0)">Auj.</button>
     </div>
-    <div class="btn-row" style="margin-bottom:8px">
-      <button class="btn ghost" onclick="planCopyPrevWeek()">⬇️ Copier la semaine précédente</button>
-      <button class="btn" onclick="planValiderSemaine()">✓ Valider la semaine (décompter les farines)</button>
-    </div>
-    <div class="btn-row" style="margin-bottom:8px">
+    <div class="plan-toolbar">
+      <button class="btn ghost sm" onclick="planCopyPrevWeek()">⬇️ Copier la semaine précédente</button>
+      <button class="btn sm" onclick="planValiderSemaine()" title="Décompte les farines du stock pour les jours remplis">✓ Valider la semaine (farines)</button>
       <input type="file" id="planPhoto" accept="image/*" capture="environment" style="display:none" onchange="planScanFile()">
-      <button class="btn" id="planScanBtn" onclick="document.getElementById('planPhoto').click()">📷 Scanner la feuille</button>
-      <span class="hint" style="margin:0">remplit la semaine affichée</span>
+      <button class="btn sm" id="planScanBtn" onclick="document.getElementById('planPhoto').click()" title="Remplit la semaine affichée à partir d'une photo de la feuille">📷 Scanner la feuille</button>
+      <button class="btn ghost sm" onclick="planPrintWeek()">📄 Imprimer (A4)</button>
+      <label class="plan-sw">
+        <input type="checkbox" id="planHideChk" onchange="planHideEmpty=this.checked;localStorage.setItem('planHideEmpty',this.checked?'1':'');planRender()">
+        Masquer les lignes vides
+      </label>
+      <label class="plan-sw plan-sw-edit">
+        <input type="checkbox" id="planEditChk" onchange="planSetEditMode(this.checked)">
+        ✏️ Modifier la liste
+      </label>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0">
-    <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
-      <input type="checkbox" id="planHideChk" style="width:auto;transform:scale(1.2)" onchange="planHideEmpty=this.checked;localStorage.setItem('planHideEmpty',this.checked?'1':'');planRender()">
-      Masquer les lignes non remplies cette semaine
-    </label>
-    <button class="btn ghost sm" style="margin-left:auto" onclick="planPrintWeek()">📄 Imprimer la semaine (A4)</button>
+    <div id="planTblWrap"></div>
+    <div id="planEditZone">
+      <div id="planMasquees" style="margin-top:10px"></div>
+      <div id="planJoursOff" style="margin-top:6px"></div>
+      <div class="plan-add" style="margin-top:12px">
+        <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
+        <select id="planNewSection" style="flex:1"><option value="pains">Pains</option><option value="speciaux">Spéciaux</option><option value="bio">Pains bio</option><option value="levains">Levains</option><option value="viennoiserie">Viennoiserie</option></select>
+        <select id="planNewUnite" style="flex:1"><option>bacs</option><option>kg</option><option>pièces</option><option>moules</option></select>
+        <button class="btn sm" onclick="planAddLigne()">+ Ajouter une ligne</button>
+      </div>
     </div>
-    <div style="overflow-x:auto"><table class="plan-tbl" id="planTbl"></table></div>
-    <div id="planMasquees" style="margin-top:10px"></div>
-    <div id="planJoursOff" style="margin-top:6px"></div>
-    <div class="plan-add" style="margin-top:12px">
-      <input id="planNewNom" placeholder="Nouveau produit (ex : Tradition)" style="flex:2;min-width:140px">
-      <select id="planNewSection" style="flex:1"><option value="pains">Pains</option><option value="speciaux">Spéciaux</option><option value="bio">Pains bio</option><option value="levains">Levains</option><option value="viennoiserie">Viennoiserie</option></select>
-      <select id="planNewUnite" style="flex:1"><option>bacs</option><option>kg</option><option>pièces</option><option>moules</option></select>
-      <button class="btn sm" onclick="planAddLigne()">+ Ajouter une ligne</button>
-    </div>
+    <p class="hint" id="planEditHint" style="margin-top:8px">Pour réordonner, renommer, masquer, supprimer ou ajouter un produit : coche <b>✏️ Modifier la liste</b>.</p>
   </div>
 </section>
 
@@ -2545,37 +2577,46 @@ function planPrintWeek(){
   const dowFull=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
   const heads=jours.map(iso=>{const d=pdParse(iso);return '<th>'+dowFull[d.getDay()]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</th>';}).join('');
   const siteLbl=(SITES.find(x=>x[0]===planSite)||['','?'])[1];
+  // v20.267 — titre + semaine + légende sur UNE ligne (Phil : « enlève ce qui est superflu ») :
+  // la place gagnée va au tableau.
   const html='<div class="pw">'
-    +'<h1>Planning de production — '+siteLbl+'</h1>'
-    +'<div class="sub">Semaine du '+planFr(planWeekStart)+' au '+planFr(end)
-    +' · <i>chiffres italiques = levain calculé</i></div>'
+    +'<h1>Planning de production — '+siteLbl+' <span class="sub">· semaine du '+planFr(planWeekStart)+' au '+planFr(end)
+    +' · <i>italique = levain calculé</i></span></h1>'
     +'<table><thead><tr><th style="text-align:left">Produit</th>'+heads+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>';
-  // v20.213 — la feuille REMPLIT la page (demande Phil : « le plus visible
-  // possible »). Toute la typo est en em et la taille de base est calculée
-  // d'après le nombre de lignes : ~65 lignes tiennent à 9,5 px, donc moins de
-  // lignes = texte proportionnellement plus gros. Bornes 7-17 px : jamais
-  // illisible, jamais grotesque. Une seule page dans tous les cas.
-  const nNotes=planLignes.filter(l=>planSecOf(l)==='notes').length;
-  const nRows=(rows.match(/<tr/g)||[]).length+1+nNotes; // + en-tête, notes comptées double (texte qui s'étale)
-  // Géométrie réelle : page utile ≈ 1077 px (297−12 mm), une ligne ≈ 1,66×police
-  // + 2 px de bordures, le titre ≈ 3×police. On résout la police qui remplit
-  // exactement, avec 7 % de marge (les navigateurs arrondissent les hauteurs).
-  const basePx=Math.max(7,Math.min(17,0.93*(1077-2*nRows)/(1.66*nRows+3)));
-  printDoc(html,
-    '@page{size:A4 portrait;margin:6mm}'
-    +'#printwrap .pw{font-family:Georgia,serif;color:#3D2B1F;font-size:'+basePx.toFixed(2)+'px}'
-    +'#printwrap h1{font-size:1.55em;margin:0 0 .1em}'
-    +'#printwrap .sub{font-size:1em;color:#6B4226;margin:0 0 .45em}'
-    +'#printwrap table{border-collapse:collapse;width:100%;font-size:1em}'
-    +'#printwrap th,#printwrap td{border:1px solid #999;padding:.18em .35em;text-align:center;line-height:1.3}'
-    +'#printwrap td.pn{text-align:left;font-weight:bold;white-space:nowrap}'
-    +'#printwrap td.pn small{font-weight:normal;color:#777;font-size:.82em}'
-    +'#printwrap td.pn.pdecl{font-weight:normal;padding-left:1.1em}'
-    +'#printwrap tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:.88em;letter-spacing:.5px;padding:.12em .45em;'
+  const css=(w,px)=>w+' .pw{font-family:Georgia,serif;color:#3D2B1F;font-size:'+px.toFixed(2)+'px}'
+    +w+' h1{font-size:1.45em;margin:0 0 .25em;line-height:1.2}'
+    +w+' h1 .sub{font-size:.62em;font-weight:normal;color:#6B4226}'
+    +w+' table{border-collapse:collapse;width:100%;font-size:1em;table-layout:fixed}'
+    +w+' th:first-child{width:'+(NC>=8?36:40)+'%}'   // v20.267 — colonnes de jours égales (« Voir convivio » n'élargit plus la sienne)
+    +w+' td{overflow-wrap:anywhere}'
+    +w+' th,'+w+' td{border:1px solid #999;padding:.18em .35em;text-align:center;line-height:1.3}'
+    +w+' td.pn{text-align:left;font-weight:bold;white-space:normal}'
+    +w+' td.pn small{font-weight:normal;color:#777;font-size:.82em}'
+    +w+' td.pn.pdecl{font-weight:normal;padding-left:1.1em}'
+    +w+' tr.psec td{color:#fff;text-align:left;font-weight:bold;font-size:.88em;letter-spacing:.5px;padding:.12em .45em;'
     +'-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'#printwrap td.auto{font-style:italic;color:#6B4226}'
-    +'#printwrap td.note{white-space:normal;text-align:left;font-size:.8em;line-height:1.2}');
+    +w+' td.auto{font-style:italic;color:#6B4226}'
+    +w+' td.note{white-space:normal;text-align:left;font-size:.8em;line-height:1.2}';
+  // v20.213 — la feuille REMPLIT la page (« le plus visible possible »), bornes 7-17 px.
+  // v20.267 — « ça ne tient plus sur une seule feuille A4 » (Phil, PC Windows) : la police
+  // n'est plus seulement ESTIMÉE (les hauteurs de ligne varient d'un appareil à l'autre),
+  // elle est MESURÉE : on pose la feuille hors écran au format utile A4 exact (198 × 285 mm,
+  // marges 6 mm), avec les polices de CET appareil, et on garde la plus grande police qui tient.
+  let basePx;
+  const HAUT_UTILE=285*96/25.4*0.97,LARG_UTILE=198*96/25.4;   // px CSS, 3 % de marge de sécurité
+  const mes=document.createElement('div');mes.id='planPrintMesure';
+  mes.style.cssText='position:absolute;left:-10000px;top:0;width:'+LARG_UTILE+'px;visibility:hidden;background:#fff';
+  mes.innerHTML=html;document.body.appendChild(mes);
+  const stM=document.createElement('style');document.head.appendChild(stM);
+  // la PLUS GRANDE police qui tient (recherche par dichotomie entre 6 et 17 px)
+  const tient=px=>{stM.textContent=css('#planPrintMesure',px);return mes.scrollHeight<=HAUT_UTILE&&mes.scrollWidth<=LARG_UTILE+1;};
+  let lo=6,hi=17;
+  if(tient(hi))lo=hi;
+  else for(let i=0;i<14;i++){const mid=(lo+hi)/2;if(tient(mid))lo=mid;else hi=mid;}
+  basePx=lo;
+  mes.remove();stM.remove();
+  printDoc(html,'@page{size:A4 portrait;margin:6mm}'+css('#printwrap',basePx));
 }
 
 function planRender(){
@@ -2588,8 +2629,9 @@ function planRender(){
   jours.forEach(j=>{const d=pdParse(j.iso);head+='<th'+(j.iso===today?' style="background:var(--gold);color:#fff"':'')+'>'+PD_DAYS[j.i]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)
     +(j.off?'<div style="font-size:9px;color:var(--orange)" title="Jour de fermeture masqué, mais il contient des chiffres">⚠️ fermé</div>':'')+'</th>';});
   head+='</tr></thead>';
-  let body='<tbody>'+planValidRow(jours);
-  if(!planLignes.length){body+='<tr><td colspan="'+NC+'" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Ajoute tes produits ci-dessous 👇</td></tr>';}
+  const validRow=planValidRow(jours);
+  const items=[];   // v20.267 — {sec, html, fille} : rangées dans l'ordre, découpables en 2 moitiés
+  if(!planLignes.length)items.push({sec:null,fille:false,html:'<tr><td colspan="'+NC+'" style="text-align:center;color:var(--grey-light);padding:14px">Aucune ligne. Coche « ✏️ Modifier la liste » pour ajouter tes produits 👇</td></tr>'});
   // v20.207 — Levains calculés automatiquement pour chaque jour de la semaine :
   // on traduit le jour en pétrins (planMapJour, le même cerveau que « Remplir
   // depuis le planning ») et on somme le levain de chaque recette. Affiché en
@@ -2608,21 +2650,27 @@ function planRender(){
     // v20.226 — une fille sous sa mère : ↳ + retrait. Si la mère est masquée (coche
     // « lignes non remplies »), on écrit de quelle pâte elle sort, sinon le retrait
     // ne veut plus rien dire.
-    let r='<tr><td class="pname'+(mere?' pdecl':'')+'" style="border-left-color:'+col+'">'
+    // v20.267 — une seule ligne par produit : le nom, et les boutons À CÔTÉ (plus sur un 2e
+    // étage) uniquement quand « ✏️ Modifier la liste » est coché. Phil s'en sert, mais la
+    // grille sert d'abord à LIRE sa semaine (tablette surtout en consultation).
+    let r='<tr><td class="pname'+(mere?' pdecl':'')+'" style="border-left-color:'+col+'"><div class="pname-row"><span>'
       +(mere?'<span class="parr">↳</span>':'')+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span>'
       +(mere&&!mereVisible?'<span class="pmere">sort de '+mere.nom+'</span>':'')
       +(levKey?'<span class="pu" style="color:var(--gold-dark)"> · calcul auto</span>':'')
-      +'<div class="plan-ctrls">'
+      +'</span>'
+      +(planEditMode?'<div class="plan-ctrls">'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',-1)"'+(idx===0?' disabled':'')+'>↑</button>'
       +'<button class="ico-btn" onclick="planMove('+lg.id+',1)"'+(idx===sibs.length-1?' disabled':'')+'>↓</button>'
       +'<button class="ico-btn" onclick="planEditLine('+lg.id+')">✏️</button>'
       +'<button class="ico-btn" onclick="planMasquer('+lg.id+')" title="Masquer ce produit (récupérable)">🙈</button>'
-      +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div></td>';
+      +'<button class="ico-btn" onclick="planDel('+lg.id+')">🗑</button></div>':'')
+      +'</div></td>';
     const estNote=planSecOf(lg)==='notes';
     for(const j of jours){const iso=j.iso;const val=planVals[lg.id+'_'+iso]||'';
       let ph='';
       if(levKey&&!String(val).trim()){const t=levByDay[iso];const q=t?t[levKey]:0;if(q>0.05)ph=String(calcR05(q));}
-      r+='<td><input class="pcell'+(estNote?' pnote':'')+'" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
+      const longTxt=String(val).length>6;   // « Voir convivio », « Reste »… : le texte complet au survol
+      r+='<td><input class="pcell'+(estNote?' pnote':'')+'" value="'+String(val).replace(/"/g,'&quot;')+'"'+(longTxt?' title="'+String(val).replace(/"/g,'&quot;')+'"':'')+' placeholder="'+ph+'" onchange="planSetVal('+lg.id+',\''+iso+'\',this.value)"></td>';}
     return r+'</tr>';
   };
   PLAN_SECTIONS.forEach(sec=>{
@@ -2631,13 +2679,60 @@ function planRender(){
     const visibles=planHideEmpty?rangees.filter(x=>ligneRemplie(x.lg)):rangees;
     if(!visibles.length)return;
     const vus={};visibles.forEach(x=>vus[x.lg.id]=1);
-    body+='<tr class="plan-sec"><td colspan="'+NC+'" style="background:'+sec.color+'">'+sec.label+'</td></tr>';
-    visibles.forEach(x=>body+=renderLine(x.lg,planVoisins(x.lg),x.mere,!!(x.mere&&vus[x.mere.id])));
+    items.push({sec:sec,bande:true,fille:false,html:planSecBand(sec,NC,false)});
+    visibles.forEach(x=>items.push({sec:sec,fille:!!x.mere,html:renderLine(x.lg,planVoisins(x.lg),x.mere,!!(x.mere&&vus[x.mere.id]))}));
   });
-  body+='</tbody>';
-  document.getElementById('planTbl').innerHTML=head+body;
+  planPoserGrille(head,validRow,items,NC);
   planRenderMasquees();planRenderJoursOff();
 }
+/* ---------- v20.267 — PLANNING PLEIN ÉCRAN (Phil, 29/09) ----------
+   « que la vision soit plus large et que je n'aie pas besoin de scroller, sur l'ordi et si
+   possible sur la tablette ». Sur un écran assez large, la grille est coupée en DEUX moitiés
+   côte à côte (≈ 25 rangées chacune au lieu de 50) ; la coupure tombe entre deux pâtes (jamais
+   entre une pâte et ses déclinaisons) et la section coupée est rappelée « (suite) » à droite.
+   Si les 2 moitiés ne tiennent pas en largeur, on revient tout seul à une colonne. La ligne
+   des jours reste collée en haut quand on descend. */
+let planEditMode=(function(){try{return localStorage.getItem('planEditMode')==='1';}catch(e){return false;}})();
+let planDeuxColsKoW=0,planDerniereLargeur=0;
+function planSetEditMode(on){
+  planEditMode=!!on;try{localStorage.setItem('planEditMode',on?'1':'');}catch(e){}
+  planDeuxColsKoW=0;planRender();
+}
+const planSecBand=(sec,NC,suite)=>'<tr class="plan-sec"><td colspan="'+NC+'" style="background:'+sec.color+'">'+sec.label+(suite?' (suite)':'')+'</td></tr>';
+function planPoserGrille(head,validRow,items,NC){
+  const wrap=document.getElementById('planTblWrap');if(!wrap)return;
+  wrap.className=planEditMode?'plan-edit':'plan-view';
+  const chk=document.getElementById('planEditChk');if(chk)chk.checked=planEditMode;
+  // la ligne des jours se colle SOUS la barre d'onglets / du magasin (collantes elles aussi)
+  const hautCollant=['nav.tabs','#siteBar'].reduce((m,sel)=>{const el=document.querySelector(sel);return el?Math.max(m,el.offsetHeight):m;},0);
+  wrap.style.setProperty('--plan-top',hautCollant+'px');
+  const larg=window.innerWidth;planDerniereLargeur=larg;
+  if(planDeuxColsKoW&&larg>planDeuxColsKoW)planDeuxColsKoW=0;
+  const table=rows=>'<table class="plan-tbl">'+head+'<tbody>'+rows+'</tbody></table>';
+  const deux=larg>=900&&!planDeuxColsKoW&&items.length>=12;
+  if(!deux){wrap.innerHTML=table(validRow+items.map(x=>x.html).join(''));return;}
+  // coupure la plus proche du milieu (la ligne « Valider » compte à gauche), jamais avant une déclinaison
+  const cible=(items.length+1)/2-1;let cut=-1,best=1e9;
+  for(let i=1;i<items.length;i++){if(items[i].fille)continue;const d=Math.abs(i-cible);if(d<best){best=d;cut=i;}}
+  if(cut<1){wrap.innerHTML=table(validRow+items.map(x=>x.html).join(''));return;}
+  const gauche=items.slice(0,cut),droite=items.slice(cut);
+  const suite=droite[0].bande?'':planSecBand(droite[0].sec,NC,true);
+  wrap.innerHTML='<div class="plan-cols"><div class="plan-col">'+table(validRow+gauche.map(x=>x.html).join(''))+'</div>'
+    +'<div class="plan-col">'+table(suite+droite.map(x=>x.html).join(''))+'</div></div>';
+  // les 2 moitiés débordent en largeur (écran étroit, zoom, mode modification) → une seule colonne
+  if(wrap.scrollWidth>wrap.clientWidth+6){planDeuxColsKoW=larg;wrap.innerHTML=table(validRow+items.map(x=>x.html).join(''));}
+}
+// Largeur de fenêtre changée (rotation de tablette, fenêtre redimensionnée) → on recalcule.
+// Seulement si la LARGEUR change : le clavier de la tablette change la hauteur, pas la largeur.
+let _planResizeT=null;
+window.addEventListener('resize',function(){
+  clearTimeout(_planResizeT);
+  _planResizeT=setTimeout(function(){
+    const pg=document.getElementById('plan');
+    if(!pg||!pg.classList.contains('active')||window.innerWidth===planDerniereLargeur)return;
+    planDeuxColsKoW=0;planRender();
+  },250);
+});
 /* ---------- v20.227 — VALIDER LA JOURNÉE DEPUIS LE PLANNING ----------
    Demande Phil (31/08) : décompter les farines sans repasser par Prod. du jour.
    Un clic sur la pastille d'un jour = « ⇩ Remplir depuis le planning » + « ✓ Valider
@@ -2662,7 +2757,7 @@ function planJourRows(iso){
 function planValidRow(jours){
   const today=pdISO(new Date());
   let r='<tr class="plan-valid"><td class="pname" style="border-left-color:var(--green)">✓ Valider la journée'
-    +'<span class="pu"> · décompte les farines du stock</span></td>';
+    +'<span class="pu"> · farines</span></td>';
   for(const j of (jours||planJoursVisibles())){const iso=j.iso;
     const p=planProd[iso],val=!!(p&&p.n&&p.valide);
     if(!planJourRempli(iso)){r+='<td style="text-align:center;color:#ccc">—</td>';continue;}
