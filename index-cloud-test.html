@@ -163,6 +163,23 @@ min-width: 36px; height: 36px;
 }
 .print-btn:active { background: rgba(255,255,255,0.22); }
 
+/* v20.264 — oublis de saisie (sous l'en-tête, disparaît quand tout est rattrapé) */
+#oublis-bar { background: #FDEEDC; border-bottom: 2px solid var(--orange); color: var(--brown); font-size: 13px; }
+#oublis-bar.oublis-rappel-seul { background: #E4EEF6; border-bottom-color: var(--blue); }
+.oublis-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.oublis-body { padding: 0 14px 8px; }
+.oublis-ligne { padding: 5px 0; border-top: 1px dashed rgba(0,0,0,.12); line-height: 1.6; }
+.oublis-jour, .oublis-go { border: 1px solid var(--orange); background: #fff; color: var(--brown); border-radius: 14px;
+  padding: 2px 10px; font-size: 12px; font-weight: 600; margin: 1px 2px; cursor: pointer; }
+.oublis-go { border-color: var(--gold-dark); color: var(--gold-dark); }
+.oa-table { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+.oa-table th, .oa-table td { padding: 5px 4px; text-align: center; border-bottom: 1px solid #eee4d0; }
+.oa-table thead th { font-size: 11px; color: var(--grey-light); font-weight: 600; }
+.oa-lbl { text-align: left !important; white-space: nowrap; padding-right: 8px !important; }
+.oa-sep th { text-align: left; background: var(--cream); font-size: 12px; color: var(--brown-mid); }
+.oa-ok { color: var(--green); font-weight: 700; } .oa-nv { color: var(--orange); font-weight: 800; background: #FDEEDC; }
+.oa-vide { color: var(--red); font-weight: 800; background: #F8E1E1; } .oa-ferme { background: #ECECEC; }
+.oa-n { font-weight: 700; color: var(--green); } .oa-n-rouge { color: var(--red); }
 .sync-bar {
 display: flex; align-items: center; justify-content: space-between;
 padding: 8px 16px; background: var(--grey-dark); color: var(--white); font-size: 11px;
@@ -2528,6 +2545,7 @@ outline: none; border-color: var(--gold); background: white;
     <span><span class="sync-dot ok" id="sync-dot"></span><span id="sync-text">Connecté</span></span>
     <span class="device-id" id="device-id-label"></span>
   </div>
+  <div id="oublis-bar" style="display:none"></div>   <!-- v20.264 — oublis de saisie du site -->
   <div class="main" id="main-content">
     <div class="loading">Chargement...</div>
   </div>
@@ -2609,7 +2627,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.263';
+const APP_VERSION  = 'v20.264';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2859,6 +2877,7 @@ const NAV_ITEMS = {
     { id: 'equipe', lbl: 'Équipe' },   // v20.199 — dotations vêtements de travail
     { id: 'pros', lbl: 'Pros' },
     { id: 'fetes_admin', lbl: 'Fêtes' }, // v20.222 — onglet éphémère (Noël, Galettes…)
+    { id: 'oublis_admin', lbl: 'Oublis' }, // v20.264 — oublis de saisie, tous sites
     { id: 'acces', lbl: 'Accès' }
   ]
 };
@@ -3652,6 +3671,7 @@ if (realtimeChannelPros)     { supa.removeChannel(realtimeChannelPros);     real
 if (realtimeChannelProOrders){ supa.removeChannel(realtimeChannelProOrders); realtimeChannelProOrders = null; }
 if (realtimeChannelProOrdersProduction) { supa.removeChannel(realtimeChannelProOrdersProduction); realtimeChannelProOrdersProduction = null; }
 currentBoutique = null; reapprosData = {}; salesData = {}; deliveriesData = []; productionData = {}; productionLocalData = {};
+renderOublisBar();   // v20.264 — la barre d'oublis n'a rien à faire sur l'accueil
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
 messagesData = []; messageDraft = freshMessageDraft();
 specialOrdersData = []; specialFormMode = null; specialFormDraft = null; selectedSpecialDay = null; currentSpecialWeekStart = null;
@@ -3770,6 +3790,7 @@ stockPatUnlocked = true;
 }
 currentVue = v;
 productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
+refreshOublis(false);     // v20.264 — oublis de saisie du site (cache 3 min, pas d'attente)
 // v20.167 — ouvrir l'onglet concerné acquitte les bandeaux « attention »
 if (typeof attentionAlerts !== 'undefined' && attentionAlerts.length) {
   attentionAlerts = attentionAlerts.filter(function(a) { return a.vue !== v; });
@@ -3881,6 +3902,9 @@ renderStaff();
 } else if (v === 'acces') {
 await loadBoutiqueCodes();
 renderAccessCodes();
+} else if (v === 'oublis_admin') {
+await loadOublisAdmin();   // v20.264
+renderOublisAdmin();
 } else if (v === 'pros_orders') {
 // v21.0.4 — Saisie commande pros par boutique (Veigné, Tours, Le Local)
 await loadAdminPros();              // pour le dropdown choix du pro
@@ -6019,6 +6043,7 @@ async function validateDay() {
   if (validateRows.length) parts.push(validateRows.length + ' validés');
   if (unvalidateRows.length) parts.push(unvalidateRows.length + ' nettoyés');
   showToast(parts.join(' · '), 'sync');
+  refreshOublis(true);   // v20.264 — la journée validée sort tout de suite de la barre d'oublis
 }
 
 // v20.1 : Importer global = J1=0 pour tous les produits avec previs
@@ -15649,6 +15674,282 @@ function tourierUnitLabel(p) { const c = formatConditioning(p); return c || (p &
 // Bip court (1×) + bandeau coloré persistant en bas de l'écran, uniquement chez le site qui
 // doit produire/préparer. Le bandeau reste jusqu'au tap (→ ouvre l'onglet concerné) ou ✕.
 let realtimeChannelAttention = null;
+/* ============================================================
+   v20.264 — OUBLIS DE SAISIE (Phil, 29/09) : « le contrôle du matin des oublis ».
+   Chaque site voit, sous l'en-tête, ce qu'il a oublié ces 7 derniers jours ; la ligne
+   disparaît toute seule quand c'est rattrapé. Phil a le récap tous sites en BackOffice → Oublis.
+   Contrôles :
+     · Ventes de la journée validées (« Valider la journée ») — Veigné, Tours, St-Avertin
+     · Journée de production validée dans Fabrication — Le Local, Veigné, Tours
+       (sans validation, les farines ne sont pas décomptées → bilan bio / Bureau Veritas faux)
+     · Bons de farine (Phil, 29/09) : Girardeau-Suire livre le mardi et/ou le jeudi → le bon de la
+       semaine doit être saisi le JEUDI MIDI au plus tard (Local, Veigné, Tours). GAEC des Mimosas et
+       Michel Revault (Local) : rythme aléatoire → tolérance, mais saisi AVANT LA FIN DU MOIS
+       (rappel à partir du 25, oubli du 1er au 5 du mois suivant).
+       GAEC des Mimosas : PAS de bon de livraison, une FACTURE PAR MOIS reçue par mail et saisie
+       par Phil → on contrôle le MOIS PRÉCÉDENT (récap BackOffice de Phil seulement).
+     · Inventaire des farines de fin de mois — rappel le dernier jour, oubli du 1er au 5
+   Jours de fermeture (Phil, 29/09) : St-Avertin et Le Local le lundi, Tours le dimanche + fériés
+   (boutiqueOuverte), Veigné 7/7. Un jour fermé n'est jamais un oubli.
+   La barre du site ne regarde que LA VEILLE (Phil : « la veille ») = la dernière journée d'ouverture
+   (le mardi à St-Avertin → le samedi). Le récap BackOffice garde 14 jours.
+   ============================================================ */
+const OUBLIS_NB_JOURS = 7;                 // chargé sur 7 jours pour retrouver la dernière journée d'ouverture
+const OUBLIS_SUIRE = 'four_suire';
+// [id, nom, qui saisit, règle] — 'phil' = récap BackOffice seulement (factures Mimosas reçues par mail) ;
+// 'fin_mois' = bons du mois saisis avant la fin du mois ; 'facture' = facture mensuelle, on contrôle le mois précédent
+const OUBLIS_FOURN_MOIS = [['four_mimosas', 'GAEC des Mimosas', 'phil', 'facture'], ['four_revault', 'Michel Revault', 'site', 'fin_mois']];
+const OUBLIS_FOURN_MOIS_RAPPEL_DES = 25;   // à partir du 25 : « pense à saisir les bons du mois »
+const OUBLIS_FERME_SEMAINE = { 'saint-avertin': [1], local: [1], tours: [0], veigne: [] };   // getDay() : 0 = dim, 1 = lun
+const OUBLIS_CTRL = {
+  veigne:          { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true },
+  tours:           { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true },
+  'saint-avertin': { ventes: true,  fab: false, farine: false, fournMois: false, inventaire: false },
+  local:           { ventes: false, fab: true,  farine: true,  fournMois: true,  inventaire: true }
+};
+const OUBLIS_SITES = ['veigne', 'tours', 'saint-avertin', 'local'];
+let oublisCache = null, oublisCacheAt = 0, oublisCacheKey = '', oublisOuvert = true;
+
+function oublisSiteOuvert(site, iso) {
+  const dow = new Date(iso + 'T12:00').getDay();
+  if ((OUBLIS_FERME_SEMAINE[site] || []).indexOf(dow) !== -1) return false;
+  return boutiqueOuverte(site, iso).ouvert;
+}
+function oublisJourCourt(iso) {
+  const d = new Date(iso + 'T12:00');
+  return ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][d.getDay()] + ' ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+}
+// Semaine Suire contrôlée : la semaine en cours à partir du jeudi midi, sinon la précédente
+function oublisSemaineSuire(today) {
+  const dow = new Date(today + 'T12:00').getDay();
+  const lundi = addDaysISO(today, -((dow + 6) % 7));
+  const passeJeudiMidi = (dow === 0 || dow >= 5 || (dow === 4 && new Date().getHours() >= 12));
+  const l = passeJeudiMidi ? lundi : addDaysISO(lundi, -7);
+  return { lundi: l, dimanche: addDaysISO(l, 6) };
+}
+function oublisMoisNom(ym) {
+  return ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][+ym.slice(5, 7) - 1];
+}
+function oublisFinMois(iso) {
+  const d = new Date(iso + 'T12:00'); d.setDate(1); d.setMonth(d.getMonth() + 1); d.setDate(0);
+  return _localISO(d);
+}
+// PostgREST plafonne à 1000 lignes (piège v20.240) : 14 jours × 3 boutiques de ventes dépassent.
+async function oublisFetchAll(build) {
+  let out = [], from = 0;
+  for (let i = 0; i < 20; i++) {
+    const q = await build(from, from + 999);
+    if (q.error) return { error: q.error };
+    const d = q.data || []; out = out.concat(d);
+    if (d.length < 1000) break;
+    from += 1000;
+  }
+  return { data: out };
+}
+// Charge l'état des saisies de `sites` sur les `nbJours` jours avant aujourd'hui.
+// Renvoie { jours:[iso…], today, parSite:{ site:{ ventes:{iso:état}, fab:{iso:état}, farineDernier, inventaire } } }
+// états : 'ok' | 'non_valide' (saisi pas validé) | 'vide' (rien) | 'ferme'
+async function loadOublis(sites, nbJours) {
+  const today = serviceDateISO();
+  const jours = [];
+  for (let i = nbJours; i >= 1; i--) jours.push(addDaysISO(today, -i));
+  const d0 = jours[0], d1 = jours[jours.length - 1];
+  const vSites = sites.filter(function(s) { return OUBLIS_CTRL[s] && OUBLIS_CTRL[s].ventes; });
+  const fSites = sites.filter(function(s) { return OUBLIS_CTRL[s] && (OUBLIS_CTRL[s].fab || OUBLIS_CTRL[s].farine || OUBLIS_CTRL[s].inventaire); });
+  const debMoisPrec = addDaysISO(today.slice(0, 8) + '01', -1).slice(0, 8) + '01';
+  const vide = { data: [] };
+  const [sa, fp, fl, fi] = await Promise.all([
+    vSites.length ? oublisFetchAll(function(a, b) {
+      return supa.from('sales').select('boutique_id,date').eq('tenant_id', TENANT_ID).in('boutique_id', vSites)
+        .eq('day_closed', true).gte('date', d0).lte('date', d1).order('date').range(a, b);
+    }) : vide,
+    fSites.length ? oublisFetchAll(function(a, b) {
+      return supa.from('fab_production').select('site,date_prod,valide').in('site', fSites)
+        .gte('date_prod', d0).lte('date_prod', d1).order('date_prod').range(a, b);
+    }) : vide,
+    fSites.length ? supa.from('fab_livraisons').select('site,date_livraison,fournisseur_id').in('site', fSites)
+      .gte('date_livraison', addDaysISO(today, -60)).order('date_livraison', { ascending: false }).limit(500) : vide,
+    fSites.length ? supa.from('fab_inventaires').select('site,date_inv').in('site', fSites)
+      .gte('date_inv', debMoisPrec).order('date_inv', { ascending: false }).limit(1000) : vide
+  ]);
+  const closes = {};
+  ((sa && sa.data) || []).forEach(function(r) { closes[r.boutique_id + '_' + r.date] = true; });
+  const prod = {};
+  ((fp && fp.data) || []).forEach(function(r) {
+    const k = r.site + '_' + r.date_prod;
+    const x = prod[k] || (prod[k] = { n: 0, valide: true });
+    x.n++; if (!r.valide) x.valide = false;
+  });
+  const lastBon = {}, bons = {};
+  ((fl && fl.data) || []).forEach(function(r) {
+    if (!lastBon[r.site] || r.date_livraison > lastBon[r.site]) lastBon[r.site] = r.date_livraison;
+    (bons[r.site] = bons[r.site] || []).push(r);
+  });
+  const semSuire = oublisSemaineSuire(today);
+  const jourMois = +today.slice(8, 10);
+  const moisFourn = jourMois >= OUBLIS_FOURN_MOIS_RAPPEL_DES ? today.slice(0, 7)
+    : (jourMois <= 5 ? addDaysISO(today.slice(0, 8) + '01', -1).slice(0, 7) : null);
+  const moisPrec = addDaysISO(today.slice(0, 8) + '01', -1).slice(0, 7);   // facture mensuelle (Mimosas)
+  const invs = {};
+  ((fi && fi.data) || []).forEach(function(r) { (invs[r.site] = invs[r.site] || []).push(r.date_inv); });
+  const res = { jours: jours, today: today, parSite: {}, erreur: !!(sa.error || fp.error) };
+  sites.forEach(function(s) {
+    const c = OUBLIS_CTRL[s]; if (!c) return;
+    const o = res.parSite[s] = { ventes: {}, fab: {}, farineDernier: lastBon[s] || null, suire: null, fournMois: [], inventaire: null };
+    const mesBons = bons[s] || [];
+    if (c.farine) o.suire = { lundi: semSuire.lundi, ok: mesBons.some(function(r) {
+      return r.fournisseur_id === OUBLIS_SUIRE && r.date_livraison >= semSuire.lundi && r.date_livraison <= semSuire.dimanche; }) };
+    o.fournDernier = {};
+    if (c.fournMois) OUBLIS_FOURN_MOIS.forEach(function(f) {
+      mesBons.forEach(function(r) { if (r.fournisseur_id === f[0] && (!o.fournDernier[f[0]] || r.date_livraison > o.fournDernier[f[0]])) o.fournDernier[f[0]] = r.date_livraison; });
+      const mois = f[3] === 'facture' ? moisPrec : moisFourn;
+      if (!mois) return;
+      const ok = mesBons.some(function(r) { return r.fournisseur_id === f[0] && r.date_livraison.slice(0, 7) === mois; });
+      if (!ok) o.fournMois.push({ id: f[0], nom: f[1], mois: mois, rappel: mois === today.slice(0, 7), phil: f[2] === 'phil', facture: f[3] === 'facture' });
+    });
+    jours.forEach(function(iso) {
+      const ouvert = oublisSiteOuvert(s, iso);
+      if (c.ventes) o.ventes[iso] = !ouvert ? 'ferme' : (closes[s + '_' + iso] ? 'ok' : 'vide');
+      if (c.fab) {
+        const p = prod[s + '_' + iso];
+        o.fab[iso] = !ouvert ? (p ? (p.valide ? 'ok' : 'non_valide') : 'ferme') : (!p ? 'vide' : (p.valide ? 'ok' : 'non_valide'));
+      }
+    });
+    // Inventaire : rappel le dernier jour du mois ; oubli du 1er au 5 si rien autour de la fin du mois précédent
+    if (c.inventaire) {
+      const jour = +today.slice(8, 10);
+      if (today === oublisFinMois(today)) o.inventaire = { rappel: true };
+      else if (jour <= 5) {
+        const fin = addDaysISO(today.slice(0, 8) + '01', -1);
+        const fait = (invs[s] || []).some(function(d) { return d >= addDaysISO(fin, -2) && d <= today; });
+        if (!fait) o.inventaire = { manque: fin };
+      }
+    }
+  });
+  return res;
+}
+// Les lignes à afficher pour UN site (liste vide = tout est à jour)
+// veilleSeule (barre du site) : seulement la dernière journée d'ouverture avant aujourd'hui
+function oublisLignes(data, s, veilleSeule) {
+  const o = data && data.parSite[s]; if (!o) return [];
+  const c = OUBLIS_CTRL[s], L = [];
+  const jours = veilleSeule
+    ? data.jours.slice().reverse().filter(function(iso) { return oublisSiteOuvert(s, iso); }).slice(0, 1)
+    : data.jours;
+  if (c.ventes) {
+    const manque = jours.filter(function(iso) { return o.ventes[iso] === 'vide'; });
+    if (manque.length) L.push({ kind: 'ventes', dates: manque,
+      html: '🧾 <b>Ventes pas validées</b> : ' + manque.map(function(iso) {
+        return '<button class="oublis-jour" onclick="oublisOuvrirVentes(\'' + iso + '\')">' + oublisJourCourt(iso) + '</button>';
+      }).join(' ') });
+  }
+  if (c.fab) {
+    const nv = jours.filter(function(iso) { return o.fab[iso] === 'non_valide'; });
+    const vd = jours.filter(function(iso) { return o.fab[iso] === 'vide'; });
+    if (nv.length || vd.length) {
+      let t = '🥖 <b>Fabrication</b> — ';
+      const parts = [];
+      if (nv.length) parts.push('saisi mais <b>pas validé</b> : ' + nv.map(oublisJourCourt).join(', '));
+      if (vd.length) parts.push('<b>rien saisi</b> : ' + vd.map(oublisJourCourt).join(', '));
+      L.push({ kind: 'fab', dates: nv.concat(vd), html: t + parts.join(' · ') + ' <button class="oublis-go" onclick="oublisOuvrirFab()">Ouvrir la Fabrication →</button>' });
+    }
+  }
+  if (c.farine && o.suire && !o.suire.ok)
+    L.push({ kind: 'farine', html: '🌾 <b>Pas de bon Girardeau-Suire</b> saisi pour la semaine du ' + oublisJourCourt(o.suire.lundi)
+      + ' (à saisir le jeudi midi au plus tard) <button class="oublis-go" onclick="oublisOuvrirFab()">Saisir le bon →</button>' });
+  (o.fournMois || []).forEach(function(f) {
+    if (veilleSeule && f.phil) return;   // Mimosas : Phil s'en charge, pas l'équipe du site
+    L.push({ kind: f.rappel ? 'rappel' : 'farine', html: '🌾 <b>' + (f.rappel ? 'Pas encore de bon ' : 'Aucun bon ') + escapeHtml(f.nom) + '</b> saisi en '
+      + oublisMoisNom(f.mois) + (f.rappel ? ' — à saisir avant la fin du mois' : '') + ' <button class="oublis-go" onclick="oublisOuvrirFab()">Saisir le bon →</button>' });
+  });
+  if (c.inventaire && o.inventaire) {
+    if (o.inventaire.rappel) L.push({ kind: 'rappel', html: '📋 <b>Aujourd\'hui : inventaire des farines</b> de fin de mois (sacs + farine déjà pesée) <button class="oublis-go" onclick="oublisOuvrirFab()">Fabrication →</button>' });
+    else L.push({ kind: 'inventaire', html: '📋 <b>Inventaire de fin de mois pas saisi</b> (' + oublisJourCourt(o.inventaire.manque) + ') <button class="oublis-go" onclick="oublisOuvrirFab()">Fabrication →</button>' });
+  }
+  return L;
+}
+async function refreshOublis(force) {
+  const s = currentBoutique;
+  const bar = document.getElementById('oublis-bar');
+  if (!bar) return;
+  if (!s || !OUBLIS_CTRL[s]) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  if (!force && oublisCache && oublisCacheKey === s && Date.now() - oublisCacheAt < 3 * 60000) { renderOublisBar(); return; }
+  try {
+    const data = await loadOublis([s], OUBLIS_NB_JOURS);
+    if (currentBoutique !== s) return;   // on a changé de site pendant le chargement
+    oublisCache = data; oublisCacheAt = Date.now(); oublisCacheKey = s;
+  } catch (e) { oublisCache = null; }
+  renderOublisBar();
+}
+function renderOublisBar() {
+  const bar = document.getElementById('oublis-bar');
+  if (!bar) return;
+  const L = (oublisCache && oublisCacheKey === currentBoutique) ? oublisLignes(oublisCache, currentBoutique, true) : [];
+  if (!L.length) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  const nbOublis = L.filter(function(l) { return l.kind !== 'rappel'; }).length;
+  const titre = nbOublis ? '⚠️ ' + nbOublis + ' oubli' + (nbOublis > 1 ? 's' : '') + ' à rattraper' : '📋 Rappel du jour';
+  bar.style.display = '';
+  bar.className = nbOublis ? '' : 'oublis-rappel-seul';
+  bar.innerHTML = '<div class="oublis-head" onclick="oublisOuvert=!oublisOuvert;renderOublisBar()"><span>' + titre + '</span><span>' + (oublisOuvert ? '▲' : '▼') + '</span></div>'
+    + (oublisOuvert ? '<div class="oublis-body">' + L.map(function(l) { return '<div class="oublis-ligne kind-' + l.kind + '">' + l.html + '</div>'; }).join('') + '</div>' : '');
+}
+async function oublisOuvrirVentes(iso) {
+  currentDate = iso;
+  await setVue('ventes');
+}
+function oublisOuvrirFab() { window.location.href = 'fabrication.html'; }
+
+// ---------- BackOffice → Oublis : le récap tous sites pour Phil (14 jours) ----------
+let oublisAdminData = null;
+async function loadOublisAdmin() { oublisAdminData = await loadOublis(OUBLIS_SITES, 14); }
+function renderOublisAdmin() {
+  const mc = document.getElementById('main-content');
+  const d = oublisAdminData;
+  if (!d) { mc.innerHTML = '<div class="empty-state">Impossible de lire les saisies.</div>'; return; }
+  const cell = function(st) {
+    const m = { ok: ['✓', 'ok', 'Validé'], non_valide: ['~', 'nv', 'Saisi mais pas validé'], vide: ['✗', 'vide', 'Rien de validé'], ferme: ['', 'ferme', 'Fermé'] }[st] || ['', 'ferme', ''];
+    return '<td class="oa-' + m[1] + '" title="' + m[2] + '">' + m[0] + '</td>';
+  };
+  let h = '<div class="info-banner"><strong>Oublis de saisie — 14 derniers jours</strong><br>'
+    + 'Chaque site ne voit en haut de son écran que sa dernière journée d\'ouverture ; ici, 14 jours. ✓ validé · <span style="color:var(--orange);font-weight:700">~</span> saisi mais pas validé · '
+    + '<span style="color:var(--red);font-weight:700">✗</span> rien de validé · gris = fermé.</div>';
+  h += '<div class="section" style="padding:8px 10px;overflow-x:auto"><table class="oa-table"><thead><tr><th></th>'
+    + d.jours.map(function(iso) { const x = new Date(iso + 'T12:00'); return '<th>' + ['D', 'L', 'M', 'M', 'J', 'V', 'S'][x.getDay()] + '<br>' + x.getDate() + '</th>'; }).join('')
+    + '<th>Oublis</th></tr></thead><tbody>';
+  const ligne = function(lbl, s, kind) {
+    const o = d.parSite[s]; if (!o) return '';
+    const map = o[kind];
+    const n = d.jours.filter(function(iso) { return map[iso] === 'vide' || map[iso] === 'non_valide'; }).length;
+    return '<tr><th class="oa-lbl">' + lbl + '</th>' + d.jours.map(function(iso) { return cell(map[iso]); }).join('')
+      + '<td class="oa-n' + (n ? ' oa-n-rouge' : '') + '">' + n + '</td></tr>';
+  };
+  h += '<tr class="oa-sep"><th colspan="' + (d.jours.length + 2) + '">🧾 Ventes validées</th></tr>';
+  h += ligne('Veigné', 'veigne', 'ventes') + ligne('Tours', 'tours', 'ventes') + ligne('St-Avertin', 'saint-avertin', 'ventes');
+  h += '<tr class="oa-sep"><th colspan="' + (d.jours.length + 2) + '">🥖 Fabrication validée</th></tr>';
+  h += ligne('Le Local', 'local', 'fab') + ligne('Veigné', 'veigne', 'fab') + ligne('Tours', 'tours', 'fab');
+  h += '</tbody></table></div>';
+  // Farine + inventaire
+  h += '<div class="section" style="padding:10px 14px;font-size:13px">';
+  [['veigne', 'Veigné'], ['tours', 'Tours'], ['local', 'Le Local']].forEach(function(x) {
+    const o = d.parSite[x[0]]; if (!o) return;
+    const der = o.farineDernier;
+    const rouge = o.suire && !o.suire.ok;
+    h += '<div style="padding:3px 0">🌾 <b>' + x[1] + '</b> — Girardeau-Suire semaine du ' + (o.suire ? oublisJourCourt(o.suire.lundi) : '?') + ' : '
+      + '<span style="' + (rouge ? 'color:var(--red);font-weight:700' : 'color:var(--green);font-weight:700') + '">' + (rouge ? 'pas de bon ✗' : 'saisi ✓') + '</span>'
+      + ' <span style="color:var(--grey-light)">(dernier bon : ' + (der ? oublisJourCourt(der) : 'aucun depuis 2 mois') + ')</span>'
+      + (o.fournMois || []).map(function(f) {
+          const der = (o.fournDernier || {})[f.id];
+          return ' · <span style="color:' + (f.rappel ? 'var(--orange)' : 'var(--red)') + ';font-weight:700">' + escapeHtml(f.nom) + ' : '
+            + (f.facture ? 'facture de ' + oublisMoisNom(f.mois) + ' pas saisie' : 'rien en ' + oublisMoisNom(f.mois)) + (f.phil ? ' (à toi)' : '') + '</span>'
+            + ' <span style="color:var(--grey-light)">(dernier saisi : ' + (der ? oublisJourCourt(der) : 'aucun depuis 2 mois') + ')</span>'; }).join('')
+      + (o.inventaire && o.inventaire.manque ? ' · <span style="color:var(--red);font-weight:700">📋 inventaire de fin de mois pas saisi</span>' : '')
+      + '</div>';
+  });
+  h += '<div style="color:var(--grey-light);font-size:11.5px;margin-top:6px">Fermetures : St-Avertin et Le Local le lundi · Tours le dimanche et les fériés · Veigné 7 j/7. '
+    + 'Suire : bon de la semaine le jeudi midi au plus tard · Revault : avant la fin du mois (Le Local) · Mimosas : facture mensuelle (pas de bon), celle du mois précédent saisie par toi. Chaque site ne voit que la veille.</div></div>';
+  mc.innerHTML = h;
+}
+
 let attentionAlerts = [];        // [{key, kind:'special'|'reappro', vue, text}]
 let attentionSpecialSeen = {};   // order_id déjà signalés (évite double bip INSERT+UPDATE)
 let attentionReapproBatch = {};  // { boutique_id: Set(product_id) } — regroupe la rafale d'un envoi

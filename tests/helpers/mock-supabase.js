@@ -120,6 +120,7 @@
     this.orders.push({ col: col, asc: !opts || opts.ascending !== false }); return this;
   };
   proto.limit = function (n) { this.limitN = n; return this; };
+  proto.range = function (a, b) { this.rangeAB = [a, b]; return this; };   // v20.264 — pagination 1000 lignes
   proto.single = function () { this.singleMode = 'single'; return this; };
   proto.maybeSingle = function () { this.singleMode = 'maybeSingle'; return this; };
 
@@ -131,6 +132,7 @@
     if (this.action === 'select') {
       result = applyOrder(rows.filter(function (r) { return matches(r, self.filters); }), this.orders);
       if (this.limitN != null) result = result.slice(0, this.limitN);
+      if (this.rangeAB) result = result.slice(this.rangeAB[0], this.rangeAB[1] + 1);
       (this.embeds || []).forEach(function (t) {
         const fk = self.table.replace(/s$/, '') + '_id';   // pro_orders → pro_order_id
         result = result.map(function (r) {
