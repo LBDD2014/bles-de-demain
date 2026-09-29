@@ -2627,7 +2627,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.264';
+const APP_VERSION  = 'v20.265';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -15940,7 +15940,7 @@ function renderOublisAdmin() {
       + (o.fournMois || []).map(function(f) {
           const der = (o.fournDernier || {})[f.id];
           return ' · <span style="color:' + (f.rappel ? 'var(--orange)' : 'var(--red)') + ';font-weight:700">' + escapeHtml(f.nom) + ' : '
-            + (f.facture ? 'facture de ' + oublisMoisNom(f.mois) + ' pas saisie' : 'rien en ' + oublisMoisNom(f.mois)) + (f.phil ? ' (à toi)' : '') + '</span>'
+            + (f.facture ? 'facture ' + (/^[ao]/.test(oublisMoisNom(f.mois)) ? 'd\'' : 'de ') + oublisMoisNom(f.mois) + ' pas saisie' : 'rien en ' + oublisMoisNom(f.mois)) + (f.phil ? ' (à toi)' : '') + '</span>'
             + ' <span style="color:var(--grey-light)">(dernier saisi : ' + (der ? oublisJourCourt(der) : 'aucun depuis 2 mois') + ')</span>'; }).join('')
       + (o.inventaire && o.inventaire.manque ? ' · <span style="color:var(--red);font-weight:700">📋 inventaire de fin de mois pas saisi</span>' : '')
       + '</div>';
