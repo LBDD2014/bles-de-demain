@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Bilan bio (vue BV)</title>
+<style>
+:root{--gold:#CEAB52;--gold-light:#E8D5A3;--gold-dark:#8B6914;--grey:#474950;--grey-dark:#2E3044;--grey-light:#5A5C66;--cream:#FAF6EE;--brown:#3D2B1F;--brown-mid:#6B4226;--green:#4A7C59;--red:#B83232;--orange:#D4701A;--blue:#2C5F8A;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:Georgia,'Playfair Display',serif;background:var(--cream);color:var(--brown);font-size:15px}
+.wrap{max-width:1040px;margin:0 auto;padding:12px 16px 40px}
+.maq{background:var(--grey-dark);color:var(--gold-light);padding:8px 14px;border-radius:8px;font-size:13px;margin-bottom:14px}
+.maq b{color:var(--gold)}
+h1{font-family:'Playfair Display',Georgia,serif;font-size:22px;margin:0 0 4px;color:var(--grey-dark)}
+.sub{color:var(--grey-light);font-size:13px;margin-bottom:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.chip{border:1.5px solid var(--gold);background:var(--white);color:var(--brown);padding:8px 14px;border-radius:20px;font-size:14px}
+.chip.on{background:var(--gold);color:var(--white);font-weight:bold}
+.mois{display:flex;align-items:center;gap:6px;margin-left:auto;font-weight:bold;color:var(--grey-dark)}
+.mois button{border:1px solid #ccc;background:var(--white);border-radius:8px;padding:6px 10px;font-size:16px}
+.btn{border:none;background:var(--grey-dark);color:var(--white);padding:9px 14px;border-radius:8px;font-size:14px}
+.btn.sec{background:var(--white);color:var(--grey-dark);border:1.5px solid var(--grey-dark)}
+.steps{display:flex;gap:6px;align-items:stretch;margin:10px 0 16px;flex-wrap:wrap}
+.step{flex:1;min-width:150px;background:var(--white);border:1px solid var(--gold-light);border-radius:10px;padding:10px 12px;font-size:13px;position:relative}
+.step .n{display:inline-block;background:var(--gold);color:var(--white);border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-weight:bold;margin-right:6px;font-size:12px}
+.step b{display:block;margin:4px 0 2px;color:var(--grey-dark)}
+.step small{color:var(--grey-light)}
+.legend{font-size:12.5px;color:var(--grey-light);margin:4px 0 14px}
+/* cartes farines */
+.card{background:var(--white);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:10px;overflow:hidden;border-left:6px solid #ccc}
+.card.ok{border-left-color:var(--green)}.card.warn{border-left-color:var(--orange)}.card.bad{border-left-color:var(--red)}.card.none{border-left-color:#bbb}
+.head{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.head .nom{font-weight:bold;font-size:16px;color:var(--grey-dark);flex:1}
+.head .nom small{display:block;font-weight:normal;color:var(--grey-light);font-size:12px}
+.pill{border-radius:14px;padding:4px 10px;font-size:13px;font-weight:bold;white-space:nowrap}
+.pill.ok{background:#e3efe6;color:var(--green)}.pill.warn{background:#fbe8d6;color:var(--orange)}.pill.bad{background:#f5dede;color:var(--red)}.pill.none{background:#eee;color:var(--grey-light)}
+.arrow{color:var(--grey-light);font-size:13px;transition:.2s}
+.card.open .arrow{transform:rotate(90deg)}
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;padding:0 8px 12px}
+.cell{text-align:center;padding:6px 4px;position:relative}
+.cell .lbl{font-size:11.5px;color:var(--grey-light);text-transform:uppercase;letter-spacing:.3px}
+.cell .val{font-size:20px;font-weight:bold;color:var(--grey-dark);margin:2px 0}
+.cell .sacs{font-size:11.5px;color:var(--brown-mid)}
+.cell.op::before{content:attr(data-op);position:absolute;left:-7px;top:22px;font-size:18px;color:var(--gold-dark);font-weight:bold}
+.cell.theo{background:var(--cream);border-radius:8px}
+.cell.compte .val.pos{color:var(--green)}.cell.compte .val.neg{color:var(--red)}
+.cell .val.neg{color:var(--red)}
+.detail{display:none;border-top:1px dashed var(--gold-light);padding:10px 14px 14px;font-size:13.5px;background:#fffdf8}
+.card.open .detail{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.detail h4{margin:0 0 6px;font-size:13px;color:var(--gold-dark);text-transform:uppercase;letter-spacing:.4px}
+.detail table{width:100%;border-collapse:collapse}
+.detail td{padding:3px 4px;border-bottom:1px solid #f0e9d8;vertical-align:top}
+.detail td:last-child{text-align:right;white-space:nowrap;font-weight:bold}
+.detail .lot{color:var(--grey-light);font-size:12px}
+.detail .tot td{border-top:2px solid var(--gold-light);border-bottom:none;font-weight:bold}
+.total{background:var(--grey-dark);color:var(--white);border-radius:12px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:14px}
+.total b{font-size:18px}
+.total small{display:block;color:var(--gold-light);font-size:12px}
+.section{margin-top:34px}
+.section h2{font-family:'Playfair Display',Georgia,serif;font-size:18px;color:var(--grey-dark);margin:0 0 6px}
+/* aperçu A4 */
+.a4{background:var(--white);border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:22px 26px;font-family:Georgia,serif;font-size:12px;color:#222;max-width:760px}
+.a4 .t{font-size:16px;font-weight:bold;margin-bottom:2px}
+.a4 .m{color:#555;margin-bottom:12px;font-size:11px}
+.a4 table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.a4 th{background:#2E3044;color:#fff;padding:5px 6px;text-align:right;font-weight:normal;font-size:11px}
+.a4 th:first-child{text-align:left}
+.a4 td{padding:4px 6px;border-bottom:1px solid #e5e5e5;text-align:right}
+.a4 td:first-child{text-align:left}
+.a4 .ok{color:var(--green);font-weight:bold}.a4 .bad{color:var(--red);font-weight:bold}.a4 .warn{color:var(--orange);font-weight:bold}
+.a4 h5{margin:12px 0 4px;font-size:12px;color:var(--gold-dark)}
+.a4 .sign{display:flex;gap:40px;margin-top:22px;font-size:11px}
+.a4 .sign div{flex:1;border-top:1px solid #999;padding-top:4px}
+@media(max-width:640px){
+  .flow{grid-template-columns:repeat(5,1fr)}
+  .cell .val{font-size:16px}
+  .cell .lbl{font-size:10px}
+  .card.open .detail{grid-template-columns:1fr}
+  .a4{padding:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="maq">🧪 <b>MAQUETTE</b> — rien n'est branché. Chiffres réels du Local, septembre 2026, après les corrections du 30/09. Touche une farine pour ouvrir le détail (bons + sorties).</div>
+
+<h1>Bilan matière bio</h1>
+<div class="sub">Ce que Bureau Veritas vérifie : les sacs en place ↔ les bons de livraison ↔ la production saisie.</div>
+
+<div class="bar">
+  <span class="chip on">Le Local</span><span class="chip">Veigné</span><span class="chip">Tours</span>
+  <div class="mois"><button>‹</button> Septembre 2026 <button>›</button></div>
+  <button class="btn sec">📋 Bons de la période</button>
+  <button class="btn">🖨️ Feuille BV (A4)</button>
+</div>
+
+<div class="steps">
+  <div class="step"><span class="n">1</span><b>Départ</b><small>compté (ou calculé) au 31/08</small></div>
+  <div class="step"><span class="n">2</span><b>+ Entrées</b><small>bons de livraison + reçu du Local</small></div>
+  <div class="step"><span class="n">3</span><b>− Sorties</b><small>production validée + envoyé aux boutiques + pertes</small></div>
+  <div class="step"><span class="n">4</span><b>= Devrait rester</b><small>ce que l'app attend</small></div>
+  <div class="step"><span class="n">5</span><b>Compté</b><small>les sacs en place → écart</small></div>
+</div>
+<div class="legend">🟢 écart ≤ 1 sac &nbsp;·&nbsp; 🟠 écart à expliquer &nbsp;·&nbsp; 🔴 négatif = il manque une saisie (bon ou dispatch) &nbsp;·&nbsp; ⚪ pas encore compté</div>
+
+<!-- ============ T80 ============ -->
+<div class="card warn open" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">T80 Bio Bise <small>Suire · sac de 25 kg</small></div><span class="pill warn">+104 kg · 4 sacs en plus</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">72</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">450</div><div class="sacs">4 bons · 18 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">526</div><div class="sacs">23 journées</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val neg">−4</div><div class="sacs">0 sac</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">100</div><div class="sacs">4 sacs</div></div>
+  </div>
+  <div class="detail">
+    <div><h4>Entrées — 4 bons Suire</h4><table>
+      <tr><td>03/09 · GIR26082776-0<br><span class="lot">lot 3486859999745</span></td><td>125 kg</td></tr>
+      <tr><td>15/09 · GIR2609163-0<br><span class="lot">lot non lu ⚠️</span></td><td>100 kg</td></tr>
+      <tr><td>22/09 · GIR26091909-0<br><span class="lot">lot 02CS12L15888 · DLUO 15/06/27</span></td><td>125 kg</td></tr>
+      <tr><td>25/09 · GIR26092590<br><span class="lot">lot non lu ⚠️</span></td><td>100 kg</td></tr>
+      <tr class="tot"><td>Total</td><td>450 kg</td></tr></table></div>
+    <div><h4>Sorties</h4><table>
+      <tr><td>Production validée (23 journées)<br><span class="lot">dont levain dur : 214 kg</span></td><td>526 kg</td></tr>
+      <tr><td>Envoyé aux boutiques</td><td>0</td></tr>
+      <tr><td>Pertes déclarées</td><td>0</td></tr>
+      <tr class="tot"><td>Total</td><td>526 kg</td></tr></table>
+      <h4 style="margin-top:10px">Lecture</h4>
+      L'app attend 0 sac, il y en a 4. La production compte trop de T80 (levain dur) ou un bon manque. Recettes à recaler.</div>
+  </div>
+</div>
+
+<!-- ============ Tradition Bio ============ -->
+<div class="card bad" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Tradition Bio <small>Suire · sac de 25 kg</small></div><span class="pill bad">−199 kg · 8 sacs manquent</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">299</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">1250</div><div class="sacs">6 bons · 50 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">1275</div><div class="sacs">23 journées</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">274</div><div class="sacs">11 sacs</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val neg">75</div><div class="sacs">3 sacs</div></div>
+  </div>
+  <div class="detail">
+    <div><h4>Entrées — 6 bons Suire</h4><table>
+      <tr><td>03/09 · GIR26082776-0</td><td>350 kg</td></tr><tr><td>15/09 · GIR2609163-0</td><td>200 kg</td></tr>
+      <tr><td>22/09 · GIR26091909-0</td><td>200 kg</td></tr><tr><td>22/09 · GIR26092084-0</td><td>200 kg</td></tr>
+      <tr><td>25/09 · GIR26092590</td><td>300 kg</td></tr><tr class="tot"><td>Total</td><td>1 250 kg</td></tr></table></div>
+    <div><h4>Sorties</h4><table>
+      <tr><td>Production validée (23 journées)<br><span class="lot">dont levain liquide : 402 kg</span></td><td>1 275 kg</td></tr>
+      <tr><td>Envoyé aux boutiques</td><td>0</td></tr><tr class="tot"><td>Total</td><td>1 275 kg</td></tr></table>
+      <h4 style="margin-top:10px">Lecture</h4>Il manque 8 sacs : production de juillet-août pas toute saisie (mise en route). Le comptage du 28/09 remet le compteur à zéro.</div>
+  </div>
+</div>
+
+<!-- ============ Engrain ============ -->
+<div class="card warn" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Engrain (petit épeautre) <small>Revault · sac de 25 kg · dispatché aux boutiques</small></div><span class="pill warn">+193 kg · 8 sacs en plus</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val neg">−10</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">300</div><div class="sacs">3 bons · 12 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">333</div><div class="sacs">dont 125 envoyés</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val neg">−43</div><div class="sacs">0 sac</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">150</div><div class="sacs">6 sacs</div></div>
+  </div>
+  <div class="detail">
+    <div><h4>Entrées — 3 bons Revault</h4><table>
+      <tr><td>02/09 · bon 38 <span class="lot">lot 34E26</span></td><td>75 kg</td></tr>
+      <tr><td>11/09 · bon 39 <span class="lot">lot 35336</span></td><td>100 kg</td></tr>
+      <tr><td>11/09 · bon 40 <span class="lot">lot 3CE2C</span></td><td>125 kg</td></tr>
+      <tr class="tot"><td>Total</td><td>300 kg</td></tr></table></div>
+    <div><h4>Sorties</h4><table>
+      <tr><td>Production validée (Petit épeautre, Mathis)</td><td>208 kg</td></tr>
+      <tr><td>→ Tours (04/09, 15/09)</td><td>75 kg</td></tr>
+      <tr><td>→ Veigné (26/09)</td><td>50 kg</td></tr>
+      <tr class="tot"><td>Total</td><td>333 kg</td></tr></table></div>
+  </div>
+</div>
+
+<!-- ============ Blés de pop ============ -->
+<div class="card warn" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Blés de pop (anciens) <small>Mimosas · sac de 25 kg · dispatché aux boutiques</small></div><span class="pill warn">+145 kg · 6 sacs en plus</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">365</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">0</div><div class="sacs">aucun bon</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">390</div><div class="sacs">dont 225 envoyés</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val neg">−25</div><div class="sacs">0 sac</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">120</div><div class="sacs">5 sacs</div></div>
+  </div>
+  <div class="detail">
+    <div><h4>Entrées</h4>Aucune livraison Mimosas en septembre (dernière : 29/08, bon 2972).</div>
+    <div><h4>Sorties</h4><table>
+      <tr><td>Production validée (Blés de pop)</td><td>165 kg</td></tr>
+      <tr><td>→ Veigné (05, 09, 16, 26/09)</td><td>175 kg</td></tr>
+      <tr><td>→ Tours (15/09)</td><td>50 kg</td></tr>
+      <tr class="tot"><td>Total</td><td>390 kg</td></tr></table></div>
+  </div>
+</div>
+
+<!-- ============ Khorasan ============ -->
+<div class="card warn" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Khorasan <small>Suire · sac de 25 kg</small></div><span class="pill warn">+59 kg · 2 sacs en plus</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val neg">−6</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">325</div><div class="sacs">4 bons · 13 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">303</div><div class="sacs">23 journées</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">17</div><div class="sacs">0 sac + 17 kg</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">75</div><div class="sacs">3 sacs</div></div>
+  </div>
+  <div class="detail"><div><h4>Entrées — 4 bons Suire</h4><table><tr><td>03/09 · GIR26082776-0</td><td>75 kg</td></tr><tr><td>15/09 · GIR2609163-0</td><td>75 kg</td></tr><tr><td>22/09 · GIR26091909-0</td><td>125 kg</td></tr><tr><td>25/09 · GIR26092590</td><td>50 kg</td></tr><tr class="tot"><td>Total</td><td>325 kg</td></tr></table></div><div><h4>Sorties</h4><table><tr><td>Production validée (Khorasan, Mathis)</td><td>303 kg</td></tr><tr class="tot"><td>Total</td><td>303 kg</td></tr></table></div></div>
+</div>
+
+<!-- ============ Seigle ============ -->
+<div class="card ok" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Seigle T130 <small>Suire · sac de 25 kg</small></div><span class="pill ok">−11 kg · cohérent</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">81</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">175</div><div class="sacs">4 bons · 7 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">160</div><div class="sacs">23 journées</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">96</div><div class="sacs">3 sacs + 21 kg</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">85</div><div class="sacs">3 sacs + 10 kg</div></div>
+  </div>
+  <div class="detail"><div><h4>Entrées — 4 bons Suire</h4><table><tr><td>03/09 · GIR26082776-0</td><td>75 kg</td></tr><tr><td>15/09 · GIR2609163-0</td><td>25 kg</td></tr><tr><td>22/09 · GIR26091909-0</td><td>50 kg</td></tr><tr><td>25/09 · GIR26092590</td><td>25 kg</td></tr><tr class="tot"><td>Total</td><td>175 kg</td></tr></table></div><div><h4>Sorties</h4><table><tr><td>Production validée</td><td>160 kg</td></tr><tr class="tot"><td>Total</td><td>160 kg</td></tr></table></div></div>
+</div>
+
+<!-- ============ T150 ============ -->
+<div class="card bad" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Farine T150 <small>Suire · sac de 25 kg</small></div><span class="pill bad">−162 kg · 6 sacs manquent</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">330</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">100</div><div class="sacs">3 bons · 4 sacs</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">193</div><div class="sacs">23 journées</div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">237</div><div class="sacs">9 sacs</div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val neg">75</div><div class="sacs">3 sacs</div></div>
+  </div>
+  <div class="detail"><div><h4>Entrées — 3 bons Suire</h4><table><tr><td>15/09 · GIR2609163-0</td><td>25 kg</td></tr><tr><td>22/09 · GIR26091909-0</td><td>25 kg</td></tr><tr><td>25/09 · GIR26092590</td><td>50 kg</td></tr><tr class="tot"><td>Total</td><td>100 kg</td></tr></table></div><div><h4>Lecture</h4>6 sacs manquent au Local, et il en manque aussi à Tours et Veigné : des sacs de T150 sont partis avec la tournée sans dispatch. À saisir dans Dispatch quand ça arrive.</div></div>
+</div>
+
+<!-- ============ Châtaigne / Huile ============ -->
+<div class="card ok" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Farine de châtaigne <small>Suire · sac de 5 kg</small></div><span class="pill ok">+1,5 kg · cohérent</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">13,5</div><div class="sacs">calculé</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">5</div><div class="sacs">1 bon</div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">10</div><div class="sacs"></div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">8,5</div><div class="sacs"></div></div>
+    <div class="cell compte"><div class="lbl">Compté 28/09</div><div class="val pos">10</div><div class="sacs">2 sacs</div></div>
+  </div>
+  <div class="detail"><div><h4>Entrées</h4><table><tr><td>15/09 · GIR2609163-0</td><td>5 kg</td></tr></table></div><div><h4>Sorties</h4><table><tr><td>Production validée (Châtaigne)</td><td>10 kg</td></tr></table></div></div>
+</div>
+<div class="card none" onclick="this.classList.toggle('open')">
+  <div class="head"><div class="nom">Huile bio <small>BIB · litres</small></div><span class="pill none">pas compté</span><span class="arrow">▶</span></div>
+  <div class="flow">
+    <div class="cell"><div class="lbl">Départ</div><div class="val">12</div><div class="sacs">compté 17/06</div></div>
+    <div class="cell op" data-op="+"><div class="lbl">Entrées</div><div class="val">0</div><div class="sacs"></div></div>
+    <div class="cell op" data-op="−"><div class="lbl">Sorties</div><div class="val">0</div><div class="sacs"></div></div>
+    <div class="cell op theo" data-op="="><div class="lbl">Devrait rester</div><div class="val">12</div><div class="sacs">L</div></div>
+    <div class="cell compte"><div class="lbl">Compté</div><div class="val" style="color:#aaa">—</div><div class="sacs">à compter</div></div>
+  </div>
+  <div class="detail"><div>Aucun mouvement depuis juin : l'huile n'est pas dans les recettes. À compter à chaque fin de mois comme le reste.</div></div>
+</div>
+
+<div class="total">
+  <div><b>Le Local · septembre</b><small>10 farines bio suivies</small></div>
+  <div><b>2 🟢</b><small>cohérentes</small></div>
+  <div><b>4 🟠</b><small>plus de sacs que prévu</small></div>
+  <div><b>2 🔴</b><small>il manque des sacs</small></div>
+  <div><b>1 ⚪</b><small>pas comptée</small></div>
+  <div style="margin-left:auto;font-size:13px;color:var(--gold-light)">Comptage du 28/09 · 15 farines comptées par le Local</div>
+</div>
+
+<!-- ===================== A4 ===================== -->
+<div class="section">
+  <h2>🖨️ Feuille BV — aperçu de l'impression A4 (une page par site et par mois)</h2>
+  <div class="sub">C'est la feuille qu'on tend au contrôleur : le tableau, puis la liste des bons qu'il peut pointer un par un, puis une case pour signer.</div>
+  <div class="a4">
+    <div class="t">Les Blés de Demain — Bilan matière bio · LE LOCAL</div>
+    <div class="m">Septembre 2026 (01/09 → 30/09) · comptage physique du 28/09/2026 · généré le 30/09/2026 · suivi complet depuis le 28/09/2026</div>
+    <table>
+      <tr><th>Farine bio</th><th>Départ 31/08</th><th>Entrées</th><th>Sorties</th><th>Devrait rester</th><th>Compté 28/09</th><th>Écart</th></tr>
+      <tr><td>Blés de pop (anciens)</td><td>365</td><td>0</td><td>390</td><td>−25</td><td>120</td><td class="warn">+145</td></tr>
+      <tr><td>Engrain (petit épeautre)</td><td>−10</td><td>300</td><td>333</td><td>−43</td><td>150</td><td class="warn">+193</td></tr>
+      <tr><td>Farine de châtaigne</td><td>13,5</td><td>5</td><td>10</td><td>8,5</td><td>10</td><td class="ok">+1,5</td></tr>
+      <tr><td>Farine T150</td><td>330</td><td>100</td><td>193</td><td>237</td><td>75</td><td class="bad">−162</td></tr>
+      <tr><td>Khorasan</td><td>−6</td><td>325</td><td>303</td><td>17</td><td>75</td><td class="warn">+59</td></tr>
+      <tr><td>Seigle T130</td><td>81</td><td>175</td><td>160</td><td>96</td><td>85</td><td class="ok">−11</td></tr>
+      <tr><td>T80 Bio Bise</td><td>72</td><td>450</td><td>526</td><td>−4</td><td>100</td><td class="warn">+104</td></tr>
+      <tr><td>Tradition Bio</td><td>299</td><td>1 250</td><td>1 275</td><td>274</td><td>75</td><td class="bad">−199</td></tr>
+      <tr><td>Huile bio (L)</td><td>12</td><td>0</td><td>0</td><td>12</td><td>—</td><td>—</td></tr>
+    </table>
+    <h5>Bons de livraison de la période (à pointer)</h5>
+    <table>
+      <tr><th>Date</th><th>Fournisseur</th><th>N° bon</th><th>Farine</th><th>N° lot</th><th>kg</th></tr>
+      <tr><td>02/09</td><td>Revault</td><td>38</td><td>Engrain</td><td>34E26</td><td>75</td></tr>
+      <tr><td>03/09</td><td>Suire</td><td>GIR26082776-0</td><td>Tradition Bio</td><td>—</td><td>350</td></tr>
+      <tr><td>03/09</td><td>Suire</td><td>GIR26082776-0</td><td>T80 Bio Bise</td><td>3486859999745</td><td>125</td></tr>
+      <tr><td>03/09</td><td>Suire</td><td>GIR26082776-0</td><td>Khorasan</td><td>3486859999769</td><td>75</td></tr>
+      <tr><td>03/09</td><td>Suire</td><td>GIR26082776-0</td><td>Seigle T130</td><td>—</td><td>75</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:#999">… 22 lignes au total …</td></tr>
+      <tr><td>25/09</td><td>Suire</td><td>GIR26092590</td><td>Tradition Bio</td><td>—</td><td>300</td></tr>
+    </table>
+    <h5>Envois aux boutiques (dispatch)</h5>
+    <table>
+      <tr><th>Date</th><th>Vers</th><th>Farine</th><th>kg</th></tr>
+      <tr><td>04/09</td><td>Tours</td><td>Engrain</td><td>25</td></tr>
+      <tr><td>05/09</td><td>Veigné</td><td>Blés de pop</td><td>50</td></tr>
+      <tr><td colspan="4" style="text-align:center;color:#999">… 8 lignes …</td></tr>
+    </table>
+    <div class="sign"><div>Compté par</div><div>Contrôleur</div><div>Date</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Ce qui change par rapport au bilan actuel</h2>
+  <ul style="line-height:1.6;font-size:14px">
+    <li><b>5 colonnes au lieu de 8</b> : Reçu + Disp.+ fusionnés en « Entrées », Conso + Disp.− + Pertes fusionnés en « Sorties ». Le détail reste à un doigt.</li>
+    <li><b>La colonne « Compté » et l'écart</b>, qui n'existent pas aujourd'hui. C'est exactement ce que BV fait à la main.</li>
+    <li><b>Les sacs à côté des kg</b> : BV compte des sacs, pas des kilos.</li>
+    <li><b>La liste des bons avec n° et lots</b> sur la feuille A4, pour pointer.</li>
+    <li><b>Un site à la fois</b>, un mois à la fois. La vue « toutes farines tous sites » disparaît de l'écran (elle reste possible à l'impression si tu y tiens).</li>
+  </ul>
+</div>
+</div>
+</body>
+</html>

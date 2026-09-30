@@ -68,8 +68,36 @@
   th{background:#F4ECDb;color:var(--brown);font-size:11px;text-transform:uppercase}
   td:first-child,th:first-child{text-align:left}
   .ok{color:var(--green);font-weight:bold}.bad{color:var(--red);font-weight:bold}.warn{color:var(--orange);font-weight:bold}
-  #bilTable .bsec td,.bx .bsec td{background:var(--grey-dark);color:#fff;font-family:Georgia,serif;font-weight:bold;text-align:left;font-size:13px}
-  #bilTable .btot td,.bx .btot td{border-top:2px solid #888;font-weight:bold;background:#f4efe3}
+  /* Bilan — vue « Bureau Veritas » (v20.269) : une carte par farine, Départ + Entrées − Sorties = Devrait rester, Compté → écart */
+  #bilSteps{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+  #bilSteps div{flex:1;min-width:118px;background:#FBF6EA;border:1px solid var(--gold-light);border-radius:9px;padding:7px 9px;font-size:11.5px;color:var(--grey-light)}
+  #bilSteps div b{display:block;color:var(--grey-dark);font-size:12.5px}
+  #bilSteps div .n{display:inline-block;background:var(--gold);color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:11px;font-weight:bold;margin-right:4px}
+  .bcard{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:10px;overflow:hidden;border:1px solid #ECE3D2;border-left:6px solid #bbb}
+  .bcard.ok{border-left-color:var(--green)}.bcard.warn{border-left-color:var(--orange)}.bcard.bad{border-left-color:var(--red)}
+  .bhead{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
+  .bhead .nom{font-weight:bold;font-size:15.5px;color:var(--grey-dark);flex:1}.bhead .nom small{display:block;font-weight:normal;color:var(--grey-light);font-size:11.5px}
+  .bpill{border-radius:14px;padding:4px 10px;font-size:12.5px;font-weight:bold;white-space:nowrap}
+  .bpill.ok{background:#e3efe6;color:var(--green)}.bpill.warn{background:#fbe8d6;color:var(--orange)}.bpill.bad{background:#f5dede;color:var(--red)}.bpill.none{background:#eee;color:var(--grey-light)}
+  .bhead .arrow{color:var(--grey-light);font-size:12px;transition:.2s}.bcard.open .arrow{transform:rotate(90deg)}
+  .bflow{display:grid;grid-template-columns:repeat(5,1fr);padding:0 6px 10px}
+  .bcell{text-align:center;padding:4px 2px;position:relative}
+  .bcell .lbl{font-size:10px;color:var(--grey-light);text-transform:uppercase;letter-spacing:.3px}
+  .bcell .val{font-size:18px;font-weight:bold;color:var(--grey-dark);margin:2px 0;font-family:"Playfair Display",Georgia,serif}
+  .bcell .val.neg{color:var(--red)}.bcell.compte .val.pos{color:var(--green)}
+  .bcell .sacs{font-size:10.5px;color:var(--brown-mid)}
+  .bcell.op::before{content:attr(data-op);position:absolute;left:-6px;top:18px;font-size:16px;color:var(--gold-dark);font-weight:bold}
+  .bcell.theo{background:var(--cream);border-radius:8px}
+  .bdetail{display:none;border-top:1px dashed var(--gold-light);padding:10px 12px 12px;font-size:13px;background:#fffdf8;grid-template-columns:1fr 1fr;gap:14px}
+  .bcard.open .bdetail{display:grid}
+  .bdetail h4{margin:0 0 6px;font-size:12px;color:var(--gold-dark);text-transform:uppercase;letter-spacing:.4px}
+  .bdetail table{font-size:12.5px}.bdetail td{padding:3px 4px;border-bottom:1px solid #f0e9d8;vertical-align:top;text-align:left}.bdetail td:last-child{white-space:nowrap;font-weight:bold;text-align:right}
+  .bdetail .lot{color:var(--grey-light);font-size:11.5px}.bdetail .tot td{border-top:2px solid var(--gold-light);border-bottom:none;font-weight:bold}
+  .btotal{background:var(--grey-dark);color:#fff;border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:6px}
+  .btotal b{font-size:16px}.btotal small{display:block;color:var(--gold-light);font-size:11px}
+  #bilBons h5,#printwrap h5{margin:12px 0 4px;font-size:12.5px;color:var(--gold-dark)}
+  .bx td:first-child,.bx th:first-child{text-align:left}
+  @media(max-width:560px){.bcell .val{font-size:15px}.bcell .lbl{font-size:9px}.bdetail{grid-template-columns:1fr}}
 
   .pesee{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px solid #F0E8D6}
   .pesee .chk{width:28px;height:28px;border-radius:7px;border:2px solid var(--gold);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;background:#fff;cursor:pointer}
@@ -240,7 +268,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.268</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.269</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -500,7 +528,8 @@
 <section id="bil" class="page">
   <div class="card">
     <h2>Bilan matière bio</h2>
-    <p class="hint">Départ + reçu + dispatch − conso − pertes = stock fin, par farine bio × site. Le « départ » repart du dernier comptage physique.</p>
+    <p class="hint">Ce que Bureau Veritas vérifie : les sacs en place ↔ les bons de livraison ↔ la production saisie. Un site, une période, une carte par farine. Touche une farine pour voir ses bons et ses sorties.</p>
+    <div class="seg" id="bilSiteSeg" style="margin-bottom:8px"></div>
     <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:8px">
       <button class="btn ghost sm" onclick="bilSetMonth(-1)">◀</button>
       <b id="bilMonthLbl" style="flex:1;text-align:center;font-size:14px"></b>
@@ -515,18 +544,19 @@
       <button class="btn ghost sm" onclick="bilPreset('year')">Année en cours</button>
       <button class="btn ghost sm" onclick="bilPreset('all')">Depuis le début</button>
       <button class="btn sm" onclick="bilLoad()">↻ Calculer</button>
-      <button class="btn dark sm" onclick="bilExport()">📄 Exporter le bilan (PDF)</button>
+      <button class="btn ghost sm" onclick="bilBonsToggle()">📋 Bons de la période</button>
+      <button class="btn dark sm" onclick="bilExport()">🖨️ Feuille BV (A4)</button>
     </div>
-    <div class="seg" id="bilViewSeg" style="margin-bottom:8px">
-      <button class="on" onclick="bilSetView('site',this)">Par site</button>
-      <button onclick="bilSetView('farine',this)">Par farine</button>
+    <div id="bilSteps">
+      <div><span class="n">1</span><b>Départ</b>compté (ou calculé) la veille</div>
+      <div><span class="n">2</span><b>+ Entrées</b>bons de livraison + reçu d'un autre site</div>
+      <div><span class="n">3</span><b>− Sorties</b>production validée + envoyé + pertes</div>
+      <div><span class="n">4</span><b>= Devrait rester</b>ce que l'app attend</div>
+      <div><span class="n">5</span><b>Compté</b>les sacs en place → écart</div>
     </div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;margin-bottom:6px">
-      <span><b style="color:var(--green)">■</b> Cohérent</span>
-      <span><b style="color:var(--orange)">■</b> Gros surplus boutique (à vérifier)</span>
-      <span><b style="color:var(--red)">■</b> Négatif = donnée manquante (dispatch à saisir)</span>
-    </div>
-    <div style="overflow-x:auto"><table id="bilTable"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody></tbody></table></div>
+    <div style="font-size:11.5px;color:var(--grey-light);margin-bottom:10px">🟢 écart ≤ 1 sac &nbsp;·&nbsp; 🟠 sacs en plus (à expliquer) &nbsp;·&nbsp; 🔴 sacs manquants, ou stock négatif = il manque une saisie (bon ou dispatch) &nbsp;·&nbsp; ⚪ pas encore compté</div>
+    <div id="bilCards"></div>
+    <div id="bilBons" style="display:none;margin-top:12px"></div>
   </div>
   <div class="card">
     <h2>🏷️ Solde par lot (FIFO)</h2>
@@ -2061,7 +2091,10 @@ async function movDel(id){
 let bilLivr=[],bilProd=[],bilPertes=[],bilMouv=[],bilInv=[],bilSorties=[],_ingById={};
 const k2=x=>Math.round(x*100)/100;
 const INVOPTS=(function(){let o='<option value="">—</option>';for(let v=0;v<=1000;v+=5)o+='<option value="'+v+'">'+v+'</option>';return o;})();
-function prevDay(d){const t=new Date(d+'T00:00:00');t.setDate(t.getDate()-1);return t.toISOString().slice(0,10);}
+// v20.269 — la veille en date LOCALE. L'ancienne version passait par toISOString() (UTC) : en France,
+// minuit du 1er septembre moins un jour donnait « 2026-08-30 » → le Départ du bilan se calait deux jours
+// avant, et un comptage daté du dernier jour du mois n'était jamais retenu comme point de départ.
+function prevDay(d){const t=new Date(d+'T12:00:00');t.setDate(t.getDate()-1);const p=n=>String(n).padStart(2,'0');return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());}
 async function bilLoadRaw(){
   const [lv,pr,pe,mv,inv,so]=await Promise.all([
     supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg,numero_lot,numero_bon,fournisseur_id'),
@@ -2114,68 +2147,156 @@ function bilSetMonth(delta){
   const lbl=document.getElementById('bilMonthLbl');if(lbl)lbl.textContent=MOIS_FR[bilMonthM]+' '+bilMonthY+(isCur?' (en cours)':'');
   bilLoad();
 }
-function bilComputeRows(d1,d2){
-  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];
-  const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES; // boutique verrouillée = son site seulement ; maître = tous
+/* ---------- BILAN — vue « Bureau Veritas » (v20.269) ----------
+   Un site, une période, une carte par farine bio :
+   Départ + Entrées − Sorties = Devrait rester, puis Compté (les sacs en place) → écart.
+   Entrées = reçu (bons) + reçu d'un autre site ; Sorties = production validée + envoyé + pertes.
+   Le comptage retenu = le DERNIER de la période ; l'écart se mesure à SA date (pas à la fin
+   de la période), comme le fait le contrôleur qui compte les sacs le jour de sa visite. */
+let bilSite=null;
+const BIL_SAC_KG={ing_chataigne:5}; // farines en sac de 25 kg, sauf exception
+function bilSacKg(ing){const i=_ingById[ing]||ingredients.find(x=>x.id===ing);if(!i||i.categorie!=='farine')return null;return BIL_SAC_KG[ing]||25;}
+function bilUnite(ing){const i=_ingById[ing]||ingredients.find(x=>x.id===ing)||{};return i.unite==='L'?'L':'kg';}
+const fk=x=>String(Math.round((+x||0)*10)/10).replace('.',',');
+const fkS=x=>(x>0.05?'+':'')+fk(x);
+// 100 → « 4 sacs » ; 117 → « 4 sacs + 17 kg » ; 17 → « 0 sac + 17 kg » ; BV compte des sacs, pas des kilos
+function bilSacsTxt(kg,ing){const s=bilSacKg(ing);if(!s)return '';const a=Math.abs(+kg||0);const n=Math.floor(a/s+1e-9),r=Math.round((a-n*s)*10)/10;let t=n+' sac'+(n>1?'s':'');if(r>0.05)t+=' + '+fk(r)+' kg';return t;}
+// le détail d'une farine × site sur une fenêtre (from exclusif, to inclusif) : bons, envois, production
+function bilDetail(ing,site,from,to){
+  const inW=d=>(from==null||d>from)&&(to==null||d<=to);
+  const sn=c=>(SITES.find(s=>s[0]===c)||['',c])[1];
+  const fn=id=>{const f=fournisseurs.find(x=>x.id===id);return f?f.nom:'';};
+  const d={bons:[],dispIn:[],dispOut:[],pertes:[],prodKg:0,levainKg:0,jours:new Set()};
+  bilLivr.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_livraison))d.bons.push({date:l.date_livraison,four:fn(l.fournisseur_id),bon:l.numero_bon||'',lot:l.numero_lot||'',kg:+l.quantite_kg});});
+  bilMouv.forEach(m=>{if(m.ingredient_id!==ing||!inW(m.date_mouvement))return;if(m.site_arrivee===site)d.dispIn.push({date:m.date_mouvement,site:sn(m.site_depart),kg:+m.quantite_kg});if(m.site_depart===site)d.dispOut.push({date:m.date_mouvement,site:sn(m.site_arrivee),kg:+m.quantite_kg});});
+  bilPertes.forEach(l=>{if(l.ingredient_id===ing&&l.site===site&&inW(l.date_perte))d.pertes.push({date:l.date_perte,kg:+l.quantite_kg});});
+  bilSorties.forEach(s=>{if(s.ingredient_id===ing&&s.site===site&&s.valide&&inW(s.date_sortie)){d.prodKg+=+s.quantite_kg;d.jours.add(s.date_sortie);}});
+  bilProd.forEach(p=>{if(p.site!==site||!p.valide||!inW(p.date_prod))return;const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;(rec.fab_recette_lignes||[]).forEach(rl=>{
+    const qty=(+rl.quantite)*(+p.quantite/rb);
+    if(rl.ingredient_id===ing){d.prodKg+=qty;d.jours.add(p.date_prod);}
+    const li=_ingById[rl.ingredient_id];
+    if(li&&li.categorie==='levain'&&li.farine_levain_id===ing){const k=qty/(1+((+li.eau_ratio)||0));d.prodKg+=k;d.levainKg+=k;d.jours.add(p.date_prod);}
+  });});
+  ['bons','dispIn','dispOut','pertes'].forEach(k=>d[k].sort((a,b)=>a.date.localeCompare(b.date)));
+  d.jours=d.jours.size;return d;
+}
+function bilComputeRows(d1,d2,siteOnly){
+  const bio=ingredients.filter(x=>x.bio&&x.categorie!=='levain');const out=[];const d0=prevDay(d1);
+  let sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES; // boutique verrouillée = son site seulement ; maître = tous
+  if(siteOnly)sites=sites.filter(s=>s[0]===siteOnly);
   bio.forEach(ing=>sites.forEach(s=>{
-    const site=s[0];const dep=theoAt(ing.id,site,prevDay(d1));const m=movWin(ing.id,site,prevDay(d1),d2);
+    const site=s[0];const vDep=lastInv(ing.id,site,d0);const dep=theoAt(ing.id,site,d0);const m=movWin(ing.id,site,d0,d2);
     const fin=dep+m.recu+m.dispIn-m.dispOut-m.conso-m.pertes;
+    let inv=null;bilInv.forEach(v=>{if(v.ingredient_id===ing.id&&v.site===site&&v.date_inv>=d1&&v.date_inv<=d2&&(!inv||v.date_inv>inv.date_inv))inv=v;});
+    let compte=null;
+    if(inv){const mi=movWin(ing.id,site,d0,inv.date_inv);const theo=dep+mi.recu+mi.dispIn-mi.dispOut-mi.conso-mi.pertes;compte={date:inv.date_inv,qte:+inv.qte_reelle_kg,theo,ecart:+inv.qte_reelle_kg-theo};}
     const tot=Math.abs(dep)+m.recu+m.dispIn+m.dispOut+m.conso+m.pertes+Math.abs(fin);
-    if(tot<0.005)return;
-    out.push({nom:ing.nom,siteKey:s[0],site:s[1],dep,recu:m.recu,dispIn:m.dispIn,dispOut:m.dispOut,conso:m.conso,pertes:m.pertes,fin});
+    if(tot<0.005&&!compte)return;
+    const sac=bilSacKg(ing.id)||5;let status;
+    if(compte)status=Math.abs(compte.ecart)<=sac+0.005?'ok':(compte.ecart>0?'warn':'bad');
+    else status=fin<-0.005?'bad':'none';
+    out.push({ing:ing.id,nom:ing.nom,siteKey:site,site:s[1],dep,depCompte:!!(vDep&&vDep.date_inv===d0),recu:m.recu,dispIn:m.dispIn,dispOut:m.dispOut,conso:m.conso,pertes:m.pertes,entrees:m.recu+m.dispIn,sorties:m.conso+m.dispOut+m.pertes,fin,compte,status});
   }));
   return out;
 }
-let bilView='site'; // 'site' (par site, défaut BV) | 'farine'
-const BIL_SURPLUS=200; // kg : au-delà, "gros surplus" à vérifier (orange). Ajustable.
-// Le Local = hub de stockage : gros positifs normaux → jamais orange. Orange réservé aux boutiques.
-function bilCls(fin,siteKey){return fin<-0.005?'bad':((fin>BIL_SURPLUS&&siteKey!=='local')?'warn':'ok');}
-function bilSetView(v,btn){bilView=v;if(btn){[...btn.parentNode.children].forEach(c=>c.className='');btn.className='on';}bilLoad();}
-function bilRow(r,hideSite){
-  return '<tr><td>'+r.nom+'</td><td>'+(hideSite?'':r.site)+'</td><td>'+k2(r.dep)+'</td><td>'+k2(r.recu)+'</td><td>'+k2(r.dispIn)+'</td><td>'+k2(r.dispOut)+'</td><td>'+k2(r.conso)+'</td><td'+(r.pertes>0.005?' class="bad"':'')+'>'+k2(r.pertes)+'</td><td class="'+bilCls(r.fin,r.siteKey)+'">'+k2(r.fin)+'</td></tr>';
+function bilNbSacs(r){const s=bilSacKg(r.ing);return (r.compte&&s)?Math.round(Math.abs(r.compte.ecart)/s):0;}
+function bilPill(r){
+  if(!r.compte)return r.status==='bad'?'négatif · saisie manquante':'pas compté';
+  const e=r.compte.ecart,u=bilUnite(r.ing);if(r.status==='ok')return fkS(e)+' '+u+' · cohérent';
+  const n=bilNbSacs(r);return fkS(e)+' '+u+(n?' · '+n+' sac'+(n>1?'s':'')+(e>0?' en plus':(n>1?' manquent':' manque')):'');
 }
-function bilTbody(rows){
-  if(!rows.length)return '';
-  if(bilView==='site'){
-    let html='';
-    SITES.forEach(s=>{
-      const sr=rows.filter(r=>r.siteKey===s[0]).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
-      if(!sr.length)return;
-      html+='<tr class="bsec"><td colspan="9">'+s[1]+'</td></tr>';
-      sr.forEach(r=>html+=bilRow(r,true));
-      const t=sr.reduce((a,r)=>({dep:a.dep+r.dep,recu:a.recu+r.recu,dispIn:a.dispIn+r.dispIn,dispOut:a.dispOut+r.dispOut,conso:a.conso+r.conso,pertes:a.pertes+r.pertes,fin:a.fin+r.fin}),{dep:0,recu:0,dispIn:0,dispOut:0,conso:0,pertes:0,fin:0});
-      html+='<tr class="btot"><td>Total '+s[1]+'</td><td></td><td>'+k2(t.dep)+'</td><td>'+k2(t.recu)+'</td><td>'+k2(t.dispIn)+'</td><td>'+k2(t.dispOut)+'</td><td>'+k2(t.conso)+'</td><td>'+k2(t.pertes)+'</td><td class="'+bilCls(t.fin,s[0])+'">'+k2(t.fin)+'</td></tr>';
-    });
-    return html;
-  }
-  return rows.map(r=>bilRow(r,false)).join('');
+function bilLecture(r){
+  const n=bilNbSacs(r);const sacs=n?n+' sac'+(n>1?'s':''):fk(Math.abs(r.compte?r.compte.ecart:0))+' '+bilUnite(r.ing);
+  if(r.compte&&r.status==='bad')return 'Il manque '+sacs+' : production pas toute saisie, ou sacs partis sans dispatch.';
+  if(r.compte&&r.status==='warn')return sacs+' de plus que prévu : un bon de livraison manque, ou la recette compte trop.';
+  if(!r.compte&&r.status==='bad')return 'Stock négatif : il manque une saisie (bon de livraison ou dispatch).';
+  if(!r.compte)return 'Pas encore compté sur la période : à compter en fin de mois (sacs + farine déjà pesée).';
+  return '';
 }
+const bilFr=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+function bilCard(r,d1,d2){
+  const u=bilUnite(r.ing);const det=bilDetail(r.ing,r.siteKey,prevDay(d1),d2);const sac=bilSacKg(r.ing);
+  const cell=(lbl,val,sub,cls,op)=>'<div class="bcell'+(op?' op':'')+(cls?' '+cls:'')+'"'+(op?' data-op="'+op+'"':'')+'><div class="lbl">'+lbl+'</div><div class="val'+(val<-0.005?' neg':'')+'">'+fk(val)+'</div><div class="sacs">'+(sub||'')+'</div></div>';
+  const ingObj=_ingById[r.ing]||{};const four=ingObj.fournisseur_id?((fournisseurs.find(f=>f.id===ingObj.fournisseur_id)||{}).nom||''):'';
+  let h='<div class="bcard '+r.status+'" data-ing="'+r.ing+'"><div class="bhead" onclick="this.parentNode.classList.toggle(\'open\')">'
+    +'<div class="nom">'+r.nom+'<small>'+[four,sac?'sac de '+sac+' kg':(u==='L'?'litres':''),(r.dispOut>0.005||r.dispIn>0.005)?'dispatché':''].filter(Boolean).join(' · ')+'</small></div>'
+    +'<span class="bpill '+r.status+'">'+bilPill(r)+'</span><span class="arrow">▶</span></div>';
+  const nbB=det.bons.length;
+  h+='<div class="bflow">'
+    +cell('Départ',r.dep,r.depCompte?'compté le '+bilFr(prevDay(d1)):'calculé')
+    +cell('Entrées',r.entrees,((nbB?nbB+' bon'+(nbB>1?'s':''):'')+(det.dispIn.length?(nbB?' + ':'')+'reçu de '+det.dispIn[0].site:''))||'—',null,'+')
+    +cell('Sorties',r.sorties,((det.jours?det.jours+' journée'+(det.jours>1?'s':''):'')+(r.dispOut>0.005?(det.jours?' · ':'')+fk(r.dispOut)+' envoyés':''))||'—',null,'−')
+    +cell('Devrait rester',r.fin,sac?bilSacsTxt(r.fin,r.ing):u,'theo','=')
+    +(r.compte?'<div class="bcell compte"><div class="lbl">Compté '+bilFr(r.compte.date)+'</div><div class="val '+(r.compte.ecart<-0.005?'neg':'pos')+'">'+fk(r.compte.qte)+'</div><div class="sacs">'+(sac?bilSacsTxt(r.compte.qte,r.ing):u)+'</div></div>'
+      :'<div class="bcell compte"><div class="lbl">Compté</div><div class="val" style="color:#aaa">—</div><div class="sacs">à compter</div></div>')
+    +'</div>';
+  const tr=(a,b)=>'<tr><td>'+a+'</td><td>'+b+'</td></tr>';
+  let e='';det.bons.forEach(b=>{e+=tr(bilFr(b.date)+' · '+(b.four?b.four+' ':'')+b.bon+'<br><span class="lot">'+(b.lot?'lot '+b.lot:'lot non lu ⚠️')+'</span>',fk(b.kg)+' '+u);});
+  det.dispIn.forEach(m=>{e+=tr(bilFr(m.date)+' · reçu de '+m.site,fk(m.kg)+' '+u);});
+  e=e?'<table>'+e+'<tr class="tot"><td>Total</td><td>'+fk(r.entrees)+' '+u+'</td></tr></table>':'<div class="lot">Aucune livraison sur la période.</div>';
+  let so='';if(det.prodKg>0.005)so+=tr('Production validée ('+det.jours+' journée'+(det.jours>1?'s':'')+')'+(det.levainKg>0.005?'<br><span class="lot">dont via le levain : '+fk(det.levainKg)+' kg</span>':''),fk(det.prodKg)+' '+u);
+  det.dispOut.forEach(m=>{so+=tr(bilFr(m.date)+' · envoyé à '+m.site,fk(m.kg)+' '+u);});
+  det.pertes.forEach(p=>{so+=tr(bilFr(p.date)+' · perte déclarée',fk(p.kg)+' '+u);});
+  so=so?'<table>'+so+'<tr class="tot"><td>Total</td><td>'+fk(r.sorties)+' '+u+'</td></tr></table>':'<div class="lot">Aucune sortie sur la période.</div>';
+  const lec=bilLecture(r);
+  h+='<div class="bdetail"><div><h4>Entrées</h4>'+e+'</div><div><h4>Sorties</h4>'+so+(lec?'<h4 style="margin-top:10px">Lecture</h4><div class="lecture">'+lec+'</div>':'')+'</div></div></div>';
+  return h;
+}
+function bilSiteSeg(){const seg=document.getElementById('bilSiteSeg');if(!seg)return;const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES;seg.innerHTML=sites.map(s=>'<button class="'+(s[0]===bilSite?'on':'')+'" onclick="bilSetSite(\''+s[0]+'\')">'+s[1]+'</button>').join('');}
+function bilSetSite(s){bilSite=s;bilLoad();}
 function bilLoad(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
-  const tb=document.querySelector('#bilTable tbody');
-  if(!d1||!d2){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Choisis une période.</td></tr>';return;}
-  const rows=bilComputeRows(d1,d2);
-  tb.innerHTML=bilTbody(rows)
-    ||'<tr><td colspan="9" style="text-align:center;color:var(--grey-light)">Aucun mouvement sur cette période.</td></tr>';
+  const box=document.getElementById('bilCards'),bons=document.getElementById('bilBons');
+  if(_lockedSite)bilSite=_lockedSite;else if(!bilSite)bilSite='local';
+  bilSiteSeg();
+  if(!d1||!d2){box.innerHTML='<div class="hint">Choisis une période.</div>';return;}
+  const rows=bilComputeRows(d1,d2,bilSite).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  if(!rows.length){box.innerHTML='<div class="hint">Aucun mouvement sur cette période.</div>';bons.style.display='none';return;}
+  const n={ok:0,warn:0,bad:0,none:0};rows.forEach(r=>n[r.status]++);
+  const nomSite=(SITES.find(s=>s[0]===bilSite)||['',''])[1];
+  box.innerHTML=rows.map(r=>bilCard(r,d1,d2)).join('')
+    +'<div class="btotal"><div><b>'+nomSite+'</b><small>'+rows.length+' farines bio suivies</small></div><div><b>'+n.ok+' 🟢</b><small>cohérentes</small></div><div><b>'+n.warn+' 🟠</b><small>plus de sacs que prévu</small></div><div><b>'+n.bad+' 🔴</b><small>il manque des sacs</small></div><div><b>'+n.none+' ⚪</b><small>pas comptées</small></div></div>';
+  if(bons.style.display!=='none')bons.innerHTML=bilBonsHtml(bilSite,d1,d2);
+}
+function bilBonsToggle(){const b=document.getElementById('bilBons');const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;if(b.style.display==='none'){if(!d1||!d2){toast('Choisis une période');return;}b.style.display='block';b.innerHTML=bilBonsHtml(bilSite,d1,d2);}else b.style.display='none';}
+// la liste que le contrôleur pointe : bons de livraison (n°, lot) + envois entre sites, pour un site et une période
+function bilBonsHtml(site,d1,d2){
+  const fn=id=>{const f=fournisseurs.find(x=>x.id===id);return f?f.nom:'';};const sn=c=>(SITES.find(s=>s[0]===c)||['',c])[1];
+  const bioIds=new Set(ingredients.filter(x=>x.bio&&x.categorie!=='levain').map(x=>x.id));
+  const bons=bilLivr.filter(l=>l.site===site&&bioIds.has(l.ingredient_id)&&l.date_livraison>=d1&&l.date_livraison<=d2).sort((a,b)=>a.date_livraison.localeCompare(b.date_livraison)||String(a.numero_bon||'').localeCompare(String(b.numero_bon||'')));
+  const mv=bilMouv.filter(m=>bioIds.has(m.ingredient_id)&&(m.site_depart===site||m.site_arrivee===site)&&m.date_mouvement>=d1&&m.date_mouvement<=d2).sort((a,b)=>a.date_mouvement.localeCompare(b.date_mouvement));
+  let h='<h5>Bons de livraison de la période (à pointer) — '+bons.length+' ligne'+(bons.length>1?'s':'')+'</h5>';
+  h+=bons.length?'<table class="bx"><tr><th>Date</th><th>Fournisseur</th><th>N° bon</th><th>Farine</th><th>N° lot</th><th>Qté</th></tr>'+bons.map(l=>'<tr><td>'+bilFr(l.date_livraison)+'</td><td>'+fn(l.fournisseur_id)+'</td><td>'+(l.numero_bon||'')+'</td><td>'+ingNom(l.ingredient_id)+'</td><td>'+(l.numero_lot||'—')+'</td><td>'+fk(l.quantite_kg)+'</td></tr>').join('')+'</table>':'<div class="hint">Aucun bon sur la période.</div>';
+  h+='<h5>Envois entre sites (dispatch) — '+mv.length+'</h5>';
+  h+=mv.length?'<table class="bx"><tr><th>Date</th><th>De</th><th>Vers</th><th>Farine</th><th>Qté</th></tr>'+mv.map(m=>'<tr><td>'+bilFr(m.date_mouvement)+'</td><td>'+sn(m.site_depart)+'</td><td>'+sn(m.site_arrivee)+'</td><td>'+ingNom(m.ingredient_id)+'</td><td>'+fk(m.quantite_kg)+'</td></tr>').join('')+'</table>':'<div class="hint">Aucun envoi sur la période.</div>';
+  return h;
 }
 const BIL_PRINT_CSS='@page{size:A4;margin:10mm}'
   +'#printwrap .ok{color:#4A7C59;font-weight:bold}#printwrap .bad{color:#B83232;font-weight:bold}#printwrap .warn{color:#D4701A;font-weight:bold}'
-  +'#printwrap .bsec td{background:#2E3044;color:#fff;font-weight:bold;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-  +'#printwrap .btot td{border-top:2px solid #888;font-weight:bold;background:#f4efe3;-webkit-print-color-adjust:exact;print-color-adjust:exact}';
+  +'#printwrap .bx{font-size:11.5px}#printwrap .bx th{background:#2E3044;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+  +'#printwrap h5{margin:12px 0 4px;font-size:12px;color:#8B6914}'
+  +'#printwrap .bsign{display:flex;gap:40px;margin-top:22px;font-size:11px}#printwrap .bsign div{flex:1;border-top:1px solid #999;padding-top:4px}';
+// la feuille A4 qu'on tend au contrôleur : tableau, puis les bons à pointer, puis les signatures — un site, une période
+function bilExportHtml(site,d1,d2){
+  const rows=bilComputeRows(d1,d2,site).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const nomSite=(SITES.find(s=>s[0]===site)||['',site])[1];
+  const cpt=rows.filter(r=>r.compte).map(r=>r.compte.date).sort();
+  const cptTxt=cpt.length?'comptage physique du '+fr(cpt[cpt.length-1]):'pas de comptage sur la période';
+  const cls=r=>r.compte?r.status:(r.status==='bad'?'bad':'');
+  return '<div class="rx-head">Les Blés de Demain — Bilan matière bio · '+nomSite.toUpperCase()+'</div>'
+    +'<div class="rx-meta">Période du '+fr(d1)+' au '+fr(d2)+' · '+cptTxt+' · document généré le '+new Date().toLocaleDateString('fr-FR')+'</div>'
+    +'<table class="bx"><thead><tr><th>Farine bio</th><th>Départ '+bilFr(prevDay(d1))+'</th><th>Entrées</th><th>Sorties</th><th>Devrait rester</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'
+    +(rows.map(r=>'<tr><td>'+r.nom+(bilUnite(r.ing)==='L'?' (L)':'')+'</td><td>'+fk(r.dep)+'</td><td>'+fk(r.entrees)+'</td><td>'+fk(r.sorties)+'</td><td'+(r.fin<-0.005?' class="bad"':'')+'>'+fk(r.fin)+'</td><td>'+(r.compte?fk(r.compte.qte)+' <small>('+bilFr(r.compte.date)+')</small>':'—')+'</td><td class="'+cls(r)+'">'+(r.compte?fkS(r.compte.ecart):'—')+'</td></tr>').join('')||'<tr><td colspan="7" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
+    +'</tbody></table>'
+    +'<div style="font-size:10.5px;color:#555;margin:6px 0 10px">Entrées = bons de livraison + reçu d\'un autre site · Sorties = production validée (recettes) + envoyé à un autre site + pertes · Écart = compté − devrait rester (🟩 ≤ 1 sac · 🟧 sacs en plus · 🟥 sacs manquants ou négatif = saisie manquante)</div>'
+    +bilBonsHtml(site,d1,d2)
+    +'<div class="bsign"><div>Compté par</div><div>Contrôleur</div><div>Date</div></div>';
+}
 function bilExport(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
   if(!d1||!d2){toast('Choisis une période');return;}
-  const rows=bilComputeRows(d1,d2);
-  const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
-  const today=new Date().toLocaleDateString('fr-FR');
-  const vue=bilView==='site'?'par site':'par farine';
-  let html='<div class="rx-head">Les Blés de Demain — Bilan matière bio</div>'
-    +'<div class="rx-meta">Période du '+fr(d1)+' au '+fr(d2)+' · vue '+vue+' · document généré le '+today+'</div>'
-    +'<table class="bx"><thead><tr><th>Farine bio</th><th>Site</th><th>Départ</th><th>Reçu</th><th>Disp.+</th><th>Disp.−</th><th>Conso</th><th>Pertes</th><th>Stock fin</th></tr></thead><tbody>'
-    +(bilTbody(rows)||'<tr><td colspan="9" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
-    +'</tbody></table>'
-    +'<div style="font-size:10.5px;color:#555;margin-top:10px">🟩 cohérent · 🟧 gros surplus boutique (à vérifier) · 🟥 négatif = donnée manquante (dispatch à saisir)</div>';
-  printDoc(html,BIL_PRINT_CSS);
+  printDoc(bilExportHtml(bilSite||_lockedSite||'local',d1,d2),BIL_PRINT_CSS);
 }
 async function bilEnter(){await bilLoadRaw();
   if(bilMonthY==null)bilSetMonth(0); // démarre sur le mois en cours
