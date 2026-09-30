@@ -234,7 +234,7 @@
   </section>
 
 
-  <!-- INVENTAIRE FARINES (v20.241 — fiche pour le comptage de fin de mois) -->
+  <!-- INVENTAIRE FARINES (v20.241 — fiche pour le comptage de fin de mois ; v20.269 — « pour être nickel » + jour du contrôle) -->
   <section class="panel" id="p-inventaire" style="--role:var(--inventaire)">
     <div class="card">
       <div class="p-head"><span class="p-emoji">📋</span><h2 class="p-title">Faire l'inventaire des farines</h2></div>
@@ -247,9 +247,9 @@
       <ol class="steps">
         <li><span class="st-t">Avant de compter : les bons de la semaine sont-ils saisis ?</span><span class="st-d">Va dans <span class="tab">📦 Livraisons</span> et vérifie que la farine reçue cette semaine (le bon du mardi…) est bien rentrée. Sinon elle sera comptée deux fois.</span></li>
         <li><span class="st-t">Compte <u>toute</u> la farine bio présente</span><span class="st-d">Les sacs pleins, les sacs entamés, <b>et la farine déjà pesée dans les bacs pour demain</b>. Tant qu'elle n'est pas dans une prod validée, elle est encore en stock.</span>
-          <div class="exemple">Sac entamé ? Estime au quart : plein = <b>25</b> · trois-quarts = <b>20</b> · moitié = <b>12</b> · un fond = <b>6</b>.</div></li>
+          <div class="exemple">Compte en <b>sacs</b>, l'app fait les kilos : 4 sacs = <b>100</b>. Sac entamé ? Estime au quart : plein = <b>25</b> · trois-quarts = <b>20</b> · moitié = <b>12</b> · un fond = <b>6</b>. Châtaigne : sacs de <b>5</b>.</div></li>
         <li><span class="st-t">Ouvre <span class="tab">📋 Inventaire</span> et choisis ton magasin</span><span class="st-d">En haut de l'app Suivi bio (Le Local, Veigné ou Tours).</span></li>
-        <li><span class="st-t">Mets la date du <b>dernier jour du mois</b></span><span class="st-d">Toujours, même si tu comptes le 1<sup>er</sup> au matin. C'est la « photo » de fin de mois.</span></li>
+        <li><span class="st-t">Mets la date du <b>dernier jour du mois</b></span><span class="st-d">Toujours, même si tu comptes le 1<sup>er</sup> au matin. C'est la « photo » de fin de mois. Règle générale : un comptage fait le matin <b>avant de toucher la farine</b> se date de <b>la veille</b>.</span></li>
         <li><span class="st-t">Saisis chaque farine, en kg</span><span class="st-d">Une farine que tu n'as pas du tout ? Mets <b>0</b>, ne la laisse pas vide.</span></li>
         <li><span class="st-t">Enregistre</span><span class="st-d">La colonne <b>Écart</b> compare ton comptage au calcul de l'app. Elle n'est pas là pour te juger — on ne « corrige » jamais un chiffre pour la faire coller.</span></li>
       </ol>
@@ -265,6 +265,22 @@
       </ul>
 
       <div class="golden"><span class="ic">⭐</span><span><b>La règle d'or :</b> un comptage, c'est une <b>photo</b>. Après, l'app repart de là — tout ce qui est avant ne compte plus.</span></div>
+
+      <p class="lbl-mini">Pour être nickel au contrôle : 4 gestes, pas plus</p>
+      <ol class="steps">
+        <li><span class="st-t">Chaque jour : « Valider ma journée », bio <u>et</u> classique</span><span class="st-d">Le levain puise dans la Tradition Bio et le T80. Une journée pas validée = de la farine qui reste « en stock » dans l'app alors qu'elle est cuite.</span></li>
+        <li><span class="st-t">Un bon arrive → on le scanne le jour même, et on relit la <b>date</b> et la <b>quantité</b></span><span class="st-d">Le scan se trompe parfois d'année ou lit 450 sacs au lieu de 450 kg. Un bon = une seule saisie : jamais le BL <i>et</i> la facture.</span></li>
+        <li><span class="st-t">Un sac de farine bio qui part du Local → une <b>commande dans l'app</b>, validée par le livreur</span><span class="st-d">Blé ancien, petit épeautre, huile : le dispatch se crée tout seul à la validation. Un sac parti sans commande ? Phil le saisit dans <span class="tab">🚚 Dispatch</span> le jour même, avec la vraie date.</span></li>
+        <li><span class="st-t">Le dernier jour du mois : on compte (cette fiche)</span><span class="st-d">C'est ce comptage qui dit si tout le reste tient. Dans <span class="tab">📊 Bilan bio</span>, la carte de chaque farine doit être verte : écart d'un sac ou moins.</span></li>
+      </ol>
+
+      <p class="lbl-mini">Le jour du contrôle Bureau Veritas</p>
+      <ol class="steps">
+        <li><span class="st-t">Ouvre <span class="tab">📊 Bilan bio</span>, choisis le magasin et le mois</span><span class="st-d">Une carte par farine : <b>Départ + Entrées − Sorties = Devrait rester</b>, puis <b>Compté</b> et l'écart en sacs.</span></li>
+        <li><span class="st-t">Imprime la <b>Feuille BV (A4)</b></span><span class="st-d">Le tableau, la liste des bons avec les numéros de lot à pointer, les envois entre magasins, et les cases à signer.</span></li>
+        <li><span class="st-t">Le contrôleur compte les sacs et pointe les bons</span><span class="st-d">Touche une farine pour lui montrer d'où viennent les chiffres : chaque bon, chaque journée de prod, chaque envoi.</span></li>
+        <li><span class="st-t">Un écart ? On l'explique, on ne le maquille pas</span><span class="st-d">Rouge = il manque une saisie (bon ou dispatch) ou de la prod non validée. Orange = plus de sacs que prévu : un bon manque ou une recette compte trop. Un écart expliqué passe ; un chiffre bidouillé, non.</span></li>
+      </ol>
       <button class="printbtn" onclick="printInventaire()">🖨️ Imprimer cette fiche</button>
     </div>
   </section>
