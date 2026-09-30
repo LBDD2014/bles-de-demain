@@ -2440,6 +2440,22 @@ outline: none; border-color: var(--gold); background: white;
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
 .lv-pret { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--green); border-radius:8px; padding:1px 7px; margin-left:4px; vertical-align:middle; }
+/* v20.270 — envoi partiel : « 150 / 200 · reste 50 vers 10h » */
+.prod-done-cell { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+.prod-done-btn.part { background:#F2C99B; border-color:var(--orange); color:var(--brown-mid); font-size:13px; }
+.prod-part-btn { border:1.5px solid var(--gold); background:#fff; color:var(--gold-dark); border-radius:8px; padding:6px 7px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; font-family:inherit; }
+.prod-row.prod-part { background:#FFF6EC; }
+.prod-envoi { display:inline-block; border-radius:10px; padding:2px 8px; font-size:11.5px; font-weight:700; margin-top:3px; white-space:nowrap; vertical-align:middle; }
+.prod-envoi.part { background:#FBE8D6; color:var(--orange); }
+.prod-envoi.full { background:#E3EFE6; color:var(--green); }
+.prod-envoi.none { background:#EEE; color:var(--grey-light); font-weight:600; }
+.prod-name + .prod-envoi { display:block; width:max-content; }
+.ep-sub { text-align:center; font-size:12.5px; color:var(--grey-light); margin-bottom:6px; }
+.ep-reste { text-align:center; font-size:12.5px; color:var(--brown-mid); margin:-4px 0 8px; min-height:16px; }
+.ep-heure { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; font-size:13.5px; }
+.ep-heure select { font-size:16px; padding:6px 8px; border-radius:8px; border:1.5px solid var(--gold); background:#fff; font-family:inherit; }
+.ep-all { width:100%; margin-top:8px; padding:10px; background:#fff; border:1.5px solid var(--grey-dark); color:var(--grey-dark); border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+.ep-zero { width:100%; margin-top:6px; background:none; border:none; color:var(--red); font-size:12.5px; text-decoration:underline; cursor:pointer; font-family:inherit; }
 .sp-serie-badge { font-size:11px; color:var(--blue); background:#E4EEF6; border-radius:10px; padding:1px 8px; margin-left:6px; white-space:nowrap; }
 .sp-serie-box { border:1px dashed var(--gold); border-radius:10px; padding:10px 12px; margin:6px 0 12px; background:#FFFDF7; }
 .sp-serie-box .sp-serie-txt { font-size:13px; color:var(--brown-mid); margin-bottom:8px; }
@@ -2627,7 +2643,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.265';
+const APP_VERSION  = 'v20.270';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2947,36 +2963,140 @@ let productionStAvRestesVeille = {};    // { product_id: reste_j1 + reste_j2 de 
 let realtimeChannelProduction = null;
 let productionFilterEmpty = true;
 // v20.262 — coche ✓ « ligne faite et partie » (Phil, 28-29/09) : par site × jour × produit
-let productionDoneData = {};      // { site: { product_id: done_at } }
+let productionDoneData = {};      // { site: { product_id: { done_at, qty_envoyee, qty_total, nb_envois, reste_heure } } }
 let productionHideDone = false;
+// v20.270 — la coche porte une quantité (envoi partiel). Colonnes absentes (migration pas
+// lancée) → on retombe sur l'ancienne lecture, l'écran marche comme avant.
 async function loadProductionDone(sites, date) {
   productionDoneData = {};
-  const { data, error } = await supa.from('production_done').select('site,product_id,done_at')
+  let q = await supa.from('production_done').select('site,product_id,done_at,qty_envoyee,qty_total,nb_envois,reste_heure')
     .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
-  if (error) return;   // table absente ou hors ligne : l'écran marche comme avant
-  (data || []).forEach(function(r) {
-    if (!r.done_at) return;
-    (productionDoneData[r.site] = productionDoneData[r.site] || {})[r.product_id] = r.done_at;
+  if (q.error) q = await supa.from('production_done').select('site,product_id,done_at')
+    .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
+  if (q.error) return;   // table absente ou hors ligne : l'écran marche comme avant
+  (q.data || []).forEach(function(r) {
+    if (!r.done_at && !(parseQty(r.qty_envoyee) > 0)) return;
+    (productionDoneData[r.site] = productionDoneData[r.site] || {})[r.product_id] = r;
   });
 }
 function productionDoneAt(site, pid) {
-  return (productionDoneData[site] || {})[pid] || null;
+  const r = (productionDoneData[site] || {})[pid];
+  return (r && r.done_at) || null;
 }
-async function toggleProductionDone(pid) {
-  const site = currentBoutique, date = currentReapproDate;
-  const wasDone = !!productionDoneAt(site, pid);
-  const nowISO = new Date().toISOString();
-  const done_at = wasDone ? null : nowISO;
-  (productionDoneData[site] = productionDoneData[site] || {})[pid] = done_at;
-  if (!done_at) delete productionDoneData[site][pid];
+function productionEnvoi(site, pid) { return (productionDoneData[site] || {})[pid] || null; }   // v20.270
+// tap sur la coche : tout envoyé (ou décocher = remise à zéro, rien n'est supprimé)
+async function toggleProductionDone(pid, total) {
+  const prev = productionEnvoi(currentBoutique, pid);
+  const wasDone = !!(prev && prev.done_at);
+  const t = parseQty(total);
+  await saveProductionEnvoi(pid, wasDone
+    ? { done_at: null, qty_envoyee: null, qty_total: null, nb_envois: 0, reste_heure: null }
+    : { done_at: new Date().toISOString(), qty_envoyee: t > 0 ? t : null, qty_total: t > 0 ? t : null,
+        nb_envois: ((prev && prev.nb_envois) || 0) + 1, reste_heure: null });
+}
+async function saveProductionEnvoi(pid, row) {
+  const site = currentBoutique, date = currentReapproDate, nowISO = new Date().toISOString();
+  productionDoneData[site] = productionDoneData[site] || {};
+  if (!row.done_at && !(parseQty(row.qty_envoyee) > 0)) delete productionDoneData[site][pid];
+  else productionDoneData[site][pid] = Object.assign({ site: site, product_id: pid }, row);
   renderProduction();
   setSyncStatus('syncing');
-  const { error } = await supa.from('production_done').upsert({
-    tenant_id: TENANT_ID, site: site, service_date: date, product_id: pid,
-    done_at: done_at, done_by: DEVICE_ID, updated_at: nowISO
-  }, { onConflict: 'tenant_id,site,service_date,product_id' });
+  const base = { tenant_id: TENANT_ID, site: site, service_date: date, product_id: pid, done_by: DEVICE_ID, updated_at: nowISO };
+  let { error } = await supa.from('production_done').upsert(Object.assign({}, base, row), { onConflict: 'tenant_id,site,service_date,product_id' });
+  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure/.test(error.message || '')) {
+    // migration v20.270 pas encore lancée : on garde au moins la coche
+    const r2 = await supa.from('production_done').upsert(Object.assign({}, base, { done_at: row.done_at }), { onConflict: 'tenant_id,site,service_date,product_id' });
+    error = r2.error;
+    if (!error) showToast('Envoi partiel : migration v20.270 à lancer (seule la coche est enregistrée)', 'warn');
+  }
   if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
   setSyncStatus('ok');
+}
+// ---- pavé « partiel » : combien partent maintenant, et vers quelle heure part le reste ----
+let _epState = null;   // { pid, total, deja, nom, heure }
+const EP_HEURES = (function() { const a = []; for (let h = 5; h <= 12; h++) for (let m = 0; m < 60; m += 15) { if (h === 12 && m > 0) break; a.push(String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0')); } return a; })();
+function epHeureLbl(h) { if (!h) return ''; const p = h.split(':'); return String(+p[0]) + 'h' + (p[1] === '00' ? '' : p[1]); }
+function openEnvoiPartiel(pid, total) {
+  const p = products.find(function(x) { return x.id === pid; });
+  const env = productionEnvoi(currentBoutique, pid);
+  const deja = env && parseQty(env.qty_envoyee) > 0 ? parseQty(env.qty_envoyee) : 0;
+  _epState = { pid: pid, total: parseQty(total) || 0, deja: deja, nom: p ? p.name : pid, heure: (env && env.reste_heure) || '10:00' };
+  _npTarget = null; _npBuffer = String(Math.max(0, Math.round(_epState.total - deja)));
+  renderEnvoiPad();
+}
+function renderEnvoiPad() {
+  const ov = document.getElementById('np-overlay'); if (!ov || !_epState) return;
+  const s = _epState;
+  let keys = '';
+  ['1','2','3','4','5','6','7','8','9'].forEach(function(d) { keys += '<button class="np-key" onclick="epKey(\'' + d + '\')">' + d + '</button>'; });
+  keys += '<button class="np-key np-ghost" onclick="epClear()">C</button><button class="np-key" onclick="epKey(\'0\')">0</button><button class="np-key np-ghost" onclick="epBack()">⌫</button>';
+  let hs = '';
+  EP_HEURES.forEach(function(h) { hs += '<option value="' + h + '"' + (h === s.heure ? ' selected' : '') + '>' + epHeureLbl(h) + '</option>'; });
+  ov.innerHTML = '<div class="np-box ep-box">'
+    + '<div class="np-head">' + escapeHtml(s.nom) + ' — combien partent maintenant ?</div>'
+    + '<div class="ep-sub">Demandé ' + formatQty(s.total) + ' · déjà envoyé ' + formatQty(s.deja) + '</div>'
+    + '<div class="np-display" id="np-display">' + (_npBuffer === '' ? '0' : escapeHtml(_npBuffer)) + '</div>'
+    + '<div class="ep-reste" id="ep-reste"></div>'
+    + '<div class="np-pad">' + keys + '</div>'
+    + '<div class="ep-heure" id="ep-heure-wrap"><span>Le reste part vers</span><select id="ep-heure" onchange="_epState.heure=this.value">' + hs + '</select></div>'
+    + '<div class="np-actions"><button class="np-cancel" onclick="closeNumpad()">Annuler</button><button class="np-ok" onclick="epValidate(false)">Valider</button></div>'
+    + '<button class="ep-all" onclick="epValidate(true)">Tout est parti (' + formatQty(s.total) + ')</button>'
+    + (s.deja > 0 ? '<button class="ep-zero" onclick="epReset()">Remettre à zéro (rien n\'est parti)</button>' : '')
+    + '</div>';
+  ov.classList.add('show');
+  epHint();
+}
+function epHint() {
+  const s = _epState; if (!s) return;
+  const v = parseInt(_npBuffer || '0', 10) || 0;
+  const reste = s.total - s.deja - v;
+  const el = document.getElementById('ep-reste'), hw = document.getElementById('ep-heure-wrap');
+  if (el) el.textContent = reste > 0 ? 'reste ' + formatQty(reste) + ' à envoyer' : (reste < 0 ? formatQty(-reste) + ' de plus que demandé' : 'tout sera parti');
+  if (hw) hw.style.display = reste > 0 ? 'flex' : 'none';
+}
+function epKey(d) { npKey(d); epHint(); }
+function epClear() { npClear(); epHint(); }
+function epBack() { npBackspace(); epHint(); }
+async function epValidate(tout) {
+  const s = _epState; if (!s) return;
+  const v = tout ? Math.max(0, s.total - s.deja) : (parseInt(_npBuffer || '0', 10) || 0);
+  const cum = s.deja + v;
+  if (!(cum > 0)) { showToast('Mets une quantité', 'error'); return; }
+  const done = cum >= s.total;
+  const prev = productionEnvoi(currentBoutique, s.pid);
+  const row = { done_at: done ? new Date().toISOString() : null, qty_envoyee: cum, qty_total: s.total,
+    nb_envois: ((prev && prev.nb_envois) || 0) + 1, reste_heure: done ? null : s.heure };
+  closeNumpad();
+  await saveProductionEnvoi(s.pid, row);
+}
+async function epReset() {
+  const s = _epState; if (!s) return;
+  closeNumpad();
+  await saveProductionEnvoi(s.pid, { done_at: null, qty_envoyee: null, qty_total: null, nb_envois: 0, reste_heure: null });
+}
+// la puce « 150 / 200 · reste 50 vers 10h » (ctx : 'prod' | 'shop' | 'livreur')
+function envoiChipHtml(env, demande, ctx) {
+  if (!env) return '';
+  const tot = parseQty(env.qty_total) > 0 ? parseQty(env.qty_total) : (parseQty(demande) || 0);
+  if (env.done_at) {
+    const nb = env.nb_envois || 0;
+    const e = env.qty_envoyee != null ? parseQty(env.qty_envoyee) : tot;
+    if (ctx === 'prod' && nb <= 1) return '';   // à l'atelier, une ✓ verte suffit
+    return '<span class="prod-envoi full">✓ ' + formatQty(e) + ' / ' + formatQty(tot) + (nb > 1 ? ' · en ' + nb + ' fois' : '') + '</span>';
+  }
+  const e = parseQty(env.qty_envoyee) || 0;
+  if (!(e > 0)) return '';
+  const reste = Math.max(0, tot - e);
+  return '<span class="prod-envoi part">' + formatQty(e) + ' / ' + formatQty(tot) + (ctx === 'shop' ? ' envoyés' : '') + ' · reste ' + formatQty(reste)
+    + (env.reste_heure ? ' vers ' + epHeureLbl(env.reste_heure) : '') + '</span>';
+}
+// côté magasin : ce que l'atelier fournisseur (Local ou Veigné) a coché pour ce produit
+function envoiChipForShop(p, boutique, commande) {
+  const sup = getProductSupply(p, boutique);
+  if (sup !== 'local' && sup !== 'veigne') return '';
+  const env = productionEnvoi(sup, p.id);
+  if (env) return ' ' + envoiChipHtml(env, null, 'shop');
+  return commande ? ' <span class="prod-envoi none">pas encore parti</span>' : '';
 }
 function toggleProductionHideDone() { productionHideDone = !productionHideDone; renderProduction(); }
 let productionLocalData = {};
@@ -3802,10 +3922,12 @@ if (pbtn) pbtn.style.display = (v === 'production' || v === 'recap' || v === 'li
 document.getElementById('main-content').innerHTML = '<div class="loading">Chargement...</div>';
 if (v === 'reappro') {
 await loadReappros(currentBoutique);
+await loadProductionDone(['local', 'veigne'], currentReapproDate);   // v20.270 — ce que l'atelier a envoyé
 subscribeRealtimeReappro(currentBoutique);
 renderReappro();
 } else if (v === 'ventes') {
 await loadSales(currentBoutique, currentDate);
+await loadProductionDone(['local', 'veigne'], currentDate);   // v20.270 — St-Av : pain envoyé par le Local
 subscribeRealtimeSales(currentBoutique);
 renderVentes();
 } else if (v === 'recap') {
@@ -3963,6 +4085,7 @@ renderProductionSA();
 // v20.14 : St-Av Cmd Local (fusion pain+vienn) + Cmd Veigné Pât.
 // Veigné/Tours : Cmd Veigné Pât. (pâtisserie depuis Veigné Pâtissier)
 await loadReappros(currentBoutique);
+await loadProductionDone(['local', 'veigne'], currentReapproDate);   // v20.270 — ce que l'atelier a envoyé
 if (v === 'reappro_pat') await loadVeignePatStock(); // v20.75 — unités réelles (grille 28/50) sur l'écran commande
 subscribeRealtimeReappro(currentBoutique);
 if (v === 'reappro_pat' && currentBoutique === 'tours') {
@@ -5201,7 +5324,9 @@ else if (p.unit) unitParts.push(escapeHtml(p.unit));
 if (condTxt) unitParts.push(escapeHtml(condTxt));
 if (cibleTxt) unitParts.push('<span style="color:var(--gold-dark);font-weight:600">' + cibleTxt + '</span>');
 const unitLine = unitParts.join(' · ');
-html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLine + '</div></div>';
+html += '<div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + unitLine
+  + ((type !== 'previs' && isSent) ? envoiChipForShop(p, currentBoutique, parseQty(val.commander) > 0) : '')   // v20.270 — « 150 / 200 envoyés · reste 50 vers 10h »
+  + '</div></div>';
 if (type === 'previs') {
 const pv = val.previs == null ? '' : String(val.previs);
 html += '<input type="text" inputmode="decimal" class="qty-input cmd ' + (pv !== '' ? 'has-value' : '') + '" style="grid-column:2/-1" data-pid="' + p.id + '" data-field="previs" value="' + escapeHtml(pv) + '" placeholder="-" oninput="handleReapproInput(this)" onfocus="this.select()">';
@@ -5746,7 +5871,9 @@ const secHeader = '<div class="section"><div class="section-header">' + secLabel
   }
   nbVisibles++;
   secRows += '<div class="ventes-row v201' + planEdgeCls(curPlanKey) + '">'
-+ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '') + '</div>' + ardoiseNameExtraHtml(p.id) + '</div>'
++ '<div class="prod-with-x"><div><div class="produit-name">' + escapeHtml(p.name) + '</div><div class="produit-unit">' + escapeHtml(p.unit || '')
+  + envoiChipForShop(p, currentBoutique, false)   // v20.270 — St-Av voit « 150 / 200 » sur son pain commandé au Local
+  + '</div>' + ardoiseNameExtraHtml(p.id) + '</div>'
 + (psArrowIds ? stockSortArrows(p.id, psArrowIds) : '') // v20.216 — réordonner à la main (sauf pains = ordre du Planning)
 + '<button class="btn-x-mask" onclick="maskProductInactive(\'' + p.id + '\', \'' + escapeHtml(p.name).replace(/'/g, "\\\'") + '\')" title="Masquer ce produit">✖</button>'
 + '</div>'
@@ -6759,9 +6886,12 @@ html += '<div class="section-header section-header-reappro">'
   const condTxtLv = formatConditioning(p);
   // v20.262 — le site qui fabrique a coché la ligne : c'est prêt à charger
   const pretSite = getProductSupply(p, r.boutique_id);
-  const pret = !isLivre && pretSite && productionDoneAt(pretSite, p.id);
-  html += '<div><div class="produit-name">' + escapeHtml(p.name) + (pret ? ' <span class="lv-pret">✓ prêt</span>' : '') + '</div><div class="produit-unit">Cmd : ' + cmdQty + (condTxtLv ? ' · ' + escapeHtml(condTxtLv) : '') + '</div></div>';
-  html += '<input type="number" inputmode="numeric" min="0" class="qty-input livreur-qty" data-rid="' + r.id + '" placeholder="' + cmdQty + '" value="' + (livreeQty != null ? livreeQty : '') + '" onchange="updateLivreeQty(this)">';
+  const envLv = (!isLivre && pretSite) ? productionEnvoi(pretSite, p.id) : null;   // v20.270
+  const pret = !!(envLv && envLv.done_at);
+  const partielLv = !!(envLv && !envLv.done_at && parseQty(envLv.qty_envoyee) > 0);   // v20.270 — une partie seulement est partie
+  html += '<div><div class="produit-name">' + escapeHtml(p.name) + (pret ? ' <span class="lv-pret">✓ prêt</span>' : '') + (partielLv ? ' ' + envoiChipHtml(envLv, cmdQty, 'livreur') : '') + '</div><div class="produit-unit">Cmd : ' + cmdQty + (condTxtLv ? ' · ' + escapeHtml(condTxtLv) : '') + '</div></div>';
+  // v20.270 — la quantité livrée se préremplit avec ce qui est parti (150), plus la commande (200)
+  html += '<input type="number" inputmode="numeric" min="0" class="qty-input livreur-qty" data-rid="' + r.id + '" placeholder="' + cmdQty + '" value="' + (livreeQty != null ? livreeQty : (partielLv ? parseQty(envLv.qty_envoyee) : '')) + '" onchange="updateLivreeQty(this)">';
   html += '<button class="livreur-check ' + (isLivre ? 'checked' : '') + '" onclick="toggleLivre(\'' + r.id + '\', ' + isLivre + ')">✓</button>';
   html += '</div>';
   });
@@ -8826,7 +8956,7 @@ const fixedColsBefore = '1.3fr'
   + (showSpe ? ' 0.55fr' : '')
   + (showProsCol ? ' 0.55fr' : '');
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
-const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '') + ' 46px';   // v20.262 — ✓
+const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '') + ' 108px';   // v20.262 — ✓ ; v20.270 — + « partiel… »
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
 
 const rows = allProducts.map(function(p) {
@@ -9075,12 +9205,13 @@ html += '<div class="copy-stock-box">'
 // v20.262 — combien de lignes sont faites et parties
 const aFaire = filtered.filter(function(r) { return !r._plansec && r.total > 0; });
 const faites = aFaire.filter(function(r) { return !!productionDoneAt(currentBoutique, r.p.id); }).length;
+const partiels = aFaire.filter(function(r) { const e = productionEnvoi(currentBoutique, r.p.id); return !!(e && !e.done_at && parseQty(e.qty_envoyee) > 0); }).length;   // v20.270
 html += '<div class="prod-filter-bar"><label>'
 
 + '<input type="checkbox" ' + (productionFilterEmpty ? 'checked' : '') + ' onchange="toggleProductionFilter()">'
 + '<span>Cacher les produits sans activité</span></label>'
 + (aFaire.length ? '<label style="margin-left:14px"><input type="checkbox" ' + (productionHideDone ? 'checked' : '') + ' onchange="toggleProductionHideDone()"><span>Cacher ce qui est fait</span></label>'
-  + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites</span>' : '')
+  + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites' + (partiels ? ' · ' + partiels + ' en cours' : '') + '</span>' : '')
 + '</div>';
 
 if (!filtered.length) {
@@ -9188,12 +9319,15 @@ ecartHtml = '<span class="ecart-badge ' + eCls + '">' + eTxt + '</span>';
 }
 const prodCls = r.produitRaw ? 'has-prod' : '';
 const stockCls = r.stockRaw ? 'has-stock' : '';
-const rowDone = r.total > 0 && !!productionDoneAt(currentBoutique, r.p.id);   // v20.262
+const envRow = r.total > 0 ? productionEnvoi(currentBoutique, r.p.id) : null;   // v20.270
+const rowDone = !!(envRow && envRow.done_at);   // v20.262
+const rowPart = !rowDone && !!(envRow && parseQty(envRow.qty_envoyee) > 0);   // v20.270 — une partie est partie
 if (rowDone && productionHideDone) return;
-let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' prod-done' : '') + '" style="grid-template-columns:' + gridTpl + '">'
+let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' prod-done' : '') + (rowPart ? ' prod-part' : '') + '" style="grid-template-columns:' + gridTpl + '">'
 
 // v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
++ ((rowDone || rowPart) ? envoiChipHtml(envRow, r.total, 'prod') : '')   // v20.270 — « 150 / 200 · reste 50 vers 10h »
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
 // v20.165 — Touriers : production comptée en PIÈCES (les caisses = réalité du congélo, Stock Tourier)
 + (!isLocalTour && formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
@@ -9297,8 +9431,13 @@ let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' pr
       + '<div id="ecart_' + r.p.id + '" data-cmd="' + r.total + '">' + ecartHtml + '</div>';
   }
   // v20.262 — ✓ ligne faite et partie (rien à cocher si rien à faire)
+  // v20.270 — « partiel… » ouvre le pavé ; la coche orange (partiel) le rouvre pour compléter
   rowHtml += r.total > 0
-    ? '<button type="button" class="prod-done-btn' + (rowDone ? ' on' : '') + '" onclick="toggleProductionDone(\'' + r.p.id + '\')" title="Ligne faite et partie">' + (rowDone ? '✓' : '') + '</button>'
+    ? '<div class="prod-done-cell">'
+      + ((rowDone || rowPart) ? '' : '<button type="button" class="prod-part-btn" onclick="openEnvoiPartiel(\'' + r.p.id + '\', ' + r.total + ')" title="Une partie seulement est partie">partiel…</button>')
+      + '<button type="button" class="prod-done-btn' + (rowDone ? ' on' : (rowPart ? ' part' : '')) + '" onclick="'
+      + (rowPart ? 'openEnvoiPartiel(\'' + r.p.id + '\', ' + r.total + ')' : 'toggleProductionDone(\'' + r.p.id + '\', ' + r.total + ')')
+      + '" title="' + (rowPart ? 'Compléter l\'envoi' : 'Ligne faite et partie') + '">' + (rowDone ? '✓' : (rowPart ? formatQty(envRow.qty_envoyee) : '')) + '</button></div>'
     : '<div></div>';
   rowHtml += '</div>';
   html += rowHtml;
@@ -20399,7 +20538,7 @@ closeNumpad();
 function closeNumpad() {
 const ov = document.getElementById('np-overlay');
 if (ov) { ov.classList.remove('show'); ov.innerHTML = ''; }
-_npTarget = null; _npBuffer = '';
+_npTarget = null; _npBuffer = ''; _epState = null;   // v20.270
 }
 
 // ===== Pavé PIN code d'accès boutique (remplace prompt()/alert() natifs) =====
