@@ -2439,6 +2439,7 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+.prod-valider-tout { margin-left:10px; white-space:nowrap; }   /* v20.271 */
 .lv-pret { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--green); border-radius:8px; padding:1px 7px; margin-left:4px; vertical-align:middle; }
 /* v20.270 — envoi partiel : « 150 / 200 · reste 50 vers 10h » */
 .prod-done-cell { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
@@ -2643,7 +2644,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.270';
+const APP_VERSION  = 'v20.271';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3099,6 +3100,32 @@ function envoiChipForShop(p, boutique, commande) {
   return commande ? ' <span class="prod-envoi none">pas encore parti</span>' : '';
 }
 function toggleProductionHideDone() { productionHideDone = !productionHideDone; renderProduction(); }
+// v20.271 — « ✓ Tout valider » : toutes les lignes qui restent (partiels compris) passent en « parties », en un seul enregistrement
+let productionRestantes = [];   // [{ pid, total }] recalculé à chaque rendu
+async function validerToutProduction() {
+  const list = productionRestantes.slice();
+  if (!list.length) return;
+  if (!confirm('Marquer les ' + list.length + ' ligne' + (list.length > 1 ? 's' : '') + ' restante' + (list.length > 1 ? 's' : '') + ' comme partie' + (list.length > 1 ? 's' : '') + ' ?')) return;
+  const site = currentBoutique, date = currentReapproDate, nowISO = new Date().toISOString();
+  productionDoneData[site] = productionDoneData[site] || {};
+  const rows = list.map(function(l) {
+    const prev = productionEnvoi(site, l.pid);
+    const t = parseQty(l.total);
+    const row = { done_at: nowISO, qty_envoyee: t > 0 ? t : null, qty_total: t > 0 ? t : null, nb_envois: ((prev && prev.nb_envois) || 0) + 1, reste_heure: null };
+    productionDoneData[site][l.pid] = Object.assign({ site: site, product_id: l.pid }, row);
+    return Object.assign({ tenant_id: TENANT_ID, site: site, service_date: date, product_id: l.pid, done_by: DEVICE_ID, updated_at: nowISO }, row);
+  });
+  renderProduction();
+  setSyncStatus('syncing');
+  let { error } = await supa.from('production_done').upsert(rows, { onConflict: 'tenant_id,site,service_date,product_id' });
+  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure/.test(error.message || '')) {
+    const r2 = await supa.from('production_done').upsert(rows.map(function(r) { return { tenant_id: r.tenant_id, site: r.site, service_date: r.service_date, product_id: r.product_id, done_by: r.done_by, updated_at: r.updated_at, done_at: r.done_at }; }), { onConflict: 'tenant_id,site,service_date,product_id' });
+    error = r2.error;
+  }
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  showToast('✓ ' + list.length + ' ligne' + (list.length > 1 ? 's' : '') + ' validée' + (list.length > 1 ? 's' : ''), 'sync');
+}
 let productionLocalData = {};
 let realtimeChannelProductionLocal = null;
 let addStopForm = { type: 'pro', label: '', address: '', notes: '' };
@@ -9206,12 +9233,15 @@ html += '<div class="copy-stock-box">'
 const aFaire = filtered.filter(function(r) { return !r._plansec && r.total > 0; });
 const faites = aFaire.filter(function(r) { return !!productionDoneAt(currentBoutique, r.p.id); }).length;
 const partiels = aFaire.filter(function(r) { const e = productionEnvoi(currentBoutique, r.p.id); return !!(e && !e.done_at && parseQty(e.qty_envoyee) > 0); }).length;   // v20.270
+productionRestantes = aFaire.filter(function(r) { return !productionDoneAt(currentBoutique, r.p.id); }).map(function(r) { return { pid: r.p.id, total: r.total }; });   // v20.271
 html += '<div class="prod-filter-bar"><label>'
 
 + '<input type="checkbox" ' + (productionFilterEmpty ? 'checked' : '') + ' onchange="toggleProductionFilter()">'
 + '<span>Cacher les produits sans activité</span></label>'
 + (aFaire.length ? '<label style="margin-left:14px"><input type="checkbox" ' + (productionHideDone ? 'checked' : '') + ' onchange="toggleProductionHideDone()"><span>Cacher ce qui est fait</span></label>'
-  + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites' + (partiels ? ' · ' + partiels + ' en cours' : '') + '</span>' : '')
+  + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites' + (partiels ? ' · ' + partiels + ' en cours' : '') + '</span>'
+  // v20.271 — « Tout valider » : coche d'un coup tout ce qui reste (partiels compris)
+  + (productionRestantes.length ? '<button type="button" class="btn-gold-sm prod-valider-tout" onclick="validerToutProduction()">✓ Tout valider (' + productionRestantes.length + ')</button>' : '') : '')
 + '</div>';
 
 if (!filtered.length) {

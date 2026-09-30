@@ -147,3 +147,40 @@ export const tests = [
     },
   },
 ];
+
+/* v20.271 — « ✓ Tout valider » : tout ce qui reste (partiels compris) part d'un coup, après confirmation */
+tests.push({
+  name: 'Tout valider — coche d\'un coup les lignes restantes (partiel compris), un seul enregistrement, disparaît quand tout est fait',
+  fn: async (ctx) => {
+    const db = dbBase();
+    // 2e ligne à faire à Tours : Tradition Graines prévue 12
+    db.reappros.push({ id: 'rp_tg', tenant_id: T, boutique_id: 'tours', product_id: 'vt_trad_gr', service_date: D, previs: 12, commander: null });
+    db.previs.push({ tenant_id: T, boutique_id: 'tours', product_id: 'vt_trad_gr', service_date: D, qty: 12 });
+    db.sales.push({ tenant_id: T, boutique_id: 'tours', product_id: 'vt_trad_gr', date: D, matin: 12 });
+    const page = await aProduireTours(ctx, db);
+    const r = await page.evaluate(async () => {
+      const btnAvant = document.querySelector('.prod-valider-tout');
+      const txtAvant = btnAvant ? btnAvant.textContent : '';
+      // une ligne en partiel d'abord
+      openEnvoiPartiel('vt_trad', 30); epClear(); epKey('5'); await epValidate(false);
+      await new Promise((res) => setTimeout(res, 100));
+      let refuse = false; window.confirm = () => { refuse = true; return false; };
+      await validerToutProduction();
+      const apresRefus = document.querySelectorAll('.prod-row.prod-done').length;
+      window.confirm = () => true;
+      const nbUpsertAvant = window.__mockLog ? window.__mockLog.length : -1;
+      await validerToutProduction();
+      await new Promise((res) => setTimeout(res, 150));
+      const rows = window.__mockDB.production_done.filter((x) => x.site === 'tours').map((x) => ({ pid: x.product_id, done: !!x.done_at, q: x.qty_envoyee, nb: x.nb_envois, h: x.reste_heure }));
+      return { txtAvant, refuse, apresRefus, rows, vertes: document.querySelectorAll('.prod-row.prod-done').length,
+        compteur: document.querySelector('.prod-done-count').textContent, btnApres: !!document.querySelector('.prod-valider-tout') };
+    });
+    assert(r.txtAvant === '✓ Tout valider (2)', 'bouton avec le nombre de lignes restantes : ' + r.txtAvant);
+    assert(r.refuse && r.apresRefus === 0, 'annuler la confirmation ne coche rien');
+    assert(r.rows.length === 2 && r.rows.every((x) => x.done && x.h === null), 'les 2 lignes sont parties : ' + JSON.stringify(r.rows));
+    const trad = r.rows.find((x) => x.pid === 'vt_trad'), gr = r.rows.find((x) => x.pid === 'vt_trad_gr');
+    assert(trad.q === 30 && trad.nb === 2 && gr.q === 12 && gr.nb === 1, 'partiel complété (30, en 2 fois) + ligne simple (12) : ' + JSON.stringify(r.rows));
+    assert(r.vertes === 2 && /✓ 2 \/ 2 lignes faites$/.test(r.compteur) && !r.btnApres, `2 vertes, compteur complet, bouton disparu : ${r.compteur} / ${r.btnApres}`);
+    await page.close();
+  },
+});
