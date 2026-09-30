@@ -240,7 +240,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.267</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.268</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -837,6 +837,7 @@ function gesForm(t,obj){
   }else if(t==='prod'){
     h+='<label>Catégorie</label><select id="m_cat">'+PCATS.map(c=>'<option '+(obj.categorie===c?'selected':'')+'>'+c+'</option>').join('')+'</select>';
     h+='<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m_bio" style="width:auto" '+(obj.bio?'checked':'')+'> Bio</label>';
+    h+='<label>Poids d\'une pièce (g) <span style="font-weight:400;color:var(--grey-light)">(ex : 90 pour un pain burger ; sert avec « pièces par bac » du Planning)</span></label><input type="text" inputmode="numeric" id="m_poids_piece" value="'+(obj.poids_piece_g!=null?obj.poids_piece_g:'')+'">';   // v20.268
   }else if(t==='four'){
     h+='<label>Téléphone</label><input id="m_tel" value="'+((obj.telephone||'').replace(/"/g,'&quot;'))+'">';
     h+='<label>Email</label><input id="m_email" value="'+((obj.email||'').replace(/"/g,'&quot;'))+'">';
@@ -851,7 +852,7 @@ async function gesSave(t,isNew,id){
   const recBack=(t==='ing')?_recAfterNewIng:null; // capturé avant closeModal (qui le réinitialise)
   let table,row;
   if(t==='ing'){table='fab_ingredients';row={nom:v('m_nom'),categorie:v('m_cat'),fournisseur_id:v('m_four')||null,unite:v('m_unite'),bio:chk('m_bio'),eau_ratio:parseFloat(v('m_eau_ratio'))||0,farine_levain_id:v('m_farine_levain')||null,code_fournisseur:v('m_code')||null};}
-  else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio')};}
+  else if(t==='prod'){table='fab_produits';row={nom:v('m_nom'),categorie:v('m_cat'),bio:chk('m_bio'),poids_piece_g:parseFloat(String(v('m_poids_piece')||'').replace(',','.'))||null};}   // v20.268
   else{table='fab_fournisseurs';row={nom:v('m_nom'),telephone:v('m_tel')||null,email:v('m_email')||null,adresse:v('m_adresse')||null};}
   if(isNew){row.id=(v('m_id')||'').trim();if(!row.id){toast('Mets un identifiant court');return;}}
   setSync('enregistrement…');
@@ -1119,7 +1120,7 @@ function planMapJour(lgRows, valById){
       melange[pid]=total;
       if(!(l.pate&&kgPates.has(l.pate))){
         const base=Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ing_pate_of(pid));
-        if(base)besoinBase[base]=(besoinBase[base]||0)+(melangePateParBac(pid)*total);
+        if(base)besoinBase[base]=(besoinBase[base]||0)+(melangePateParBac(pid,l)*total);
       }
       return;
     }
@@ -1152,7 +1153,7 @@ async function pdFillFromPlan(){
   if(aDeja&&!confirm('Remplacer la saisie en cours par le planning du '+pdLabel(pdDate)+' ?'))return;
   setSync('lecture du planning…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('id,nom,pate,unite,kg_farine_unite,actif,site').eq('actif',true).eq('site',fabSite),
+    supa.from('fab_planning_lignes').select('*').eq('actif',true).eq('site',fabSite),   // v20.268 — * : pieces_par_bac comprise
     supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',pdDate)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
@@ -1339,7 +1340,13 @@ function pdRenderValidBar(){
 /* --- mélanges (variantes d'une pâte de base) --- */
 function melangesForBase(basePid){const ing=BASE_PATE[basePid];if(!ing)return [];
   return produits.filter(p=>p.categorie==='melange'&&p.actif!==false&&recettesMap[p.id]&&(recettesMap[p.id].lignes||[]).some(l=>l.ingredient_id===ing));}
-function melangePateParBac(mpid){const rec=recettesMap[mpid];if(!rec)return 0;const ing=(rec.lignes||[]).find(l=>l.ingredient_id===ing_pate_of(mpid));return ing?ing.quantite:0;}
+// v20.268 — lg = la ligne du Planning du site (optionnelle) : si elle porte « pièces par bac » et que
+// le produit a un poids de pièce, la pâte par bac est JUSTE POUR CE SITE (40 × 90 g = 3,6 kg à Veigné,
+// 30 × 90 g = 2,7 kg au Local). Sinon on garde la recette (commune à tous les sites), comme avant.
+function melangePateParBac(mpid,lg){
+  const rec=recettesMap[mpid];if(!rec)return 0;
+  if(lg&&+lg.pieces_par_bac>0){const p=produits.find(x=>x.id===mpid);if(p&&+p.poids_piece_g>0)return +lg.pieces_par_bac*(+p.poids_piece_g)/1000;}
+  const ing=(rec.lignes||[]).find(l=>l.ingredient_id===ing_pate_of(mpid));return ing?ing.quantite:0;}
 function ing_pate_of(mpid){const rec=recettesMap[mpid];if(!rec)return null;const l=(rec.lignes||[]).find(x=>x.ingredient_id&&x.ingredient_id.indexOf('ing_pate_')===0);return l?l.ingredient_id:null;}
 // v20.180 — Préparations intermédiaires (empois de maïs…) : un ingrédient d'un mélange peut
 // être fabriqué à part, avec sa propre recette. Convention d'id : ing_xxx ↔ pr_prep_xxx.
@@ -2354,7 +2361,7 @@ async function calcFromPlan(){
   const date=document.getElementById('calcPlanDate').value;if(!date){toast('Choisis un jour');return;}
   setSync('lecture du planning…');
   const [lg,vl]=await Promise.all([
-    supa.from('fab_planning_lignes').select('id,nom,pate,unite,kg_farine_unite,actif,site').eq('actif',true).eq('site',planSite),
+    supa.from('fab_planning_lignes').select('*').eq('actif',true).eq('site',planSite),   // v20.268 — * : pieces_par_bac comprise
     supa.from('fab_planning_valeurs').select('ligne_id,valeur').eq('date_jour',date)
   ]);
   if(lg.error||vl.error){setSync('⚠️');toast((lg.error||vl.error).message);return;}
@@ -2385,7 +2392,7 @@ async function calcFromPlan(){
     const base=ip?Object.keys(BASE_PATE).find(b=>BASE_PATE[b]===ip):null;
     if(base&&doughPerKgFlour(base)>0){
       const nomBase=(produits.find(p=>p.id===base)||{}).nom;
-      return {kg:num*melangePateParBac(pid)/doughPerKgFlour(base),grp:grpOfBase[base]||nomBase||l.nom};
+      return {kg:num*melangePateParBac(pid,l)/doughPerKgFlour(base),grp:grpOfBase[base]||nomBase||l.nom};
     }
     if(pdHasBac(pid))return {kg:pdRowKgFlour({pid:pid,qte:num}),grp:l.pate||l.nom}; // pâte à elle seule, saisie en bacs
     return null;
@@ -2411,6 +2418,7 @@ async function calcFromPlan(){
 
 /* ---------- PLANNING SEMAINE (grille produits × jours) ---------- */
 let planWeekStart='',planLignes=[],planMasquees=[],planVals={},planSite='local',planScanData=[];
+let planColPiecesOK=true;   // v20.268 — la colonne pieces_par_bac existe-t-elle ? (false tant que la migration n'est pas lancée)
 let planProd={},_planCopy=null; // v20.227 — production déjà saisie/validée de la semaine + presse-papier de copie
 let planJoursOff={},planJoursOffOK=false; // v20.228 — jour de fermeture par magasin (site -> '0,6')
 let planHideEmpty=localStorage.getItem('planHideEmpty')==='1'; // v20.207 — masquer les lignes vides
@@ -2455,6 +2463,8 @@ function planVoisins(lg){
   return g.racines;
 }
 const planSecColor=k=>(PLAN_SECTIONS.find(s=>s.key===k)||{}).color||'var(--grey)';
+// v20.268 — « bacs de 40 » : la taille du bac de CE site, visible à l'écran et sur la feuille A4
+const planUniteLbl=lg=>(lg.unite||'')+(+lg.pieces_par_bac>0?' de '+lg.pieces_par_bac:'');
 const planFr=iso=>{const d=pdParse(iso);return d.getDate()+'/'+(d.getMonth()+1);};
 /* ---------- v20.228 — JOUR DE FERMETURE : cacher une colonne, la garder sous le coude ----------
    Demande Phil (31/08) : le Local ferme le lundi, Tours le dimanche — la colonne pollue la
@@ -2521,6 +2531,7 @@ async function planLoad(){
   setSync('🟢 connecté');
   // v20.223 — les lignes masquées (actif=false) restent chargées pour pouvoir les remettre.
   const toutes=lg.data||[];
+  if(toutes.length)planColPiecesOK=('pieces_par_bac' in toutes[0]);   // v20.268 — migration passée ?
   planLignes=toutes.filter(l=>l.actif!==false);
   planMasquees=toutes.filter(l=>l.actif===false);
   planVals={};(vl.data||[]).forEach(v=>{planVals[v.ligne_id+'_'+v.date_jour]=v.valeur;});
@@ -2565,7 +2576,7 @@ function planPrintWeek(){
     sibs.forEach(x=>{
       const lg=x.lg,k=LEV_MAP[fabNorm(lg.nom)];
       const pref=x.mere?'↳ ':'',suff=(x.mere&&!vus[x.mere.id])?' <small>(de '+x.mere.nom+')</small>':'';
-      rows+='<tr><td class="pn'+(x.mere?' pdecl':'')+'">'+pref+lg.nom+' <small>'+(lg.unite||'')+'</small>'+suff+'</td>'
+      rows+='<tr><td class="pn'+(x.mere?' pdecl':'')+'">'+pref+lg.nom+' <small>'+planUniteLbl(lg)+'</small>'+suff+'</td>'
         +jours.map(iso=>{
           let v=String(planVals[lg.id+'_'+iso]||'').trim();
           let auto=false;
@@ -2654,7 +2665,7 @@ function planRender(){
     // étage) uniquement quand « ✏️ Modifier la liste » est coché. Phil s'en sert, mais la
     // grille sert d'abord à LIRE sa semaine (tablette surtout en consultation).
     let r='<tr><td class="pname'+(mere?' pdecl':'')+'" style="border-left-color:'+col+'"><div class="pname-row"><span>'
-      +(mere?'<span class="parr">↳</span>':'')+lg.nom+' <span class="pu">'+(lg.unite||'')+'</span>'
+      +(mere?'<span class="parr">↳</span>':'')+lg.nom+' <span class="pu">'+planUniteLbl(lg)+'</span>'
       +(mere&&!mereVisible?'<span class="pmere">sort de '+mere.nom+'</span>':'')
       +(levKey?'<span class="pu" style="color:var(--gold-dark)"> · calcul auto</span>':'')
       +'</span>'
@@ -2919,12 +2930,14 @@ function planEditLine(id){
     +'<label>Unité</label><input id="ple_unite" value="'+esc(lg.unite)+'">'
     +'<label>Pâte de base <span style="font-weight:400;color:var(--grey-light)">(pour regrouper au pétrin — ex : Tradition, Viennoise, Essentiel)</span></label><input id="ple_pate" list="plePates" value="'+esc(lg.pate)+'"><datalist id="plePates">'+pates.map(p=>'<option value="'+esc(p)+'">').join('')+'</datalist>'
     +'<label>Kg de farine pour 1 '+esc(lg.unite||'unité')+' <span style="font-weight:400;color:var(--grey-light)">(la calculette multiplie par la quantité du jour)</span></label><input type="text" inputmode="decimal" id="ple_far" value="'+(lg.kg_farine_unite!=null?String(lg.kg_farine_unite).replace('.',','):'')+'">'
+    +(planColPiecesOK?'<label>Pièces par bac <span style="font-weight:400;color:var(--grey-light)">(pour ce magasin — ex : 40 à Veigné, 30 au Local ; vide = la recette décide)</span></label><input type="text" inputmode="numeric" id="ple_pieces" value="'+(lg.pieces_par_bac!=null?lg.pieces_par_bac:'')+'">':'')
     +'<div class="btn-row"><button class="btn" onclick="planSaveLine('+id+')">Enregistrer</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>';
   document.getElementById('modalBg').classList.add('show');
 }
 async function planSaveLine(id){
   const v=x=>{const e=document.getElementById(x);return e?e.value:'';};
   const row={nom:v('ple_nom').trim(),section:v('ple_section')||'pains',unite:v('ple_unite').trim(),pate:v('ple_pate').trim()||null,kg_farine_unite:parseFloat(v('ple_far').replace(',','.'))||null};
+  if(planColPiecesOK)row.pieces_par_bac=parseInt(v('ple_pieces'),10)||null;   // v20.268
   if(!row.nom){toast('Mets un nom');return;}
   const q=await supa.from('fab_planning_lignes').update(row).eq('id',id);
   if(q.error){toast(q.error.message);return;}

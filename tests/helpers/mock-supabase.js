@@ -134,7 +134,11 @@
       if (this.limitN != null) result = result.slice(0, this.limitN);
       if (this.rangeAB) result = result.slice(this.rangeAB[0], this.rangeAB[1] + 1);
       (this.embeds || []).forEach(function (t) {
-        const fk = self.table.replace(/s$/, '') + '_id';   // pro_orders → pro_order_id
+        const sing = self.table.replace(/s$/, '');
+        // pro_orders → pro_order_id ; fab_recettes → recette_id (v20.268 : préfixe de module ignoré)
+        const cands = [sing + '_id', sing.replace(/^[a-z]+_/, '') + '_id'];
+        const rows0 = tableRows(t);
+        const fk = cands.find(function (k) { return rows0.some(function (c) { return k in c; }); }) || cands[0];
         result = result.map(function (r) {
           const copy = clone(r);
           copy[t] = tableRows(t).filter(function (c) { return String(c[fk]) === String(r.id); }).map(clone);

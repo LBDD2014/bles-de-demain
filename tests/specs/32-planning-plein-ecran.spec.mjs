@@ -168,4 +168,44 @@ export const tests = [
       }
     },
   },
+  {
+    name: 'Planning — pièces par bac PAR SITE : 40 × 90 g = 3,6 kg de pâte à Veigné, la recette (2,7 kg) sinon ; « bacs de 40 » affiché',
+    fn: async (ctx) => {
+      const db = makeDB();
+      db.boutique_codes = [{ tenant_id: TENANT_ID, boutique_id: 'master', code: '9999' }];
+      db.fab_ingredients = [{ id: 'ing_pate_viennoise', nom: 'Pâte à viennoise', categorie: 'autre', unite: 'kg' }];
+      db.fab_produits = [
+        { id: 'pr_viennoise', nom: 'La Viennoise', categorie: 'viennoiserie', actif: true },
+        { id: 'pr_mel_pain_burger_v', nom: 'Pain burger', categorie: 'melange', actif: true, poids_piece_g: 90 },
+      ];
+      db.fab_recettes = [{ id: 52, produit_id: 'pr_mel_pain_burger_v', rendement_base: 1, actif: true }];
+      db.fab_recette_lignes = [{ id: 361, recette_id: 52, ingredient_id: 'ing_pate_viennoise', quantite: 2.7, unite: 'kg' }];
+      db.fab_planning_lignes = [
+        { id: 1, nom: 'La Viennoise', unite: 'kg', pate: 'Viennoise', kg_farine_unite: 1, section: 'viennoiserie', ordre: 1, actif: true, site: 'veigne', pieces_par_bac: null },
+        { id: 2, nom: 'Pain burger', unite: 'bacs', pate: 'Viennoise', section: 'viennoiserie', ordre: 2, actif: true, site: 'veigne', pieces_par_bac: 40 },
+      ];
+      db.fab_planning_valeurs = [{ ligne_id: 2, date_jour: '2026-07-21', valeur: '2' }];
+      const page = await preparePage(ctx, { db });
+      await page.addInitScript(() => { try { localStorage.setItem('fabUnlockCode', '9999'); localStorage.removeItem('planHideEmpty'); } catch (e) {} });
+      await page.goto('http://127.0.0.1:8787/fabrication.html');
+      await page.waitForFunction(() => typeof planLoad === 'function' && typeof planUniteLbl === 'function');
+      await page.waitForTimeout(800);
+      const r = await page.evaluate(async () => {
+        planSite = 'veigne'; planWeekStart = '2026-07-20'; show('plan'); await planLoad(); planRender();
+        const lg = planLignes.find((l) => l.nom === 'Pain burger');
+        const avec = melangePateParBac('pr_mel_pain_burger_v', lg);                       // 40 × 90 g
+        const sans = melangePateParBac('pr_mel_pain_burger_v', Object.assign({}, lg, { pieces_par_bac: null }));   // recette
+        window.print = () => {}; planPrintWeek(); await new Promise((ok) => setTimeout(ok, 400));
+        return { avec, sans, ecran: document.querySelector('#planTblWrap').textContent.includes('bacs de 40'),
+          feuille: document.querySelector('#printwrap').textContent.includes('bacs de 40'), colOK: planColPiecesOK };
+      });
+      assert(Math.abs(r.avec - 3.6) < 0.001, `Veigné, un bac de 40 pièces de 90 g = 3,6 kg de pâte, reçu ${r.avec}`);
+      assert(Math.abs(r.sans - 2.7) < 0.001, `sans réglage : la recette (2,7 kg), reçu ${r.sans}`);
+      assert(r.ecran, 'l\'écran affiche « bacs de 40 »');
+      assert(r.feuille, 'la feuille A4 affiche « bacs de 40 »');
+      assert(r.colOK, 'la colonne pieces_par_bac est reconnue');
+      assert(page.__pageErrors.length === 0, 'erreurs JS : ' + page.__pageErrors.join(' | '));
+      await page.close();
+    },
+  },
 ];
