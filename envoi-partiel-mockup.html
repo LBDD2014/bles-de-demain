@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Envoi partiel</title>
+<style>
+:root{--gold:#CEAB52;--gold-light:#E8D5A3;--gold-dark:#8B6914;--grey:#474950;--grey-dark:#2E3044;--grey-light:#5A5C66;--cream:#FAF6EE;--brown:#3D2B1F;--brown-mid:#6B4226;--green:#4A7C59;--red:#B83232;--orange:#D4701A;--blue:#2C5F8A;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,Georgia,serif;background:var(--cream);color:var(--grey-dark);font-size:15px}
+.wrap{max-width:1000px;margin:0 auto;padding:12px 16px 40px}
+.maq{background:var(--grey-dark);color:var(--gold-light);padding:8px 14px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.maq b{color:var(--gold)}
+h2{font-family:'Playfair Display',Georgia,serif;font-size:18px;margin:26px 0 4px;color:var(--grey-dark)}
+.sub{color:var(--grey-light);font-size:13px;margin-bottom:10px}
+.screen{background:var(--white);border-radius:14px;box-shadow:0 2px 10px rgba(46,48,68,.08);border:1px solid #ECE3D2;overflow:hidden}
+.hd{display:grid;grid-template-columns:2fr 1fr 1fr 1fr .6fr .6fr .8fr 1fr 1.6fr;background:#F4ECDB;padding:10px 14px;font-size:11px;font-weight:bold;letter-spacing:.4px;text-transform:uppercase;color:var(--grey-light);align-items:center}
+.hd span:nth-child(2){color:var(--blue)}.hd span:nth-child(3){color:var(--orange)}.hd span:nth-child(4){color:var(--gold-dark)}
+.sec{background:var(--blue);color:#fff;font-weight:bold;letter-spacing:.5px;padding:8px 14px;font-size:13px;margin:8px 12px 0;border-radius:8px}
+.row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr .6fr .6fr .8fr 1fr 1.6fr;padding:12px 14px;border-bottom:1px solid #F0E8D6;align-items:center;border-left:5px solid #7d9bbf;margin-left:12px}
+.row .p{font-size:17px}.row .p small{display:block;color:var(--grey-light);font-size:12px}
+.inp{border:2px solid #b7c6d9;border-radius:9px;padding:8px 0;text-align:center;font-weight:bold;color:var(--blue);width:80px;font-size:17px}
+.dash{border:2px solid #eee;border-radius:9px;padding:8px 0;text-align:center;color:#bbb;width:80px}
+.n{text-align:center;color:#999}.tot{text-align:center;font-weight:bold;color:var(--gold-dark);font-size:17px}
+.act{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.chk{width:52px;height:52px;border-radius:50%;border:none;font-size:24px;display:flex;align-items:center;justify-content:center;background:#e8e4da;color:#fff}
+.chk.on{background:#9db9a0;color:#fff}
+.chk.part{background:#f2c99b;color:var(--brown-mid)}
+.part-btn{border:2px solid var(--gold);background:#fff;color:var(--gold-dark);border-radius:9px;padding:7px 10px;font-size:13px;font-weight:bold;white-space:nowrap}
+.chip{border-radius:14px;padding:5px 10px;font-size:13.5px;font-weight:bold;white-space:nowrap}
+.chip.part{background:#fbe8d6;color:var(--orange)}.chip.full{background:#e3efe6;color:var(--green)}.chip.none{background:#eee;color:var(--grey-light)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--grey-light);margin:8px 0 0}
+/* pavé */
+.pad{position:relative;background:var(--white);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:16px;max-width:320px;margin:14px auto}
+.pad h3{margin:0 0 4px;font-size:16px}.pad .q{color:var(--grey-light);font-size:13px;margin-bottom:10px}
+.pad .disp{border:2px solid var(--gold);border-radius:10px;padding:10px;text-align:center;font-size:28px;font-weight:bold;color:var(--brown);margin-bottom:10px}
+.pad .disp small{display:block;font-size:12px;color:var(--grey-light);font-weight:normal}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keys button{padding:12px;font-size:20px;border:1px solid #ddd;background:#faf6ee;border-radius:10px}
+.pad .ok{margin-top:10px;width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:bold}
+.pad .all{margin-top:6px;width:100%;padding:10px;background:#fff;color:var(--grey-dark);border:1.5px solid var(--grey-dark);border-radius:10px;font-size:14px}
+/* écrans magasin & livreur */
+.shop{padding:6px 14px}
+.srow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F0E8D6}
+.srow .p{flex:1;font-size:17px}.srow .p small{display:block;color:var(--grey-light);font-size:12px}
+.srow .qty{font-weight:bold;color:var(--blue);font-size:18px;min-width:44px;text-align:center}
+.flow{display:flex;gap:10px;flex-wrap:wrap}
+.flow .step{flex:1;min-width:200px;background:#fff;border:1px solid var(--gold-light);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.flow .step b{display:block;color:var(--gold-dark);margin-bottom:4px}
+ul{line-height:1.6;font-size:14px}
+@media(max-width:700px){.hd,.row{grid-template-columns:1.6fr 1fr 1fr 1fr 1.8fr}.hd span:nth-child(n+5):nth-child(-n+8),.row>*:nth-child(n+5):nth-child(-n+8){display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="maq">🧪 <b>MAQUETTE</b> — rien n'est branché. Envoi partiel sur les écrans de production (Local, Veigné, Tours), côté magasin et côté livreur. Le partiel porte sur le <b>total de la ligne</b>, ne se reporte jamais au lendemain, saisie au pavé numérique.</div>
+
+<h2>1. Le Local — Prod. St-Av (ta capture, avec la nouveauté)</h2>
+<div class="sub">La coche reste au même endroit. À sa gauche, un petit bouton « partiel ». Trois états possibles pour une ligne.</div>
+<div class="screen">
+  <div class="hd"><span>Produit</span><span>Matin SA</span><span>Aprem SA</span><span>Reste SA hier</span><span>V</span><span>T</span><span>⭐ Spé</span><span>Total</span><span style="text-align:right">Envoyé</span></div>
+  <div class="sec">PAINS</div>
+  <div class="row"><div class="p">Tradition<small>pièce · 200 demandés, 150 partis à la 1<sup>re</sup> tournée</small></div><div class="inp">200</div><div class="dash">-</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="tot">200</div>
+    <div class="act"><span class="chip part">150 / 200 · reste 50</span><button class="chk part">150</button></div></div>
+  <div class="row"><div class="p">Ficelle de Tradition<small>pièce · tout est parti</small></div><div class="inp">10</div><div class="dash">-</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="tot">10</div>
+    <div class="act"><span class="chip full">10 / 10</span><button class="chk on">✓</button></div></div>
+  <div class="row"><div class="p">Ciabatta<small>pièce · rien n'est encore parti</small></div><div class="inp">20</div><div class="dash">-</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="n">⭐1</div><div class="tot">21</div>
+    <div class="act"><button class="part-btn">partiel…</button><button class="chk"> </button></div></div>
+  <div class="row"><div class="p">Tradition Graines<small>pièce · 2<sup>e</sup> envoi fait, ligne complète</small></div><div class="inp">40</div><div class="dash">-</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="n">0</div><div class="tot">40</div>
+    <div class="act"><span class="chip full">40 / 40 · en 2 fois</span><button class="chk on">✓</button></div></div>
+</div>
+<div class="legend"><span>⚪ rien parti : bouton « partiel… » + coche vide</span><span>🟠 partiel : chiffre dans la coche + « 150 / 200 · reste 50 »</span><span>🟢 complet : ✓ verte (+ « en 2 fois » si c'est venu en plusieurs envois)</span></div>
+<div class="sub" style="margin-top:8px">La coche ✓ garde son geste d'aujourd'hui : un tap = tout envoyé. Le bouton « partiel… » ouvre le pavé ci-dessous. Retaper la coche orange rouvre le pavé pour compléter.</div>
+
+<h2>2. Le pavé « partiel » (prérempli avec ce qui reste)</h2>
+<div class="pad">
+  <h3>Tradition — combien sont partis ?</h3>
+  <div class="q">Demandé 200 · déjà envoyé 0</div>
+  <div class="disp">150<small>reste 50 à envoyer</small></div>
+  <div class="keys"><button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button><button>7</button><button>8</button><button>9</button><button>⌫</button><button>0</button><button>C</button></div>
+  <button class="ok">Valider 150</button>
+  <button class="all">Tout est parti (200)</button>
+</div>
+<div class="sub">Au 2<sup>e</sup> envoi, le pavé s'ouvre sur « déjà envoyé 150 », prérempli avec 50. On valide, ça cumule à 200 et la ligne passe au vert. On peut aussi corriger en tapant moins.</div>
+
+<h2>3. Côté magasin — St-Avertin, onglet Reap. Pain</h2>
+<div class="sub">Même chiffre, même couleur. Le vendeur sait ce qui est arrivé et ce qui va suivre, sans appeler.</div>
+<div class="screen shop">
+  <div class="srow"><div class="p">Tradition<small>commandé ce matin</small></div><div class="qty">200</div><span class="chip part">150 / 200 envoyés · reste 50</span></div>
+  <div class="srow"><div class="p">Ficelle de Tradition</div><div class="qty">10</div><span class="chip full">✓ 10 / 10</span></div>
+  <div class="srow"><div class="p">Ciabatta</div><div class="qty">20</div><span class="chip none">pas encore parti</span></div>
+  <div class="srow"><div class="p">Tradition Graines</div><div class="qty">40</div><span class="chip full">✓ 40 / 40</span></div>
+</div>
+
+<h2>4. Côté livreur — Tournée</h2>
+<div class="sub">Le livreur voit ce qu'il charge vraiment, et sa validation se préremplit avec la quantité partie (150), plus 200.</div>
+<div class="screen shop">
+  <div class="srow"><div class="p">Tradition → St-Avertin<small>commandé 200</small></div><span class="chip part">150 / 200 · reste 50 à venir</span><div class="qty">150</div><button class="chk on" style="width:44px;height:44px;font-size:20px">✓</button></div>
+  <div class="srow"><div class="p">Ficelle de Tradition → St-Avertin<small>commandé 10</small></div><span class="chip full">✓ prêt</span><div class="qty">10</div><button class="chk" style="width:44px;height:44px"> </button></div>
+</div>
+
+<h2>Comment ça se passe dans la journée</h2>
+<div class="flow">
+  <div class="step"><b>6h — 1<sup>re</sup> tournée</b>Le Local tape « partiel… » sur Tradition, saisit 150. Ligne orange « 150 / 200 · reste 50 ». St-Av voit la même chose. Le livreur valide 150.</div>
+  <div class="step"><b>11h — 2<sup>e</sup> tournée</b>Le Local retape la coche orange, le pavé propose 50, valide. Ligne verte « 200 / 200 · en 2 fois ». St-Av voit ✓ 200 / 200. Le livreur valide 50.</div>
+  <div class="step"><b>Le soir</b>S'il reste 50 jamais partis, la ligne reste orange ce jour-là et c'est tout. Rien ne se reporte à demain : demain repart de la nouvelle commande.</div>
+</div>
+
+<h2>Ce que ça change dans l'app</h2>
+<ul>
+  <li><b>Écrans concernés</b> : Prod. St-Av, Prod. Boulangers et Prod. Touriers du Local, « À produire » de Veigné et de Tours. Même bouton, même pavé partout.</li>
+  <li><b>En base</b> : une colonne « quantité envoyée » sur la coche existante (table production_done) + un compteur d'envois. Une migration SQL à lancer avant.</li>
+  <li><b>Magasin</b> : la puce « 150 / 200 » sur les écrans Reap. de St-Av, Tours et Veigné pour les lignes livrées par le Local (ou par Veigné pour la pâtisserie).</li>
+  <li><b>Livreur</b> : la puce sur la tournée, et la quantité livrée préremplie avec ce qui est parti.</li>
+  <li><b>Pas de reste au lendemain</b>, pas d'historique des envois (juste « en 2 fois »). Si un jour tu veux qui a envoyé quoi à quelle heure, ce sera une étape de plus.</li>
+</ul>
+</div>
+</body>
+</html>
