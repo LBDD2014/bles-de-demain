@@ -1730,6 +1730,14 @@ font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: var(--bro
 margin-bottom: 4px;
 }
 .modal-sub { font-size: 12px; color: var(--brown-mid); margin-bottom: 16px; }
+/* v20.272 — Liens pros */
+.pl-row { display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid #F0E8D6; }
+.pl-main { flex:1; min-width:0; } .pl-nom { font-weight:700; font-size:15px; } .pl-nom small { font-weight:500; color:var(--grey-light); font-size:12px; margin-left:6px; }
+.pl-ct { font-size:12.5px; color:var(--brown-mid); margin-top:2px; } .pl-ct a { color:var(--blue); }
+.pl-st { display:inline-block; border-radius:8px; padding:1px 7px; font-size:11px; font-weight:700; margin-left:4px; white-space:nowrap; }
+.pl-st.ok { background:#E3EFE6; color:var(--green); } .pl-st.none { background:#EEE; color:var(--grey-light); } .pl-st.warn { background:#FBE8D6; color:var(--orange); }
+.pl-actions { display:flex; gap:6px; flex:0 0 auto; }
+.pl-wa { background:#25D366 !important; border-color:#25D366 !important; color:#fff !important; }
 .modal-grid {
 display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
 }
@@ -2644,7 +2652,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.271';
+const APP_VERSION  = 'v20.272';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10764,6 +10772,7 @@ function openProForm(pid) {
       prix_speciaux: (p.prix_speciaux && typeof p.prix_speciaux === 'object') ? Object.assign({}, p.prix_speciaux) : {},
       template_items: Array.isArray(p.template_items) ? p.template_items.map(function(t) { return { product_id: t.product_id, qty: t.qty }; }) : [],
       magic_token: p.magic_token || null,  // v21.3.0
+      magic_sent_at: p.magic_sent_at || null,   // v20.272 — date du dernier envoi du lien
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -11196,6 +11205,96 @@ function closeProAccessModal() {
   const el = document.getElementById('pro-access-modal');
   if (el) el.classList.remove('show');
   proAccessState = null;
+}
+// ===== v20.272 — « 📱 Liens pros » : tous les liens d'accès sur un écran, envoi en un tap =====
+// Phil (10/10) : « c'est très long de devoir aller sur chaque lien pour les envoyer ». Pas d'image QR ici
+// (elle reste dans la fiche) : le message + le lien, WhatsApp direct, et la date d'envoi mémorisée.
+let proLinksSearch = '', proLinksHideSent = false;
+function openProLinksModal() { proLinksSearch = ''; proLinksHideSent = false; renderProLinksModal(); }
+function closeProLinksModal() { const el = document.getElementById('pro-links-modal'); if (el) el.classList.remove('show'); }
+function _plDateFr(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); }
+function renderProLinksModal() {
+  let el = document.getElementById('pro-links-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'pro-links-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  const actifs = adminPros.filter(function(p) { return p.actif; }).slice().sort(function(a, b) { return (a.nom || '').localeCompare(b.nom || '', 'fr'); });
+  const nbSent = actifs.filter(function(p) { return !!p.magic_sent_at; }).length;
+  let h = '<div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">'
+    + '<div class="modal-title">📱 Liens pros</div>'
+    + '<div class="modal-sub">Un tap sur 💬 = la conversation WhatsApp s\'ouvre avec le message et le lien déjà écrits. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
+    + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
+    + '<input type="search" class="product-filter-input" style="flex:1;min-width:160px" placeholder="🔍 Chercher un client…" value="' + escapeHtml(proLinksSearch) + '" oninput="proLinksFilter(this.value)">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" ' + (proLinksHideSent ? 'checked' : '') + ' onchange="proLinksToggleHide(this)"> Masquer ceux qui l\'ont reçu</label>'
+    + '</div>';
+  actifs.forEach(function(p) {
+    const ct = proAccessContact(p);
+    const sent = p.magic_sent_at;
+    const statut = sent ? '<span class="pl-st ok">✓ envoyé le ' + _plDateFr(sent) + '</span>'
+      : (ct.tel ? '<span class="pl-st none">jamais envoyé</span>' : '<span class="pl-st warn">📞 pas de téléphone</span>');
+    const key = ((p.nom || '') + ' ' + (ct.nom || '') + ' ' + (ct.tel || '')).toLowerCase();
+    h += '<div class="pl-row" data-k="' + escapeHtml(key) + '" data-sent="' + (sent ? 1 : 0) + '">'
+      + '<div class="pl-main"><div class="pl-nom">' + escapeHtml(p.nom || '') + ' <small>' + escapeHtml(BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale || '') + '</small></div>'
+      + '<div class="pl-ct">' + (ct.nom ? escapeHtml(ct.nom) : '') + (ct.tel ? (ct.nom ? ' · ' : '') + escapeHtml(ct.tel) : '')
+      + (!ct.tel ? ' <a href="#" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\');return false">ajouter un téléphone</a>' : '')
+      + ' ' + statut + '</div></div>'
+      + '<div class="pl-actions">'
+      + (ct.tel ? '<button type="button" class="btn-gold-sm pl-wa" onclick="proLinksWhatsApp(\'' + escapeHtml(p.id) + '\')">💬 WhatsApp</button>' : '')
+      + '<button type="button" class="btn-gold-sm pl-copy" onclick="proLinksCopy(\'' + escapeHtml(p.id) + '\')">📋 Copier</button>'
+      + '</div></div>';
+  });
+  if (!actifs.length) h += '<div class="empty-state">Aucun pro actif.</div>';
+  h += '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeProLinksModal()">Fermer</button></div>';
+  el.innerHTML = h;
+  el.classList.add('show');
+  _plApplyFilter();
+}
+// filtre sans re-rendu (le clavier tablette se fermerait à chaque lettre)
+function proLinksFilter(q) { proLinksSearch = q || ''; _plApplyFilter(); }
+function proLinksToggleHide(cb) { proLinksHideSent = !!cb.checked; _plApplyFilter(); }
+function _plApplyFilter() {
+  const q = proLinksSearch.trim().toLowerCase();
+  document.querySelectorAll('#pro-links-modal .pl-row').forEach(function(r) {
+    const ok = (!q || r.getAttribute('data-k').indexOf(q) !== -1) && (!proLinksHideSent || r.getAttribute('data-sent') !== '1');
+    r.style.display = ok ? '' : 'none';
+  });
+}
+async function proLinksEnsureToken(pro) {
+  if (pro.magic_token) return true;
+  const tok = _generateMagicTokenString();
+  setSyncStatus('syncing');
+  const { error } = await supa.from('pros').update({ magic_token: tok }).eq('id', pro.id);
+  if (error) { setSyncStatus('error'); showToast('Erreur: ' + error.message, 'error'); return false; }
+  setSyncStatus('ok');
+  pro.magic_token = tok;
+  return true;
+}
+async function proLinksMarkSent(pro) {
+  const now = new Date().toISOString();
+  const { error } = await supa.from('pros').update({ magic_sent_at: now }).eq('id', pro.id);
+  if (error) {
+    if (/magic_sent_at/.test(error.message || '')) showToast('Date d\'envoi non mémorisée : migration v20.272 à lancer', 'warn');
+    else showToast(error.message, 'error');
+    return;
+  }
+  pro.magic_sent_at = now;
+  renderProLinksModal();
+}
+async function proLinksWhatsApp(proId) {
+  const pro = adminPros.find(function(p) { return p.id === proId; });
+  if (!pro) return;
+  if (!(await proLinksEnsureToken(pro))) return;
+  const url = proMagicUrl(pro.magic_token);
+  const msg = proAccessMessage(pro, url).replace('\n(ou scannez le QR code en photo)', '');   // pas d'image ici
+  let tel = String(proAccessContact(pro).tel || '').replace(/\D/g, '');
+  if (tel.length === 10 && tel.charAt(0) === '0') tel = '33' + tel.slice(1);   // 06… → 336…
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+  await proLinksMarkSent(pro);
+}
+async function proLinksCopy(proId) {
+  const pro = adminPros.find(function(p) { return p.id === proId; });
+  if (!pro) return;
+  if (!(await proLinksEnsureToken(pro))) return;
+  copyMagicLink(proMagicUrl(pro.magic_token));
+  await proLinksMarkSent(pro);
 }
 function _proAccessFileName() {
   const n = (proAccessState && proAccessState.pro.nom) || 'pro';
@@ -12640,6 +12739,7 @@ function renderAdminPros() {
   html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">'
     + '<button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button>'
     + '<button class="btn-gold" onclick="openGenerateRecurringModal()">🔄 Générer commandes récurrentes</button>'
+    + '<button class="btn-gold" onclick="openProLinksModal()">📱 Liens pros</button>'   // v20.272
     + '</div>';
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
