@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Les Blés — Mes commandes</title>
+<!-- v20.273 — Espace client pro, page dédiée (étape A, maquette espace-pro-mockup.html validée le 13/10/2026).
+     Même base, mêmes commandes que l'app interne : seule la page du client change.
+     Sécurité = la même qu'avant (clé publique filtrée par le lien) ; l'étape B la durcira côté serveur. -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#2E3044">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Les Blés">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--gold:#CEAB52;--gold-light:#E8D5A3;--gold-dark:#8B6914;--grey:#474950;--grey-dark:#2E3044;--grey-light:#5A5C66;--cream:#FAF6EE;--brown:#3D2B1F;--brown-mid:#6B4226;--green:#4A7C59;--red:#B83232;--orange:#D4701A;--blue:#2C5F8A;--white:#fff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--cream);color:var(--brown);font-family:-apple-system,"Segoe UI",Georgia,serif;font-size:15px;-webkit-text-size-adjust:100%}
+button{font-family:inherit}
+.hdr{background:var(--grey-dark);color:var(--cream);padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+.hdr .logo{width:42px;height:42px;border-radius:10px;background:#000;display:flex;align-items:center;justify-content:center;font-family:"Playfair Display",Georgia,serif;font-weight:700;color:#fff;font-size:10.5px;line-height:1;text-align:center;flex:0 0 auto}
+.hdr .logo .e{color:var(--gold)}
+.hdr .t{font-family:"Playfair Display",Georgia,serif;font-size:17px;font-weight:700;line-height:1.15}
+.hdr .s{font-size:12px;opacity:.8;margin-top:2px}
+.hdr .back{background:none;border:none;color:var(--cream);font-size:24px;padding:0 6px 0 0;line-height:1}
+.body{padding:14px 14px calc(88px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+.card{background:var(--white);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(46,48,68,.08);border:1px solid #ECE3D2}
+.hello{font-family:"Playfair Display",Georgia,serif;font-size:21px;color:var(--grey-dark);margin:2px 0 8px}
+.next{display:flex;align-items:center;gap:12px;background:#FBF6EA;border-left:4px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.next .d{text-align:center;line-height:1;flex:0 0 auto}
+.next .d b{display:block;font-size:26px;color:var(--gold-dark);font-family:"Playfair Display",Georgia,serif}
+.next .d small{display:block;font-size:10px;color:var(--grey-light);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.next .x{font-size:13.5px;line-height:1.35;min-width:0}.next .x b{color:var(--grey-dark)}
+.cta{display:block;width:100%;background:var(--gold);color:#fff;border:none;border-radius:14px;padding:16px;font-size:17px;font-weight:700;margin:4px 0 14px;box-shadow:0 3px 10px rgba(206,171,82,.4);cursor:pointer}
+.cta:disabled{background:#d9cfb6;box-shadow:none}
+.sec{font-family:"Playfair Display",Georgia,serif;font-size:16px;color:var(--grey-dark);margin:12px 0 8px;display:flex;align-items:center;gap:8px}
+.sec .n{font-size:12px;color:var(--grey-light);font-weight:normal;font-family:inherit}
+.ord{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0E8D6;cursor:pointer}
+.ord:last-child{border-bottom:none}
+.ord .dd{width:48px;text-align:center;background:var(--cream);border-radius:10px;padding:6px 0;line-height:1.1;flex:0 0 auto}
+.ord .dd b{display:block;font-size:19px;color:var(--grey-dark)}.ord .dd small{font-size:10.5px;text-transform:uppercase;color:var(--grey-light);letter-spacing:.4px}
+.ord .m{flex:1;font-size:13.5px;min-width:0}.ord .m b{display:block;color:var(--grey-dark);font-size:14.5px}
+.ord .m span{color:var(--grey-light);font-size:12.5px}
+.pill{border-radius:12px;padding:3px 9px;font-size:11.5px;font-weight:700;white-space:nowrap;flex:0 0 auto}
+.pill.ok{background:#E3EFE6;color:var(--green)}.pill.wait{background:#FBE8D6;color:var(--orange)}.pill.done{background:#EEE;color:var(--grey-light)}
+.etab{display:inline-block;background:var(--grey-dark);color:#fff;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle}
+.chev{color:#bbb;font-size:18px;flex:0 0 auto}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid #ECE3D2;display:flex;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{flex:1;text-align:center;font-size:10.5px;color:var(--grey-light);background:none;border:none;padding:2px 0}
+.tabs button i{display:block;font-style:normal;font-size:21px;margin-bottom:2px}
+.tabs button.on{color:var(--gold-dark);font-weight:700}
+.foot{text-align:center;font-size:12px;color:var(--grey-light);margin-top:10px;line-height:1.5}
+.foot b{color:var(--grey-dark)}.foot a{color:var(--gold-dark);text-decoration:none;font-weight:700}
+.empty{color:var(--grey-light);font-style:italic;font-size:13.5px;padding:6px 0}
+/* commande */
+.dates{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch}
+.dt{flex:0 0 auto;width:68px;text-align:center;border:1.5px solid #ddd;border-radius:12px;padding:7px 4px;background:#fff;line-height:1.1;cursor:pointer}
+.dt small{display:block;font-size:10px;text-transform:uppercase;color:var(--grey-light);letter-spacing:.4px}
+.dt b{display:block;font-size:19px;color:var(--grey-dark);margin:2px 0}
+.dt em{display:block;font-style:normal;font-size:9.5px;color:var(--green);font-weight:700;min-height:11px}
+.dt.on{border-color:var(--gold);background:#FBF6EA;box-shadow:0 0 0 2px rgba(206,171,82,.3)}
+.dt.late{opacity:.45;cursor:default}.dt.late em{color:var(--red)}
+.dt.has em{color:var(--blue)}
+.hint{font-size:12px;color:var(--grey-light);margin:4px 0 10px;line-height:1.45}
+.cols{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--grey-light);padding:4px 0 2px}
+.cols .c{display:flex;gap:8px}.cols .c span{width:132px;text-align:center}
+.prow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #F0E8D6}
+.prow:last-child{border-bottom:none}
+.prow .nm{flex:1;font-size:14.5px;color:var(--grey-dark);min-width:0}.prow .nm small{display:block;color:var(--grey-light);font-size:11.5px}
+.steps{display:flex;gap:8px;flex:0 0 auto}
+.step{display:flex;align-items:center;border:1.5px solid var(--gold);border-radius:12px;overflow:hidden;width:132px}
+.step button{width:40px;height:42px;border:none;background:#fff;font-size:22px;color:var(--gold-dark);font-weight:700;padding:0}
+.step input{width:52px;border:none;text-align:center;font-size:17px;font-weight:700;color:var(--grey-dark);background:#FBF6EA;height:42px;padding:0;font-family:inherit;-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.step.off{opacity:.3;pointer-events:none}
+.step.has input{background:#F2E7C9}
+.tot{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--grey-light);margin-top:8px;padding-top:8px;border-top:1px solid #F0E8D6}
+.tot b{color:var(--grey-dark);font-size:17px}
+.btn2{display:block;width:100%;background:var(--white);color:var(--grey-dark);border:1.5px solid var(--grey-dark);border-radius:12px;padding:12px;font-size:14px;font-weight:700;margin-top:8px;cursor:pointer}
+.btn2.danger{color:var(--red);border-color:#e3c4c4}
+.note{width:100%;border:1.5px solid #ddd;border-radius:10px;padding:9px;font:inherit;font-size:14px;margin-top:8px;resize:vertical}
+select.who{width:100%;padding:10px;border:1.5px solid var(--gold);border-radius:10px;font-size:15px;background:#fff;font-family:inherit;margin-top:6px}
+.lbl{font-size:11px;color:var(--grey-light);font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin:8px 0 4px}
+/* détail */
+.dtl{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:14.5px;padding:4px 0}
+.dtl .q{font-weight:700;color:var(--grey-dark)}
+.okbox{background:#E3EFE6;border-radius:12px;padding:14px;text-align:center;color:var(--green);font-weight:700;margin-bottom:12px;font-size:16px}
+.okbox small{display:block;font-weight:500;color:var(--grey-light);margin-top:4px;font-size:13px}
+.team{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F0E8D6;font-size:14px}
+.team:last-child{border-bottom:none}
+.team .av{width:36px;height:36px;border-radius:50%;background:var(--gold-light);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold-dark);flex:0 0 auto}
+.team .r{color:var(--grey-light);font-size:12px}.team .m{flex:1;min-width:0}
+.team .ed{background:#F5F0E5;border:1px solid #E0D8C8;border-radius:8px;padding:7px 10px;font-size:13px}
+.tin{width:100%;padding:10px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;margin-bottom:8px;font-family:inherit}
+.a2hs{background:var(--grey-dark);color:var(--cream);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.45;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
+.a2hs b{color:var(--gold)}.a2hs button{background:none;border:none;color:var(--gold-light);font-size:18px;padding:0 2px;line-height:1}
+.err{max-width:480px;margin:60px auto;text-align:center;padding:0 20px}
+.err .t{font-family:"Playfair Display",Georgia,serif;font-size:22px;color:var(--grey-dark);margin-bottom:14px}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--grey-dark);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;display:none;max-width:90%}
+.toast.show{display:block}.toast.err{background:var(--red)}
+</style>
+</head>
+<body>
+<div id="hdr" class="hdr"><div class="logo">Les<br>Bl<span class="e">é</span>s</div><div><div class="t">Les Blés de Demain</div><div class="s">Mes commandes</div></div></div>
+<div id="body" class="body"><div class="empty">Chargement…</div></div>
+<div id="tabs" class="tabs" style="display:none">
+  <button onclick="go('home')"><i>🏠</i>Accueil</button>
+  <button onclick="go('order')"><i>🧺</i>Commander</button>
+  <button onclick="go('history')"><i>📜</i>Historique</button>
+  <button onclick="go('team')"><i>👥</i>Mon équipe</button>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+const SUPABASE_URL = 'https://utavpdhphdztvrmzyeeo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_yZEruV2rXCf3J8Al_nkavQ_610QCELB';
+const TENANT_ID    = '00000000-0000-0000-0000-000000000001';
+const SHOP_TELS = { local: '07 50 05 22 96', tours: '07 57 77 05 87', veigne: '07 57 77 05 39', 'saint-avertin': '09 80 99 96 52' };
+const BOUTIQUE_NAMES = { local: 'Le Local', tours: 'Tours', veigne: 'Veigné', 'saint-avertin': 'Saint-Avertin' };
+const DOW_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const DOW_SHORT = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+const STATUT_LBL = { confirme: 'confirmée', livre: 'livrée', brouillon: 'brouillon', a_valider: 'à valider', annule: 'annulée' };
+let supa = null;
+
+/* ---------- helpers ---------- */
+function todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function addDays(iso, n) { const d = new Date(iso + 'T12:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function dowOf(iso) { return new Date(iso + 'T12:00').getDay(); }
+function formatDateFr(iso) { return new Date(iso + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); }
+function escapeHtml(s) { if (s == null) return ''; return String(s).replace(/[&<>"']/g, function(c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+function heureLbl(h) { if (!h) return ''; const p = h.split(':'); return String(+p[0]) + 'h' + (p[1] === '00' ? '' : p[1]); }
+let _toastT = null;
+function toast(msg, cls) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (cls ? ' ' + cls : ''); clearTimeout(_toastT); _toastT = setTimeout(function() { t.className = 'toast'; }, 2600); }
+
+/* ---------- état ---------- */
+let token = null;
+let etabs = [];          // les établissements du client (1, ou plusieurs si groupe) ; etabs[0] = la fiche du lien
+let products = [];       // tous les produits actifs
+let orders = [];         // pro_orders des établissements, −30 j → +30 j, non annulées, avec items
+let tab = 'home';
+let draft = null;        // { date, qty: { etabId: { productId: n } }, notes, who, editing: bool }
+let detailKey = null;    // 'etabId|date' commande ouverte en détail
+let doneInfo = null;     // { date } après validation
+let teamEdit = null;     // null | -1 (nouveau) | index
+
+/* ---------- règles métier (identiques à l'app interne) ---------- */
+function butoirMs(etab, iso) {
+  const cfg = (etab.jours_livraison || {})[DOW_NAMES[dowOf(iso)]];
+  if (!cfg || !cfg.actif) return null;
+  const dec = cfg.butoir_decalage != null ? cfg.butoir_decalage : -1;
+  const heure = cfg.butoir_heure || '23:59';
+  const d = new Date(iso + 'T12:00'); d.setDate(d.getDate() + dec);
+  const p = heure.split(':'); const hh = parseInt(p[0], 10), mm = parseInt(p[1], 10); d.setHours(isNaN(hh) ? 23 : hh, isNaN(mm) ? 59 : mm, 0, 0);
+  return d.getTime();
+}
+function etabOpen(etab, iso) { const b = butoirMs(etab, iso); return b != null && Date.now() < b; }
+function livraisonHeure(etab, iso) { const cfg = (etab.jours_livraison || {})[DOW_NAMES[dowOf(iso)]]; return cfg && cfg.livraison ? heureLbl(cfg.livraison) : ''; }
+function butoirTxt(etab, iso) {
+  const b = butoirMs(etab, iso); if (b == null) return '';
+  const d = new Date(b); const j = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const hh = heureLbl(String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
+  const t = todayISO();
+  if (j === t) return (d.getHours() >= 17 ? 'ce soir ' : 'aujourd\'hui ') + hh;
+  if (j === addDays(t, 1)) return 'demain ' + hh;
+  return DOW_NAMES[d.getDay()] + ' ' + d.getDate() + ' à ' + hh;
+}
+function catalogueOf(etab) {
+  return products.filter(function(p) {
+    if (!p.actif) return false;
+    if (p.pros_only_id && p.pros_only_id !== etab.id) return false;
+    if (Array.isArray(etab.catalogue_restreint) && etab.catalogue_restreint.length) return etab.catalogue_restreint.indexOf(p.id) !== -1;
+    return true;
+  });
+}
+function catalogueUnion() {
+  const seen = {}, out = [];
+  etabs.forEach(function(e) { catalogueOf(e).forEach(function(p) { if (!seen[p.id]) { seen[p.id] = true; out.push(p); } }); });
+  return out.sort(function(a, b) { return (a.name || '').localeCompare(b.name || '', 'fr'); });
+}
+function inCatalogue(etab, pid) { return catalogueOf(etab).some(function(p) { return p.id === pid; }); }
+function productName(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.name : pid; }
+function productCategory(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.category : null; }
+function sourceFor(etab, pid) { const cat = productCategory(pid); const spc = etab.sources_par_categorie || {}; return (cat && spc[cat]) ? spc[cat] : (etab.boutique_principale || 'local'); }
+function appliedPrice(etab, pid) { if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
+// « Tours » / « Chambray-les-Tours » à partir de « DAKOTA CAFE Tours » / « DAKOTA CAFE CHAMBRAY-LES-TOURS »
+function shortLabel(etab) {
+  if (etabs.length < 2) return etab.nom || '';
+  const words = etabs.map(function(e) { return (e.nom || '').split(/\s+/); });
+  let common = 0;
+  while (words.every(function(w) { return w[common] && w[common].toLowerCase() === words[0][common].toLowerCase(); }) && common < words[0].length - 1) common++;
+  const rest = (etab.nom || '').split(/\s+/).slice(common).join(' ') || etab.nom || '';
+  return rest.length > 3 && rest === rest.toUpperCase() ? rest.charAt(0) + rest.slice(1).toLowerCase() : rest;
+}
+function ordersOf(etabId, iso) { return orders.filter(function(o) { return o.pro_id === etabId && o.date_livraison === iso && o.statut !== 'annule'; }); }
+function itemsOf(list) { const m = {}; list.forEach(function(o) { (o.pro_order_items || []).forEach(function(it) { m[it.product_id] = (m[it.product_id] || 0) + Number(it.qty || 0); }); }); return m; }
+function statutOf(list) { if (list.some(function(o) { return o.statut === 'livre'; })) return 'livre'; if (list.some(function(o) { return o.statut === 'confirme'; })) return 'confirme'; return list[0] ? list[0].statut : 'confirme'; }
+// une « commande » côté client = un établissement × une date (les morceaux par site sont regroupés)
+function groupedOrders() {
+  const seen = {}, out = [];
+  orders.forEach(function(o) {
+    if (o.statut === 'annule') return;
+    const k = o.pro_id + '|' + o.date_livraison;
+    if (seen[k]) return; seen[k] = true;
+    const list = ordersOf(o.pro_id, o.date_livraison);
+    const etab = etabs.find(function(e) { return e.id === o.pro_id; }) || {};
+    out.push({ key: k, etab: etab, date: o.date_livraison, items: itemsOf(list), statut: statutOf(list), notes: list.map(function(x) { return x.notes; }).filter(Boolean)[0] || '', who: (list[0].created_by || '').indexOf('pro_self:') === 0 ? list[0].created_by.slice(9) : '' });
+  });
+  return out;
+}
+function summary(items) { const parts = []; Object.keys(items).forEach(function(pid) { if (items[pid] > 0) parts.push(items[pid] + ' ' + productName(pid).replace(/^Pain /i, '')); }); return parts.join(' · ') || 'commande spéciale'; }
+function totalPieces(items) { let t = 0; Object.keys(items).forEach(function(k) { t += Number(items[k] || 0); }); return t; }
+function teamContacts() {
+  const out = [], seen = {};
+  etabs.forEach(function(e) { (e.contacts || []).forEach(function(c) { if (c && c.nom && !seen[c.nom.toLowerCase()]) { seen[c.nom.toLowerCase()] = true; out.push(c); } }); });
+  return out;
+}
+function teamEligible() { return teamContacts().filter(function(c) { return c.peut_commander !== false; }); }
+function firstName() { const c = teamEligible()[0] || teamContacts()[0]; return c ? c.nom.split(' ')[0] : ''; }
+// « la dernière fois » : dernière commande passée de cet établissement (sinon sa commande de base)
+function lastItems(etab) {
+  const t = todayISO();
+  const past = orders.filter(function(o) { return o.pro_id === etab.id && o.date_livraison < t && o.statut !== 'annule' && (o.pro_order_items || []).length; }).sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
+  if (past.length) return itemsOf(ordersOf(etab.id, past[0].date_livraison));
+  const m = {}; (etab.template_items || []).forEach(function(ti) { if (ti.product_id && Number(ti.qty) > 0) m[ti.product_id] = Number(ti.qty); });
+  return m;
+}
+
+/* ---------- chargement ---------- */
+async function init() {
+  const params = new URLSearchParams(location.search);
+  token = params.get('t') || params.get('pro_token');
+  try { if (token) localStorage.setItem('lbdd_pro_t', token); else token = localStorage.getItem('lbdd_pro_t'); } catch (e) {}
+  if (!token) return showErr('Lien manquant', 'Ouvre la page depuis le lien que la boulangerie t\'a envoyé.');
+  if (location.search.indexOf('pro_token=') !== -1) history.replaceState(null, '', location.pathname + '?t=' + encodeURIComponent(token));
+  try { supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { return showErr('Connexion impossible', e.message); }
+  const q = await supa.from('pros').select('*').eq('tenant_id', TENANT_ID).eq('magic_token', token).maybeSingle();
+  if (q.error || !q.data) return showErr('Lien invalide ou expiré', 'Contacte ta boulangerie pour obtenir un nouveau lien.');
+  if (!q.data.actif) return showErr('Compte temporairement inactif', 'Contacte ta boulangerie pour réactiver l\'accès.');
+  etabs = [q.data];
+  if (q.data.groupe) {
+    const g = await supa.from('pros').select('*').eq('tenant_id', TENANT_ID).eq('groupe', q.data.groupe).eq('actif', true);
+    (g.data || []).forEach(function(p) { if (p.id !== q.data.id) etabs.push(p); });
+  }
+  await Promise.all([loadProducts(), loadOrders()]);
+  installManifest();
+  document.getElementById('tabs').style.display = 'flex';
+  render();
+}
+async function loadProducts() { const r = await supa.from('products').select('*').eq('tenant_id', TENANT_ID).eq('actif', true); products = r.data || []; }
+async function loadOrders() {
+  const t = todayISO();
+  const r = await supa.from('pro_orders').select('*, pro_order_items(*)').eq('tenant_id', TENANT_ID)
+    .in('pro_id', etabs.map(function(e) { return e.id; })).gte('date_livraison', addDays(t, -30)).lte('date_livraison', addDays(t, 30)).neq('statut', 'annule');
+  orders = r.data || [];
+}
+function showErr(t, s) { document.getElementById('body').innerHTML = '<div class="err"><div class="t">🥖 Les Blés de Demain</div><div class="card"><div style="color:var(--red);font-weight:700;margin-bottom:6px">' + escapeHtml(t) + '</div><div style="color:var(--grey-light);font-size:13.5px">' + escapeHtml(s) + '</div></div></div>'; }
+// l'icône sur l'écran d'accueil garde le lien personnel (start_url avec le token)
+function installManifest() {
+  try {
+    const m = { name: 'Les Blés de Demain — Mes commandes', short_name: 'Les Blés', start_url: location.pathname + '?t=' + encodeURIComponent(token), scope: location.pathname, display: 'standalone', background_color: '#2E3044', theme_color: '#2E3044',
+      icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }] };
+    const l = document.createElement('link'); l.rel = 'manifest'; l.href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: 'application/manifest+json' })); document.head.appendChild(l);
+  } catch (e) {}
+}
+
+/* ---------- navigation ---------- */
+function go(t) { tab = t; detailKey = null; doneInfo = null; teamEdit = null; if (t === 'order') openOrder(null); else render(); window.scrollTo(0, 0); }
+function setHdr(t, s, back) { document.getElementById('hdr').innerHTML = (back ? '<button class="back" onclick="go(\'home\')">‹</button>' : '<div class="logo">Les<br>Bl<span class="e">é</span>s</div>') + '<div><div class="t">' + escapeHtml(t) + '</div><div class="s">' + escapeHtml(s) + '</div></div>'; }
+function render() {
+  document.querySelectorAll('#tabs button').forEach(function(b, i) { b.className = (['home', 'order', 'history', 'team'][i] === tab) ? 'on' : ''; });
+  const b = document.getElementById('body');
+  if (doneInfo) return renderDone(b);
+  if (detailKey) return renderDetail(b);
+  if (tab === 'order') return renderOrder(b);
+  if (tab === 'history') return renderHistory(b);
+  if (tab === 'team') return renderTeam(b);
+  renderHome(b);
+}
+function clientLabel() { return etabs.length > 1 ? etabs.map(shortLabel).join(' + ') : (etabs[0].nom || ''); }
+function orderRow(g, showEtab) {
+  const d = new Date(g.date + 'T12:00');
+  return '<div class="ord" onclick="openDetail(\'' + escapeHtml(g.key) + '\')"><div class="dd"><b>' + d.getDate() + '</b><small>' + DOW_SHORT[d.getDay()] + '</small></div>'
+    + '<div class="m"><b>' + escapeHtml(summary(g.items)) + (showEtab ? '<span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : '') + '</b><span>' + escapeHtml(formatDateFr(g.date)) + (livraisonHeure(g.etab, g.date) ? ' · ' + livraisonHeure(g.etab, g.date) : '') + '</span></div>'
+    + '<span class="pill ' + (g.statut === 'livre' ? 'done' : (g.statut === 'confirme' ? 'ok' : 'wait')) + '">' + (STATUT_LBL[g.statut] || g.statut) + '</span><span class="chev">›</span></div>';
+}
+function a2hsHtml() {
+  let hide = false; try { hide = localStorage.getItem('lbdd_pro_a2hs') === '1'; } catch (e) {}
+  const standalone = window.navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (hide || standalone) return '';
+  return '<div class="a2hs"><div>📲 <b>Garde cette page sous la main :</b> ajoute-la à ton écran d\'accueil (bouton Partager → « Sur l\'écran d\'accueil »). Ton lien reste dans l\'icône, rien à retaper.</div><button onclick="try{localStorage.setItem(\'lbdd_pro_a2hs\',\'1\')}catch(e){};render()" title="Fermer">×</button></div>';
+}
+function renderHome(b) {
+  setHdr('Les Blés de Demain', 'Mes commandes · ' + clientLabel(), false);
+  const t = todayISO(), multi = etabs.length > 1;
+  const all = groupedOrders();
+  const upcoming = all.filter(function(g) { return g.date >= t; }).sort(function(a, b) { return a.date.localeCompare(b.date) || shortLabel(a.etab).localeCompare(shortLabel(b.etab)); });
+  const past = all.filter(function(g) { return g.date < t; }).sort(function(a, b) { return b.date.localeCompare(a.date); }).slice(0, 5);
+  let h = a2hsHtml() + '<div class="hello">Bonjour' + (firstName() ? ' ' + escapeHtml(firstName()) : '') + ' 👋</div>';
+  if (upcoming.length) {
+    const n = upcoming[0], sameDay = upcoming.filter(function(g) { return g.date === n.date; });
+    const d = new Date(n.date + 'T12:00');
+    const can = sameDay.some(function(g) { return etabOpen(g.etab, g.date); });
+    h += '<div class="next"><div class="d"><b>' + DOW_SHORT[d.getDay()].toUpperCase() + '</b><small>prochaine livraison</small></div><div class="x"><b>' + escapeHtml(formatDateFr(n.date)) + (livraisonHeure(n.etab, n.date) ? ' · ' + livraisonHeure(n.etab, n.date) : '') + '</b><br>'
+      + sameDay.map(function(g) { return escapeHtml(summary(g.items)) + (multi ? ' <span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : ''); }).join('<br>')
+      + '<br><span style="color:var(--green);font-weight:700">✓ ' + (STATUT_LBL[n.statut] || n.statut) + '</span>' + (can ? ' · modifiable jusqu\'à ' + escapeHtml(butoirTxt(n.etab, n.date)) : '') + '</div></div>';
+  }
+  const canOrder = nextOpenDate() != null;
+  h += '<button class="cta" onclick="go(\'order\')"' + (canOrder ? '' : ' disabled') + '>+ Nouvelle commande</button>';
+  if (!canOrder) h += '<div class="hint" style="margin-top:-8px">Aucun jour ouvert à la commande pour le moment. Pour un dépannage, appelle la boulangerie.</div>';
+  h += '<div class="sec">📋 À venir <span class="n">(' + upcoming.length + ')</span></div><div class="card" style="padding:4px 14px">' + (upcoming.length ? upcoming.map(function(g) { return orderRow(g, multi); }).join('') : '<div class="empty">Aucune commande à venir.</div>') + '</div>';
+  h += '<div class="sec">📜 Livrées récemment</div><div class="card" style="padding:4px 14px">' + (past.length ? past.map(function(g) { return orderRow(g, multi); }).join('') : '<div class="empty">Rien sur les 30 derniers jours.</div>') + '</div>';
+  h += footerHtml();
+  b.innerHTML = h;
+}
+function footerHtml() {
+  const src = etabs[0].boutique_principale || 'local';
+  const tel = SHOP_TELS[src] || SHOP_TELS.local;
+  return '<div class="foot">Une question, un oubli ? <b>' + escapeHtml(BOUTIQUE_NAMES[src] || src) + ' · <a href="tel:' + tel.replace(/\s/g, '') + '">' + tel + '</a></b><br>' + escapeHtml(butoirRuleTxt()) + '</div>';
+}
+function butoirRuleTxt() {
+  const e = etabs[0]; const j = e.jours_livraison || {}; const actifs = Object.keys(j).filter(function(k) { return j[k] && j[k].actif; });
+  if (!actifs.length) return '';
+  const c = j[actifs[0]]; const dec = c.butoir_decalage != null ? c.butoir_decalage : -1; const hh = heureLbl(c.butoir_heure || '23:59');
+  return 'Les commandes se ferment ' + (dec === 0 ? 'le jour même' : dec === -1 ? 'la veille' : (-dec) + ' jours avant') + ' à ' + hh + '.';
+}
+
+/* ---------- commande ---------- */
+function dateStates() {
+  const t = todayISO(), out = [];
+  for (let i = 0; i <= 14; i++) {
+    const iso = addDays(t, i);
+    const configured = etabs.some(function(e) { return butoirMs(e, iso) != null; });
+    const has = etabs.some(function(e) { return ordersOf(e.id, iso).length > 0; });
+    if (!configured && !has) continue;
+    const open = etabs.some(function(e) { return etabOpen(e, iso); });
+    out.push({ iso: iso, state: open ? (has ? 'has' : 'open') : 'late', has: has });
+  }
+  return out;
+}
+function nextOpenDate() { const d = dateStates().find(function(x) { return x.state === 'open'; }); return d ? d.iso : (dateStates().find(function(x) { return x.state === 'has'; }) || {}).iso || null; }
+function openOrder(iso) {
+  const ds = dateStates();
+  const date = iso || nextOpenDate();
+  if (!date) { tab = 'order'; render(); return; }
+  const st = ds.find(function(x) { return x.iso === date; });
+  const qty = {};
+  etabs.forEach(function(e) {
+    const existing = ordersOf(e.id, date);
+    qty[e.id] = existing.length ? itemsOf(existing) : {};
+  });
+  const existingAny = etabs.some(function(e) { return ordersOf(e.id, date).length; });
+  // nouvelle date : pré-rempli avec « la dernière fois » ; date déjà commandée : seulement ce qui existe
+  if (!existingAny) etabs.forEach(function(e) { if (etabOpen(e, date)) qty[e.id] = lastItems(e); });
+  const notes = existingAny ? (orders.filter(function(o) { return o.date_livraison === date && o.notes; })[0] || {}).notes || '' : '';
+  const whoOld = existingAny ? ((orders.filter(function(o) { return o.date_livraison === date; })[0] || {}).created_by || '') : '';
+  // qui commande : la personne de la commande existante, sinon celle de la dernière commande, sinon la seule éligible
+  const elig = teamEligible();
+  let who = whoOld.indexOf('pro_self:') === 0 ? whoOld.slice(9) : '';
+  if (!who) { const last = orders.filter(function(o) { return (o.created_by || '').indexOf('pro_self:') === 0; }).sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); })[0]; if (last) who = last.created_by.slice(9); }
+  if (!who || !elig.some(function(c) { return c.nom === who; })) who = elig.length === 1 ? elig[0].nom : '';
+  draft = { date: date, qty: qty, notes: notes, who: who, editing: existingAny };
+  tab = 'order'; detailKey = null; doneInfo = null; render();
+}
+function pickDate(iso) { const st = dateStates().find(function(x) { return x.iso === iso; }); if (!st || st.state === 'late') return; openOrder(iso); }
+function setQty(etabId, pid, v) { if (!draft) return; const n = Math.max(0, Math.round(Number(v) || 0)); draft.qty[etabId][pid] = n; refreshTotals(); }
+function bump(etabId, pid, delta) { if (!draft) return; const n = Math.max(0, (Number(draft.qty[etabId][pid]) || 0) + delta); draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) { inp.value = n; inp.parentNode.className = 'step' + (n > 0 ? ' has' : ''); } refreshTotals(); }
+function refreshTotals() {
+  let n = 0, prods = 0;
+  etabs.forEach(function(e) { Object.keys(draft.qty[e.id]).forEach(function(pid) { const q = Number(draft.qty[e.id][pid]) || 0; n += q; if (q > 0) prods++; }); });
+  const el = document.getElementById('tot'); if (el) el.innerHTML = '<span>' + prods + ' ligne' + (prods > 1 ? 's' : '') + '</span><b>' + n + ' pièce' + (n > 1 ? 's' : '') + '</b>';
+}
+function renderOrder(b) {
+  const ds = dateStates();
+  setHdr(draft && draft.editing ? 'Modifier ma commande' : 'Nouvelle commande', clientLabel(), true);
+  if (!draft) { b.innerHTML = '<div class="card"><div class="empty">Aucun jour ouvert à la commande pour le moment.</div></div>' + footerHtml(); return; }
+  const multi = etabs.length > 1;
+  let h = '<div class="sec">1 · Pour quel jour ?</div><div class="dates">';
+  ds.forEach(function(x) {
+    const d = new Date(x.iso + 'T12:00');
+    const em = x.state === 'late' ? (x.has ? 'clôturée' : 'trop tard') : (x.has ? 'déjà commandé' : (x.iso === draft.date ? 'jusqu\'à ' + butoirTxt(etabs.find(function(e) { return etabOpen(e, x.iso); }) || etabs[0], x.iso).replace(/^(ce soir|aujourd'hui|demain) /, '$1 ') : 'ouvert'));
+    h += '<div class="dt ' + x.state + (x.iso === draft.date ? ' on' : '') + '" onclick="pickDate(\'' + x.iso + '\')"><small>' + DOW_SHORT[d.getDay()] + '</small><b>' + d.getDate() + '</b><em>' + escapeHtml(em) + '</em></div>';
+  });
+  h += '</div>';
+  const e0 = etabs.find(function(e) { return etabOpen(e, draft.date); }) || etabs[0];
+  h += '<div class="hint">Livraison <b>' + escapeHtml(formatDateFr(draft.date)) + '</b>' + (livraisonHeure(e0, draft.date) ? ' vers ' + livraisonHeure(e0, draft.date) : '') + ' par ' + escapeHtml(BOUTIQUE_NAMES[e0.boutique_principale] || 'la boulangerie') + '. Tu peux modifier jusqu\'à <b>' + escapeHtml(butoirTxt(e0, draft.date)) + '</b>.</div>';
+  const elig = teamEligible();
+  if (elig.length > 1) {
+    h += '<span class="lbl">Qui passe la commande ?</span><select class="who" onchange="draft.who=this.value"><option value="">— Choisir —</option>' + elig.map(function(c) { return '<option value="' + escapeHtml(c.nom) + '"' + (draft.who === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>'; }).join('') + '</select>';
+  }
+  h += '<div class="sec">2 · Quoi ? <span class="n">' + (draft.editing ? 'ta commande actuelle' : 'pré-rempli avec la dernière fois') + '</span></div><div class="card" style="padding:4px 14px 10px">';
+  if (multi) h += '<div class="cols"><span></span><div class="c">' + etabs.map(function(e) { return '<span>' + escapeHtml(shortLabel(e)) + '</span>'; }).join('') + '</div></div>';
+  catalogueUnion().forEach(function(p) {
+    const last = etabs.map(function(e) { const li = lastItems(e); return li[p.id] ? (multi ? shortLabel(e) + ' ' : '') + li[p.id] : null; }).filter(Boolean).join(' · ');
+    h += '<div class="prow"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(p.unit || 'pièce') + (last ? ' · la dernière fois : ' + escapeHtml(last) : '') + '</small></div><div class="steps">';
+    etabs.forEach(function(e) {
+      const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date);
+      const q = Number(draft.qty[e.id][p.id]) || 0;
+      h += '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + q + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
+    });
+    h += '</div></div>';
+  });
+  h += '<div class="tot" id="tot"></div></div>';
+  h += '<textarea class="note" rows="2" placeholder="Un mot pour la boulangerie ? (facultatif)" oninput="draft.notes=this.value">' + escapeHtml(draft.notes || '') + '</textarea>';
+  h += '<button class="cta" style="margin-top:12px" onclick="saveOrder()">✓ Valider pour ' + escapeHtml(DOW_NAMES[dowOf(draft.date)] + ' ' + new Date(draft.date + 'T12:00').getDate()) + '</button>';
+  if (draft.editing) h += '<button class="btn2 danger" onclick="cancelOrder(\'' + draft.date + '\')">Annuler cette commande</button>';
+  h += '<div class="foot">Un + ou un − par tap, ou tape le nombre. Les demandes hors catalogue se font dans le mot pour la boulangerie.</div>';
+  b.innerHTML = h;
+  refreshTotals();
+}
+async function saveOrder() {
+  const d = draft; if (!d) return;
+  const items = {}; let any = false;
+  etabs.forEach(function(e) { items[e.id] = Object.keys(d.qty[e.id]).filter(function(pid) { return Number(d.qty[e.id][pid]) > 0 && inCatalogue(e, pid); }).map(function(pid) { return { product_id: pid, qty: Number(d.qty[e.id][pid]) }; }); if (items[e.id].length) any = true; });
+  if (!any && !(d.notes || '').trim()) { toast('Ajoute au moins un produit', 'err'); return; }
+  if (teamEligible().length > 1 && !(d.who || '').trim()) { toast('Choisis qui passe la commande', 'err'); return; }
+  const tooLate = etabs.filter(function(e) { return (items[e.id].length || ordersOf(e.id, d.date).length) && !etabOpen(e, d.date); });
+  if (tooLate.length) { const src = tooLate[0].boutique_principale || 'local'; toast('Trop tard pour ' + formatDateFr(d.date) + ' : appelle ' + (BOUTIQUE_NAMES[src] || 'la boulangerie') + ' au ' + (SHOP_TELS[src] || SHOP_TELS.local), 'err'); return; }
+  const created_by = 'pro_self' + ((d.who || '').trim() ? ':' + d.who.trim() : '');
+  for (let i = 0; i < etabs.length; i++) {
+    const e = etabs[i];
+    const had = ordersOf(e.id, d.date);
+    if (!items[e.id].length && !had.length && !(etabs.length === 1 && (d.notes || '').trim())) continue;   // rien pour cet établissement
+    const r = await saveSplit(e, d.date, items[e.id], (d.notes || '').trim() || null, created_by, had.length > 0);
+    if (r.error) { toast('Erreur : ' + r.error, 'err'); return; }
+  }
+  await loadOrders();
+  doneInfo = { date: d.date, editing: d.editing }; draft = null; tab = 'home';
+  render(); window.scrollTo(0, 0);
+}
+// même découpage par site que l'app interne (sources par catégorie), un morceau par site
+async function saveSplit(etab, date, items, notes, created_by, editing) {
+  const groups = {};
+  items.forEach(function(it) { const src = sourceFor(etab, it.product_id); (groups[src] = groups[src] || []).push(it); });
+  if (!Object.keys(groups).length) groups[etab.boutique_principale || 'local'] = [];
+  let siblings = [];
+  if (editing) { const s = await supa.from('pro_orders').select('id,boutique_source,statut').eq('tenant_id', TENANT_ID).eq('pro_id', etab.id).eq('date_livraison', date).neq('statut', 'annule'); siblings = s.data || []; }
+  const used = [];
+  const sources = Object.keys(groups);
+  for (let i = 0; i < sources.length; i++) {
+    const src = sources[i];
+    const row = { tenant_id: TENANT_ID, pro_id: etab.id, date_livraison: date, boutique_source: src, statut: 'confirme', notes: notes, created_by: created_by };
+    const target = siblings.find(function(s) { return s.boutique_source === src && used.indexOf(s.id) === -1; });
+    let orderId;
+    if (target) {
+      const res = await supa.from('pro_orders').update(row).eq('id', target.id).select();
+      if (res.error) return { error: res.error.message };
+      orderId = target.id; used.push(orderId);
+      const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
+      if (del.error) return { error: del.error.message };
+    } else {
+      if (!groups[src].length) continue;
+      const res = await supa.from('pro_orders').insert(row).select();
+      if (res.error) return { error: res.error.message };
+      if (!res.data || !res.data.length) return { error: 'création refusée' };
+      orderId = res.data[0].id;
+    }
+    if (groups[src].length) {
+      const ins = await supa.from('pro_order_items').insert(groups[src].map(function(it) { return { pro_order_id: orderId, product_id: it.product_id, qty: it.qty, prix_applique: appliedPrice(etab, it.product_id) }; }));
+      if (ins.error) return { error: ins.error.message };
+    }
+  }
+  for (let j = 0; j < siblings.length; j++) {
+    if (used.indexOf(siblings[j].id) !== -1) continue;
+    await supa.from('pro_order_items').delete().eq('pro_order_id', siblings[j].id);
+    await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', siblings[j].id);
+  }
+  return { ok: true };
+}
+async function cancelOrder(date, etabId) {
+  const list = etabs.filter(function(e) { return !etabId || e.id === etabId; });
+  const open = list.filter(function(e) { return ordersOf(e.id, date).length && etabOpen(e, date); });
+  if (!open.length) { toast('Modification clôturée (heure limite dépassée)', 'err'); return; }
+  if (!confirm('Annuler la commande du ' + formatDateFr(date) + (etabId ? ' pour ' + shortLabel(etabs.find(function(e) { return e.id === etabId; })) : '') + ' ?')) return;
+  const ids = []; open.forEach(function(e) { ordersOf(e.id, date).forEach(function(o) { ids.push(o.id); }); });
+  const r = await supa.from('pro_orders').update({ statut: 'annule' }).in('id', ids);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'err'); return; }
+  await loadOrders(); draft = null; detailKey = null; doneInfo = null; tab = 'home'; render(); toast('Commande annulée');
+}
+function renderDone(b) {
+  setHdr('Commande du ' + DOW_NAMES[dowOf(doneInfo.date)] + ' ' + new Date(doneInfo.date + 'T12:00').getDate(), clientLabel(), true);
+  const multi = etabs.length > 1;
+  const gs = groupedOrders().filter(function(g) { return g.date === doneInfo.date; });
+  const e0 = gs[0] ? gs[0].etab : etabs[0];
+  let h = '<div class="okbox">✓ C\'est noté' + (firstName() ? ', merci ' + escapeHtml(firstName()) : '') + ' !<small>Livraison ' + escapeHtml(formatDateFr(doneInfo.date)) + (livraisonHeure(e0, doneInfo.date) ? ' vers ' + livraisonHeure(e0, doneInfo.date) : '') + ' par ' + escapeHtml(BOUTIQUE_NAMES[e0.boutique_principale] || 'la boulangerie') + '</small></div>';
+  gs.forEach(function(g) { h += '<div class="card">' + (multi ? '<div class="sec" style="margin:0 0 6px">' + escapeHtml(shortLabel(g.etab)) + '</div>' : '') + '<div class="dtl">' + Object.keys(g.items).filter(function(k) { return g.items[k] > 0; }).map(function(k) { return '<span>' + escapeHtml(productName(k)) + '</span><span class="q">' + g.items[k] + '</span>'; }).join('') + '</div><div class="tot"><span>Total</span><b>' + totalPieces(g.items) + ' pièces</b></div></div>'; });
+  if (!gs.length) h += '<div class="card"><div class="empty">Commande sans produit (mot pour la boulangerie).</div></div>';
+  if (gs.some(function(g) { return etabOpen(g.etab, g.date); })) h += '<button class="btn2" onclick="openOrder(\'' + doneInfo.date + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(e0, doneInfo.date)) + ')</button>';
+  h += '<button class="btn2" onclick="go(\'home\')">Retour à l\'accueil</button>';
+  b.innerHTML = h;
+}
+function openDetail(key) { detailKey = key; doneInfo = null; render(); window.scrollTo(0, 0); }
+function renderDetail(b) {
+  const g = groupedOrders().find(function(x) { return x.key === detailKey; });
+  if (!g) { detailKey = null; return render(); }
+  setHdr('Commande du ' + DOW_NAMES[dowOf(g.date)] + ' ' + new Date(g.date + 'T12:00').getDate(), (etabs.length > 1 ? shortLabel(g.etab) + ' · ' : '') + (STATUT_LBL[g.statut] || g.statut), true);
+  const can = etabOpen(g.etab, g.date) && g.statut !== 'livre';
+  let h = '<div class="card"><div class="dtl">' + Object.keys(g.items).filter(function(k) { return g.items[k] > 0; }).map(function(k) { return '<span>' + escapeHtml(productName(k)) + '</span><span class="q">' + g.items[k] + '</span>'; }).join('') + '</div>'
+    + '<div class="tot"><span>Total' + (g.who ? ' · commandé par ' + escapeHtml(g.who) : '') + '</span><b>' + totalPieces(g.items) + ' pièces</b></div>' + (g.notes ? '<div class="hint" style="margin:8px 0 0">📝 ' + escapeHtml(g.notes) + '</div>' : '') + '</div>';
+  if (can) h += '<button class="btn2" onclick="openOrder(\'' + g.date + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(g.etab, g.date)) + ')</button><button class="btn2 danger" onclick="cancelOrder(\'' + g.date + '\',\'' + g.etab.id + '\')">Annuler cette commande</button>';
+  else if (g.statut !== 'livre') h += '<div class="hint">Modification clôturée (heure limite dépassée). Pour un dépannage, appelle la boulangerie.</div>';
+  h += footerHtml();
+  b.innerHTML = h;
+}
+function renderHistory(b) {
+  setHdr('Historique', '30 derniers jours · ' + clientLabel(), false);
+  const t = todayISO(), multi = etabs.length > 1;
+  const past = groupedOrders().filter(function(g) { return g.date < t; }).sort(function(a, b) { return b.date.localeCompare(a.date); });
+  let tot = 0; past.forEach(function(g) { tot += totalPieces(g.items); });
+  b.innerHTML = '<div class="card" style="padding:4px 14px">' + (past.length ? past.map(function(g) { return orderRow(g, multi); }).join('') : '<div class="empty">Rien sur les 30 derniers jours.</div>') + '</div>'
+    + (past.length ? '<div class="hint" style="text-align:center">' + past.length + ' livraison' + (past.length > 1 ? 's' : '') + ' · ' + tot + ' pièces sur 30 jours</div>' : '') + footerHtml();
+}
+/* ---------- équipe ---------- */
+function renderTeam(b) {
+  setHdr('Mon équipe', 'qui peut commander · ' + clientLabel(), false);
+  const cs = teamContacts();
+  let h = '<div class="hint">Les personnes de ton équipe qui passent commande. Le prénom choisi est noté sur chaque commande, la boulangerie sait qui a commandé.</div><div class="card" style="padding:4px 14px">';
+  cs.forEach(function(c, i) {
+    h += '<div class="team"><div class="av">' + escapeHtml((c.nom || '?').charAt(0).toUpperCase()) + '</div><div class="m"><b>' + escapeHtml(c.nom) + '</b><div class="r">' + escapeHtml([c.role, c.tel].filter(Boolean).join(' · ')) + (c.peut_commander === false ? ' · consultation seulement' : '') + '</div></div><button class="ed" onclick="teamEdit=' + i + ';render()">✏️</button></div>';
+  });
+  h += '<div class="team" onclick="teamEdit=-1;render()" style="cursor:pointer"><div class="av">+</div><div class="m" style="color:var(--blue);font-weight:700">Ajouter quelqu\'un</div></div></div>';
+  if (teamEdit !== null) {
+    const isNew = teamEdit === -1, c = isNew ? { nom: '', tel: '', role: '', peut_commander: true } : (cs[teamEdit] || {});
+    h += '<div class="card"><div class="sec" style="margin:0 0 8px">' + (isNew ? '＋ Nouvelle personne' : '✏️ Modifier') + '</div>'
+      + '<input id="tm-nom" class="tin" placeholder="Prénom (obligatoire)" value="' + escapeHtml(c.nom || '') + '">'
+      + '<input id="tm-tel" class="tin" placeholder="Téléphone (facultatif)" inputmode="tel" value="' + escapeHtml(c.tel || '') + '">'
+      + '<input id="tm-role" class="tin" placeholder="Rôle (chef, salle…)" value="' + escapeHtml(c.role || '') + '">'
+      + '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px"><input id="tm-can" type="checkbox"' + (c.peut_commander !== false ? ' checked' : '') + '> Peut passer commande</label>'
+      + '<div style="display:flex;gap:8px"><button class="btn2" style="flex:1;margin:0" onclick="teamEdit=null;render()">Annuler</button>' + (!isNew ? '<button class="btn2 danger" style="flex:0 0 auto;margin:0" onclick="teamDelete(' + teamEdit + ')">🗑</button>' : '') + '<button class="cta" style="flex:2;margin:0;padding:12px;font-size:15px" onclick="teamSave(' + teamEdit + ')">✓ Enregistrer</button></div></div>';
+  }
+  b.innerHTML = h + footerHtml();
+}
+async function teamPersist(contacts) {
+  // l'équipe est gardée sur la fiche du lien ; les autres établissements du groupe héritent (lecture)
+  const r = await supa.from('pros').update({ contacts: contacts }).eq('tenant_id', TENANT_ID).eq('id', etabs[0].id);
+  if (r.error) { toast('Erreur : ' + r.error.message, 'err'); return false; }
+  etabs[0].contacts = contacts; etabs.slice(1).forEach(function(e) { e.contacts = (e.contacts || []).filter(function(c) { return !contacts.some(function(x) { return x.nom.toLowerCase() === (c.nom || '').toLowerCase(); }); }); });
+  return true;
+}
+async function teamSave(idx) {
+  const nom = (document.getElementById('tm-nom').value || '').trim(); if (!nom) { toast('Le prénom est obligatoire', 'err'); return; }
+  const entry = { nom: nom, tel: (document.getElementById('tm-tel').value || '').trim(), role: (document.getElementById('tm-role').value || '').trim(), peut_commander: !!document.getElementById('tm-can').checked };
+  const contacts = teamContacts().slice();
+  if (idx === -1) contacts.push(entry); else contacts[idx] = Object.assign({}, contacts[idx], entry);
+  if (!(await teamPersist(contacts))) return;
+  teamEdit = null; render(); toast('Enregistré');
+}
+async function teamDelete(idx) {
+  const contacts = teamContacts().slice(); const c = contacts[idx];
+  if (!confirm('Retirer « ' + ((c && c.nom) || '?') + ' » de l\'équipe ?')) return;
+  contacts.splice(idx, 1);
+  if (!(await teamPersist(contacts))) return;
+  teamEdit = null; render();
+}
+init();
+</script>
+</body>
+</html>

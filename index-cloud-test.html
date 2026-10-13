@@ -2652,7 +2652,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.272';
+const APP_VERSION  = 'v20.273';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3450,7 +3450,8 @@ try {
   // v21.3.0 — Détection magic link interface pro (URL ?pro_token=...)
   const _proToken = new URLSearchParams(window.location.search).get('pro_token');
   if (_proToken) {
-    initProInterface(_proToken);
+    // v20.273 — l'espace client a sa page dédiée (pro.html) ; les anciens liens y vont tout seuls
+    window.location.replace(window.location.pathname.replace(/[^/]*$/, 'pro.html') + '?t=' + encodeURIComponent(_proToken));
   } else {
     loadProducts();
     loadPlanningOrder(); // v20.215 — ordre des pains = Planning semaine (Fabrication)
@@ -10773,6 +10774,7 @@ function openProForm(pid) {
       template_items: Array.isArray(p.template_items) ? p.template_items.map(function(t) { return { product_id: t.product_id, qty: t.qty }; }) : [],
       magic_token: p.magic_token || null,  // v21.3.0
       magic_sent_at: p.magic_sent_at || null,   // v20.272 — date du dernier envoi du lien
+      groupe: p.groupe || '',   // v20.273 — même client, plusieurs établissements → un seul lien
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -11018,7 +11020,8 @@ const PRO_DOW_ORDER = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samed
 let proAccessState = null;   // { pro, url, blob }
 
 function proMagicUrl(token) {
-  return window.location.origin + window.location.pathname + '?pro_token=' + token;
+  // v20.273 — le lien ouvre la page client dédiée
+  return window.location.origin + window.location.pathname.replace(/[^/]*$/, 'pro.html') + '?t=' + token;
 }
 function _hLbl(h) {           // '14:00' → '14h' · '14:30' → '14h30' · vide/23:59 → 'minuit'
   if (!h || h === '23:59') return 'minuit';
@@ -11384,7 +11387,9 @@ function proGetButoirForDate(pro, dateISO) {
   const d = new Date(dateISO + 'T12:00');
   d.setDate(d.getDate() + decalage);
   const parts = heure.split(':');
-  d.setHours(parseInt(parts[0], 10) || 23, parseInt(parts[1], 10) || 59, 0, 0);
+  // v20.273 — « 18:00 » donnait 18h59 (0 minute lu comme « pas de minute ») : même règle que pro.html
+  const hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
+  d.setHours(isNaN(hh) ? 23 : hh, isNaN(mm) ? 59 : mm, 0, 0);
   return d.getTime();
 }
 
@@ -12144,6 +12149,7 @@ async function saveProForm() {
     template_items:        cleanTemplate,
     boutique_principale:   d.boutique_principale,
     boutique_secours:      d.boutique_secours || null,
+    groupe:                (d.groupe || '').trim().toLowerCase() || null,   // v20.273
     notes:                 (d.notes || '').trim() || null,
     actif:                 !!d.actif
   };
@@ -12862,6 +12868,10 @@ function renderProForm(mc) {
     + '<label>Boutique de secours (si principale fermée)</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_secours\', this.value)">' + selOpts(d.boutique_secours, true) + '</select>'
     + '<div class="pro-form-hint">St-Avertin en secours = click & collect (le pro vient chercher).</div>'
+    // v20.273 — groupe : un même client avec plusieurs établissements livrés au même endroit
+    + '<label>Groupe (même client, plusieurs établissements)</label>'
+    + '<input class="pro-input" placeholder="ex : dakota" value="' + escapeHtml(d.groupe || '') + '" oninput="handleProField(\'groupe\', this.value)">'
+    + '<div class="pro-form-hint">Même mot sur les fiches du même client : il n\'a qu\'un lien, et sur sa page une colonne par établissement. Ici, une commande par fiche comme avant.</div>'
   + '</div>';
 
   // v21.0.2 — Sources par catégorie (ex: pain au Local + pâtisserie à Veigné)
@@ -13108,8 +13118,7 @@ function renderProForm(mc) {
   // Permet au pro de saisir ses commandes lui-même via une URL secrète
   if (!isNew) {
     const token = d.magic_token || null;
-    const baseUrl = window.location.origin + window.location.pathname;
-    const fullUrl = token ? (baseUrl + '?pro_token=' + token) : '';
+    const fullUrl = token ? proMagicUrl(token) : '';   // v20.273 — pro.html?t=…
     html += '<div class="pro-form-section">'
       + '<h3>Magic link (interface pro)</h3>'
       + '<div class="pro-form-hint" style="margin-bottom:10px">Lien secret à partager au pro. Il pourra saisir ses commandes lui-même depuis son téléphone, sans login. Si compromis, régénère pour révoquer l\'ancien.</div>';

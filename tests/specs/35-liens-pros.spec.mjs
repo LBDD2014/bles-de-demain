@@ -72,7 +72,7 @@ export const tests = [
           sub: document.querySelector('#pro-links-modal .modal-sub').textContent };
       });
       assert(r.opened && r.opened.indexOf('https://wa.me/33600000000?text=') === 0, 'wa.me avec le numéro en 33… : ' + r.opened);
-      assert(/pro_token%3D/.test(r.opened) && !/QR%20code/.test(r.opened), 'le message contient le lien et pas la phrase sur le QR code');
+      assert(/pro.html%3Ft%3D/.test(r.opened) && !/QR%20code/.test(r.opened), 'le message contient le lien et pas la phrase sur le QR code');
       assert(r.bar.tok && r.bar.sent && r.barSt === '✓ envoyé le 22/07', 'Bar : lien créé + date mémorisée + repère : ' + JSON.stringify(r.bar) + ' / ' + r.barSt);
       assert(r.coop.tok && r.coop.sent, 'Coop (copier) : lien créé + date mémorisée : ' + JSON.stringify(r.coop));
       assert(r.memeInput && r.filtre.join(',') === 'Coop', 'filtre « coop » sans re-rendu : ' + r.filtre.join(','));

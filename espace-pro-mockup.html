@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Espace pro (page dédiée)</title>
+<style>
+:root{--gold:#CEAB52;--gold-light:#E8D5A3;--gold-dark:#8B6914;--grey:#474950;--grey-dark:#2E3044;--grey-light:#5A5C66;--cream:#FAF6EE;--brown:#3D2B1F;--brown-mid:#6B4226;--green:#4A7C59;--red:#B83232;--orange:#D4701A;--blue:#2C5F8A;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Segoe UI",Georgia,serif;background:#e9e4d8;color:var(--brown);font-size:15px}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 16px 50px}
+.maq{background:var(--grey-dark);color:var(--gold-light);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:18px;line-height:1.5}
+.maq b{color:var(--gold)}
+h2{font-family:'Playfair Display',Georgia,serif;font-size:18px;margin:26px 0 6px;color:var(--grey-dark)}
+.sub{color:var(--grey-light);font-size:13px;margin-bottom:12px}
+.phones{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+.phone{width:375px;background:#111;border-radius:40px;padding:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);flex:0 0 auto}
+.phone .lbl{color:#fff;text-align:center;font-size:12px;margin:0 0 8px;opacity:.75;letter-spacing:.5px;text-transform:uppercase}
+.screen{background:var(--cream);border-radius:30px;overflow:hidden;height:760px;display:flex;flex-direction:column;position:relative}
+.sb{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:600;color:#000;background:var(--cream)}
+.hdr{background:var(--grey-dark);color:var(--cream);padding:12px 18px 14px;display:flex;align-items:center;gap:12px}
+.hdr .logo{width:44px;height:44px;border-radius:10px;background:#000;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',Georgia,serif;font-weight:700;color:#fff;font-size:11px;line-height:1;text-align:center}
+.hdr .logo .e{color:var(--gold)}
+.hdr .t{font-family:'Playfair Display',Georgia,serif;font-size:17px;font-weight:700}
+.hdr .s{font-size:12px;opacity:.8}
+.body{flex:1;overflow-y:auto;padding:14px 14px 90px}
+.card{background:var(--white);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(46,48,68,.08);border:1px solid #ECE3D2}
+.hello{font-family:'Playfair Display',Georgia,serif;font-size:20px;color:var(--grey-dark);margin:2px 0 4px}
+.next{display:flex;align-items:center;gap:12px;background:#FBF6EA;border-left:4px solid var(--gold);border-radius:10px;padding:10px 12px}
+.next .d{font-size:26px;font-weight:700;color:var(--gold-dark);line-height:1;font-family:'Playfair Display',Georgia,serif}
+.next .d small{display:block;font-size:11px;color:var(--grey-light);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.next .x{font-size:13.5px;line-height:1.35}
+.next .x b{color:var(--grey-dark)}
+.cta{display:block;width:100%;background:var(--gold);color:#fff;border:none;border-radius:14px;padding:16px;font-size:17px;font-weight:700;margin:4px 0 12px;box-shadow:0 3px 10px rgba(206,171,82,.4)}
+.sec{font-family:'Playfair Display',Georgia,serif;font-size:16px;color:var(--grey-dark);margin:10px 0 8px;display:flex;align-items:center;gap:8px}
+.sec .n{font-size:12px;color:var(--grey-light);font-weight:normal;font-family:inherit}
+.ord{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0E8D6}
+.ord:last-child{border-bottom:none}
+.ord .dd{width:48px;text-align:center;background:var(--cream);border-radius:10px;padding:6px 0;line-height:1.1}
+.ord .dd b{display:block;font-size:19px;color:var(--grey-dark)}.ord .dd small{font-size:10.5px;text-transform:uppercase;color:var(--grey-light);letter-spacing:.4px}
+.ord .m{flex:1;font-size:13.5px}.ord .m b{display:block;color:var(--grey-dark);font-size:14.5px}
+.ord .m span{color:var(--grey-light);font-size:12.5px}
+.pill{border-radius:12px;padding:3px 9px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.pill.ok{background:#E3EFE6;color:var(--green)}.pill.wait{background:#FBE8D6;color:var(--orange)}.pill.done{background:#EEE;color:var(--grey-light)}.pill.lock{background:#EEE;color:var(--grey-light)}
+.chev{color:#bbb;font-size:18px}
+.tabs{position:absolute;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid #ECE3D2;display:flex;padding:8px 6px 18px}
+.tabs div{flex:1;text-align:center;font-size:10.5px;color:var(--grey-light)}
+.tabs div i{display:block;font-style:normal;font-size:20px;margin-bottom:2px}
+.tabs div.on{color:var(--gold-dark);font-weight:700}
+.foot{text-align:center;font-size:12px;color:var(--grey-light);margin-top:8px;line-height:1.5}
+.foot b{color:var(--grey-dark)}
+/* commande */
+.dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.dt{flex:0 0 auto;width:66px;text-align:center;border:1.5px solid #ddd;border-radius:12px;padding:7px 4px;background:#fff;line-height:1.1}
+.dt small{display:block;font-size:10px;text-transform:uppercase;color:var(--grey-light);letter-spacing:.4px}
+.dt b{display:block;font-size:19px;color:var(--grey-dark);margin:2px 0}
+.dt em{display:block;font-style:normal;font-size:9.5px;color:var(--green);font-weight:700}
+.dt.on{border-color:var(--gold);background:#FBF6EA;box-shadow:0 0 0 2px rgba(206,171,82,.3)}
+.dt.off{opacity:.4}.dt.off em{color:var(--red)}
+.hint{font-size:12px;color:var(--grey-light);margin:6px 0 10px}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0E8D6}
+.prow:last-child{border-bottom:none}
+.prow .nm{flex:1;font-size:14.5px;color:var(--grey-dark)}.prow .nm small{display:block;color:var(--grey-light);font-size:11.5px}
+.step{display:flex;align-items:center;border:1.5px solid var(--gold);border-radius:12px;overflow:hidden}
+.step button{width:40px;height:40px;border:none;background:#fff;font-size:20px;color:var(--gold-dark);font-weight:700}
+.step span{width:46px;text-align:center;font-size:17px;font-weight:700;color:var(--grey-dark);background:#FBF6EA;line-height:40px}
+.tot{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--grey-light);margin-top:6px}
+.tot b{color:var(--grey-dark);font-size:17px}
+.btn2{display:block;width:100%;background:var(--white);color:var(--grey-dark);border:1.5px solid var(--grey-dark);border-radius:12px;padding:12px;font-size:14px;font-weight:700;margin-top:8px}
+.note{width:100%;border:1.5px solid #ddd;border-radius:10px;padding:9px;font:inherit;font-size:13.5px;margin-top:8px}
+/* détail */
+.dtl{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:14px;padding:4px 0}
+.dtl .q{font-weight:700;color:var(--grey-dark)}
+.okbox{background:#E3EFE6;border-radius:12px;padding:12px;text-align:center;color:var(--green);font-weight:700;margin-bottom:12px}
+.okbox small{display:block;font-weight:500;color:var(--grey-light);margin-top:3px}
+.team{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F0E8D6;font-size:14px}
+.team:last-child{border-bottom:none}
+.team .av{width:34px;height:34px;border-radius:50%;background:var(--gold-light);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold-dark)}
+.team .r{color:var(--grey-light);font-size:12px}
+/* icône + adresse */
+.icons{display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:center;margin:8px 0 6px}
+.ico{text-align:center;font-size:12px;color:var(--grey-dark)}
+.ico .ic{width:68px;height:68px;border-radius:16px;background:#000;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',Georgia,serif;color:#fff;font-weight:700;font-size:15px;line-height:1;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.ico .ic .e{color:var(--gold)}
+.url{font-family:Menlo,monospace;background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px 14px;font-size:14px;display:inline-block}
+.url s{color:#aaa}
+ul.ch{line-height:1.65;font-size:14px}
+.q{background:#FBF6EA;border-left:4px solid var(--orange);border-radius:8px;padding:10px 12px;font-size:14px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="maq">🧪 <b>MAQUETTE — EN OFF</b>, rien n'est branché ni poussé. Étape A : la page client dédiée. Trois écrans de téléphone ci-dessous (accueil, nouvelle commande, détail), puis l'icône et l'adresse. Les chiffres sont ceux de Dakota pour que ça parle.</div>
+
+<div class="phones">
+
+<!-- ====== ACCUEIL ====== -->
+<div class="phone"><p class="lbl">1 · Accueil</p><div class="screen">
+  <div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="hdr"><div class="logo">Les<br>Bl<span class="e">é</span>s</div><div><div class="t">Les Blés de Demain</div><div class="s">Espace commandes · DAKOTA CAFE Tours</div></div></div>
+  <div class="body">
+    <div class="hello">Bonjour Doline 👋</div>
+    <div class="next"><div class="d">MAR<small>prochaine livraison</small></div><div class="x"><b>Mardi 13 octobre · 9h30</b><br>130 Pains Burger 90g, 30 Pains hotdog<br><span style="color:var(--green);font-weight:700">✓ confirmée</span> · modifiable jusqu'à dimanche 23h59</div></div>
+    <button class="cta">+ Nouvelle commande</button>
+    <div class="sec">📋 À venir <span class="n">(2)</span></div>
+    <div class="card" style="padding:4px 14px">
+      <div class="ord"><div class="dd"><b>13</b><small>mar</small></div><div class="m"><b>130 Burger · 30 hotdog</b><span>Livrée par Le Local · 9h30</span></div><span class="pill ok">confirmée</span><span class="chev">›</span></div>
+      <div class="ord"><div class="dd"><b>15</b><small>jeu</small></div><div class="m"><b>100 Burger · 30 hotdog</b><span>Livrée par Le Local · 9h30</span></div><span class="pill ok">confirmée</span><span class="chev">›</span></div>
+    </div>
+    <div class="sec">📜 Livrées récemment</div>
+    <div class="card" style="padding:4px 14px">
+      <div class="ord"><div class="dd"><b>10</b><small>sam</small></div><div class="m"><b>60 Burger · 10 hotdog</b><span>samedi 10 octobre</span></div><span class="pill done">livrée</span><span class="chev">›</span></div>
+      <div class="ord"><div class="dd"><b>7</b><small>mer</small></div><div class="m"><b>100 Burger · 30 hotdog</b><span>mercredi 7 octobre</span></div><span class="pill done">livrée</span><span class="chev">›</span></div>
+      <div class="ord"><div class="dd"><b>6</b><small>mar</small></div><div class="m"><b>75 Burger</b><span>mardi 6 octobre</span></div><span class="pill done">livrée</span><span class="chev">›</span></div>
+    </div>
+    <div class="foot">Une question, un oubli ? <b>Le Local · 02 47 00 00 00</b><br>Les commandes se ferment la veille à 23h59.</div>
+  </div>
+  <div class="tabs"><div class="on"><i>🏠</i>Accueil</div><div><i>🧺</i>Commander</div><div><i>📜</i>Historique</div><div><i>👥</i>Mon équipe</div></div>
+</div></div>
+
+<!-- ====== NOUVELLE COMMANDE ====== -->
+<div class="phone"><p class="lbl">2 · Nouvelle commande</p><div class="screen">
+  <div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="hdr"><div class="logo">Les<br>Bl<span class="e">é</span>s</div><div><div class="t">Nouvelle commande</div><div class="s">DAKOTA CAFE Tours</div></div></div>
+  <div class="body">
+    <div class="sec">1 · Pour quel jour ?</div>
+    <div class="dates">
+      <div class="dt off"><small>mar</small><b>13</b><em>trop tard</em></div>
+      <div class="dt on"><small>mer</small><b>14</b><em>jusqu'à ce soir</em></div>
+      <div class="dt"><small>jeu</small><b>15</b><em>déjà commandé</em></div>
+      <div class="dt"><small>ven</small><b>16</b><em>ouvert</em></div>
+      <div class="dt"><small>sam</small><b>17</b><em>ouvert</em></div>
+      <div class="dt"><small>mar</small><b>20</b><em>ouvert</em></div>
+    </div>
+    <div class="hint">Livraison mercredi 14 octobre vers 9h30 par notre livreur. Tu peux modifier jusqu'à <b>ce soir 23h59</b>.</div>
+    <div class="sec">2 · Quoi ? <span class="n">pré-rempli avec ta commande habituelle</span></div>
+    <div class="card" style="padding:4px 14px">
+      <div class="prow"><div class="nm">Pain Burger 90g<small>pièce · la dernière fois : 100</small></div><div class="step"><button>−</button><span>100</span><button>+</button></div></div>
+      <div class="prow"><div class="nm">Pain hotdog 90g<small>pièce · la dernière fois : 30</small></div><div class="step"><button>−</button><span>30</span><button>+</button></div></div>
+      <div class="prow"><div class="nm">Tradition<small>pièce</small></div><div class="step"><button>−</button><span>0</span><button>+</button></div></div>
+      <div class="prow"><div class="nm">Tradition Graines<small>pièce</small></div><div class="step"><button>−</button><span>0</span><button>+</button></div></div>
+    </div>
+    <div class="tot"><span>2 produits</span><b>130 pièces</b></div>
+    <textarea class="note" rows="2" placeholder="Un mot pour la boulangerie ? (facultatif)"></textarea>
+    <button class="cta" style="margin-top:12px">✓ Valider pour mercredi 14</button>
+    <div class="foot">Tu recevras une confirmation tout de suite à l'écran.<br>Un + ou un − par tap, pas de clavier.</div>
+  </div>
+  <div class="tabs"><div><i>🏠</i>Accueil</div><div class="on"><i>🧺</i>Commander</div><div><i>📜</i>Historique</div><div><i>👥</i>Mon équipe</div></div>
+</div></div>
+
+<!-- ====== DÉTAIL / CONFIRMATION ====== -->
+<div class="phone"><p class="lbl">3 · Après validation</p><div class="screen">
+  <div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="hdr"><div class="logo">Les<br>Bl<span class="e">é</span>s</div><div><div class="t">Commande du mercredi 14</div><div class="s">DAKOTA CAFE Tours</div></div></div>
+  <div class="body">
+    <div class="okbox">✓ C'est noté, merci Doline !<small>Livraison mercredi 14 octobre vers 9h30 par Le Local</small></div>
+    <div class="card">
+      <div class="dtl"><span>Pain Burger 90g</span><span class="q">100</span><span>Pain hotdog 90g</span><span class="q">30</span></div>
+      <div class="tot" style="border-top:1px solid #F0E8D6;padding-top:8px"><span>Total</span><b>130 pièces</b></div>
+    </div>
+    <button class="btn2">✏️ Modifier (jusqu'à ce soir 23h59)</button>
+    <button class="btn2" style="color:var(--red);border-color:#e3c4c4">Annuler cette commande</button>
+    <div class="sec" style="margin-top:18px">👥 Mon équipe <span class="n">qui peut commander</span></div>
+    <div class="card" style="padding:4px 14px">
+      <div class="team"><div class="av">D</div><div><b>Doline</b><div class="r">Patronne · 06 85 09 66 60</div></div></div>
+      <div class="team"><div class="av">K</div><div><b>Karim</b><div class="r">Chef · commande le soir</div></div></div>
+      <div class="team"><div class="av">+</div><div style="color:var(--blue)">Ajouter quelqu'un</div></div>
+    </div>
+    <div class="foot">Chaque commande garde le prénom de celui qui l'a passée.<br>Le Local voit « Doline » ou « Karim », pas juste « Dakota ».</div>
+  </div>
+  <div class="tabs"><div><i>🏠</i>Accueil</div><div><i>🧺</i>Commander</div><div class="on"><i>📜</i>Historique</div><div><i>👥</i>Mon équipe</div></div>
+</div></div>
+
+</div>
+
+<h2>L'icône et l'adresse</h2>
+<div class="sub">Le pro ajoute la page à son écran d'accueil une fois, et après c'est une appli comme une autre.</div>
+<div class="card" style="max-width:720px;margin:0 auto">
+  <div class="icons">
+    <div class="ico"><div class="ic">Les<br>Bl<span class="e">é</span>s</div>Les Blés</div>
+    <div style="font-size:13px;color:var(--grey-light);max-width:330px;line-height:1.5">Le nom sous l'icône : <b>« Les Blés »</b> (court, lisible). L'ouverture se fait en plein écran, sans barre Safari. Le lien personnel est gardé dans l'icône : rien à retaper, jamais.</div>
+  </div>
+  <div style="text-align:center;margin:14px 0 6px">
+    <div class="url"><s>lbdd2014.github.io/bles-de-demain/index-cloud-test.html?pro_token=0aec223cd57f4d…</s></div><br>
+    <div style="font-size:22px;margin:6px 0">↓</div>
+    <div class="url">commande.lesblesdedemain.fr/<b>dakota-tours</b></div>
+  </div>
+  <div class="hint" style="text-align:center">Le lien reste personnel et secret derrière (la clé est dans l'icône), mais ce que le pro voit et retient, c'est une adresse propre à ton nom.</div>
+</div>
+
+<h2>Ce qui change, ce qui ne change pas</h2>
+<div class="card" style="max-width:720px;margin:0 auto">
+  <ul class="ch">
+    <li><b>Nouveau</b> : une page à part, légère (chargement en 1 seconde au lieu de l'app entière), charte LBDD, 4 onglets en bas, prochaine livraison en tête, l'historique sous l'accueil.</li>
+    <li><b>Nouveau</b> : la commande se fait avec des + et des − (pas de clavier), pré-remplie avec la commande habituelle, les jours fermés ou trop tard sont grisés avec la raison.</li>
+    <li><b>Nouveau</b> : confirmation claire à l'écran, modification ou annulation en un bouton jusqu'au butoir.</li>
+    <li><b>Nouveau</b> : adresse courte à ton nom + icône sur l'écran d'accueil.</li>
+    <li><b>Inchangé</b> : les mêmes commandes dans la même base. Le Local, Tours, le livreur voient tout pareil, l'onglet Pros ne bouge pas. Les liens déjà envoyés continuent de marcher et redirigent vers la nouvelle page.</li>
+    <li><b>Inchangé pour l'instant</b> : la sécurité (étape B) et les messages automatiques (étape C).</li>
+  </ul>
+</div>
+
+<h2>À trancher avant de coder</h2>
+<div class="card" style="max-width:720px;margin:0 auto">
+  <div class="q">1. <b>Le nom de domaine</b> : `commande.lesblesdedemain.fr` te va ? As-tu déjà lesblesdedemain.fr quelque part (site vitrine, OVH, Wix…) ? Sinon on garde l'adresse GitHub pour commencer, l'icône cache l'adresse de toute façon.</div>
+  <div class="q">2. <b>Les prix</b> : on les affiche sur la commande (colonne PU et total en €) ou pas du tout ? Aujourd'hui la page montre des tirets.</div>
+  <div class="q">3. <b>« La dernière fois : 100 »</b> sous chaque produit, et pré-remplir avec la dernière commande : oui ?</div>
+  <div class="q">4. <b>Les 4 onglets</b> : Accueil · Commander · Historique · Mon équipe. On en enlève un ?</div>
+</div>
+</div>
+</body>
+</html>

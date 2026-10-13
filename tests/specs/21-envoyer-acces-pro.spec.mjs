@@ -50,7 +50,7 @@ export const tests = [
         img: !!document.querySelector('#pro-access-modal .pa-img'),
       }));
       assert(r.tok && r.tok.length > 10, 'lien créé en base');
-      assert(r.msg.indexOf('?pro_token=' + r.tok) !== -1, 'le message contient le bon lien');
+      assert(r.msg.indexOf('pro.html?t=' + r.tok) !== -1, 'le message contient le bon lien (v20.273 : pro.html?t=…)');
       assert(r.msg.indexOf('Bonjour Julie') === 0, 'salutation au contact : ' + r.msg.slice(0, 30));
       assert(r.msg.indexOf('vous') !== -1 && r.msg.indexOf(' tu ') === -1, 'vouvoiement');
       assert(r.msg.indexOf('07 57 77 05 87') !== -1, 'téléphone de Tours (boutique du pro)');
