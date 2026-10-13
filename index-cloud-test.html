@@ -2447,6 +2447,13 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.274 — pièces par client (onglet Pros) */
+.pro-recap-block { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 2px 8px rgba(61,43,31,0.05); }
+.pro-recap-table td, .pro-recap-table th { padding:8px 6px; }
+.pro-recap-row { cursor:pointer; } .pro-recap-row.open td { background:#FBF6EA; }
+.pro-recap-detail td { background:#FFFDF8; font-size:13px; padding:6px 10px 8px 22px; border-bottom:1px solid #F5F0E8; }
+.pro-recap-group td { color:var(--grey-light); font-style:italic; background:#F7F3EA; }
+.pro-recap-table tfoot td { font-weight:700; border-top:2px solid var(--gold-light); }
 .prod-valider-tout { margin-left:10px; white-space:nowrap; }   /* v20.271 */
 .lv-pret { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--green); border-radius:8px; padding:1px 7px; margin-left:4px; vertical-align:middle; }
 /* v20.270 — envoi partiel : « 150 / 200 · reste 50 vers 10h » */
@@ -2652,7 +2659,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.273';
+const APP_VERSION  = 'v20.274';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -14281,6 +14288,115 @@ function closeProOrderForm() {
   renderProOrders();
 }
 
+// ===== v20.274 — « 📊 Pièces par client » dans l'onglet Pros de chaque site (Phil, 13/10) =====
+// Consultation seulement : par client, les pièces de la semaine en cours et du mois affiché,
+// les livraisons du mois en dépliant, un CSV du mois. Calculé sur proOrdersData (déjà chargé,
+// filtré par la boutique source choisie). Brouillons et annulées exclus.
+let proOrdersRecapOpen = (function() { try { return localStorage.getItem('proRecapOpen') === '1'; } catch (e) { return false; } })();
+let proRecapYM = null;            // 'YYYY-MM' affiché
+let proRecapOpenClients = {};     // { pro_id: true } dépliés
+function toggleProOrdersRecap() { proOrdersRecapOpen = !proOrdersRecapOpen; try { localStorage.setItem('proRecapOpen', proOrdersRecapOpen ? '1' : '0'); } catch (e) {} renderProOrders(); }
+function proRecapMonth(delta) {
+  const cur = proRecapYM || todayISO().slice(0, 7);
+  const d = new Date(cur + '-01T12:00'); d.setMonth(d.getMonth() + delta);
+  proRecapYM = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderProOrders();
+}
+function proRecapToggleClient(pid) { proRecapOpenClients[pid] = !proRecapOpenClients[pid]; renderProOrders(); }
+function proRecapPieces(o) { return (o.pro_order_items || []).reduce(function(s, it) { return s + (Number(it.qty) || 0); }, 0); }
+// les semaines (lundi → dimanche) qui touchent le mois affiché ; une commande compte dans la semaine de sa date
+function proRecapWeeks(ym) {
+  const first = ym + '-01', lastD = new Date(ym + '-01T12:00'); lastD.setMonth(lastD.getMonth() + 1); lastD.setDate(0);
+  const last = lastD.getFullYear() + '-' + String(lastD.getMonth() + 1).padStart(2, '0') + '-' + String(lastD.getDate()).padStart(2, '0');
+  const out = []; let m = mondayOfWeek(first);
+  while (m <= last) { out.push({ monday: m, sunday: addDays(m, 6) }); m = addDays(m, 7); }
+  return out;
+}
+// les lignes du tableau : [{ pro, nom, groupe, weeks:[n…], mois, livraisons:[{date, pieces, statut, notes, src, items}] }]
+function proRecapRows() {
+  const ym = proRecapYM || todayISO().slice(0, 7);
+  const weeks = proRecapWeeks(ym);
+  const srcF = proOrdersSourceFilter || currentBoutique;
+  const byPro = {};
+  proOrdersData.forEach(function(o) {
+    if (o.statut === 'annule' || o.statut === 'brouillon') return;
+    if (srcF !== 'all' && o.boutique_source !== srcF) return;
+    if (o.date_livraison.slice(0, 7) !== ym) return;
+    const pro = adminPros.find(function(p) { return p.id === o.pro_id; }) || { id: o.pro_id, nom: o.pro_id };
+    const r = byPro[o.pro_id] = byPro[o.pro_id] || { pro: pro, nom: pro.nom || o.pro_id, groupe: pro.groupe || null, weeks: weeks.map(function() { return 0; }), mois: 0, livraisons: [] };
+    const n = proRecapPieces(o);
+    const wi = weeks.findIndex(function(w) { return o.date_livraison >= w.monday && o.date_livraison <= w.sunday; });
+    if (wi !== -1) r.weeks[wi] += n;
+    r.mois += n;
+    r.livraisons.push({ date: o.date_livraison, pieces: n, statut: o.statut, notes: o.notes || '', src: o.boutique_source, items: o.pro_order_items || [] });
+  });
+  const rows = Object.keys(byPro).map(function(k) { return byPro[k]; });
+  rows.forEach(function(r) { r.livraisons.sort(function(a, b) { return a.date.localeCompare(b.date); }); });
+  rows.sort(function(a, b) { return b.mois - a.mois || a.nom.localeCompare(b.nom, 'fr'); });
+  return rows;
+}
+function proRecapBlockHtml() {
+  const ym = proRecapYM || todayISO().slice(0, 7);
+  const d = new Date(ym + '-01T12:00');
+  const lblMois = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const weeks = proRecapWeeks(ym);
+  const rows = proRecapRows();
+  const productsMap = {}; (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+  const statutLbl = { confirme: 'confirmée', livre: 'livrée', a_valider: 'à valider' };
+  const q = function(v) { return v ? formatQty(v) : '<span style="color:#bbb">–</span>'; };
+  const wkLbl = function(w) { const md = new Date(w.monday + 'T12:00'); return '<th style="text-align:right"><span style="display:block;font-size:10px;color:#999;font-weight:500">sem. du</span> ' + md.getDate() + '/' + String(md.getMonth() + 1).padStart(2, '0') + '</th>'; };
+  let html = '<div class="pro-recap-block">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+    + '<button class="btn-gold-sm" onclick="proRecapMonth(-1)">◀</button><b style="flex:1;text-align:center;text-transform:capitalize">' + escapeHtml(lblMois) + '</b><button class="btn-gold-sm" onclick="proRecapMonth(1)">▶</button>'
+    + '<button class="btn-gold-sm" onclick="exportProRecapCSV()" title="Le mois, une ligne par produit livré">📥 CSV</button></div>'
+    + '<div class="pro-form-hint" style="margin:0 0 8px">Pièces livrées (ou confirmées) par client, par semaine (lundi → dimanche) et sur le mois. Touche un client pour voir ses livraisons.</div>';
+  if (!rows.length) { html += '<div class="empty-state">Aucune commande pro ce mois-ci.</div></div>'; return html; }
+  const nCols = weeks.length + 2;
+  html += '<div style="overflow-x:auto"><table class="recap-table pro-recap-table"><thead><tr><th>Client</th>' + weeks.map(wkLbl).join('') + '<th style="text-align:right">Mois</th></tr></thead><tbody>';
+  const totW = weeks.map(function() { return 0; }); let totM = 0;
+  const groupes = {};
+  rows.forEach(function(r) {
+    r.weeks.forEach(function(v, i) { totW[i] += v; }); totM += r.mois;
+    if (r.groupe) { const g = groupes[r.groupe] = groupes[r.groupe] || { n: 0, weeks: weeks.map(function() { return 0; }), mois: 0 }; g.n++; r.weeks.forEach(function(v, i) { g.weeks[i] += v; }); g.mois += r.mois; }
+    const open = !!proRecapOpenClients[r.pro.id];
+    html += '<tr class="pro-recap-row' + (open ? ' open' : '') + '" onclick="proRecapToggleClient(\'' + escapeHtml(r.pro.id) + '\')"><td><span style="color:var(--gold-dark);font-size:11px;margin-right:4px">' + (open ? '▼' : '▶') + '</span>' + escapeHtml(r.nom) + ' <span style="color:#999;font-size:11px">· ' + r.livraisons.length + ' livr.</span></td>'
+      + r.weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(r.mois) + '</strong></td></tr>';
+    if (open) {
+      r.livraisons.forEach(function(l) {
+        html += '<tr class="pro-recap-detail"><td colspan="' + nCols + '"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><strong>' + escapeHtml(formatDateFr(l.date)) + '</strong> <span style="color:' + (l.statut === 'livre' ? 'var(--green)' : 'var(--blue)') + ';font-size:11px;font-weight:700">· ' + (statutLbl[l.statut] || l.statut) + '</span>' + (proOrdersSourceFilter === 'all' ? ' <span style="color:#999;font-size:11px">· ' + escapeHtml(BOUTIQUE_NAMES[l.src] || l.src) + '</span>' : '') + '</span><strong>' + formatQty(l.pieces) + ' pièces</strong></div>'
+          + '<div style="font-size:12px;color:var(--brown-mid)">' + l.items.map(function(it) { return formatQty(Number(it.qty) || 0) + ' ' + escapeHtml((productsMap[it.product_id] || {}).name || it.product_id); }).join(' · ') + (l.notes ? ' · <em>' + escapeHtml(l.notes) + '</em>' : '') + '</div></td></tr>';
+      });
+    }
+  });
+  Object.keys(groupes).forEach(function(g) {
+    if (groupes[g].n < 2) return;
+    html += '<tr class="pro-recap-group"><td>↳ Total ' + escapeHtml(g.charAt(0).toUpperCase() + g.slice(1)) + ' (' + groupes[g].n + ' établissements)</td>' + groupes[g].weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(groupes[g].mois) + '</strong></td></tr>';
+  });
+  html += '</tbody><tfoot><tr><td>Total</td>' + totW.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(totM) + '</strong></td></tr></tfoot></table></div></div>';
+  return html;
+}
+function proRecapCSV() {
+  const ym = proRecapYM || todayISO().slice(0, 7);
+  const productsMap = {}; (adminProducts && adminProducts.length ? adminProducts : products).forEach(function(p) { productsMap[p.id] = p; });
+  let csv = '\uFEFF' + 'Client;Date;Boutique source;Statut;Produit;Pièces;Notes\n';
+  proRecapRows().forEach(function(r) {
+    r.livraisons.forEach(function(l) {
+      l.items.forEach(function(it) {
+        csv += [r.nom, l.date, BOUTIQUE_NAMES[l.src] || l.src, l.statut, (productsMap[it.product_id] || {}).name || it.product_id, String(Number(it.qty) || 0).replace('.', ','), l.notes].map(function(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';') + '\n';
+      });
+    });
+  });
+  return { csv: csv, fname: 'pieces-par-client-' + (proOrdersSourceFilter || currentBoutique) + '-' + ym + '.csv' };
+}
+function exportProRecapCSV() {
+  const r = proRecapCSV();
+  const blob = new Blob([r.csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = r.fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
 function handleProOrderField(field, val) {
   if (!proOrderDraft) return;
   proOrderDraft[field] = val;
@@ -14533,6 +14649,9 @@ function renderProOrders() {
   + '</div>';
   // v20.260 — la grille de la semaine de CE site, pour l'équipe
   if (proOrdersWeekGridOpen) html += proOrdersWeekGridBlockHtml();
+  // v20.274 — pièces par client, semaine et mois (consultation, pour pointer les factures)
+  html += '<div style="margin:0 0 10px"><button class="btn-gold' + (proOrdersRecapOpen ? '' : '-sm') + '" style="' + (proOrdersRecapOpen ? 'background:var(--green);border-color:var(--green)' : 'padding:10px 14px') + '" onclick="toggleProOrdersRecap()">📊 Pièces par client</button></div>';
+  if (proOrdersRecapOpen) html += proRecapBlockHtml();
   // v20.172 — filtre par boutique source (défaut : ma boutique)
   const srcF = proOrdersSourceFilter || currentBoutique;
   html += '<div class="pro-period-filter" style="margin-bottom:10px">'
