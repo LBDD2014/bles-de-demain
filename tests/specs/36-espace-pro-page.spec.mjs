@@ -68,8 +68,8 @@ export const tests = [
       await page.waitForSelector('.prow');
       const r = await page.evaluate(() => {
         const dates = Array.from(document.querySelectorAll('.dt')).map((d) => d.querySelector('b').textContent + ':' + d.className.replace('dt', '').trim() + ':' + d.querySelector('em').textContent);
-        const cols = Array.from(document.querySelectorAll('.cols .c span')).map((x) => x.textContent);
-        const rows = Array.from(document.querySelectorAll('.prow')).map((p) => ({ nom: p.querySelector('.nm').firstChild.textContent, last: p.querySelector('.nm small').textContent, q: Array.from(p.querySelectorAll('.step')).map((s) => s.querySelector('input').value + (s.classList.contains('off') ? '(off)' : '')) }));
+        const cols = Array.from(document.querySelector('.prow .steps').querySelectorAll('.stp small b')).map((x) => x.textContent);
+        const rows = Array.from(document.querySelectorAll('.prow')).map((p) => ({ nom: p.querySelector('.nm').firstChild.textContent, last: Array.from(p.querySelectorAll('.stp small')).map((x) => x.textContent).join(' | '), q: Array.from(p.querySelectorAll('.step')).map((s) => s.querySelector('input').value + (s.classList.contains('off') ? '(off)' : '')) }));
         return { dates, cols, rows, tot: document.getElementById('tot').textContent, hint: document.querySelector('.hint').textContent };
       });
       // jeudi 23 = trop tard (butoir mer 22 23:59 pas passé → ouvert ? non : 22/07 10h < 23:59 → OUVERT mais « déjà commandé ») ; samedi 25 : butoir jeu 23 18h → ouvert ; mardi 28 ouvert
@@ -78,7 +78,7 @@ export const tests = [
       assert(r.dates.some((d) => /^25:.*on.*jusqu/.test(d)), 'le 1er jour ouvert est sélectionné avec son heure limite : ' + JSON.stringify(r.dates));
       assert(r.cols.join('|') === 'Tours|Chambray-les-tours', 'deux colonnes : ' + r.cols.join('|'));
       const trad = r.rows.find((x) => x.nom === 'Tradition'), cro = r.rows.find((x) => x.nom === 'Croissant');
-      assert(trad && trad.q.join(',') === '60,150' && /Tours 60 · Chambray-les-tours 150/.test(trad.last), 'Tradition pré-remplie 60 | 150 avec « la dernière fois » : ' + JSON.stringify(trad));
+      assert(trad && trad.q.join(',') === '60,150' && /Tours · dernière fois 60 \| Chambray-les-tours · dernière fois 150/.test(trad.last), 'Tradition pré-remplie 60 | 150 avec « la dernière fois » : ' + JSON.stringify(trad));
       assert(cro && cro.q[0] === '10' && /off/.test(cro.q[1]), 'Croissant : 10 pour Tours, grisé pour Chambray (pas au catalogue) : ' + JSON.stringify(cro));
       assert(/220 pièces/.test(r.tot), 'total 220 pièces : ' + r.tot);
       assert(/samedi 25 juillet/.test(r.hint) && /9h30/.test(r.hint) && /demain 18h\./.test(r.hint), 'rappel livraison + heure limite : ' + r.hint);
@@ -125,7 +125,7 @@ export const tests = [
       // client simple : pas de colonnes, pas d'étiquette
       const p2 = await ouvrir(ctx, null, 'tok_autre');
       await p2.click('.cta'); await p2.waitForSelector('.prow');
-      const s2 = await p2.evaluate(() => ({ cols: document.querySelectorAll('.cols').length, steps: document.querySelector('.prow .steps').children.length, hello: document.querySelector('#hdr .s').textContent }));
+      const s2 = await p2.evaluate(() => ({ cols: document.querySelectorAll('.stp').length, steps: document.querySelector('.prow .steps').children.length, hello: document.querySelector('#hdr .s').textContent }));
       assert(s2.cols === 0 && s2.steps === 1 && /Autre client/.test(s2.hello), 'un établissement = une seule colonne : ' + JSON.stringify(s2));
       await p2.close();
       // lien invalide

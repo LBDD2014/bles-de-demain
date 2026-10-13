@@ -71,6 +71,8 @@ button{font-family:inherit}
 .prow:last-child{border-bottom:none}
 .prow .nm{flex:1;font-size:14.5px;color:var(--grey-dark);min-width:0}.prow .nm small{display:block;color:var(--grey-light);font-size:11.5px}
 .steps{display:flex;gap:8px;flex:0 0 auto}
+.prow.multi{flex-wrap:wrap}.prow.multi .nm{flex-basis:100%}.prow.multi .steps{width:100%;justify-content:space-around}
+.stp small{display:block;font-size:10.5px;color:var(--grey-light);text-align:center;margin-bottom:3px;white-space:nowrap}.stp small b{color:var(--grey-dark)}
 .step{display:flex;align-items:center;border:1.5px solid var(--gold);border-radius:12px;overflow:hidden;width:132px}
 .step button{width:40px;height:42px;border:none;background:#fff;font-size:22px;color:var(--gold-dark);font-weight:700;padding:0}
 .step input{width:52px;border:none;text-align:center;font-size:17px;font-weight:700;color:var(--grey-dark);background:#FBF6EA;height:42px;padding:0;font-family:inherit;-moz-appearance:textfield}
@@ -390,14 +392,16 @@ function renderOrder(b) {
     h += '<span class="lbl">Qui passe la commande ?</span><select class="who" onchange="draft.who=this.value"><option value="">— Choisir —</option>' + elig.map(function(c) { return '<option value="' + escapeHtml(c.nom) + '"' + (draft.who === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>'; }).join('') + '</select>';
   }
   h += '<div class="sec">2 · Quoi ? <span class="n">' + (draft.editing ? 'ta commande actuelle' : 'pré-rempli avec la dernière fois') + '</span></div><div class="card" style="padding:4px 14px 10px">';
-  if (multi) h += '<div class="cols"><span></span><div class="c">' + etabs.map(function(e) { return '<span>' + escapeHtml(shortLabel(e)) + '</span>'; }).join('') + '</div></div>';
   catalogueUnion().forEach(function(p) {
-    const last = etabs.map(function(e) { const li = lastItems(e); return li[p.id] ? (multi ? shortLabel(e) + ' ' : '') + li[p.id] : null; }).filter(Boolean).join(' · ');
-    h += '<div class="prow"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(p.unit || 'pièce') + (last ? ' · la dernière fois : ' + escapeHtml(last) : '') + '</small></div><div class="steps">';
+    const lastSingle = !multi && lastItems(etabs[0])[p.id];
+    h += '<div class="prow' + (multi ? ' multi' : '') + '"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(p.unit || 'pièce') + (lastSingle ? ' · la dernière fois : ' + lastSingle : '') + '</small></div><div class="steps">';
     etabs.forEach(function(e) {
       const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date);
       const q = Number(draft.qty[e.id][p.id]) || 0;
-      h += '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + q + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
+      const last = lastItems(e)[p.id];
+      const step = '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + q + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
+      // plusieurs établissements : l'étiquette (et « dernière fois ») sur chaque compteur
+      h += multi ? '<div class="stp"><small><b>' + escapeHtml(shortLabel(e)) + '</b>' + (ok ? (last ? ' · dernière fois ' + last : '') : ' · pas ce produit') + '</small>' + step + '</div>' : step;
     });
     h += '</div></div>';
   });
