@@ -2447,6 +2447,7 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.275 — conditionnement imposé par produit (caisse/sac) : commandes pros en colis, stockées en pièces */
 /* v20.274 — pièces par client (onglet Pros) */
 .pro-recap-block { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 2px 8px rgba(61,43,31,0.05); }
 .pro-recap-table td, .pro-recap-table th { padding:8px 6px; }
@@ -2659,7 +2660,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.274';
+const APP_VERSION  = 'v20.275';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -14412,6 +14413,17 @@ function handleProOrderField(field, val) {
   renderProOrders();
 }
 
+// v20.275 — conditionnement imposé sur la fiche produit (caisse de 8, sac de 20…) : commande pro arrondie au colis supérieur
+function proPackOf(p) { if (!p || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
+function snapProOrderItemQty(idx) {
+  if (!proOrderDraft || !proOrderDraft.items[idx]) return;
+  const it = proOrderDraft.items[idx];
+  const pk = proPackOf(((adminProducts && adminProducts.length) ? adminProducts : products).find(function(p) { return p.id === it.product_id; }));
+  if (!pk || !it.qty) return;
+  const n = Math.ceil(Number(it.qty) / pk) * pk;
+  if (n !== Number(it.qty)) it.qty = n;
+  renderProOrderForm(document.getElementById('main-content'));
+}
 function handleProOrderItemField(idx, field, val) {
   if (!proOrderDraft || !proOrderDraft.items[idx]) return;
   if (field === 'qty') {
@@ -14826,12 +14838,16 @@ function renderProOrderForm(mc) {
     }
     d.items.forEach(function(it, idx) {
       const prixDisp = (it.prix_applique != null) ? Number(it.prix_applique).toFixed(2) + ' €' : '—';
-      const sousTotal = (it.prix_applique != null && it.qty)
+      let sousTotal = (it.prix_applique != null && it.qty)
         ? (Number(it.prix_applique) * Number(it.qty)).toFixed(2) + ' €'
         : '';
+      // v20.275 — conditionnement imposé : rappel « 2 caisses de 8 » sous le prix, arrondi au colis à la validation du champ
+      const pkP = available.find(function(p) { return p.id === it.product_id; });
+      const pk = proPackOf(pkP);
+      if (pk) sousTotal = (it.qty ? (Math.round(Number(it.qty) / pk * 100) / 100) + ' ' + pkP.conditioning_unit + (Number(it.qty) > pk ? 's' : '') + ' · ' : '') + pkP.conditioning_unit + ' de ' + pk + (sousTotal ? '<br>' + sousTotal : '');
       html += '<div class="pro-order-item-row">'
         + '<select class="pro-input pro-order-item-prod" onchange="handleProOrderItemField(' + idx + ', \'product_id\', this.value)">' + buildProdOpts(it.product_id) + '</select>'
-        + '<input type="text" inputmode="decimal" class="pro-input pro-order-item-qty" value="' + escapeHtml(String(it.qty || '')) + '" placeholder="Qté" oninput="handleProOrderItemField(' + idx + ', \'qty\', this.value)">'
+        + '<input type="text" inputmode="decimal" class="pro-input pro-order-item-qty" value="' + escapeHtml(String(it.qty || '')) + '" placeholder="Qté" oninput="handleProOrderItemField(' + idx + ', \'qty\', this.value)" onchange="snapProOrderItemQty(' + idx + ')">'
         + '<div class="pro-order-item-prix">' + prixDisp + (sousTotal ? '<div class="pro-order-item-soustotal">' + sousTotal + '</div>' : '') + '</div>'
         + '<button class="pro-card-btn pro-card-btn-del" onclick="removeProOrderItem(' + idx + ')" title="Retirer">🗑️</button>'
       + '</div>';

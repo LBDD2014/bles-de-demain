@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Les Blés — Mes commandes</title>
+<!-- v20.275 — conditionnement imposé par produit (caisse de 8, sac de 20…) : compteur en colis, commande en pièces.
 <!-- v20.273 — Espace client pro, page dédiée (étape A, maquette espace-pro-mockup.html validée le 13/10/2026).
      Même base, mêmes commandes que l'app interne : seule la page du client change.
      Sécurité = la même qu'avant (clé publique filtrée par le lien) ; l'étape B la durcira côté serveur. -->
@@ -183,6 +184,12 @@ function catalogueUnion() {
 }
 function inCatalogue(etab, pid) { return catalogueOf(etab).some(function(p) { return p.id === pid; }); }
 function productName(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.name : pid; }
+// v20.275 — conditionnement imposé (fiche produit : caisse de 8, sac de 20…) : le compteur compte des colis, la commande reste en pièces
+function prodOf(pid) { return products.find(function(x) { return x.id === pid; }); }
+function packOf(p) { if (!p || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
+function packWord(p, n) { return (p.conditioning_unit || 'colis') + (n > 1 ? 's' : ''); }
+function packLabel(p) { const pk = packOf(p); return pk ? packWord(p, 1) + ' de ' + pk + ' pièces' : (p.unit || 'pièce'); }
+function fmtQty(p, pieces) { const pk = packOf(p); if (!pk) return String(pieces); const c = Math.round(pieces / pk * 100) / 100; return c + ' ' + packWord(p, c) + ' (' + pieces + ' p.)'; }
 function productCategory(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.category : null; }
 function sourceFor(etab, pid) { const cat = productCategory(pid); const spc = etab.sources_par_categorie || {}; return (cat && spc[cat]) ? spc[cat] : (etab.boutique_principale || 'local'); }
 function appliedPrice(etab, pid) { if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
@@ -366,8 +373,8 @@ function openOrder(iso) {
   tab = 'order'; detailKey = null; doneInfo = null; render();
 }
 function pickDate(iso) { const st = dateStates().find(function(x) { return x.iso === iso; }); if (!st || st.state === 'late') return; openOrder(iso); }
-function setQty(etabId, pid, v) { if (!draft) return; const n = Math.max(0, Math.round(Number(v) || 0)); draft.qty[etabId][pid] = n; refreshTotals(); }
-function bump(etabId, pid, delta) { if (!draft) return; const n = Math.max(0, (Number(draft.qty[etabId][pid]) || 0) + delta); draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) { inp.value = n; inp.parentNode.className = 'step' + (n > 0 ? ' has' : ''); } refreshTotals(); }
+function setQty(etabId, pid, v) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const n = Math.max(0, Math.round(Number(v) || 0)) * pk; draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) inp.value = n / pk; refreshTotals(); }
+function bump(etabId, pid, delta) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const cur = Number(draft.qty[etabId][pid]) || 0; const n = Math.max(0, delta > 0 ? (Math.floor(cur / pk) + 1) * pk : (Math.ceil(cur / pk) - 1) * pk); draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) { inp.value = n / pk; inp.parentNode.className = 'step' + (n > 0 ? ' has' : ''); } refreshTotals(); }
 function refreshTotals() {
   let n = 0, prods = 0;
   etabs.forEach(function(e) { Object.keys(draft.qty[e.id]).forEach(function(pid) { const q = Number(draft.qty[e.id][pid]) || 0; n += q; if (q > 0) prods++; }); });
@@ -394,14 +401,15 @@ function renderOrder(b) {
   h += '<div class="sec">2 · Quoi ? <span class="n">' + (draft.editing ? 'ta commande actuelle' : 'pré-rempli avec la dernière fois') + '</span></div><div class="card" style="padding:4px 14px 10px">';
   catalogueUnion().forEach(function(p) {
     const lastSingle = !multi && lastItems(etabs[0])[p.id];
-    h += '<div class="prow' + (multi ? ' multi' : '') + '"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(p.unit || 'pièce') + (lastSingle ? ' · la dernière fois : ' + lastSingle : '') + '</small></div><div class="steps">';
+    const pk = packOf(p) || 1;
+    h += '<div class="prow' + (multi ? ' multi' : '') + '"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(packLabel(p)) + (lastSingle ? ' · la dernière fois : ' + escapeHtml(fmtQty(p, lastSingle)) : '') + '</small></div><div class="steps">';
     etabs.forEach(function(e) {
       const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date);
       const q = Number(draft.qty[e.id][p.id]) || 0;
       const last = lastItems(e)[p.id];
-      const step = '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + q + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
+      const step = '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + (q / pk) + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
       // plusieurs établissements : l'étiquette (et « dernière fois ») sur chaque compteur
-      h += multi ? '<div class="stp"><small><b>' + escapeHtml(shortLabel(e)) + '</b>' + (ok ? (last ? ' · dernière fois ' + last : '') : ' · pas ce produit') + '</small>' + step + '</div>' : step;
+      h += multi ? '<div class="stp"><small><b>' + escapeHtml(shortLabel(e)) + '</b>' + (ok ? (last ? ' · dernière fois ' + escapeHtml(fmtQty(p, last)) : '') : ' · pas ce produit') + '</small>' + step + '</div>' : step;
     });
     h += '</div></div>';
   });
@@ -409,7 +417,7 @@ function renderOrder(b) {
   h += '<textarea class="note" rows="2" placeholder="Un mot pour la boulangerie ? (facultatif)" oninput="draft.notes=this.value">' + escapeHtml(draft.notes || '') + '</textarea>';
   h += '<button class="cta" style="margin-top:12px" onclick="saveOrder()">✓ Valider pour ' + escapeHtml(DOW_NAMES[dowOf(draft.date)] + ' ' + new Date(draft.date + 'T12:00').getDate()) + '</button>';
   if (draft.editing) h += '<button class="btn2 danger" onclick="cancelOrder(\'' + draft.date + '\')">Annuler cette commande</button>';
-  h += '<div class="foot">Un + ou un − par tap, ou tape le nombre. Les demandes hors catalogue se font dans le mot pour la boulangerie.</div>';
+  h += '<div class="foot">Un + ou un − par tap, ou tape le nombre (pour les produits en caisse ou en sac, c\'est le nombre de colis). Les demandes hors catalogue se font dans le mot pour la boulangerie.</div>';
   b.innerHTML = h;
   refreshTotals();
 }
