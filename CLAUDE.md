@@ -141,8 +141,9 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
 
 ### Quantités par caisse (viennoiserie)
 
-Croissant 70 / Pain choc 130 / Pain raisin 80 / Suisse 60 / Tartelettes 12 / Cannelé 170.
-(Chausson aux pommes + croissant amande : à confirmer)
+Croissant **77** / Pain choc 130 / Pain raisin 80 / Suisse 70 / Tartelettes 12 / Cannelé 170 /
+Croissant amandes 72 / Minis (croissant, pain choc, pain raisin) sac de 50 / Flan 6 pers. grille de 4 / Flan 4 pers. grille de 6.
+(Chausson aux pommes : à confirmer — Phil 13/10/2026). Source de vérité = fiche produit en BackOffice (`pces_per_caisse` + `conditioning_*`).
 
 ## Workflow déploiement
 
