@@ -2447,6 +2447,7 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.276 — rafraîchissement automatique (nouvelle version ou 15 min sans toucher l'écran → rechargement, retour sur le même onglet) */
 /* v20.275 — conditionnement imposé par produit (caisse/sac) : commandes pros en colis, stockées en pièces */
 /* v20.274 — pièces par client (onglet Pros) */
 .pro-recap-block { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:0 2px 8px rgba(61,43,31,0.05); }
@@ -2660,7 +2661,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.275';
+const APP_VERSION  = 'v20.276';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3461,7 +3462,7 @@ try {
     // v20.273 — l'espace client a sa page dédiée (pro.html) ; les anciens liens y vont tout seuls
     window.location.replace(window.location.pathname.replace(/[^/]*$/, 'pro.html') + '?t=' + encodeURIComponent(_proToken));
   } else {
-    loadProducts();
+    loadProducts().then(autoRefreshResume); // v20.276 — après un rechargement auto, retour sur le même écran
     loadPlanningOrder(); // v20.215 — ordre des pains = Planning semaine (Fabrication)
   }
   // v20.26 — subscribeRealtimeProducts est appelé après init dans loadProducts
@@ -3754,7 +3755,7 @@ async function loadBoutiqueCodes() {
   boutiqueCodesLoaded = true;
 }
 
-async function enterBoutique(b) {
+async function enterBoutique(b, vueVoulue) { // v20.276 — vueVoulue : onglet à ouvrir directement (reprise après rechargement auto)
 // Verrou par boutique (marchés libres). L'appareil se souvient de sa boutique.
 if (b !== 'amboise' && b !== 'beaujardin') {
   if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
@@ -3812,7 +3813,7 @@ if (b !== 'backoffice') {
   subscribeRealtimeAttention(); // v20.167 — bip + bandeau : nouvelle spéciale / réassort envoyé
 }
 renderNav();
-setVue(NAV_ITEMS[b][0].id);
+setVue(vueVoulue && NAV_ITEMS[b].some(function(n) { return n.id === vueVoulue; }) ? vueVoulue : NAV_ITEMS[b][0].id);
 }
 
 function goSplash() {
@@ -20725,6 +20726,57 @@ renderMessageAlert();
 }
 
 // Garde l'écran de la tablette allumé pendant la tournée (sinon pas de son possible)
+// ===================== v20.276 — Rafraîchissement automatique =====================
+// Toutes les 5 min et au réveil de la tablette : si une nouvelle version est en ligne (après 2 min sans toucher
+// l'écran) ou si personne n'a touché l'écran depuis 15 min, l'app se recharge toute seule et revient sur la même
+// boutique et le même onglet. Jamais pendant qu'une fenêtre est ouverte ou qu'on tape dans un champ.
+const AUTO_REFRESH_IDLE_MS = 15 * 60 * 1000, AUTO_REFRESH_NEWVER_IDLE_MS = 2 * 60 * 1000, AUTO_REFRESH_CHECK_MS = 5 * 60 * 1000;
+let _arLastActivity = Date.now(), _arNewVersion = false, _arChecking = false;
+const _arLoadedAt = Date.now();
+['touchstart', 'mousedown', 'keydown', 'input', 'scroll'].forEach(function(ev) {
+  document.addEventListener(ev, function() { _arLastActivity = Date.now(); }, { passive: true, capture: true });
+});
+function autoRefreshBusy() {
+  const els = document.querySelectorAll('[class*="modal"], [class*="overlay"]');
+  for (let i = 0; i < els.length; i++) { if (els[i].getClientRects().length) return true; }   // une fenêtre est affichée
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && Date.now() - _arLastActivity < AUTO_REFRESH_NEWVER_IDLE_MS) return true; // saisie en cours
+  return false;
+}
+function autoRefreshDecide(st) {
+  if (st.busy) return false;
+  if (st.newVersion && st.idleMs >= AUTO_REFRESH_NEWVER_IDLE_MS) return true;
+  return st.idleMs >= AUTO_REFRESH_IDLE_MS && st.ageMs >= AUTO_REFRESH_IDLE_MS;
+}
+async function autoRefreshCheckVersion() {
+  if (_arNewVersion) return;
+  try {
+    const r = await fetch(location.pathname + '?vcheck=' + Date.now(), { cache: 'no-store' });
+    const m = (await r.text()).match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if (m && m[1] !== APP_VERSION) _arNewVersion = true;
+  } catch (e) {}
+}
+function autoRefreshReload() {
+  try { sessionStorage.setItem('lbdd_resume', JSON.stringify({ b: currentBoutique, v: currentVue, t: Date.now() })); } catch (e) {}
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+async function autoRefreshTick() {
+  if (_arChecking) return; _arChecking = true;
+  try {
+    await autoRefreshCheckVersion();
+    const now = Date.now();
+    if (autoRefreshDecide({ newVersion: _arNewVersion, idleMs: now - _arLastActivity, ageMs: now - _arLoadedAt, busy: autoRefreshBusy() })) autoRefreshReload();
+  } finally { _arChecking = false; }
+}
+async function autoRefreshResume() {
+  let r = null;
+  try { r = JSON.parse(sessionStorage.getItem('lbdd_resume') || 'null'); sessionStorage.removeItem('lbdd_resume'); } catch (e) {}
+  if (!r || !r.b || r.b === 'backoffice' || !NAV_ITEMS[r.b] || Date.now() - (r.t || 0) > 5 * 60 * 1000) return;
+  try { await enterBoutique(r.b, r.v); } catch (e) {}   // l'onglet est passé à enterBoutique : un seul rendu, pas de course entre deux onglets
+}
+setInterval(autoRefreshTick, AUTO_REFRESH_CHECK_MS);
+document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') autoRefreshTick(); });
+
 async function requestWakeLock() {
 try {
 if ('wakeLock' in navigator && !_wakeLock) {
