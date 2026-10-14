@@ -2447,6 +2447,17 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.277 — notes des spéciales en production : cellule ⭐ Spé cliquable + compteur de notes */
+.cell-spe.has {
+  cursor: pointer; color: var(--gold-dark); font-weight: 700;
+  background: rgba(206,171,82,0.14); border-radius: 6px;
+  text-align: center; transition: background 0.15s;
+}
+.cell-spe.has:hover { background: rgba(206,171,82,0.3); }
+.cell-spe.has:active { transform: scale(0.95); }
+.prod-specials-notes { background: #FEF8E6; color: var(--brown); border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+.spe-detail-row { border-bottom: 1px solid #F5F0E5; }
+.spe-detail-row:last-child { border-bottom: none; }
 /* v20.276 — rafraîchissement automatique (nouvelle version ou 15 min sans toucher l'écran → rechargement, retour sur le même onglet) */
 /* v20.275 — conditionnement imposé par produit (caisse/sac) : commandes pros en colis, stockées en pièces */
 /* v20.274 — pièces par client (onglet Pros) */
@@ -2661,7 +2672,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.276';
+const APP_VERSION  = 'v20.277';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -2963,7 +2974,9 @@ async function loadShopPeople() {
 // v20.7 — Commandes spéciales du jour à produire (pour onglet "À produire")
 let productionSpecialOrders = [];     // array de commandes (avec items inclus)
 let productionSpecialByProduct = {};  // map { product_id: total_qty }
+let productionSpecialNotesByProduct = {}; // v20.277 — { product_id: true } si une ligne faite ici porte une note (ou sa commande)
 let productionSpecialsExpanded = false; // état déplié du bloc spéciales
+let productionSpecialsTouched = false;  // v20.277 — l'équipe a replié/déplié elle-même : on respecte son choix
 // v20.8 — bloc Réassorts magasins (consultation, replié par défaut) pour Veigné Pâtissier
 let productionReassortsExpanded = false;
 // v20.9 — Matin Veigné depuis sales (besoin saisi par la vendeuse) pour Veigné Pâtissier
@@ -5043,25 +5056,28 @@ html += '</div>';
 }
 
 // Section 3 : Commandes speciales St-Av
-if (productionSAData.specials_sa && productionSAData.specials_sa.length) {
+// v20.277 — les annulées disparaissent, et surtout les NOTES de la vendeuse s'affichent
+// (« Essentiel 2 kg », « Joyeux 90 ans ») : avant, le fournil n'avait que « 1x Essentiel ».
+const specialesSA = (productionSAData.specials_sa || []).filter(function(o) { return o.status !== 'annulee'; });
+if (specialesSA.length) {
 html += '<div class="section reappro-section">';
 html += '<div class="section-header section-header-reappro"><span>Commandes spéciales St-Avertin</span></div>';
-productionSAData.specials_sa.forEach(function(o) {
-html += '<div class="sp-card">';
+specialesSA.forEach(function(o) {
+html += '<div class="sp-card sp-readonly">';
 html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
-if (o.pickup_time) html += '<span class="sp-card-time">' + escapeHtml(o.pickup_time) + '</span>';
+if (o.pickup_time) html += '<span class="sp-card-time">🕔 ' + escapeHtml(String(o.pickup_time).slice(0, 5)) + '</span>';
 html += '</div>';
 const summary = (o.items || []).map(function(it) {
-const name = it.product_id ? ((products.find(function(x) { return x.id === it.product_id; }) || {}).name || '?') : (it.product_name_custom || '?');
-return (it.qty || 1) + 'x ' + name;
+return (parseQty(it.qty) || 1) + 'x ' + specialItemName(it, '?') + (it.tranche ? ' 🔪' : '');
 }).join(' + ');
 html += '<div class="sp-card-body">' + escapeHtml(summary) + '</div>';
+html += specialNotesHtml(o);
 html += '</div>';
 });
 html += '</div>';
 }
 
-if (!reapPids.length && !prevPids.length && (!productionSAData.specials_sa || !productionSAData.specials_sa.length)) {
+if (!reapPids.length && !prevPids.length && !specialesSA.length) {
 html += '<div class="empty-state">Aucune production St-Avertin à préparer pour ce jour.</div>';
 }
 
@@ -8340,6 +8356,7 @@ async function upsertStAvSaleFieldFromLocal(pid, field, val) {
 async function loadSpecialOrdersForProduction(date) {
 productionSpecialOrders = [];
 productionSpecialByProduct = {};
+productionSpecialNotesByProduct = {};
 // v20.235 — on charge les commandes du jour de TOUTES les boutiques, puis on garde celles
 // dont au moins une ligne se fabrique ici. Avant, le filtre serveur production_shop laissait
 // passer à la trappe une ligne pour nous noyée dans une commande routée ailleurs (flan du 05/09).
@@ -8364,8 +8381,13 @@ productionSpecialOrders.forEach(function(o) {
     if (!it.product_id) return;
     if (getItemProductionShop(it, o) !== currentBoutique) return;
     productionSpecialByProduct[it.product_id] = (productionSpecialByProduct[it.product_id] || 0) + (parseQty(it.qty) || 0);
+    if (specialItemHasNote(it) || specialOrderHasNote(o)) productionSpecialNotesByProduct[it.product_id] = true;
   });
 });
+// v20.277 — « 2 kg d'Essentiel », « Joyeux 90 ans » : le fournil ne voyait pas ces notes
+// parce que le bloc Spéciales était replié. Dès qu'une commande du jour porte une note,
+// le bloc s'ouvre tout seul (sauf si l'équipe l'a replié elle-même sur cet écran).
+if (!productionSpecialsTouched && productionSpecialOrders.some(specialHasNotes)) productionSpecialsExpanded = true;
 }
 
 // v20.201 — Plaquettes à faire à Veigné pour des commandes produites AILLEURS.
@@ -8604,8 +8626,8 @@ await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
 if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
 await loadProductionDone([currentBoutique], currentReapproDate); // v20.262
-// v20.7 — recharger les spéciales pour le nouveau jour
-if (currentBoutique === 'veigne' || currentBoutique === 'local') {
+// v20.7 — recharger les spéciales pour le nouveau jour (v20.277 — Tours aussi, comme à l'ouverture)
+if (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
 // v20.9 — recharger les Matins Veigné pour le nouveau jour
@@ -8744,6 +8766,7 @@ renderProduction();
 // v20.7 — déplie/replie le bloc Spéciales en haut de "À produire"
 function toggleProductionSpecials() {
 productionSpecialsExpanded = !productionSpecialsExpanded;
+productionSpecialsTouched = true;   // v20.277
 renderProduction();
 }
 
@@ -9174,9 +9197,11 @@ if (isVeignePat || isLocalBoul || isLocalTour) {
 if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   const nbCmd = productionSpecialOrders.length;
   const totalProducts = Object.keys(productionSpecialByProduct).reduce(function(s, pid) { return s + productionSpecialByProduct[pid]; }, 0);
+  const nbNotes = productionSpecialOrders.filter(specialHasNotes).length;   // v20.277
   html += '<div class="prod-specials-box">'
     + '<div class="prod-specials-header" onclick="toggleProductionSpecials()">'
-    + '<span>⭐ <strong>Spéciales du jour</strong> — ' + nbCmd + ' commande' + (nbCmd > 1 ? 's' : '') + ' · ' + totalProducts + ' produit' + (totalProducts > 1 ? 's' : '') + '</span>'
+    + '<span>⭐ <strong>Spéciales du jour</strong> — ' + nbCmd + ' commande' + (nbCmd > 1 ? 's' : '') + ' · ' + totalProducts + ' produit' + (totalProducts > 1 ? 's' : '')
+    + (nbNotes ? ' · <span class="prod-specials-notes">✏️ ' + nbNotes + ' note' + (nbNotes > 1 ? 's' : '') + '</span>' : '') + '</span>'
     + '<span class="prod-specials-toggle">' + (productionSpecialsExpanded ? '▲' : '▼') + '</span>'
     + '</div>';
   if (productionSpecialsExpanded) {
@@ -9215,18 +9240,10 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
               + (autre ? ' <em>&rarr; ' + escapeHtml(BOUTIQUE_NAMES[psIt] || psIt) + '</em>' : '') + '</span>';
           });
           html += '</div>';
-          // v20.193 — note par produit (décoration sur une ligne précise)
-          o.items.forEach(function(it) {
-            if (!it.notes || !String(it.notes).trim()) return;
-            const pname = specialItemName(it, it.product_id);
-            html += '<div class="sp-note sp-note-item" style="margin-top:4px">✏️ <strong>' + escapeHtml(pname) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
-          });
         }
-        // v20.193 — LE message à écrire sur le gâteau. Sans ça le pâtissier devait
-        // ouvrir l'onglet Spéciales commande par commande pour le retrouver.
-        if (o.notes && String(o.notes).trim()) {
-          html += '<div class="sp-note" style="margin-top:4px">⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>';
-        }
+        // v20.193 — notes par produit + LE message à écrire sur le gâteau. Sans ça le
+        // pâtissier devait ouvrir l'onglet Spéciales commande par commande.
+        html += specialNotesHtml(o, 'margin-top:4px');
         html += '</div>';
       });
     });
@@ -9453,7 +9470,12 @@ let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' pr
       + '<div class="cell ' + (r.tours > 0 ? '' : 'zero') + '">' + formatQty(r.tours) + '</div>';
   }
   if (showSpe) {
-    rowHtml += '<div class="cell ' + (r.spe > 0 ? '' : 'zero') + '" style="color:' + (r.spe > 0 ? 'var(--gold-dark)' : 'inherit') + ';font-weight:' + (r.spe > 0 ? '700' : '400') + '">' + (r.spe > 0 ? '⭐' + formatQty(r.spe) : '0') + '</div>';
+    // v20.277 — cliquable : qui a commandé quoi, avec les notes (✏️ = au moins une note à lire)
+    if (r.spe > 0) {
+      rowHtml += '<div class="cell cell-spe has" onclick="openSpeDetailModal(\'' + r.p.id + '\')" title="Cliquer pour voir le détail des commandes">⭐' + formatQty(r.spe) + (productionSpecialNotesByProduct[r.p.id] ? ' ✏️' : '') + '</div>';
+    } else {
+      rowHtml += '<div class="cell zero">0</div>';
+    }
   }
   // v21.0.4.3 — cellule Pros cliquable pour ouvrir le détail
   if (showProsCol) {
@@ -14627,6 +14649,51 @@ function closeProsDetailModal() {
   if (host) host.remove();
 }
 
+// v20.277 — DÉTAIL ⭐ SPÉ : un appui sur « ⭐1 » dans la grille de production ouvre la liste
+// des commandes du jour pour ce produit (heure, client, boutique de retrait, quantité) AVEC
+// les notes de la vendeuse. Même fenêtre que le détail 💼 Pros.
+function openSpeDetailModal(productId) {
+  const lignes = [];
+  (productionSpecialOrders || []).forEach(function(o) {
+    (o.items || []).forEach(function(it) {
+      if (it.product_id !== productId) return;
+      if (getItemProductionShop(it, o) !== currentBoutique) return;
+      lignes.push({ o: o, it: it });
+    });
+  });
+  if (!lignes.length) return;
+  lignes.sort(function(a, b) { return String(a.o.pickup_time || '99:99').localeCompare(String(b.o.pickup_time || '99:99')); });
+  const total = lignes.reduce(function(s, l) { return s + (parseQty(l.it.qty) || 0); }, 0);
+  const prodName = specialItemName(lignes[0].it, productId);
+  closeSpeDetailModal();
+  let html = '<div class="pros-detail-overlay" onclick="if(event.target===this)closeSpeDetailModal()">';
+  html += '<div class="pros-detail-modal">';
+  html += '<div class="pros-detail-title">⭐ ' + escapeHtml(prodName) + ' <span class="pros-detail-total" style="color:var(--gold-dark)">' + formatQty(total) + ' au total</span></div>';
+  html += '<div class="pros-detail-list">';
+  lignes.forEach(function(l) {
+    const o = l.o, it = l.it;
+    const heure = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—';
+    html += '<div class="spe-detail-row">'
+      + '<div class="pros-detail-row" style="border-bottom:none;padding-bottom:2px"><span><strong>' + escapeHtml(heure) + '</strong> · ' + escapeHtml(o.customer_name || '(sans nom)')
+      + ' <em style="color:var(--grey-light);font-style:normal;font-size:12px">🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop || '?') + '</em></span>'
+      + '<span class="pros-detail-qty" style="color:var(--gold-dark)">' + formatQty(parseQty(it.qty) || 0) + (it.tranche ? ' 🔪' : '') + '</span></div>';
+    // la note de CETTE ligne + la note de la commande (pas les notes des autres produits)
+    html += specialNotesHtml({ items: [it], notes: o.notes }, 'margin:0 10px 6px');
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div class="pros-detail-actions"><button class="modal-action cancel" onclick="closeSpeDetailModal()">Fermer</button></div>';
+  html += '</div></div>';
+  const div = document.createElement('div');
+  div.id = 'spe-detail-host';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+function closeSpeDetailModal() {
+  const host = document.getElementById('spe-detail-host');
+  if (host) host.remove();
+}
+
 function _proOrderInPeriod(o) {
   const todayISOval = todayISO();
   const tmw = new Date(); tmw.setDate(tmw.getDate() + 1);
@@ -17995,6 +18062,23 @@ function specialItemName(it, fallback) {
   }
   return (it && it.product_name_custom) || fallback || '?';
 }
+// v20.277 — NOTES D'UNE COMMANDE, même rendu partout (carte boutique, écrans de production,
+// Prod. St-Av, détail ⭐ Spé). Avant, chaque écran recopiait le bloc… ou l'oubliait.
+//   ✏️ note par produit (« Essentiel 2 kg », « sans glucose dessus »)
+//   ⭐ note de commande (« Joyeux 90 ans », allergie)
+function specialItemHasNote(it) { return !!(it && it.notes && String(it.notes).trim()); }
+function specialOrderHasNote(o) { return !!(o && o.notes && String(o.notes).trim()); }
+function specialHasNotes(o) { return specialOrderHasNote(o) || (o && (o.items || []).some(specialItemHasNote)); }
+function specialNotesHtml(o, extraStyle) {
+  const st = extraStyle ? ' style="' + extraStyle + '"' : '';
+  let h = '';
+  (o.items || []).forEach(function(it) {
+    if (!specialItemHasNote(it)) return;
+    h += '<div class="sp-note sp-note-item"' + st + '>✏️ <strong>' + escapeHtml(specialItemName(it, '?')) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
+  });
+  if (specialOrderHasNote(o)) h += '<div class="sp-note"' + st + '>⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>';
+  return h;
+}
 function getItemProductionShop(it, o) {
   if (!it || !it.product_id) return o.production_shop || o.origin_shop;
   return getProductionShopForProduct(it.product_id, o.origin_shop, o.pickup_date);
@@ -19220,17 +19304,9 @@ html += cmdDelaiBadgeHtml(o);   // v20.263 — prise hors délai
 if (o.pickup_time) html += '<span class="sp-card-time">🕔 ' + escapeHtml(o.pickup_time) + '</span>';
 html += '</div>';
 html += '<div class="sp-card-body">' + summary + '</div>';
-// v20.193 — notes par produit (décoration, message sur une ligne précise)
-(o.items || []).forEach(function(it) {
-  if (!it.notes || !String(it.notes).trim()) return;
-  const nm = specialItemName(it, '?');
-  html += '<div class="sp-note sp-note-item">✏️ <strong>' + escapeHtml(nm) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
-});
-// v20.193 — note de commande (message à écrire sur le gâteau, allergie…) :
-// elle n'apparaissait que dans le formulaire et sur le ticket imprimé.
-if (o.notes && String(o.notes).trim()) {
-  html += '<div class="sp-note">⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>';
-}
+// v20.193 — notes par produit + note de commande (message sur le gâteau, allergie…)
+// v20.277 — rendu partagé avec les écrans de production
+html += specialNotesHtml(o);
 html += '<div class="sp-card-footer">';
 html += '<span class="sp-status-badge sp-st-' + o.status + '">' + STATUS_LBL[o.status] + '</span>';
 // v20.237 — qui a pris / qui a remis
