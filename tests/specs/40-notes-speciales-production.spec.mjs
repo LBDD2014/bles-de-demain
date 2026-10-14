@@ -72,7 +72,7 @@ export const tests = [
         return { avant, replie };
       }, txt.toString());
       assert(r.avant.ouvert === true, 'bloc ouvert tout seul avec une note');
-      assert(/2 commandes · 6 produits · ✏️ 1 note/.test(r.avant.tete), 'en-tête avec compteur de notes : ' + r.avant.tete);
+      assert(/2 commandes · 6 produits · ✏️ 2 notes/.test(r.avant.tete), 'en-tête avec compteur de notes : ' + r.avant.tete);
       assert(r.avant.notes.join('|') === '✏️ Tradition — Tradition 2kgrs|⭐ Joyeux 90 ans', 'les notes sont dans le bloc : ' + r.avant.notes.join('|'));
       assert(r.replie === false, 'replié à la main : fermé');
       // changement de jour puis retour : le choix de l'équipe est respecté
@@ -212,6 +212,52 @@ tests.push({
     assert(r.tete === '✏️ Plaquettes & messages à écrire — 4 plaquettes · 2 commandes', 'en-tête avec compteur : ' + r.tete);
     assert(r.clients.join('|') === '10:00 · Saintin · 🏪 retrait St-Avertin|10:00 · Wibaut · 🏪 retrait St-Avertin', 'Saintin (notes produit seulement) est là, SansNote non : ' + r.clients.join('|'));
     assert(r.plaquettes.join('|') === '« JA »✏️ sur Tradition ×1 (gâteau fait par Le Local)|« 100 ans »✏️ sur Tradition Graines ×1 (gâteau fait par Le Local)|« Sans glucose sur le dessus »✏️ sur Tradition ×1 (gâteau fait par Le Local)|« Joyeux 90 ans »⭐ pour la commande : Tradition ×1 (gâteau fait par Le Local)', 'une plaquette par note, texte en clair : ' + JSON.stringify(r.plaquettes));
+    await page.close();
+  },
+});
+
+// v20.281 — « je vois toutes les commandes à Veigné » : le bloc ne s'ouvre que s'il y a quelque
+// chose à lire POUR CET ATELIER, et ne montre que les notes des lignes faites ici.
+tests.push({
+  name: 'Veigné À produire — une note sur une ligne faite au Local n\'ouvre pas le bloc à Veigné et n\'y est pas affichée ; une note de commande (ligne Veigné dedans) oui ; au Local c\'est l\'inverse',
+  fn: async (ctx) => {
+    const mk = (noteCommande) => {
+      const db = makeDB();
+      // pg_fraisier (gros gâteau, St-Av fourni par Veigné) → ligne Veigné · vt_trad : St-Av = local → ligne Local
+      db.products.push({ id: 'pg_fraisier', tenant_id: T, name: 'Fraisier 6 pers.', category: 'patisserie_gros', actif: true, pros_only_id: null, usage: 'both', pces_per_caisse: null, seuil_stock: null,
+        supply_by_boutique: JSON.stringify({ veigne: 'on_site', tours: 'veigne', 'saint-avertin': 'veigne' }) });
+      db.special_orders = [{ id: 'm1', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'veigne', pickup_date: TEST_TODAY, pickup_time: '10:00:00', customer_name: 'Mixte', status: 'confirmee', notes: noteCommande }];
+      db.special_order_items = [
+        { id: 'mi1', order_id: 'm1', product_id: 'pg_fraisier', qty: 1, position: 0, notes: null },
+        { id: 'mi2', order_id: 'm1', product_id: 'vt_trad', qty: 1, position: 1, notes: 'Tradition 2kgrs' },
+      ];
+      return db;
+    };
+    const lire = () => ({ ouvert: !!document.querySelector('.prod-specials-body'), tete: (document.querySelector('.prod-specials-header') || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim(),
+      notes: Array.from(document.querySelectorAll('.prod-specials-body .sp-note')).map((x) => x.textContent.replace(/\s+/g, ' ').trim()) });
+    // Veigné, note seulement sur la ligne du Local → fermé, pas de compteur
+    let page = await preparePage(ctx, { db: mk(null) });
+    await gotoApp(page); await enterBoutique(page, 'veigne');
+    await page.evaluate(() => setVue('production')); await page.waitForTimeout(800);
+    const v1 = await page.evaluate(lire);
+    assert(v1.ouvert === false && v1.tete.indexOf('✏️') === -1 && v1.tete.indexOf('1 commande · 1 produit') !== -1, 'Veigné : commande listée mais bloc fermé, pas de compteur : ' + JSON.stringify(v1));
+    await page.evaluate(() => toggleProductionSpecials());
+    const v1b = await page.evaluate(lire);
+    assert(v1b.notes.length === 0, 'Veigné, bloc ouvert à la main : la note du Local n\'est pas affichée : ' + JSON.stringify(v1b.notes));
+    await page.close();
+    // Veigné, note de commande en plus → ouvert, seule la note de commande
+    page = await preparePage(ctx, { db: mk('Joyeux 90 ans') });
+    await gotoApp(page); await enterBoutique(page, 'veigne');
+    await page.evaluate(() => setVue('production')); await page.waitForTimeout(800);
+    const v2 = await page.evaluate(lire);
+    assert(v2.ouvert === true && v2.tete.indexOf('✏️ 1 note') !== -1 && v2.notes.join('|') === '⭐ Joyeux 90 ans', 'Veigné : ouvert sur la note de commande seulement : ' + JSON.stringify(v2));
+    await page.close();
+    // Le Local, même commande : ouvert, note produit + note commande
+    page = await preparePage(ctx, { db: mk('Joyeux 90 ans') });
+    await gotoApp(page); await enterBoutique(page, 'local');
+    await page.evaluate(() => setVue('prod_boul')); await page.waitForTimeout(800);
+    const l1 = await page.evaluate(lire);
+    assert(l1.ouvert === true && l1.tete.indexOf('✏️ 2 notes') !== -1 && l1.notes.join('|') === '✏️ Tradition — Tradition 2kgrs|⭐ Joyeux 90 ans', 'Local : ses deux notes : ' + JSON.stringify(l1));
     await page.close();
   },
 });

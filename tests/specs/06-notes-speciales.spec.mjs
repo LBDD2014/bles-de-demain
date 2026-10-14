@@ -16,6 +16,10 @@ const NOTE_ITEM = 'Ecriture en chocolat blanc';
 /** Base avec une commande spéciale St-Avertin → produite à Veigné, avec les 2 notes. */
 function dbAvecCommandeNotee() {
   const db = makeDB();
+  // v20.281 — la note par produit n'est montrée qu'à l'atelier qui fait la ligne : un gros gâteau
+  // St-Av fourni par Veigné est produit à Veigné (vt_trad serait fait au Local).
+  db.products.push({ id: 'pg_fraisier', tenant_id: TENANT_ID, name: 'Fraisier 6 pers.', category: 'patisserie_gros', actif: true, pros_only_id: null, usage: 'both', pces_per_caisse: null, seuil_stock: null,
+    supply_by_boutique: JSON.stringify({ veigne: 'on_site', tours: 'veigne', 'saint-avertin': 'veigne' }) });
   db.special_orders.push({
     id: 'cmd-test-1',
     tenant_id: TENANT_ID,
@@ -34,7 +38,7 @@ function dbAvecCommandeNotee() {
   db.special_order_items.push({
     id: 'item-test-1',
     order_id: 'cmd-test-1',
-    product_id: 'vt_trad',
+    product_id: 'pg_fraisier',
     qty: 1,
     tranche: false,
     notes: NOTE_ITEM,

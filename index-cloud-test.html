@@ -2684,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.280';
+const APP_VERSION  = 'v20.281';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -8491,7 +8491,9 @@ productionSpecialOrders.forEach(function(o) {
 // v20.277 — « 2 kg d'Essentiel », « Joyeux 90 ans » : le fournil ne voyait pas ces notes
 // parce que le bloc Spéciales était replié. Dès qu'une commande du jour porte une note,
 // le bloc s'ouvre tout seul (sauf si l'équipe l'a replié elle-même sur cet écran).
-if (!productionSpecialsTouched && productionSpecialOrders.some(specialNeedsReading)) productionSpecialsExpanded = true;
+// v20.281 — …et seulement si la note concerne une ligne faite ICI (sinon Veigné voyait tout s'ouvrir
+// pour une note destinée au Local).
+if (!productionSpecialsTouched && productionSpecialOrders.some(function(o) { return specialALireIci(o, currentBoutique); })) productionSpecialsExpanded = true;
 }
 
 // v20.201 — Plaquettes à faire à Veigné pour des commandes produites AILLEURS.
@@ -9316,8 +9318,9 @@ if (isVeignePat || isLocalBoul || isLocalTour) {
 if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   const nbCmd = productionSpecialOrders.length;
   const totalProducts = Object.keys(productionSpecialByProduct).reduce(function(s, pid) { return s + productionSpecialByProduct[pid]; }, 0);
-  const nbNotes = productionSpecialOrders.filter(specialHasNotes).length;   // v20.277
-  const nbLibres = productionSpecialOrders.reduce(function(n, o) { return n + (o.items || []).filter(specialItemIsLibre).length; }, 0);
+  // v20.277 / v20.281 — compteurs : ce qu'il y a à lire POUR cet atelier
+  const nbNotes = productionSpecialOrders.reduce(function(n, o) { return n + specialNotesIci(o, currentBoutique); }, 0);
+  const nbLibres = productionSpecialOrders.reduce(function(n, o) { return n + specialLibresIci(o, currentBoutique); }, 0);
   html += '<div class="prod-specials-box">'
     + '<div class="prod-specials-header" onclick="toggleProductionSpecials()">'
     + '<span>⭐ <strong>Spéciales du jour</strong> — ' + nbCmd + ' commande' + (nbCmd > 1 ? 's' : '') + ' · ' + totalProducts + ' produit' + (totalProducts > 1 ? 's' : '')
@@ -9364,7 +9367,7 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
         }
         // v20.193 — notes par produit + LE message à écrire sur le gâteau. Sans ça le
         // pâtissier devait ouvrir l'onglet Spéciales commande par commande.
-        html += specialNotesHtml(o, 'margin-top:4px');
+        html += specialNotesHtml(o, 'margin-top:4px', currentBoutique);   // v20.281 — notes de MES lignes
         html += '</div>';
       });
     });
@@ -18219,11 +18222,26 @@ function specialHasNotes(o) { return specialOrderHasNote(o) || (o && (o.items ||
 function specialItemIsLibre(it) { return !!(it && !it.product_id && it.product_name_custom && String(it.product_name_custom).trim()); }
 function specialHasLibre(o) { return !!(o && (o.items || []).some(specialItemIsLibre)); }
 function specialNeedsReading(o) { return specialHasNotes(o) || specialHasLibre(o); }
-function specialNotesHtml(o, extraStyle) {
+// v20.281 — « je vois toutes les commandes à Veigné » (Phil, 14/10) : ce qui est à lire POUR CET
+// ATELIER seulement. Une note sur une ligne faite au Local ne concerne pas Veigné (et inversement).
+// La note de COMMANDE concerne tout le monde qui fabrique au moins une ligne de la commande.
+function specialLigneIci(it, o, shop) { return getItemProductionShop(it, o) === shop; }
+function specialNotesIci(o, shop) {
+  const items = o.items || [];
+  return items.filter(function(it) { return specialItemHasNote(it) && specialLigneIci(it, o, shop); }).length
+    + ((specialOrderHasNote(o) && items.some(function(it) { return specialLigneIci(it, o, shop); })) ? 1 : 0);
+}
+function specialLibresIci(o, shop) {
+  return (o.items || []).filter(function(it) { return specialItemIsLibre(it) && specialLigneIci(it, o, shop); }).length;
+}
+function specialALireIci(o, shop) { return specialNotesIci(o, shop) + specialLibresIci(o, shop) > 0; }
+// shop (facultatif) : ne garder que les notes des lignes faites dans cet atelier
+function specialNotesHtml(o, extraStyle, shop) {
   const st = extraStyle ? ' style="' + extraStyle + '"' : '';
   let h = '';
   (o.items || []).forEach(function(it) {
     if (!specialItemHasNote(it)) return;
+    if (shop && !specialLigneIci(it, o, shop)) return;
     h += '<div class="sp-note sp-note-item"' + st + '>✏️ <strong>' + escapeHtml(specialItemName(it, '?')) + '</strong> — ' + escapeHtml(String(it.notes).trim()) + '</div>';
   });
   if (specialOrderHasNote(o)) h += '<div class="sp-note"' + st + '>⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>';
