@@ -2672,7 +2672,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.277';
+const APP_VERSION  = 'v20.278';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -8387,7 +8387,7 @@ productionSpecialOrders.forEach(function(o) {
 // v20.277 — « 2 kg d'Essentiel », « Joyeux 90 ans » : le fournil ne voyait pas ces notes
 // parce que le bloc Spéciales était replié. Dès qu'une commande du jour porte une note,
 // le bloc s'ouvre tout seul (sauf si l'équipe l'a replié elle-même sur cet écran).
-if (!productionSpecialsTouched && productionSpecialOrders.some(specialHasNotes)) productionSpecialsExpanded = true;
+if (!productionSpecialsTouched && productionSpecialOrders.some(specialNeedsReading)) productionSpecialsExpanded = true;
 }
 
 // v20.201 — Plaquettes à faire à Veigné pour des commandes produites AILLEURS.
@@ -9198,10 +9198,12 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   const nbCmd = productionSpecialOrders.length;
   const totalProducts = Object.keys(productionSpecialByProduct).reduce(function(s, pid) { return s + productionSpecialByProduct[pid]; }, 0);
   const nbNotes = productionSpecialOrders.filter(specialHasNotes).length;   // v20.277
+  const nbLibres = productionSpecialOrders.reduce(function(n, o) { return n + (o.items || []).filter(specialItemIsLibre).length; }, 0);
   html += '<div class="prod-specials-box">'
     + '<div class="prod-specials-header" onclick="toggleProductionSpecials()">'
     + '<span>⭐ <strong>Spéciales du jour</strong> — ' + nbCmd + ' commande' + (nbCmd > 1 ? 's' : '') + ' · ' + totalProducts + ' produit' + (totalProducts > 1 ? 's' : '')
-    + (nbNotes ? ' · <span class="prod-specials-notes">✏️ ' + nbNotes + ' note' + (nbNotes > 1 ? 's' : '') + '</span>' : '') + '</span>'
+    + (nbNotes ? ' · <span class="prod-specials-notes">✏️ ' + nbNotes + ' note' + (nbNotes > 1 ? 's' : '') + '</span>' : '')
+    + (nbLibres ? ' · <span class="prod-specials-notes">📝 ' + nbLibres + ' texte' + (nbLibres > 1 ? 's' : '') + ' libre' + (nbLibres > 1 ? 's' : '') + '</span>' : '') + '</span>'
     + '<span class="prod-specials-toggle">' + (productionSpecialsExpanded ? '▲' : '▼') + '</span>'
     + '</div>';
   if (productionSpecialsExpanded) {
@@ -16483,11 +16485,34 @@ function flushAttentionReappro() {
   attentionReapproBatch = {};
 }
 
+// v20.277 — EN DIRECT : la vendeuse ajoute « 2 kg » ou « Joyeux 90 ans » pendant que le fournil
+// a son écran de production ouvert → l'écran se recharge tout seul (avant : seulement en
+// changeant d'onglet ou de jour, ou au rechargement auto après 15 min sans toucher).
+// Jamais pendant une saisie : si un champ a le focus, on repasse un peu plus tard.
+let _speProdRefreshTimer = null;
+function scheduleProductionSpecialsRefresh() {
+  clearTimeout(_speProdRefreshTimer);
+  _speProdRefreshTimer = setTimeout(async function() {
+    const enProd = isProductionVue() && ['local', 'veigne', 'tours'].indexOf(currentBoutique) !== -1;
+    const enSA = currentVue === 'production_sa' && currentBoutique === 'local';
+    if (!enProd && !enSA) return;
+    const a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { scheduleProductionSpecialsRefresh(); return; }
+    if (enSA) { await loadProductionSA(); if (currentVue === 'production_sa') renderProductionSA(); return; }
+    await loadSpecialOrdersForProduction(currentReapproDate);
+    if (isProductionVue()) renderProduction();
+  }, 1200);
+}
+
 function subscribeRealtimeAttention() {
   if (realtimeChannelAttention) { supa.removeChannel(realtimeChannelAttention); realtimeChannelAttention = null; }
   if (['veigne', 'tours', 'saint-avertin', 'local'].indexOf(currentBoutique) === -1) return;
   realtimeChannelAttention = supa.channel('attention_' + currentBoutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'special_order_items' }, function() {
+      scheduleProductionSpecialsRefresh();   // v20.277 — note produit / quantité modifiée
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'special_orders' }, function(payload) {
+      scheduleProductionSpecialsRefresh();   // v20.277 — note de commande / statut / nouvelle commande
       const r = payload.new;
       if (!r || !r.id) return;
       if (r.created_by === DEVICE_ID) return;           // pas d'alerte chez celui qui saisit
@@ -18069,6 +18094,11 @@ function specialItemName(it, fallback) {
 function specialItemHasNote(it) { return !!(it && it.notes && String(it.notes).trim()); }
 function specialOrderHasNote(o) { return !!(o && o.notes && String(o.notes).trim()); }
 function specialHasNotes(o) { return specialOrderHasNote(o) || (o && (o.items || []).some(specialItemHasNote)); }
+// v20.277 — ligne « texte libre » (produit tapé à la main, sans fiche) : elle n'est dans
+// aucune colonne de la grille, donc elle compte comme « à lire » au même titre qu'une note.
+function specialItemIsLibre(it) { return !!(it && !it.product_id && it.product_name_custom && String(it.product_name_custom).trim()); }
+function specialHasLibre(o) { return !!(o && (o.items || []).some(specialItemIsLibre)); }
+function specialNeedsReading(o) { return specialHasNotes(o) || specialHasLibre(o); }
 function specialNotesHtml(o, extraStyle) {
   const st = extraStyle ? ' style="' + extraStyle + '"' : '';
   let h = '';

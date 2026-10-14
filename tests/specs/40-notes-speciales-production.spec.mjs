@@ -122,3 +122,60 @@ export const tests = [
     },
   },
 ];
+
+// v20.277 (suite) — garantie demandée par Phil : « si la vendeuse tape quelque chose à la main,
+// on le voit en prod ». Deux trous bouchés : le texte libre (produit sans fiche) ouvre aussi le
+// bloc, et l'écran de production se recharge en direct quand une note arrive.
+tests.push(
+  {
+    name: 'Prod. Boulangers — un produit tapé en texte libre (sans note) ouvre aussi le bloc Spéciales, avec compteur 📝 texte libre, et la ligne est lisible',
+    fn: async (ctx) => {
+      const db = makeDB();
+      db.special_orders = [{ id: 'so9', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '09:00:00', customer_name: 'Saintin', status: 'confirmee', notes: null }];
+      db.special_order_items = [{ id: 'si9', order_id: 'so9', product_id: null, product_name_custom: 'Number cake 2 chiffres', qty: 1, position: 0, notes: null }];
+      const page = await preparePage(ctx, { db });
+      await gotoApp(page); await enterBoutique(page, 'local');
+      await page.evaluate(() => setVue('prod_boul')); await page.waitForTimeout(600);
+      const r = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'), tete: document.querySelector('.prod-specials-header').textContent,
+        items: Array.from(document.querySelectorAll('.prod-special-item')).map((x) => x.textContent.trim()) }));
+      assert(r.ouvert === true, 'bloc ouvert pour un texte libre');
+      assert(r.tete.indexOf('📝 1 texte libre') !== -1, 'compteur texte libre : ' + r.tete);
+      assert(r.items.join('|') === 'Number cake 2 chiffres ×1', 'la ligne libre est lisible : ' + r.items.join('|'));
+      await page.close();
+    },
+  },
+  {
+    name: 'Prod. Boulangers — la vendeuse ajoute une note pendant que l\'écran est ouvert : l\'écran se recharge tout seul (pas pendant une saisie)',
+    fn: async (ctx) => {
+      const page = await ouvrir(ctx, false, 'prod_boul');
+      const avant = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'), notes: document.querySelectorAll('.sp-note').length }));
+      assert(avant.ouvert === false && avant.notes === 0, 'au départ : pas de note, bloc fermé');
+      // la vendeuse écrit une note sur la ligne de Cathelin, le signal temps réel arrive
+      await page.evaluate(() => {
+        window.__mockDB.special_order_items.find((i) => i.id === 'si1').notes = 'Tradition 2kgrs';
+        scheduleProductionSpecialsRefresh();
+      });
+      await page.waitForTimeout(1800);
+      const apres = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'),
+        notes: Array.from(document.querySelectorAll('.prod-specials-body .sp-note')).map((x) => x.textContent.replace(/\s+/g, ' ').trim()),
+        cell: Array.from(document.querySelectorAll('.cell-spe')).map((x) => x.textContent.trim()) }));
+      assert(apres.ouvert === true, 'bloc ouvert tout seul après l\'arrivée de la note');
+      assert(apres.notes.join('|') === '✏️ Tradition — Tradition 2kgrs', 'la note est là sans rien toucher : ' + apres.notes.join('|'));
+      assert(apres.cell[0] === '⭐3 ✏️', 'la cellule ⭐ Spé signale la note : ' + apres.cell[0]);
+      // saisie en cours : on ne rerend pas sous les doigts du boulanger
+      await page.evaluate(() => {
+        window.__mockDB.special_orders.find((o) => o.id === 'so2').notes = 'Joyeux 90 ans';
+        const inp = document.querySelector('.prod-row input'); inp.focus();
+        scheduleProductionSpecialsRefresh();
+      });
+      await page.waitForTimeout(1800);
+      const pendant = await page.evaluate(() => document.querySelectorAll('.prod-specials-body .sp-note').length);
+      assert(pendant === 1, 'champ en cours de saisie : pas de rechargement (toujours 1 note affichée)');
+      await page.evaluate(() => document.activeElement.blur());
+      await page.waitForTimeout(1800);
+      const fin = await page.evaluate(() => document.querySelectorAll('.prod-specials-body .sp-note').length);
+      assert(fin === 2, 'saisie finie : rechargé, 2 notes affichées');
+      await page.close();
+    },
+  },
+);
