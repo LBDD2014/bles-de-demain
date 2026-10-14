@@ -2447,6 +2447,13 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.279 — Production Fêtes : totaux cliquables + bloc notes des clients */
+.fete-prod-row { cursor: pointer; }
+.fete-prod-row:active { background: rgba(206,171,82,0.14); }
+.fete-prod-notes { margin: 6px 10px 10px; border: 1px solid #E5DCC8; border-radius: 10px; padding: 8px 10px; background: #FFFDF7; }
+.fete-prod-notes-title { font-size: 12px; font-weight: 700; color: var(--brown); margin-bottom: 6px; }
+.fete-prod-note-row { padding: 6px 0; border-top: 1px dashed #EDE5D3; }
+.fete-prod-note-row:first-of-type { border-top: none; }
 /* v20.277 — notes des spéciales en production : cellule ⭐ Spé cliquable + compteur de notes */
 .cell-spe.has {
   cursor: pointer; color: var(--gold-dark); font-weight: 700;
@@ -2672,7 +2679,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.278';
+const APP_VERSION  = 'v20.279';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4185,6 +4192,7 @@ renderMetro();
 // v20.222 — onglet éphémère Fêtes (commandes clients à prix)
 await loadShopPeople();   // v20.238 — mêmes prénoms que les Spéciales
 await loadFeteOrders();
+subscribeRealtimeFetes();   // v20.279 — notes et commandes en direct sur la vue Production
 renderFetes();
 } else if (v === 'fetes_admin') {
 await loadFetes();
@@ -4201,6 +4209,30 @@ let feteView = 'new';       // new | list | prod
 let feteEditingId = null;   // commande en cours de modification
 let feteDraftQty = {};      // { fete_product_id: qty } pendant la saisie
 let feteAdminEvent = null;  // fête sélectionnée en BackOffice
+// v20.279 — Production Fêtes : détail client par client derrière chaque total (fenêtre),
+// et rechargement en direct quand une boutique ajoute/modifie une commande ou une note.
+let feteProdGroups = [];        // [{ date, pk, lignes: [{ o, it }] }] — index = cible du clic
+let feteOrdersDirty = false;    // un changement est arrivé pendant la saisie d'une commande
+let realtimeChannelFetes = null;
+function subscribeRealtimeFetes() {
+  if (realtimeChannelFetes) { supa.removeChannel(realtimeChannelFetes); realtimeChannelFetes = null; }
+  realtimeChannelFetes = supa.channel('fetes_' + currentBoutique)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fete_orders' }, async function() {
+      if (currentVue !== 'fetes') return;
+      if (feteView === 'new') { feteOrdersDirty = true; return; }   // jamais sous les doigts de la vendeuse
+      await loadFeteOrders(); feteOrdersDirty = false; renderFetes();
+    })
+    .subscribe();
+}
+// Les lignes d'une commande que CE site fabrique (prod_site par produit, Veigné par défaut)
+function feteItemsPourSite(o, site) {
+  return (o.items || []).filter(function(it) { return !site || (it.prod_site || 'veigne') === site; });
+}
+function feteProdSite() { return (currentBoutique === 'veigne') ? 'veigne' : (currentBoutique === 'local' ? 'local' : null); }
+function feteNoteHtml(o, extraStyle) {
+  if (!o.notes || !String(o.notes).trim()) return '';
+  return '<div class="sp-note"' + (extraStyle ? ' style="' + extraStyle + '"' : '') + '>⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>';
+}
 
 async function loadFetes() {
   feteEvents = []; feteActive = null; feteProducts = [];
@@ -4239,20 +4271,28 @@ function renderFetes() {
   if (!feteActive) { mc.innerHTML = '<div class="empty-state">Aucune fête active en ce moment.</div>'; return; }
   const showProd = (currentBoutique === 'local' || currentBoutique === 'veigne');
   const nOrders = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique && o.status !== 'annulee' && o.status !== 'recuperee'; }).length;
+  // v20.279 — combien de commandes à fabriquer ici portent une note (visible sans ouvrir Production)
+  const nNotesProd = showProd ? feteOrders.filter(function(o) {
+    return o.status !== 'annulee' && o.notes && String(o.notes).trim() && feteItemsPourSite(o, feteProdSite()).length;
+  }).length : 0;
   let html = '<div class="fete-banner"><span><strong>' + escapeHtml(feteActive.label) + '</strong> — commandes clients</span>'
     + '<small>Retraits du ' + escapeHtml(formatDateFr(feteActive.date_debut)) + ' au ' + escapeHtml(formatDateFr(feteActive.date_fin))
     + (feteActive.butoir ? ' · commandes jusqu\'au ' + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '') + '</small></div>';
   html += '<div class="recap-toggle">'
     + '<button class="recap-toggle-btn ' + (feteView === 'new' ? 'active' : '') + '" onclick="feteSetView(\'new\')">📝 Nouvelle</button>'
     + '<button class="recap-toggle-btn ' + (feteView === 'list' ? 'active' : '') + '" onclick="feteSetView(\'list\')">📋 Commandes (' + nOrders + ')</button>'
-    + (showProd ? '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production</button>' : '')
+    + (showProd ? '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production' + (nNotesProd ? ' <span class="prod-specials-notes">✏️ ' + nNotesProd + '</span>' : '') + '</button>' : '')
     + '</div>';
   if (feteView === 'new') html += feteFormHtml();
   else if (feteView === 'list') html += feteListHtml();
   else html += feteProdHtml();
   mc.innerHTML = html;
 }
-function feteSetView(v) { feteView = v; if (v !== 'new') feteEditingId = null; renderFetes(); }
+async function feteSetView(v) {
+  feteView = v; if (v !== 'new') feteEditingId = null;
+  if (v !== 'new' && feteOrdersDirty) { await loadFeteOrders(); feteOrdersDirty = false; }   // v20.279 — rattrape ce qui est arrivé pendant la saisie
+  renderFetes();
+}
 
 function feteQtySelect(fpId, val) {
   let o = '<option value="">–</option>';
@@ -4431,31 +4471,90 @@ function feteEdit(id) { feteEditingId = id; feteView = 'new'; renderFetes(); }
 
 // Production : totaux toutes boutiques, filtrés sur ce que CE site fabrique
 // (bûches & douceurs → Veigné · pains de fête → Le Local), groupés par jour de retrait.
+// v20.279 — comme les Spéciales : la note de la vendeuse (« Joyeux 90 ans », « sans gluten »)
+// n'était visible que sur la liste de la boutique qui a pris la commande, jamais en production.
+// Désormais, pour chaque jour de retrait : les totaux (✏️ s'il y a une note derrière, un appui
+// ouvre le détail client par client) + le bloc « Notes des clients » toujours visible.
 function feteProdHtml() {
-  const mySite = (currentBoutique === 'veigne') ? 'veigne' : (currentBoutique === 'local' ? 'local' : null);
-  const byDate = {};
+  const mySite = feteProdSite();
+  const byDate = {};        // { date: { pk: { qty, lignes: [{o,it}], note } } }
+  const notesByDate = {};   // { date: [o] } — commandes avec note qui concernent ce site
   feteOrders.filter(function(o) { return o.status !== 'annulee'; }).forEach(function(o) {
-    (o.items || []).forEach(function(it) {
-      if (mySite && (it.prod_site || 'veigne') !== mySite) return;
-      const k = o.pickup_date;
-      byDate[k] = byDate[k] || {};
+    const k = o.pickup_date;
+    const miennes = feteItemsPourSite(o, mySite);
+    if (!miennes.length) return;
+    byDate[k] = byDate[k] || {};
+    miennes.forEach(function(it) {
       const pk = it.nom + (it.taille ? ' — ' + it.taille : '');
-      byDate[k][pk] = (byDate[k][pk] || 0) + (+it.qty || 0);
+      const g = byDate[k][pk] = byDate[k][pk] || { qty: 0, lignes: [], note: false };
+      g.qty += (+it.qty || 0);
+      g.lignes.push({ o: o, it: it });
+      if (o.notes && String(o.notes).trim()) g.note = true;
     });
+    if (o.notes && String(o.notes).trim()) (notesByDate[k] = notesByDate[k] || []).push(o);
   });
   const dates = Object.keys(byDate).sort();
+  feteProdGroups = [];
   if (!dates.length) return '<div class="empty-state">Rien à produire pour l\'instant' + (mySite === 'local' ? ' (les pains de fête apparaîtront ici)' : '') + '.</div>';
-  let html = '<div class="info-banner"><strong>Production ' + escapeHtml(feteActive.label) + '</strong><br>Totaux des commandes de toutes les boutiques — produits fabriqués ' + (mySite === 'local' ? 'au Local' : 'à Veigné') + '. Imprimante en haut pour l\'A4.</div>';
+  let html = '<div class="info-banner"><strong>Production ' + escapeHtml(feteActive.label) + '</strong><br>Totaux des commandes de toutes les boutiques — produits fabriqués ' + (mySite === 'local' ? 'au Local' : 'à Veigné') + '. Appuie sur un total pour voir qui a commandé quoi. Imprimante en haut pour l\'A4.</div>';
+  const heure = function(o) { return o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—'; };
   dates.forEach(function(d) {
     let tot = 0;
-    Object.keys(byDate[d]).forEach(function(pk) { tot += byDate[d][pk]; });
+    Object.keys(byDate[d]).forEach(function(pk) { tot += byDate[d][pk].qty; });
     html += '<div class="section reappro-section"><div class="section-header section-header-reappro"><span>Retrait ' + escapeHtml(formatDateFr(d)) + ' <span style="font-size:12px;color:#888;font-weight:500">(' + tot + ' pièces)</span></span></div>';
     Object.keys(byDate[d]).sort().forEach(function(pk) {
-      html += '<div class="produit-row" style="grid-template-columns:1fr 90px"><div class="produit-name">' + escapeHtml(pk) + '</div><div class="traiteur-total"><strong>' + byDate[d][pk] + '</strong></div></div>';
+      const g = byDate[d][pk];
+      const idx = feteProdGroups.push({ date: d, pk: pk, lignes: g.lignes }) - 1;
+      html += '<div class="produit-row fete-prod-row" style="grid-template-columns:1fr 90px" onclick="openFeteDetailModal(' + idx + ')" title="Appuyer pour voir le détail client par client">'
+        + '<div class="produit-name">' + escapeHtml(pk) + '</div>'
+        + '<div class="traiteur-total"><strong>' + g.qty + '</strong>' + (g.note ? ' ✏️' : '') + '</div></div>';
     });
+    const notes = (notesByDate[d] || []).slice().sort(function(a, b) { return heure(a).localeCompare(heure(b)); });
+    if (notes.length) {
+      html += '<div class="fete-prod-notes"><div class="fete-prod-notes-title">✏️ Notes des clients — ' + notes.length + ' commande' + (notes.length > 1 ? 's' : '') + '</div>';
+      notes.forEach(function(o) {
+        html += '<div class="fete-prod-note-row"><div class="prod-special-meta"><strong>' + escapeHtml(heure(o)) + '</strong> · ' + escapeHtml(o.customer_name || '(sans nom)')
+          + ' <em style="font-style:normal;color:var(--grey-light);font-size:12px">🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop || '?') + '</em> · '
+          + escapeHtml(feteItemsPourSite(o, mySite).map(function(it) { return it.qty + '× ' + it.nom + (it.taille ? ' ' + it.taille : ''); }).join(' · ')) + '</div>'
+          + feteNoteHtml(o, 'margin:4px 0 0') + '</div>';
+      });
+      html += '</div>';
+    }
     html += '</div>';
   });
   return html;
+}
+// Fenêtre « qui a commandé quoi » derrière un total de production Fêtes — même rendu que ⭐ Spé.
+function openFeteDetailModal(idx) {
+  const g = feteProdGroups[idx];
+  if (!g || !g.lignes.length) return;
+  const lignes = g.lignes.slice().sort(function(a, b) { return String(a.o.pickup_time || '99:99').localeCompare(String(b.o.pickup_time || '99:99')); });
+  const total = lignes.reduce(function(s, l) { return s + (+l.it.qty || 0); }, 0);
+  closeFeteDetailModal();
+  let html = '<div class="pros-detail-overlay" onclick="if(event.target===this)closeFeteDetailModal()">';
+  html += '<div class="pros-detail-modal">';
+  html += '<div class="pros-detail-title">🍰 ' + escapeHtml(g.pk) + ' <span class="pros-detail-total" style="color:var(--gold-dark)">' + total + ' au total</span></div>';
+  html += '<div style="font-size:12px;color:var(--grey-light);margin:-6px 0 8px">Retrait ' + escapeHtml(formatDateFr(g.date)) + '</div>';
+  html += '<div class="pros-detail-list">';
+  lignes.forEach(function(l) {
+    const o = l.o;
+    html += '<div class="spe-detail-row">'
+      + '<div class="pros-detail-row" style="border-bottom:none;padding-bottom:2px"><span><strong>' + escapeHtml(o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—') + '</strong> · ' + escapeHtml(o.customer_name || '(sans nom)')
+      + ' <em style="color:var(--grey-light);font-style:normal;font-size:12px">🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop || '?') + '</em></span>'
+      + '<span class="pros-detail-qty" style="color:var(--gold-dark)">' + (+l.it.qty || 0) + '</span></div>'
+      + feteNoteHtml(o, 'margin:0 10px 6px') + '</div>';
+  });
+  html += '</div>';
+  html += '<div class="pros-detail-actions"><button class="modal-action cancel" onclick="closeFeteDetailModal()">Fermer</button></div>';
+  html += '</div></div>';
+  const div = document.createElement('div');
+  div.id = 'fete-detail-host';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+function closeFeteDetailModal() {
+  const host = document.getElementById('fete-detail-host');
+  if (host) host.remove();
 }
 
 // Ticket client : comme les Spéciales (v19.1) mais avec prix, total, acompte et reste à payer.
