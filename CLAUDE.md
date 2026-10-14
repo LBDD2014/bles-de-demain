@@ -142,8 +142,13 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   (v20.277-279, 14/10/2026) : note par produit ✏️, note de commande ⭐, produit en texte libre 📝.
   Rendu partagé `specialNotesHtml()`. Écrans concernés : Prod. St-Av, bloc « Spéciales du jour »
   (ouvert tout seul s'il y a quelque chose à lire), colonne ⭐ Spé cliquable (détail client par
-  client), vue Production de l'onglet Fêtes. Rechargement en direct via Realtime, jamais pendant
-  une saisie. Tout nouvel écran de production qui affiche des commandes doit afficher ces notes.
+  client), vue Production de l'onglet Fêtes, bloc « Plaquettes & messages à écrire » à Veigné
+  (une plaquette par note, notes par produit comprises, pour les gâteaux faits ailleurs).
+  Rechargement en direct via Realtime, jamais pendant une saisie.
+  **Mais chaque atelier ne voit que ce qui le concerne** (v20.281) : une note sur une ligne
+  faite au Local n'ouvre rien et ne s'affiche pas à Veigné (et inversement) ; la note de
+  commande vaut pour tous ceux qui fabriquent une ligne. Sinon Veigné « voit toutes les commandes ».
+  Tout nouvel écran de production qui affiche des commandes doit afficher ces notes, filtrées ainsi.
 
 ### Quantités par caisse (viennoiserie)
 
