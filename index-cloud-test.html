@@ -2447,6 +2447,11 @@ outline: none; border-color: var(--gold); background: white;
 .prod-row.prod-done .prod-done-btn { opacity:1; }
 .prod-done-count { margin-left:auto; font-size:13px; font-weight:700; color:var(--brown-mid); }
 .prod-done-count.all { color:var(--green); }
+/* v20.280 — plaquettes à écrire (Veigné) : une par note, texte en gros */
+.plaquette { background: #fff; border: 2px solid var(--brown-mid); border-radius: 10px; padding: 8px 14px; margin: 6px 0 4px; }
+.plaquette-txt { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; font-weight: 700; color: var(--brown); line-height: 1.25; word-break: break-word; }
+.plaquette-sur { font-size: 12px; color: var(--grey); margin-top: 3px; }
+.plaquette-sur em { font-style: normal; color: var(--grey-light); }
 /* v20.279 — Production Fêtes : totaux cliquables + bloc notes des clients */
 .fete-prod-row { cursor: pointer; }
 .fete-prod-row:active { background: rgba(206,171,82,0.14); }
@@ -2679,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.279';
+const APP_VERSION  = 'v20.280';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -8504,15 +8509,14 @@ let productionPlaqueOrders = [];
 
 async function loadPlaquettesForProduction(date) {
   productionPlaqueOrders = [];
+  // v20.280 — on ne filtre plus sur la note de COMMANDE côté serveur : « JA » ou « 100 ans »
+  // écrits sur une LIGNE (note par produit) ne remontaient jamais à Veigné (Phil, 14/10).
   const { data, error } = await supa.from('special_orders').select('*')
     .eq('tenant_id', TENANT_ID)
     .eq('pickup_date', date)
-    .neq('production_shop', 'veigne')   // celles produites ICI sont déjà dans le bloc Spéciales
-    .not('notes', 'is', null);
+    .neq('production_shop', 'veigne');   // celles produites ICI sont déjà dans le bloc Spéciales
   if (error || !data || !data.length) return;
-  const vivantes = data.filter(function(o) {
-    return String(o.notes || '').trim() && o.status !== 'annulee';
-  });
+  const vivantes = data.filter(function(o) { return o.status !== 'annulee'; });
   if (!vivantes.length) return;
   const { data: items } = await supa.from('special_order_items').select('*')
     .in('order_id', vivantes.map(function(o) { return o.id; }));
@@ -8521,39 +8525,55 @@ async function loadPlaquettesForProduction(date) {
     return o;
   // v20.235 — depuis que Veigné voit aussi les commandes dont UNE ligne se fait chez elle,
   // certaines apparaîtraient deux fois (bloc Spéciales + bloc Plaquettes). On ne garde ici
-  // que celles qu'elle ne voit vraiment nulle part ailleurs.
+  // que celles qu'elle ne voit vraiment nulle part ailleurs — et qui ont quelque chose à écrire.
   }).filter(function(o) {
-    return !orderConcernsShop(o, 'veigne');
+    return specialHasNotes(o) && !orderConcernsShop(o, 'veigne');
   }).sort(function(a, b) {
     return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99'));
   });
 }
 
 // Bloc affiché sur l'écran de production de Veigné.
+// v20.280 — UNE PLAQUETTE PAR NOTE, le texte en gros (Phil, 14/10 : « pas assez explicite »).
+// Chaque note (par produit ✏️ ou de commande ⭐) devient un cadre « à écrire : « JA » » avec,
+// dessous, sur quel gâteau elle va et où ce gâteau est fait. Compteur de plaquettes en tête.
+function plaquettesDe(o) {
+  const liste = [];
+  (o.items || []).forEach(function(it) {
+    if (!specialItemHasNote(it)) return;
+    const ps = getItemProductionShop(it, o);
+    liste.push({ texte: String(it.notes).trim(), sur: specialItemName(it, '?') + ' ×' + (parseQty(it.qty) || 0), fait: BOUTIQUE_NAMES[ps] || ps });
+  });
+  if (specialOrderHasNote(o)) {
+    const tous = (o.items || []).map(function(it) { return specialItemName(it, '?') + ' ×' + (parseQty(it.qty) || 0); }).join(' · ');
+    liste.push({ texte: String(o.notes).trim(), sur: tous, fait: BOUTIQUE_NAMES[o.production_shop] || o.production_shop, commande: true });
+  }
+  return liste;
+}
 function plaquettesBlockHtml() {
   if (!productionPlaqueOrders.length) return '';
+  const nbPlaq = productionPlaqueOrders.reduce(function(n, o) { return n + plaquettesDe(o).length; }, 0);
   let h = '<div class="prod-specials-box" style="border-color:var(--brown-mid)">'
-    + '<div class="prod-specials-header" style="background:var(--brown-mid)">'
-    + '<span>✏️ <strong>Plaquettes &amp; messages</strong> — ' + productionPlaqueOrders.length
-    + ' commande' + (productionPlaqueOrders.length > 1 ? 's' : '') + ' produite'
-    + (productionPlaqueOrders.length > 1 ? 's' : '') + ' ailleurs</span></div>'
+    + '<div class="prod-specials-header" style="background:var(--brown-mid);color:#fff">'
+    + '<span>✏️ <strong>Plaquettes &amp; messages à écrire</strong> — ' + nbPlaq + ' plaquette' + (nbPlaq > 1 ? 's' : '')
+    + ' · ' + productionPlaqueOrders.length + ' commande' + (productionPlaqueOrders.length > 1 ? 's' : '') + '</span></div>'
     + '<div class="prod-specials-body">'
     + '<div style="font-size:11.5px;color:var(--grey-light);padding:2px 2px 8px">'
     + 'Le gâteau est fait dans une autre boutique — la plaquette, elle, se fait ici.</div>';
   productionPlaqueOrders.forEach(function(o) {
     const heure = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—';
-    const prods = (o.items || []).map(function(it) {
-      const n = specialItemName(it, it.product_id);
-      return escapeHtml(n) + ' ×' + (parseQty(it.qty) || 0);
-    }).join(' · ');
     h += '<div class="prod-special-row">'
       + '<div class="prod-special-meta"><strong>' + escapeHtml(heure) + '</strong> · '
-      + escapeHtml(o.customer_name || '(sans nom)')
-      + ' · 🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop)
-      + ' · ➜ produit par ' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</div>'
-      + (prods ? '<div class="prod-special-items"><span class="prod-special-item">' + prods + '</span></div>' : '')
-      + '<div class="sp-note" style="margin-top:5px">⭐ ' + escapeHtml(String(o.notes).trim()) + '</div>'
-      + '</div>';
+      + '<strong>' + escapeHtml(o.customer_name || '(sans nom)') + '</strong>'
+      + ' · 🏪 retrait ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop) + '</div>';
+    plaquettesDe(o).forEach(function(pl) {
+      h += '<div class="plaquette">'
+        + '<div class="plaquette-txt">« ' + escapeHtml(pl.texte) + ' »</div>'
+        + '<div class="plaquette-sur">' + (pl.commande ? '⭐ pour la commande : ' : '✏️ sur ') + escapeHtml(pl.sur)
+        + ' <em>(gâteau fait par ' + escapeHtml(pl.fait) + ')</em></div>'
+        + '</div>';
+    });
+    h += '</div>';
   });
   return h + '</div></div>';
 }
@@ -16599,6 +16619,7 @@ function scheduleProductionSpecialsRefresh() {
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { scheduleProductionSpecialsRefresh(); return; }
     if (enSA) { await loadProductionSA(); if (currentVue === 'production_sa') renderProductionSA(); return; }
     await loadSpecialOrdersForProduction(currentReapproDate);
+    if (currentBoutique === 'veigne') await loadPlaquettesForProduction(currentReapproDate);   // v20.280
     if (isProductionVue()) renderProduction();
   }, 1200);
 }
