@@ -2684,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.281';
+const APP_VERSION  = 'v20.282';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -12073,6 +12073,7 @@ async function saveProInterfaceOrder() {
     items: cleanItems
   });
   if (r.error) { alert('Erreur enregistrement : ' + r.error); return; }
+  if (r.bascules && r.bascules.length) showToast(proBasculesTexte(r.bascules, d.date_livraison), 'sync');   // v20.282
   // Recharger + fermer
   await loadProInterfaceOrders();
   proInterfaceFormOpen = null;
@@ -13020,7 +13021,7 @@ function renderProForm(mc) {
     + '<h3>Boutique source</h3>'
     + '<label>Boutique principale *</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_principale\', this.value)">' + selOpts(d.boutique_principale, false) + '</select>'
-    + '<label>Boutique de secours (si principale fermée)</label>'
+    + '<label>Boutique de secours (si la principale est fermée ce jour-là — sinon Veigné)</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_secours\', this.value)">' + selOpts(d.boutique_secours, true) + '</select>'
     + '<div class="pro-form-hint">St-Avertin en secours = click & collect (le pro vient chercher).</div>'
     // v20.273 — groupe : un même client avec plusieurs établissements livrés au même endroit
@@ -14242,10 +14243,40 @@ function proSourceForProduct(pro, pid) {
   const spc = (pro && pro.sources_par_categorie) || {};
   return (cat && spc[cat]) ? spc[cat] : principal;
 }
-function splitProItemsBySource(pro, items) {
+// v20.282 — Jours de fermeture par site (table fab_jours_off du Planning : '0,6' avec 0=lundi … 6=dimanche).
+// Chargés une fois, gardés 10 min. Table absente ou erreur = aucun site fermé (comme avant).
+let joursOffBySite = null, joursOffLoadedAt = 0;
+async function loadJoursOff(force) {
+  if (joursOffBySite && !force && Date.now() - joursOffLoadedAt < 10 * 60 * 1000) return joursOffBySite;
+  const out = {};
+  try {
+    const r = await supa.from('fab_jours_off').select('site,jours');
+    (r.data || []).forEach(function(x) {
+      out[x.site] = String(x.jours || '').split(',').filter(function(v) { return v !== ''; }).map(Number);
+    });
+  } catch (e) {}
+  joursOffBySite = out; joursOffLoadedAt = Date.now();
+  return out;
+}
+function siteFermeLeJour(site, iso, joursOff) {
+  const jo = joursOff || joursOffBySite || {};
+  if (!site || !iso || !jo[site] || !jo[site].length) return false;
+  const idx = (new Date(iso + 'T12:00').getDay() + 6) % 7;   // getDay : 0=dimanche → fab : 0=lundi
+  return jo[site].indexOf(idx) !== -1;
+}
+// v20.282 — Site qui fabrique VRAIMENT ce jour-là (Phil, 20/10 : commande de Steff pour un lundi, Local fermé,
+// jamais vue à Veigné). Si le site prévu est fermé : boutique de secours de la fiche pro, sinon Veigné.
+function proSourceEffective(pro, src, iso, joursOff) {
+  if (!siteFermeLeJour(src, iso, joursOff)) return src;
+  const sec = pro && pro.boutique_secours;
+  if (sec && sec !== src && !siteFermeLeJour(sec, iso, joursOff)) return sec;
+  if (src !== 'veigne' && !siteFermeLeJour('veigne', iso, joursOff)) return 'veigne';
+  return src;   // tout est fermé ce jour-là : on laisse tel quel, l'équipe verra
+}
+function splitProItemsBySource(pro, items, iso, joursOff) {
   const groups = {};
   (items || []).forEach(function(it) {
-    const src = proSourceForProduct(pro, it.product_id);
+    const src = proSourceEffective(pro, proSourceForProduct(pro, it.product_id), iso, joursOff);
     (groups[src] = groups[src] || []).push(it);
   });
   return groups;
@@ -14259,11 +14290,28 @@ function proOrderSiblings(orders, o) {
 // Enregistre une commande pro en la découpant par site.
 // opts : { pro, date, statut, notes, created_by, items[{product_id, qty, prix_applique}],
 //          editingId, origDate } — items déjà nettoyés. Renvoie { error } ou { ids }.
+// v20.282 — opts.forceSource (dépannage choisi à la main par l'équipe) : tout part à ce site, sans bascule.
+//           Sinon un site fermé ce jour-là (fab_jours_off) bascule sur le secours de la fiche, sinon Veigné.
+//           Renvoie aussi bascules : [{ de, vers }] pour prévenir l'équipe.
 async function saveProOrderSplit(opts) {
   const pro = opts.pro;
   const principal = pro.boutique_principale || 'local';
-  const groups = splitProItemsBySource(pro, opts.items);
-  if (!Object.keys(groups).length) groups[principal] = [];   // note seule (demande spéciale)
+  const joursOff = opts.forceSource ? {} : await loadJoursOff();
+  const bascules = [];
+  let groups;
+  if (opts.forceSource) {
+    groups = {}; groups[opts.forceSource] = (opts.items || []).slice();
+  } else {
+    groups = splitProItemsBySource(pro, opts.items, opts.date, joursOff);
+    const prevus = {};
+    (opts.items || []).forEach(function(it) { prevus[proSourceForProduct(pro, it.product_id)] = true; });
+    if (!Object.keys(prevus).length) prevus[principal] = true;
+    Object.keys(prevus).forEach(function(src) {
+      const eff = proSourceEffective(pro, src, opts.date, joursOff);
+      if (eff !== src) bascules.push({ de: src, vers: eff });
+    });
+    if (!Object.keys(groups).length) groups[proSourceEffective(pro, principal, opts.date, joursOff)] = [];   // note seule (demande spéciale)
+  }
   let siblings = [];
   if (opts.editingId) {
     const { data } = await supa.from('pro_orders').select('id,boutique_source,statut')
@@ -14310,7 +14358,15 @@ async function saveProOrderSplit(opts) {
     await supa.from('pro_order_items').delete().eq('pro_order_id', siblings[j].id);
     await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', siblings[j].id);
   }
-  return { ids: ids };
+  return { ids: ids, bascules: bascules };
+}
+// v20.282 — phrase pour l'équipe : « Le Local fermé ce lundi → commande envoyée à Veigné »
+function proBasculesTexte(bascules, iso) {
+  if (!bascules || !bascules.length) return '';
+  const jour = iso ? ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][new Date(iso + 'T12:00').getDay()] : '';
+  return bascules.map(function(b) {
+    return (BOUTIQUE_NAMES[b.de] || b.de) + ' fermé' + (jour ? ' ce ' + jour : '') + ' → commande envoyée à ' + (BOUTIQUE_NAMES[b.vers] || b.vers);
+  }).join(' · ');
 }
 // Regroupe les morceaux d'une même commande pour l'affichage côté pro : un objet par date
 function mergeProOrdersByDate(orders) {
@@ -14548,10 +14604,13 @@ function exportProRecapCSV() {
 function handleProOrderField(field, val) {
   if (!proOrderDraft) return;
   proOrderDraft[field] = val;
+  // v20.282 — la boutique choisie À LA MAIN (dépannage) reprend la main sur la fiche pro
+  if (field === 'boutique_source') proOrderDraft.source_forcee = true;
   // Quand on change le pro : auto-définir boutique_source = boutique_principale du pro
   if (field === 'pro_id') {
     const pro = adminPros.find(function(p) { return p.id === val; });
     if (pro) proOrderDraft.boutique_source = pro.boutique_principale || currentBoutique;
+    proOrderDraft.source_forcee = false;
     // Et recalculer les prix_applique des items existants
     proOrderDraft.items.forEach(function(it) {
       if (it.product_id) it.prix_applique = getProAppliedPrice(pro, it.product_id);
@@ -14615,16 +14674,18 @@ async function saveProOrder() {
   // Sans fiche connue, la boutique choisie dans le formulaire fait office de source unique.
   const proFiche = adminPros.find(function(p) { return p.id === d.pro_id; })
     || { id: d.pro_id, boutique_principale: d.boutique_source, sources_par_categorie: {} };
+  // v20.282 — boutique changée à la main dans le formulaire = dépannage : elle s'applique à toute la commande
   const r = await saveProOrderSplit({
     pro: proFiche, date: d.date_livraison, origDate: d.orig_date, editingId: isNew ? null : d.id,
     statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null, created_by: currentBoutique,
-    items: validItems
+    items: validItems, forceSource: d.source_forcee ? d.boutique_source : null
   });
   if (r.error) { setSyncStatus('error'); showToast(r.error, 'error'); return; }
   setSyncStatus('ok');
   await loadProOrders(currentBoutique);
   closeProOrderForm();
-  showToast(isNew ? 'Commande créée' : 'Commande modifiee', 'sync');
+  const basc = proBasculesTexte(r.bascules, d.date_livraison);
+  showToast((isNew ? 'Commande créée' : 'Commande modifiee') + (basc ? ' — ' + basc : ''), 'sync');
 }
 
 async function cancelProOrder(orderId) {
@@ -14995,7 +15056,7 @@ function renderProOrderForm(mc) {
     + '<input type="date" class="pro-input" value="' + escapeHtml(d.date_livraison) + '" oninput="handleProOrderField(\'date_livraison\', this.value)">'
     + '<label>Boutique source *</label>'
     + '<select class="pro-input" onchange="handleProOrderField(\'boutique_source\', this.value)">' + boutiqueOptsHtml + '</select>'
-    + '<div class="pro-form-hint">Par défaut = boutique principale du pro. Modifie si dépannage.</div>'
+    + '<div class="pro-form-hint">Par défaut = boutique principale du pro (ou sa boutique de secours si elle est fermée ce jour-là, sinon Veigné). Modifie si dépannage : ton choix vaut pour toute la commande.</div>'
   + '</div>';
 
   // Section items

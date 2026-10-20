@@ -150,6 +150,15 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   commande vaut pour tous ceux qui fabriquent une ligne. Sinon Veigné « voit toutes les commandes ».
   Tout nouvel écran de production qui affiche des commandes doit afficher ces notes, filtrées ainsi.
 
+**Commandes pros — site fermé ce jour-là** (v20.282, 20/10/2026, cas Steff le boulanger) :
+- Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
+  les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique
+  de secours** de la fiche, sinon **Veigné** d'office. Même règle dans l'app (`proSourceEffective`)
+  et dans `pro.html` (`sourceEffective`) ; la génération auto passe par le même chemin.
+- Formulaire équipe (onglet Pros) : une boutique **changée à la main** = dépannage, elle vaut pour
+  toute la commande et gagne sur la fiche (cassé entre v20.257 et v20.281). L'équipe voit un message
+  « Le Local fermé ce lundi → commande envoyée à Veigné ».
+
 ### Quantités par caisse (viennoiserie)
 
 Croissant 77 / Pain choc 130 / Pain raisin 80 / Suisse 60 / Tartelettes 12 / Cannelé 170 / Chausson aux pommes 80 /

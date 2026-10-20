@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Les Blés — Mes commandes</title>
+<!-- v20.282 — site fermé ce jour-là (jours de fermeture du Planning) : la commande part à la boutique de secours de la fiche, sinon Veigné.
 <!-- v20.275 — conditionnement imposé par produit (caisse de 8, sac de 20…) : compteur en colis, commande en pièces.
 <!-- v20.273 — Espace client pro, page dédiée (étape A, maquette espace-pro-mockup.html validée le 13/10/2026).
      Même base, mêmes commandes que l'app interne : seule la page du client change.
@@ -192,6 +193,17 @@ function packLabel(p) { const pk = packOf(p); return pk ? packWord(p, 1) + ' de 
 function fmtQty(p, pieces) { const pk = packOf(p); if (!pk) return String(pieces); const c = Math.round(pieces / pk * 100) / 100; return c + ' ' + packWord(p, c) + ' (' + pieces + ' p.)'; }
 function productCategory(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.category : null; }
 function sourceFor(etab, pid) { const cat = productCategory(pid); const spc = etab.sources_par_categorie || {}; return (cat && spc[cat]) ? spc[cat] : (etab.boutique_principale || 'local'); }
+// v20.282 — même règle que l'app interne : site fermé ce jour-là → boutique de secours de la fiche, sinon Veigné
+let joursOff = {};   // { site: [0=lundi … 6=dimanche] } depuis fab_jours_off (table absente = rien de fermé)
+async function loadJoursOff() { try { const r = await supa.from('fab_jours_off').select('site,jours'); (r.data || []).forEach(function(x) { joursOff[x.site] = String(x.jours || '').split(',').filter(function(v) { return v !== ''; }).map(Number); }); } catch (e) {} }
+function siteFerme(site, iso) { const l = joursOff[site]; if (!l || !l.length) return false; return l.indexOf((dowOf(iso) + 6) % 7) !== -1; }
+function sourceEffective(etab, src, iso) {
+  if (!siteFerme(src, iso)) return src;
+  const sec = etab.boutique_secours;
+  if (sec && sec !== src && !siteFerme(sec, iso)) return sec;
+  if (src !== 'veigne' && !siteFerme('veigne', iso)) return 'veigne';
+  return src;
+}
 function appliedPrice(etab, pid) { if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
 // « Tours » / « Chambray-les-Tours » à partir de « DAKOTA CAFE Tours » / « DAKOTA CAFE CHAMBRAY-LES-TOURS »
 function shortLabel(etab) {
@@ -252,7 +264,7 @@ async function init() {
     const g = await supa.from('pros').select('*').eq('tenant_id', TENANT_ID).eq('groupe', q.data.groupe).eq('actif', true);
     (g.data || []).forEach(function(p) { if (p.id !== q.data.id) etabs.push(p); });
   }
-  await Promise.all([loadProducts(), loadOrders()]);
+  await Promise.all([loadProducts(), loadOrders(), loadJoursOff()]);
   installManifest();
   document.getElementById('tabs').style.display = 'flex';
   render();
@@ -444,8 +456,8 @@ async function saveOrder() {
 // même découpage par site que l'app interne (sources par catégorie), un morceau par site
 async function saveSplit(etab, date, items, notes, created_by, editing) {
   const groups = {};
-  items.forEach(function(it) { const src = sourceFor(etab, it.product_id); (groups[src] = groups[src] || []).push(it); });
-  if (!Object.keys(groups).length) groups[etab.boutique_principale || 'local'] = [];
+  items.forEach(function(it) { const src = sourceEffective(etab, sourceFor(etab, it.product_id), date); (groups[src] = groups[src] || []).push(it); });
+  if (!Object.keys(groups).length) groups[sourceEffective(etab, etab.boutique_principale || 'local', date)] = [];
   let siblings = [];
   if (editing) { const s = await supa.from('pro_orders').select('id,boutique_source,statut').eq('tenant_id', TENANT_ID).eq('pro_id', etab.id).eq('date_livraison', date).neq('statut', 'annule'); siblings = s.data || []; }
   const used = [];
