@@ -12977,7 +12977,7 @@ function renderAdminPros() {
   const nbInactifs = adminPros.filter(function(p) { return !p.actif; }).length;
 
   let html = renderProsViewToggle('list');
-  html += '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafés, hôtels livrés par Le Local (ou autre boutique source). Configure ici nom + contact + boutiques. Les jours de livraison, catalogue restreint et tarifs spéciaux arrivent en v21.0.2.</div>';
+  html += '<div class="info-banner"><strong>Clients professionnels</strong><br>Restos, cafés, hôtels, une colonne par boutique qui prépare leurs commandes. Dans la fiche : contacts, jours de livraison et heure limite, catalogue, tarifs, boutique de secours. ON/OFF pour un client qui s\'arrête (historique conservé), 🗑️ seulement pour une fiche créée par erreur.</div>';
   html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">'
     + '<button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button>'
     + '<button class="btn-gold" onclick="openGenerateRecurringModal()">🔄 Générer commandes récurrentes</button>'
