@@ -80,4 +80,26 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Liens pros — v20.283 : Copier copie le lien mais ne marque « envoyé » que si on confirme ; Annuler = repère inchangé, lien gardé',
+    fn: async (ctx) => {
+      const db = makeDB();
+      db.pros = [{ id: 'coop', tenant_id: T, nom: 'Coop Nature', actif: true, boutique_principale: 'tours', contacts: [{ nom: 'Jo', tel: '0612345678' }], jours_livraison: {}, catalogue_restreint: null, magic_token: null, magic_sent_at: null }];
+      const page = await preparePage(ctx, { db, acceptDialogs: false });   // confirm() → Annuler
+      await gotoApp(page);
+      const r = await page.evaluate(async () => {
+        currentVue = 'pros'; await loadAdminPros(); await loadAdminProducts(); renderAdminPros();
+        openProLinksModal();
+        let copie = ''; navigator.clipboard.writeText = (u) => { copie = u; return Promise.resolve(); };
+        await proLinksCopy('coop');
+        await new Promise((res) => setTimeout(res, 100));
+        const coop = window.__mockDB.pros.find((p) => p.id === 'coop');
+        const row = document.querySelector('#pro-links-modal .pl-row');
+        return { copie, tok: coop.magic_token, sent: coop.magic_sent_at, st: row.querySelector('.pl-st').textContent };
+      });
+      assert(r.copie && r.copie.indexOf('pro.html?t=' + r.tok) !== -1, 'le lien est copié : ' + r.copie);
+      assert(r.tok && !r.sent && r.st === 'jamais envoyé', 'Annuler : lien créé mais pas marqué envoyé : ' + JSON.stringify(r));
+      await page.close();
+    },
+  },
 ];

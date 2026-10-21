@@ -2684,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.282';
+const APP_VERSION  = 'v20.283';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11214,10 +11214,10 @@ function proAccessMessage(pro, url) {
     + 'C\'est Phil, des Blés de Demain. Pour vous simplifier la vie, vous pouvez maintenant passer vos commandes vous-même, directement depuis votre téléphone, quand ça vous arrange.\n\n'
     + '👉 Votre lien personnel :\n' + url + '\n(ou scannez le QR code en photo)\n\n'
     + '*Comment ça marche :*\n'
-    + '1. Ouvrez le lien (ajoutez-le à vos favoris ou à votre écran d\'accueil pour le retrouver facilement)\n'
+    + '1. Ouvrez le lien (ajoutez-le à l\'écran d\'accueil de votre téléphone pour le retrouver en un geste)\n'
     + '2. Touchez « + Nouvelle commande »\n'
-    + '3. Choisissez le jour de livraison\n'
-    + '4. Indiquez vos quantités et validez ✅\n\n'
+    + '3. Choisissez le jour de livraison (les jours fermés ou trop tard sont grisés)\n'
+    + '4. Réglez vos quantités avec + et − (pré-remplies avec votre commande habituelle), puis touchez « ✓ Valider »\n\n'
     + 'Vous pouvez modifier ou annuler une commande tant que l\'heure limite n\'est pas passée.\n\n'
     + '*Heures limites :* pour que le fournil puisse s\'organiser et vous livrer dans de bonnes conditions, chaque jour de livraison a une heure limite de commande. Passé ce délai, la commande n\'est plus possible en ligne.\n';
   if (lignes.length) {
@@ -11447,12 +11447,15 @@ async function proLinksWhatsApp(proId) {
   window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
   await proLinksMarkSent(pro);
 }
+// v20.283 — Copier ne vaut pas envoyer (Phil, 21/10 : « j'ai juste copié et pas envoyé ») :
+// on copie, puis on demande avant de marquer « envoyé le … ». WhatsApp, lui, envoie vraiment.
 async function proLinksCopy(proId) {
   const pro = adminPros.find(function(p) { return p.id === proId; });
   if (!pro) return;
   if (!(await proLinksEnsureToken(pro))) return;
   copyMagicLink(proMagicUrl(pro.magic_token));
-  await proLinksMarkSent(pro);
+  const envoye = confirm('Lien copié pour ' + (pro.nom || 'ce client') + '.\n\nTu l\'as envoyé au client ?\n\nOK = marquer « envoyé » aujourd\'hui\nAnnuler = pas encore (le repère reste tel quel)');
+  if (envoye) await proLinksMarkSent(pro);
 }
 function _proAccessFileName() {
   const n = (proAccessState && proAccessState.pro.nom) || 'pro';
