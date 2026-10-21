@@ -44,6 +44,29 @@ Toute nouvelle table doit utiliser `product_id TEXT`.
   (jsonb, rétention 10 jours). Table append-only : l'app peut lire, jamais modifier.
   Restauration = régénérer les lignes depuis `db_backups.data`.
 
+## Connexion équipe (v20.289, préparée sur la branche le 22/10/2026 — PAS ENCORE EN LIGNE)
+
+Constat : app équipe et page client partagent la même clé publique, les règles de base disent
+« tout le monde peut tout ». Le code boutique et le PIN sont des barrières d'écran. Réponse validée
+par Phil : **le code boutique devient la clé**, sans rien distribuer de nouveau.
+
+- **Comptes** : un compte Supabase Auth par ligne de `boutique_codes` (`<boutique>@lbdd.app`,
+  mot de passe = le code), créés et tenus à jour par un trigger (`migration-v20.289-auth-equipe.sql`).
+  Compte `backoffice` = le PIN. `master` = code maître. Nouveau code possible : `marche` (marchés).
+- **App** : taper le code = `signInWithPassword`. Le code est mémorisé sur l'appareil (`boutiqueCode`)
+  pour rouvrir la session sans rien demander (rechargement, session expirée, lock day). Mode « doux »
+  tant que le verrou n'est pas posé : un code juste sans compte créé laisse entrer comme avant.
+  `authStrict` = la base a répondu « permission denied » à la clé publique → le code est toujours demandé
+  (marchés compris) ; l'accueil reste affiché. fabrication.html ouvre la même session (même navigateur).
+- **Page client pro.html** : plus aucune lecture/écriture directe des tables, uniquement les fonctions
+  `pro_page_*` (SECURITY DEFINER) qui ne répondent qu'au lien présenté ; le lien secret ne sort jamais.
+- **Bascule en 3 temps** : (1) `migration-v20.289-auth-equipe.sql` (sans risque, comptes + droits
+  authenticated + fonctions) ; (2) mise en ligne du front, chaque appareil retape son code une fois ;
+  (3) le jour choisi, `migration-v20.289b-verrou.sql` (clé publique révoquée). Retour arrière :
+  `migration-v20.289c-deverrou.sql`. Avant (3) : un code réglé pour CHAQUE site utilisé, marchés compris.
+- Tests : `tests/specs/43-connexion-equipe.spec.mjs` ; le faux Supabase simule auth, les fonctions
+  `pro_page_*` et le verrou (`preparePage(ctx, { strict: true })`).
+
 ## Convention "supply" par produit × boutique
 
 Chaque produit a une origine par boutique destinataire :

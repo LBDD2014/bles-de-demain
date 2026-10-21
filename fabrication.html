@@ -3152,15 +3152,36 @@ function lockDefaults(){ // listes de réception/pertes par défaut sur le magas
   if(!_lockedSite)return;
   ['livSite','perSite'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_lockedSite;});
 }
-function pinUnlock(code){try{localStorage.setItem('fabUnlockCode',code);}catch(e){}
+// v20.289 — le code ouvre aussi la session de l'appareil (compte <boutique>@lbdd.app, mot de passe = le code).
+// Même session que l'app principale (même navigateur) : si la tablette est déjà connectée, rien à faire.
+function fabAuthEmail(b){return String(b||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'@lbdd.app';}
+async function fabSignIn(boutique,code){
+  if(!supa.auth||!supa.auth.signInWithPassword)return false;
+  try{const s=await supa.auth.getSession();if(s&&s.data&&s.data.session)return true;}catch(e){}
+  const comptes=boutique&&boutique!=='master'?[boutique,'master']:['master'];
+  for(const c of comptes){try{const r=await supa.auth.signInWithPassword({email:fabAuthEmail(c),password:String(code).trim()});if(!r.error&&r.data&&r.data.session)return true;}catch(e){}}
+  return false;
+}
+function pinUnlock(code){try{localStorage.setItem('fabUnlockCode',code);localStorage.setItem('fabUnlockBoutique',_codeToBoutique[code]||'');}catch(e){}
   applyLock(_codeToBoutique[code]);
   document.getElementById('pinov').classList.add('hidden');_pin='';
+  fabSignIn(_codeToBoutique[code],code).then(function(ok){ if(!ok&&_codesFail){toast('Connexion refusée : retape le code');pinLogout();} });
   if(typeof ingredients!=='undefined'&&ingredients.length){setSite(_lockedSite||fabSite);lockDefaults();}
 }
+let _pinBusy=false;
 function pinKey(k){
+  if(_pinBusy)return;
   if(k==='del')_pin=_pin.slice(0,-1);else if(_pin.length<6)_pin+=k;
   pinDots();document.getElementById('pinErr').textContent='';
   if(_pinCodes.includes(_pin)){pinUnlock(_pin);return;}
+  if(_codesFail){ // v20.289 — verrou posé : la liste des codes n'est plus lisible, seule la connexion peut dire si le code est bon
+    if(_pin.length>=4){_pinBusy=true;document.getElementById('pinErr').textContent='…';
+      const code=_pin;
+      (async function(){let ok=false;for(const b of ['fabrication','local','veigne','tours','master']){if(await fabSignIn(b,code)){_codeToBoutique[code]=b;ok=true;break;}}
+        _pinBusy=false;document.getElementById('pinErr').textContent='';
+        if(ok){pinUnlock(code);if(typeof loadAll==='function')loadAll();}else{document.getElementById('pinErr').textContent=_pin.length>=6?'Code incorrect':'';if(_pin.length>=6){_pin='';pinDots();}}
+      })();}
+    return;}
   if(_pin.length>=4&&!_pinCodes.some(c=>c.startsWith(_pin))){document.getElementById('pinErr').textContent='Code incorrect';_pin='';pinDots();}
 }
 function pinPadInit(){
@@ -3197,7 +3218,13 @@ async function pinInit(){
   // Déverrouillage auto UNIQUEMENT si le code mémorisé est TOUJOURS valide en base.
   // → si tu changes/supprimes un code (employé parti), son appareil redemande le code = rebloqué.
   // Anti-lockout : si la base est injoignable (Supabase en pause), on garde l'accès d'un appareil déjà connu.
-  if(saved&&(_pinCodes.includes(saved)||_codesFail)){applyLock(_codeToBoutique[saved]);document.getElementById('pinov').classList.add('hidden');}
+  if(saved&&(_pinCodes.includes(saved)||_codesFail)){
+    let sb=null;try{sb=localStorage.getItem('fabUnlockBoutique');}catch(e){}
+    applyLock(_codeToBoutique[saved]||sb);document.getElementById('pinov').classList.add('hidden');
+    // v20.289 — si la session a sauté, on la rouvre avec le code mémorisé ; impossible → on redemande le code
+    const ok=await fabSignIn(_codeToBoutique[saved]||sb,saved);
+    if(!ok&&_codesFail){pinLogout();}
+  }
 }
 
 renderTabs();initTabDrag();pinInit().then(loadAll);

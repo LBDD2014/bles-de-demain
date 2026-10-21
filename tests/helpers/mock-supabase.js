@@ -124,7 +124,11 @@
   proto.single = function () { this.singleMode = 'single'; return this; };
   proto.maybeSingle = function () { this.singleMode = 'maybeSingle'; return this; };
 
+  // v20.289 — verrou simulé : sans session, la clé publique n'a plus accès aux tables (comme après migration 289b)
   proto._run = function () {
+    if (window.__mockStrict && !AUTH.session) {
+      return { data: null, error: { code: '42501', message: 'permission denied for table ' + this.table } };
+    }
     const rows = tableRows(this.table);
     let result = [];
     const self = this;
@@ -216,10 +220,99 @@
     this._handlers.forEach(function (h) { try { h.cb(payload); } catch (e) {} });
   };
 
+  // ===== v20.289 — connexion équipe simulée : compte <boutique>@lbdd.app, mot de passe = le code (table boutique_codes) =====
+  const AUTH = (window.__mockAuth = window.__mockAuth || { session: null });
+  function authEmail(b) { return String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '@lbdd.app'; }
+  const auth = {
+    getSession: function () { return Promise.resolve({ data: { session: AUTH.session }, error: null }); },
+    signInWithPassword: function (c) {
+      const row = tableRows('boutique_codes').find(function (r) { return authEmail(r.boutique_id) === c.email && String(r.code).trim() === String(c.password).trim(); });
+      if (!row) return Promise.resolve({ data: { session: null, user: null }, error: { message: 'Invalid login credentials' } });
+      AUTH.session = { user: { email: c.email }, access_token: 'mock_' + row.boutique_id };
+      LOG.push({ table: 'auth', action: 'signIn', boutique: row.boutique_id });
+      return Promise.resolve({ data: { session: AUTH.session, user: AUTH.session.user }, error: null });
+    },
+    signOut: function () { AUTH.session = null; return Promise.resolve({ error: null }); },
+    onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; }
+  };
+
+  // ===== v20.289 — fonctions de la page client (pro_page_*), mêmes règles que le SQL : seulement le lien présenté =====
+  function proEtabs(token) {
+    const pros = tableRows('pros');
+    const moi = pros.find(function (p) { return p.magic_token && p.magic_token === token && p.actif; });
+    if (!moi) return [];
+    return pros.filter(function (p) { return p.id === moi.id || (moi.groupe && p.groupe === moi.groupe && p.actif); })
+      .sort(function (a, b) { return (b.magic_token === token) - (a.magic_token === token) || String(a.nom).localeCompare(String(b.nom)); });
+  }
+  function sansSecret(p) { const c = clone(p); delete c.magic_token; delete c.magic_sent_at; return c; }
+  function ordersOf(token, from, to) {
+    const ids = proEtabs(token).map(function (p) { return p.id; });
+    return tableRows('pro_orders').filter(function (o) { return ids.indexOf(o.pro_id) !== -1 && o.date_livraison >= from && o.date_livraison <= to && o.statut !== 'annule'; })
+      .sort(function (a, b) { return String(a.date_livraison).localeCompare(String(b.date_livraison)); })
+      .map(function (o) { const c = clone(o); c.pro_order_items = tableRows('pro_order_items').filter(function (i) { return String(i.pro_order_id) === String(o.id); }).map(clone); return c; });
+  }
+  const RPC = {
+    pro_page_bootstrap: function (a) {
+      const any = tableRows('pros').find(function (p) { return p.magic_token && p.magic_token === a.p_token; });
+      if (!any) return null;
+      const etabs = proEtabs(a.p_token);
+      if (!etabs.length) return { inactif: true };
+      return { etabs: etabs.map(sansSecret), products: tableRows('products').filter(function (p) { return p.actif; }).map(clone),
+        jours_off: tableRows('fab_jours_off').map(function (j) { return { site: j.site, jours: j.jours }; }) };
+    },
+    pro_page_orders: function (a) { return ordersOf(a.p_token, a.p_from, a.p_to); },
+    pro_page_upsert_order: function (a) {
+      const pro = proEtabs(a.p_token).find(function (p) { return p.id === a.p_row.pro_id; });
+      if (!pro) throw new Error('lien invalide pour cet établissement');
+      let id;
+      if (a.p_order_id) {
+        const o = tableRows('pro_orders').find(function (x) { return String(x.id) === String(a.p_order_id) && x.pro_id === pro.id; });
+        if (!o) throw new Error('commande introuvable');
+        Object.assign(o, { date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null });
+        id = o.id;
+        const items = tableRows('pro_order_items');
+        for (let i = items.length - 1; i >= 0; i--) if (String(items[i].pro_order_id) === String(id)) items.splice(i, 1);
+      } else {
+        id = 'mock_' + (++idCounter);
+        tableRows('pro_orders').push({ id: id, tenant_id: pro.tenant_id, pro_id: pro.id, date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null });
+      }
+      (a.p_items || []).forEach(function (it) { tableRows('pro_order_items').push({ id: 'mock_' + (++idCounter), pro_order_id: id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique == null ? null : Number(it.prix_applique) }); });
+      LOG.push({ table: 'pro_orders', action: 'rpc_upsert', id: id });
+      return { id: id };
+    },
+    pro_page_cancel: function (a) {
+      const ids = proEtabs(a.p_token).map(function (p) { return p.id; });
+      let n = 0;
+      tableRows('pro_orders').forEach(function (o) {
+        if ((a.p_ids || []).map(String).indexOf(String(o.id)) === -1 || ids.indexOf(o.pro_id) === -1) return;
+        if (a.p_delete_items) { const items = tableRows('pro_order_items'); for (let i = items.length - 1; i >= 0; i--) if (String(items[i].pro_order_id) === String(o.id)) items.splice(i, 1); }
+        o.statut = 'annule'; n++;
+      });
+      return n;
+    },
+    pro_page_set_contacts: function (a) {
+      const p = proEtabs(a.p_token).find(function (x) { return x.id === a.p_etab; });
+      if (!p) return false;
+      const row = tableRows('pros').find(function (x) { return x.id === p.id; });
+      row.contacts = clone(a.p_contacts || []);
+      return true;
+    }
+  };
+  function rpc(name, args) {
+    const run = function () {
+      if (!RPC[name]) return { data: null, error: { message: 'function ' + name + ' does not exist' } };
+      try { return { data: clone(RPC[name](args || {})), error: null }; }
+      catch (e) { return { data: null, error: { message: e.message } }; }
+    };
+    return { then: function (ok, ko) { return Promise.resolve().then(run).then(ok, ko); } };
+  }
+
   window.supabase = {
     createClient: function () {
       return {
         from: function (table) { return new Builder(table); },
+        rpc: rpc,
+        auth: auth,
         channel: function (name) { return new MockChannel(name); },
         removeChannel: function (ch) { if (ch && ch.unsubscribe) ch.unsubscribe(); return Promise.resolve('ok'); }
       };

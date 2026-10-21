@@ -2709,7 +2709,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.288';
+const APP_VERSION  = 'v20.289';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3506,6 +3506,7 @@ try {
   supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   document.getElementById('device-id-label').textContent = APP_VERSION + ' · ' + DEVICE_ID;
   startProductFilterWatch();  // v20.246 — loupe automatique sur les écrans de produits
+  authWatch();                // v20.289 — session perdue → rouverte avec le code mémorisé
   // v21.3.0 — Détection magic link interface pro (URL ?pro_token=...)
   const _proToken = new URLSearchParams(window.location.search).get('pro_token');
   if (_proToken) {
@@ -3721,6 +3722,9 @@ function getProductsForVentes() {
 }
 
 function showInitError(err) {
+  // v20.289 — verrou posé et appareil pas encore connecté : ce n'est pas une panne, l'accueil reste
+  // affiché et le code sera demandé en entrant dans la boutique (il ouvre la session).
+  if (isPermissionDenied(err)) { authStrict = true; return; }
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('main-content').innerHTML =
@@ -3793,31 +3797,112 @@ updatePinDisplay();
 }
 
 async function enterBackOffice() {
+// v20.289 — le PIN ouvre aussi la session de l'appareil (compte backoffice@lbdd.app, mot de passe = le PIN)
+await authRefresh();
+if (!authCovers('backoffice')) {
+  const r = await authSignIn('backoffice', BACKOFFICE_PIN);
+  if (!r.ok && authStrict) { showToast(r.reason === 'code' ? 'Compte BackOffice absent : lance la migration v20.289' : 'Connexion impossible — vérifie le réseau', 'error'); return; }
+}
 await enterBoutique('backoffice');
 }
 
 // v20.54 — codes d'accès par boutique (modifiables en BackOffice)
 let boutiqueCodes = {}, boutiqueCodesLoaded = false;
+// v20.289 — Connexion équipe : le code boutique ouvre une session Supabase (compte <boutique>@lbdd.app,
+// mot de passe = le code ; migration-v20.289-auth-equipe.sql). Tant que le verrou (289b) n'est pas posé,
+// la clé publique marche encore : un code juste mais sans compte créé laisse entrer comme avant.
+// Une fois le verrou posé, la base refuse la clé publique → authStrict = true → le code est toujours demandé.
+let authStrict = false, authSession = null;
+function authEmailFor(bid) { return String(bid || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '@lbdd.app'; }
+function authBoutiqueOf(session) { const u = session && session.user; const e = u && u.email ? String(u.email) : ''; return e ? e.split('@')[0] : null; }
+async function authRefresh() {
+  try { const r = supa.auth ? await supa.auth.getSession() : null; authSession = (r && r.data && r.data.session) || null; }
+  catch (e) { authSession = null; }
+  return authSession;
+}
+// la session couvre-t-elle cette boutique ? (son compte, le code maître ou le BackOffice)
+function authCovers(b) {
+  const a = authBoutiqueOf(authSession);
+  if (!a) return false;
+  return a === authEmailFor(b).split('@')[0] || a === 'master' || a === 'backoffice';
+}
+// essaie le compte de la boutique, puis le code maître. { ok } | { ok:false, reason:'code'|'reseau' }
+async function authSignIn(bid, code) {
+  if (!supa.auth || !supa.auth.signInWithPassword) return { ok: false, reason: 'reseau', message: 'auth indisponible' };
+  const pwd = String(code || '').trim();
+  let last = null;
+  const comptes = bid === 'master' ? ['master'] : [bid, 'master'];
+  for (let i = 0; i < comptes.length; i++) {
+    try {
+      const r = await supa.auth.signInWithPassword({ email: authEmailFor(comptes[i]), password: pwd });
+      if (!r.error && r.data && r.data.session) { authSession = r.data.session; return { ok: true, compte: comptes[i] }; }
+      last = r.error;
+    } catch (e) { last = e; }
+  }
+  const msg = (last && last.message) || '';
+  if (/invalid|credentials|not found/i.test(msg)) return { ok: false, reason: 'code', message: msg };
+  return { ok: false, reason: 'reseau', message: msg };
+}
+function isPermissionDenied(error) {
+  if (!error) return false;
+  return error.code === '42501' || /permission denied|row-level security|not allowed|JWT/i.test(error.message || '');
+}
 async function loadBoutiqueCodes() {
   const { data, error } = await supa.from('boutique_codes').select('*').eq('tenant_id', TENANT_ID);
   boutiqueCodes = {};
   if (!error) (data || []).forEach(function(r) { boutiqueCodes[r.boutique_id] = r.code; });
-  boutiqueCodesLoaded = true;
+  if (error && isPermissionDenied(error)) authStrict = true;   // v20.289 — verrou posé : la clé publique ne lit plus rien
+  boutiqueCodesLoaded = !error;
+}
+// v20.289 — validation d'un code tapé : ouvre la session ; sans compte créé (migration pas encore passée)
+// et sans verrou, un code juste suffit comme avant. Affiche la raison dans la fenêtre de code.
+let _codeDernier = '';   // dernier code accepté (mémorisé sur l'appareil pour rouvrir la session sans redemander)
+function authCodeMatchesLocal(codeId, code) {
+  const need = boutiqueCodes[codeId], master = boutiqueCodes['master'] || BACKOFFICE_PIN;
+  const c = String(code || '').trim();
+  return (!!need && c === String(need).trim()) || c === String(master).trim();
+}
+async function authValidateCode(codeId, code) {
+  const r = await authSignIn(codeId, code);
+  if (r.ok) { _codeDernier = String(code || '').trim(); return true; }
+  if (!authStrict && authCodeMatchesLocal(codeId, code)) { _codeDernier = String(code || '').trim(); return true; }   // mode « doux »
+  codeShowError(r.reason === 'code' ? 'Code incorrect' : 'Connexion impossible — vérifie le réseau, puis réessaie');
+  return false;
+}
+// Session perdue en cours de route (jeton expiré, déconnexion) : on la rouvre avec le code mémorisé, sinon l'accueil
+function authWatch() {
+  if (!supa.auth || !supa.auth.onAuthStateChange) return;
+  supa.auth.onAuthStateChange(function(event, session) {
+    authSession = session || null;
+    if (event !== 'SIGNED_OUT' || !currentBoutique || currentBoutique === 'backoffice') return;
+    let b = null, stored = null;
+    try { b = localStorage.getItem('boutiqueUnlocked'); stored = localStorage.getItem('boutiqueCode'); } catch (e) {}
+    const codeId = MARKET_IDS.indexOf(currentBoutique) !== -1 ? 'marche' : currentBoutique;
+    if (b === currentBoutique && stored) authSignIn(codeId, stored).then(function(r) { if (!r.ok && authStrict) { showToast('Session fermée : retape le code de la boutique', 'warn'); goSplash(); } });
+  });
 }
 
 async function enterBoutique(b, vueVoulue) { // v20.276 — vueVoulue : onglet à ouvrir directement (reprise après rechargement auto)
-// Verrou par boutique (marchés libres). L'appareil se souvient de sa boutique.
-if (b !== 'amboise' && b !== 'beaujardin') {
+// Verrou par boutique. L'appareil se souvient de sa boutique.
+// v20.289 — le code ouvre aussi la session de l'appareil (compte de la boutique). Marchés : code « marche »
+// s'il est réglé, sinon libres tant que le verrou n'est pas posé. BackOffice : le PIN a déjà ouvert la session.
+if (b !== 'backoffice') {
   if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
-  let remembered = null; try { remembered = localStorage.getItem('boutiqueUnlocked'); } catch (e) {}
-  if (remembered !== b) {
-    const need = boutiqueCodes[b];
-    if (need) { // si aucun code configuré, on ne bloque pas (sécurité anti-lockout)
-      const master = boutiqueCodes['master'] || '2412';
-      const ok = await askCodeModal('Code d\'accès — ' + (BOUTIQUE_NAMES[b] || b), [String(need).trim(), String(master).trim()]);
-      if (!ok) return; // annulé
-      try { localStorage.setItem('boutiqueUnlocked', b); } catch (e) {}
-    }
+  await authRefresh();
+  const codeId = MARKET_IDS.indexOf(b) !== -1 ? 'marche' : b;
+  let remembered = null, stored = null;
+  try { remembered = localStorage.getItem('boutiqueUnlocked'); stored = localStorage.getItem('boutiqueCode'); } catch (e) {}
+  const need = boutiqueCodes[codeId];
+  // Session absente (appareil déjà connu, page rechargée, session expirée…) : on la rouvre sans rien demander avec le code mémorisé
+  if (remembered === b && stored && !authCovers(codeId)) { try { await authSignIn(codeId, stored); } catch (e) {} }
+  const dejaOk = remembered === b && (authCovers(codeId)
+    || (!authStrict && !need)                                            // aucun code réglé, verrou pas posé : libre comme avant
+    || (!authStrict && stored && authCodeMatchesLocal(codeId, stored))); // compte pas encore créé (migration 289 pas passée) : le code mémorisé suffit
+  if (!dejaOk && (need || authStrict)) {
+    const ok = await askCodeModal('Code d\'accès — ' + (BOUTIQUE_NAMES[b] || b), [], function(code) { return authValidateCode(codeId, code); });
+    if (!ok) return; // annulé
+    try { localStorage.setItem('boutiqueUnlocked', b); localStorage.setItem('boutiqueCode', _codeDernier); } catch (e) {}
+    if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }   // avec la session, la liste des codes (sous-codes chef, maître) se lit
   }
 }
 currentBoutique = b;
@@ -13044,11 +13129,13 @@ function renderAccessCodes() {
     ['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin'],
     ['veigne_pat_chef', '🧁 Chef pâtissier (gérer catalogue)'],
     ['local_tour_chef', '🥐 Chef tourier (gérer catalogue)'],
-    ['local', 'Le Local'], ['livreur', 'Livreur'], ['master', '🔑 Code maître (ouvre tout)']
+    ['local', 'Le Local'], ['livreur', 'Livreur'], ['marche', '🛒 Marchés (Amboise, Beaujardin)'], ['master', '🔑 Code maître (ouvre tout)']
   ];
   let h = '<div class="info-banner"><strong>Codes d\'accès par boutique</strong><br>'
     + 'Code à taper pour entrer dans une boutique. L\'appareil se souvient ensuite de sa boutique (pas de code à re-taper). '
-    + 'Le code maître ouvre toutes les boutiques. Les marchés restent libres.</div>';
+    + 'Le code maître ouvre toutes les boutiques. Les marchés restent libres tant qu\'aucun code « Marchés » n\'est réglé.<br>'
+    + 'Depuis la v20.289, le code ouvre aussi la <strong>session</strong> de l\'appareil : c\'est lui qui donne accès à la base. '
+    + 'Un code changé ici s\'applique tout de suite (les appareils qui l\'ont déjà tapé restent connectés).</div>';
   h += '<div class="section reappro-section" style="padding:6px 14px">';
   rows.forEach(function(r) {
     const cur = boutiqueCodes[r[0]] || '';
@@ -21442,11 +21529,17 @@ _npTarget = null; _npBuffer = ''; _epState = null;   // v20.270
 // ===== Pavé PIN code d'accès boutique (remplace prompt()/alert() natifs) =====
 let _codeResolve = null, _codeLabel = '', _codeValid = [], _codeBuffer = '';
 
-function askCodeModal(label, validCodes) {
+// v20.289 — validator(code) → Promise<bool> : vérifie en ligne (session) ; sinon comparaison locale à validCodes
+let _codeValidator = null, _codeBusy = false;
+function askCodeModal(label, validCodes, validator) {
 _codeLabel = label || 'Code d\'accès';
 _codeValid = (validCodes || []).map(function(c) { return String(c); });
-_codeBuffer = '';
+_codeValidator = validator || null;
+_codeBuffer = ''; _codeBusy = false;
 return new Promise(function(resolve) { _codeResolve = resolve; renderCodeModal(); });
+}
+function codeShowError(msg) {
+const e = document.getElementById('code-error'); if (e) { e.textContent = msg || 'Code incorrect'; e.style.display = 'block'; }
 }
 
 function renderCodeModal() {
@@ -21484,11 +21577,24 @@ _codeRefresh();
 function codeBackspace() { _codeBuffer = _codeBuffer.slice(0, -1); _codeRefresh(); }
 function codeClear() { _codeBuffer = ''; _codeRefresh(); }
 function codeSubmit() {
+if (_codeBusy) return;
+if (_codeValidator) {
+  const code = _codeBuffer;
+  _codeBusy = true;
+  const d = document.getElementById('code-display'); if (d) d.textContent = '…';
+  Promise.resolve().then(function() { return _codeValidator(code); }).then(function(ok) {
+    _codeBusy = false;
+    if (ok) { _resolveCode(true); return; }
+    _codeBuffer = ''; _codeRefresh();
+    const e = document.getElementById('code-error'); if (e && e.style.display !== 'block') codeShowError('Code incorrect');
+  }, function() { _codeBusy = false; _codeBuffer = ''; _codeRefresh(); codeShowError('Connexion impossible — réessaie'); });
+  return;
+}
 if (_codeValid.indexOf(_codeBuffer) !== -1) {
 _resolveCode(true);
 } else {
 _codeBuffer = '';
-const e = document.getElementById('code-error'); if (e) e.style.display = 'block';
+codeShowError('Code incorrect');
 _codeRefresh();
 }
 }
@@ -21496,7 +21602,7 @@ function codeCancel() { _resolveCode(false); }
 function _resolveCode(val) {
 const ov = document.getElementById('code-overlay');
 if (ov) { ov.classList.remove('show'); ov.innerHTML = ''; }
-const r = _codeResolve; _codeResolve = null; _codeBuffer = '';
+const r = _codeResolve; _codeResolve = null; _codeBuffer = ''; _codeValidator = null; _codeBusy = false;
 if (r) r(val);
 }
 

@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Les Blés — Mes commandes</title>
+<!-- v20.289 — sécurité côté serveur (étape B) : la page ne lit et n'écrit plus les tables directement, elle passe par des
+     fonctions (pro_page_*) qui ne répondent qu'au lien présenté — un client ne peut voir et toucher que ses propres commandes.
 <!-- v20.282 — site fermé ce jour-là (jours de fermeture du Planning) : la commande part à la boutique de secours de la fiche, sinon Veigné.
 <!-- v20.275 — conditionnement imposé par produit (caisse de 8, sac de 20…) : compteur en colis, commande en pièces.
 <!-- v20.273 — Espace client pro, page dédiée (étape A, maquette espace-pro-mockup.html validée le 13/10/2026).
@@ -195,7 +197,7 @@ function productCategory(pid) { const p = products.find(function(x) { return x.i
 function sourceFor(etab, pid) { const cat = productCategory(pid); const spc = etab.sources_par_categorie || {}; return (cat && spc[cat]) ? spc[cat] : (etab.boutique_principale || 'local'); }
 // v20.282 — même règle que l'app interne : site fermé ce jour-là → boutique de secours de la fiche, sinon Veigné
 let joursOff = {};   // { site: [0=lundi … 6=dimanche] } depuis fab_jours_off (table absente = rien de fermé)
-async function loadJoursOff() { try { const r = await supa.from('fab_jours_off').select('site,jours'); (r.data || []).forEach(function(x) { joursOff[x.site] = String(x.jours || '').split(',').filter(function(v) { return v !== ''; }).map(Number); }); } catch (e) {} }
+function setJoursOff(rows) { joursOff = {}; (rows || []).forEach(function(x) { joursOff[x.site] = String(x.jours || '').split(',').filter(function(v) { return v !== ''; }).map(Number); }); }
 function siteFerme(site, iso) { const l = joursOff[site]; if (!l || !l.length) return false; return l.indexOf((dowOf(iso) + 6) % 7) !== -1; }
 // v20.286 — seul Le Local a Veigné en secours par défaut ; Tours n'en a pas. null = fermé ce jour-là, pas de commande possible.
 function sourceEffective(etab, src, iso) {
@@ -259,25 +261,23 @@ async function init() {
   if (!token) return showErr('Lien manquant', 'Ouvre la page depuis le lien que la boulangerie t\'a envoyé.');
   if (location.search.indexOf('pro_token=') !== -1) history.replaceState(null, '', location.pathname + '?t=' + encodeURIComponent(token));
   try { supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { return showErr('Connexion impossible', e.message); }
-  const q = await supa.from('pros').select('*').eq('tenant_id', TENANT_ID).eq('magic_token', token).maybeSingle();
-  if (q.error || !q.data) return showErr('Lien invalide ou expiré', 'Contacte ta boulangerie pour obtenir un nouveau lien.');
-  if (!q.data.actif) return showErr('Compte temporairement inactif', 'Contacte ta boulangerie pour réactiver l\'accès.');
-  etabs = [q.data];
-  if (q.data.groupe) {
-    const g = await supa.from('pros').select('*').eq('tenant_id', TENANT_ID).eq('groupe', q.data.groupe).eq('actif', true);
-    (g.data || []).forEach(function(p) { if (p.id !== q.data.id) etabs.push(p); });
-  }
-  await Promise.all([loadProducts(), loadOrders(), loadJoursOff()]);
+  // v20.289 — tout ce que la page a le droit de voir arrive en une fois, par une fonction qui vérifie le lien
+  const q = await supa.rpc('pro_page_bootstrap', { p_token: token });
+  if (q.error) return showErr('Connexion impossible', q.error.message || 'Réessaie dans un instant.');
+  if (!q.data) return showErr('Lien invalide ou expiré', 'Contacte ta boulangerie pour obtenir un nouveau lien.');
+  if (q.data.inactif) return showErr('Compte temporairement inactif', 'Contacte ta boulangerie pour réactiver l\'accès.');
+  etabs = q.data.etabs || [];
+  products = q.data.products || [];
+  setJoursOff(q.data.jours_off);
+  await loadOrders();
   installManifest();
   document.getElementById('tabs').style.display = 'flex';
   render();
 }
-async function loadProducts() { const r = await supa.from('products').select('*').eq('tenant_id', TENANT_ID).eq('actif', true); products = r.data || []; }
 async function loadOrders() {
   const t = todayISO();
-  const r = await supa.from('pro_orders').select('*, pro_order_items(*)').eq('tenant_id', TENANT_ID)
-    .in('pro_id', etabs.map(function(e) { return e.id; })).gte('date_livraison', addDays(t, -30)).lte('date_livraison', addDays(t, 30)).neq('statut', 'annule');
-  orders = r.data || [];
+  const r = await supa.rpc('pro_page_orders', { p_token: token, p_from: addDays(t, -30), p_to: addDays(t, 30) });
+  orders = (r.data || []).filter(function(o) { return o.statut !== 'annule'; });
 }
 function showErr(t, s) { document.getElementById('body').innerHTML = '<div class="err"><div class="t">🥖 Les Blés de Demain</div><div class="card"><div style="color:var(--red);font-weight:700;margin-bottom:6px">' + escapeHtml(t) + '</div><div style="color:var(--grey-light);font-size:13.5px">' + escapeHtml(s) + '</div></div></div>'; }
 // l'icône sur l'écran d'accueil garde le lien personnel (start_url avec le token)
@@ -464,38 +464,23 @@ async function saveSplit(etab, date, items, notes, created_by, editing) {
   const groups = {};
   for (let k = 0; k < items.length; k++) { const src = sourceEffective(etab, sourceFor(etab, items[k].product_id), date); if (src === null) return { error: 'fermé ce jour-là' }; (groups[src] = groups[src] || []).push(items[k]); }
   if (!Object.keys(groups).length) { const s0 = sourceEffective(etab, etab.boutique_principale || 'local', date); if (s0 === null) return { error: 'fermé ce jour-là' }; groups[s0] = []; }
+  // v20.289 — les morceaux existants viennent de la base (fonction filtrée par le lien), pas de l'écran
   let siblings = [];
-  if (editing) { const s = await supa.from('pro_orders').select('id,boutique_source,statut').eq('tenant_id', TENANT_ID).eq('pro_id', etab.id).eq('date_livraison', date).neq('statut', 'annule'); siblings = s.data || []; }
+  if (editing) { const s = await supa.rpc('pro_page_orders', { p_token: token, p_from: date, p_to: date }); siblings = (s.data || []).filter(function(o) { return o.pro_id === etab.id && o.statut !== 'annule'; }); }
   const used = [];
   const sources = Object.keys(groups);
   for (let i = 0; i < sources.length; i++) {
     const src = sources[i];
-    const row = { tenant_id: TENANT_ID, pro_id: etab.id, date_livraison: date, boutique_source: src, statut: 'confirme', notes: notes, created_by: created_by };
+    const row = { pro_id: etab.id, date_livraison: date, boutique_source: src, statut: 'confirme', notes: notes, created_by: created_by };
     const target = siblings.find(function(s) { return s.boutique_source === src && used.indexOf(s.id) === -1; });
-    let orderId;
-    if (target) {
-      const res = await supa.from('pro_orders').update(row).eq('id', target.id).select();
-      if (res.error) return { error: res.error.message };
-      orderId = target.id; used.push(orderId);
-      const del = await supa.from('pro_order_items').delete().eq('pro_order_id', orderId);
-      if (del.error) return { error: del.error.message };
-    } else {
-      if (!groups[src].length) continue;
-      const res = await supa.from('pro_orders').insert(row).select();
-      if (res.error) return { error: res.error.message };
-      if (!res.data || !res.data.length) return { error: 'création refusée' };
-      orderId = res.data[0].id;
-    }
-    if (groups[src].length) {
-      const ins = await supa.from('pro_order_items').insert(groups[src].map(function(it) { return { pro_order_id: orderId, product_id: it.product_id, qty: it.qty, prix_applique: appliedPrice(etab, it.product_id) }; }));
-      if (ins.error) return { error: ins.error.message };
-    }
+    if (!target && !groups[src].length) continue;
+    const items = groups[src].map(function(it) { return { product_id: it.product_id, qty: it.qty, prix_applique: appliedPrice(etab, it.product_id) }; });
+    const res = await supa.rpc('pro_page_upsert_order', { p_token: token, p_order_id: target ? target.id : null, p_row: row, p_items: items });
+    if (res.error) return { error: res.error.message };
+    if (target) used.push(target.id);
   }
-  for (let j = 0; j < siblings.length; j++) {
-    if (used.indexOf(siblings[j].id) !== -1) continue;
-    await supa.from('pro_order_items').delete().eq('pro_order_id', siblings[j].id);
-    await supa.from('pro_orders').update({ statut: 'annule' }).eq('id', siblings[j].id);
-  }
+  const restes = siblings.filter(function(s) { return used.indexOf(s.id) === -1; }).map(function(s) { return s.id; });
+  if (restes.length) { const c = await supa.rpc('pro_page_cancel', { p_token: token, p_ids: restes, p_delete_items: true }); if (c.error) return { error: c.error.message }; }
   return { ok: true };
 }
 async function cancelOrder(date, etabId) {
@@ -504,7 +489,7 @@ async function cancelOrder(date, etabId) {
   if (!open.length) { toast('Modification clôturée (heure limite dépassée)', 'err'); return; }
   if (!confirm('Annuler la commande du ' + formatDateFr(date) + (etabId ? ' pour ' + shortLabel(etabs.find(function(e) { return e.id === etabId; })) : '') + ' ?')) return;
   const ids = []; open.forEach(function(e) { ordersOf(e.id, date).forEach(function(o) { ids.push(o.id); }); });
-  const r = await supa.from('pro_orders').update({ statut: 'annule' }).in('id', ids);
+  const r = await supa.rpc('pro_page_cancel', { p_token: token, p_ids: ids, p_delete_items: false });
   if (r.error) { toast('Erreur : ' + r.error.message, 'err'); return; }
   await loadOrders(); draft = null; detailKey = null; doneInfo = null; tab = 'home'; render(); toast('Commande annulée');
 }
@@ -563,8 +548,8 @@ function renderTeam(b) {
 }
 async function teamPersist(contacts) {
   // l'équipe est gardée sur la fiche du lien ; les autres établissements du groupe héritent (lecture)
-  const r = await supa.from('pros').update({ contacts: contacts }).eq('tenant_id', TENANT_ID).eq('id', etabs[0].id);
-  if (r.error) { toast('Erreur : ' + r.error.message, 'err'); return false; }
+  const r = await supa.rpc('pro_page_set_contacts', { p_token: token, p_etab: etabs[0].id, p_contacts: contacts });
+  if (r.error || r.data === false) { toast('Erreur : ' + (r.error ? r.error.message : 'enregistrement refusé'), 'err'); return false; }
   etabs[0].contacts = contacts; etabs.slice(1).forEach(function(e) { e.contacts = (e.contacts || []).filter(function(c) { return !contacts.some(function(x) { return x.nom.toLowerCase() === (c.nom || '').toLowerCase(); }); }); });
   return true;
 }

@@ -46,7 +46,7 @@ export function startServer(port = 8787) {
  * - accepte automatiquement les confirm(), enregistre les alert()
  * - injecte le jeu de données fixtures
  */
-export async function preparePage(context, { db = makeDB(), nowMs = TEST_NOW_MS, acceptDialogs = true } = {}) {
+export async function preparePage(context, { db = makeDB(), nowMs = TEST_NOW_MS, acceptDialogs = true, strict = false } = {}) {
   const page = await context.newPage();
 
   await page.route('**/cdn.jsdelivr.net/npm/@supabase/supabase-js**', (route) =>
@@ -70,7 +70,7 @@ export async function preparePage(context, { db = makeDB(), nowMs = TEST_NOW_MS,
   await page.clock.install({ time: nowMs });
 
   // Injecter les fixtures AVANT le script de l'app
-  await page.addInitScript((data) => { window.__mockDB = data; }, db);
+  await page.addInitScript((data) => { window.__mockDB = data.db; window.__mockStrict = !!data.strict; }, { db, strict });   // v20.289 — strict = verrou posé (clé publique refusée)
 
   // Dialogues : accepter les confirm(), garder trace des alert()
   const alerts = [];
