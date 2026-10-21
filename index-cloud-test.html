@@ -2684,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.284';
+const APP_VERSION  = 'v20.285';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11204,14 +11204,22 @@ function proAccessContact(pro) {
   const c = cs.find(function(x) { return x.tel; }) || cs[0] || null;
   return { nom: (c && c.nom) || pro.contact_nom || '', tel: (c && c.tel) || pro.contact_tel || '' };
 }
+// v20.285 — texte validé par Phil (21/10) : « Philippe », les 4 boutiques en fin de message (portables),
+// la boutique qui prépare ses commandes en premier et marquée « (votre boutique) ».
+const SHOP_TELS_LABELS = { tours: 'Les Blés de Demain Tours', veigne: 'Les Blés de Demain Veigné', local: 'Les Blés de Demain Le Local (Esvres)', 'saint-avertin': 'Les Blés de Demain Saint-Avertin' };
+function proAccessTelLines(pro) {
+  const src = (pro && pro.boutique_principale) || 'local';
+  const ordre = [src].concat(['tours', 'veigne', 'local', 'saint-avertin'].filter(function(b) { return b !== src; }));
+  return ordre.filter(function(b) { return SHOP_TELS[b]; }).map(function(b) {
+    return '• ' + SHOP_TELS_LABELS[b] + (b === src ? ' (votre boutique)' : '') + ' : ' + SHOP_TELS[b];
+  });
+}
 function proAccessMessage(pro, url) {
   const ct = proAccessContact(pro);
-  const src = pro.boutique_principale || 'local';
-  const tel = SHOP_TELS[src] || SHOP_TELS.local;
   const lignes = proDeliveryLines(pro);
   const cap = function(s) { return s.charAt(0).toUpperCase() + s.slice(1); };
   let m = 'Bonjour' + (ct.nom ? ' ' + ct.nom : '') + ' 👋\n\n'
-    + 'C\'est Phil, des Blés de Demain. Pour vous simplifier la vie, vous pouvez maintenant passer vos commandes vous-même, directement depuis votre téléphone, quand ça vous arrange.\n\n'
+    + 'C\'est Philippe, des Blés de Demain. Pour vous simplifier la vie, vous pouvez maintenant passer vos commandes vous-même, directement depuis votre téléphone, quand ça vous arrange.\n\n'
     + '👉 Votre lien personnel :\n' + url + '\n(ou scannez le QR code en photo)\n\n'
     + '*Comment ça marche :*\n'
     + '1. Ouvrez le lien (ajoutez-le à l\'écran d\'accueil de votre téléphone pour le retrouver en un geste)\n'
@@ -11223,9 +11231,9 @@ function proAccessMessage(pro, url) {
   if (lignes.length) {
     m += lignes.map(function(l) { return '• Livraison ' + l.jour + ' : commande ' + l.limite; }).join('\n') + '\n';
   }
-  m += '\nEn cas d\'imprévu, appelez-nous au ' + tel + ', on fera au mieux.\n\n'
+  m += '\nEn cas d\'imprévu, appelez-nous, on fera au mieux :\n' + proAccessTelLines(pro).join('\n') + '\n\n'
     + 'Ce lien est personnel, merci de ne pas le partager.\n\n'
-    + 'Merci pour votre confiance, à très vite 🥖\nPhil — Les Blés de Demain';
+    + 'Merci pour votre confiance, à très vite 🥖\nPhilippe — Les Blés de Demain';
   return m;
 }
 

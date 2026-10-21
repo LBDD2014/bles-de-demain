@@ -32,6 +32,23 @@ async function ouvrir(ctx, pro) {
 
 export const tests = [
   {
+    name: 'Accès pro — v20.285 : message signé Philippe, 4 boutiques (portables) en fin de message, la sienne en premier « (votre boutique) », étapes de la nouvelle page',
+    fn: async (ctx) => {
+      const page = await ouvrir(ctx);   // Resto Test → boutique principale Tours
+      const m = await page.evaluate(() => proAccessMessage(adminPros[0], 'https://x/pro.html?t=abc'));
+      const lines = m.split('\n');
+      assert(/^C'est Philippe, des Blés de Demain/.test(lines[2]) && /^Philippe — Les Blés de Demain$/.test(lines[lines.length - 1]), 'Philippe en accroche et en signature');
+      assert(!/Phil[^i]/.test(m), 'plus de « Phil » tout court');
+      const i = lines.indexOf('En cas d\'imprévu, appelez-nous, on fera au mieux :');
+      assert(i > 0, 'phrase d\'imprévu suivie de la liste');
+      assert(lines[i + 1] === '• Les Blés de Demain Tours (votre boutique) : 07 57 77 05 87', 'sa boutique en premier : ' + lines[i + 1]);
+      assert(lines[i + 2] === '• Les Blés de Demain Veigné : 07 57 77 05 39' && lines[i + 3] === '• Les Blés de Demain Le Local (Esvres) : 07 50 05 22 96' && lines[i + 4] === '• Les Blés de Demain Saint-Avertin : 09 80 99 96 52', 'les 3 autres : ' + lines.slice(i + 2, i + 5).join(' | '));
+      assert(lines[i + 5] === '' && /^Ce lien est personnel/.test(lines[i + 6]), 'puis la phrase sur le lien personnel');
+      assert(/3\. Choisissez le jour de livraison \(les jours fermés ou trop tard sont grisés\)/.test(m) && /4\. Réglez vos quantités avec \+ et −/.test(m), 'étapes de la nouvelle page');
+      await page.close();
+    },
+  },
+  {
     name: 'Accès pro — jours et heure limite lisibles, par jour de livraison',
     fn: async (ctx) => {
       const page = await ouvrir(ctx);
