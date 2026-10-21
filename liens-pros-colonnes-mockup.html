@@ -34,7 +34,7 @@
 
   .pro { background: #fff; margin: 8px; border-radius: 10px; padding: 9px 10px; border: 1px solid #F0E8D6; }
   .pro .nom { font-weight: 700; font-size: 14.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .pro .sec { font-size: 11.5px; color: var(--grey-light); font-weight: 400; margin-left: auto; white-space: nowrap; }
+  .pro .sec { font-size: 11.5px; color: var(--grey-light); font-weight: 400; margin-left: auto; white-space: nowrap; text-decoration: underline dotted; cursor: pointer; }
   .pro .sec.none { color: #B4A88E; font-style: italic; }
   .pro .sec.auto { color: var(--gold-dark); }
   .pro .ct { font-size: 12.5px; color: var(--brown-mid); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -66,7 +66,7 @@
 
 <div class="modal">
   <div class="title">📱 Liens pros</div>
-  <div class="sub">Une colonne par boutique qui prépare les commandes. Sous chaque nom : la <b>boutique de secours</b> (celle qui prend le relais quand la boutique est fermée ce jour-là). <b>7 / 14</b> ont reçu leur lien.</div>
+  <div class="sub">Une colonne par boutique qui prépare les commandes. À droite de chaque nom : la <b>boutique de secours</b> (un tap ouvre la fiche pour la régler). <b>7 / 14</b> ont reçu leur lien.</div>
 
   <div class="tools">
     <input type="search" placeholder="🔍 Chercher un client…">
@@ -78,7 +78,7 @@
 
     <!-- ===== LE LOCAL ===== -->
     <div class="col">
-      <div class="col-h"><b>Le Local</b> <small>6 pros · 3 ont le lien</small><span class="ferme">Fermé le lundi → secours Veigné sauf réglage</span></div>
+      <div class="col-h"><b>Le Local</b> <small>6 pros · 3 ont le lien</small><span class="ferme">Fermé le lundi → secours Veigné</span></div>
 
       <div class="pro">
         <div class="nom">Ambacia <span class="sec none">secours : Veigné (par défaut)</span></div>
@@ -87,7 +87,7 @@
       </div>
 
       <div class="pro">
-        <div class="nom">audace <span class="sec">secours : Tours</span></div>
+        <div class="nom">audace <span class="sec none">secours : Veigné (par défaut)</span></div>
         <div class="ct">francisco · <a href="#">ajouter un téléphone</a> <span class="st warn">📞 pas de téléphone</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn ghost icon">📋</button></div>
       </div>
@@ -105,7 +105,7 @@
       </div>
 
       <div class="pro">
-        <div class="nom">DAKOTA CAFE Tours <span class="sec">secours : Tours</span></div>
+        <div class="nom">DAKOTA CAFE Tours <span class="sec none">secours : Veigné (par défaut)</span></div>
         <div class="ct">Doline · 06 85 09 66 60 <span class="st none">jamais envoyé</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn wa">💬</button><button class="btn ghost icon">📋</button></div>
       </div>
@@ -119,7 +119,7 @@
 
     <!-- ===== VEIGNÉ ===== -->
     <div class="col">
-      <div class="col-h"><b>Veigné</b> <small>2 pros · 1 a le lien</small><span class="ferme">Jamais fermé → pas de secours nécessaire</span></div>
+      <div class="col-h"><b>Veigné</b> <small>2 pros · 1 a le lien</small><span class="ferme">Ouvert 7/7 → pas de secours</span></div>
 
       <div class="pro">
         <div class="nom">convivio <span class="sec none">secours : —</span></div>
@@ -136,40 +136,40 @@
 
     <!-- ===== TOURS ===== -->
     <div class="col">
-      <div class="col-h"><b>Tours</b> <small>6 pros · 3 ont le lien</small><span class="ferme">Fermé le dimanche → secours Veigné sauf réglage</span></div>
+      <div class="col-h"><b>Tours</b> <small>6 pros · 3 ont le lien</small><span class="ferme">Pas de boutique de secours</span></div>
 
       <div class="pro">
-        <div class="nom">A TORRA <span class="sec none">secours : Veigné (par défaut)</span></div>
+        <div class="nom">A TORRA <span class="sec none">secours : —</span></div>
         <div class="ct"><a href="#">ajouter un téléphone</a> <span class="st warn">📞 pas de téléphone</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn ghost icon">📋</button></div>
       </div>
 
       <div class="pro">
-        <div class="nom">balzac <span class="sec">secours : Le Local</span></div>
+        <div class="nom">balzac <span class="sec none">secours : —</span></div>
         <div class="ct">Hugo · 06 55 44 33 22 <span class="st ok">✓ envoyé le 18/10</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn wa">💬</button><button class="btn ghost icon">📋</button></div>
       </div>
 
       <div class="pro">
-        <div class="nom">Beurre Noisette <span class="sec none">secours : Veigné (par défaut)</span></div>
+        <div class="nom">Beurre Noisette <span class="sec none">secours : —</span></div>
         <div class="ct"><a href="#">ajouter un téléphone</a> <span class="st none">jamais envoyé</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn ghost icon">📋</button></div>
       </div>
 
       <div class="pro">
-        <div class="nom">bombay <span class="sec">secours : Saint-Avertin <em style="font-style:normal;color:#B4A88E">(vient chercher)</em></span></div>
+        <div class="nom">bombay <span class="sec none">secours : —</span></div>
         <div class="ct">Raj · 06 77 88 99 00 <span class="st ok">✓ envoyé le 09/10</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn wa">💬</button><button class="btn ghost icon">📋</button></div>
       </div>
 
       <div class="pro">
-        <div class="nom">CHEZ MADIE <span class="sec none">secours : Veigné (par défaut)</span></div>
+        <div class="nom">CHEZ MADIE <span class="sec none">secours : —</span></div>
         <div class="ct"><a href="#">ajouter un téléphone</a> <span class="st warn">📞 pas de téléphone</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn ghost icon">📋</button></div>
       </div>
 
       <div class="pro">
-        <div class="nom">CUISINEZ MOI <span class="sec none">secours : Veigné (par défaut)</span></div>
+        <div class="nom">CUISINEZ MOI <span class="sec none">secours : —</span></div>
         <div class="ct">Léa · 06 22 33 44 55 <span class="st ok">✓ envoyé le 20/10</span></div>
         <div class="act"><button class="btn">📤 Image + message</button><button class="btn wa">💬</button><button class="btn ghost icon">📋</button></div>
       </div>
@@ -181,20 +181,61 @@
 </div>
 
 <div class="notes">
-  <h2>Ce que montre la maquette</h2>
+  <h2>Ce que montre la maquette (mise à jour avec tes réponses du 21/10)</h2>
   <ol>
-    <li><b>Une colonne par boutique qui fabrique</b> : Le Local, Veigné, Tours. Saint-Avertin n'a pas de colonne (jamais boutique principale d'un pro), elle apparaît seulement comme secours « vient chercher ».</li>
-    <li><b>En tête de colonne</b> : nombre de pros, combien ont le lien, et le jour de fermeture du Planning avec le secours qui s'applique par défaut.</li>
-    <li><b>Sous chaque nom, la boutique de secours</b> : en clair si elle est réglée dans la fiche, « Veigné (par défaut) » en grisé si rien n'est réglé (c'est la règle v20.282), « — » à Veigné qui ne ferme jamais.</li>
-    <li><b>Les boutons</b> : 📤 image + message (toujours), 💬 WhatsApp (seulement avec un téléphone), 📋 copier le lien. Les repères envoyé / jamais / pas de téléphone ne bougent pas.</li>
-    <li><b>Recherche et « masquer ceux qui l'ont reçu »</b> gardés, ils filtrent dans les trois colonnes à la fois.</li>
-    <li><b>Sur iPad en portrait</b> : 2 colonnes puis 1 sur téléphone, on scrolle. Tourne l'iPad en paysage pour les 3 côte à côte.</li>
+    <li><b>Une colonne par boutique qui fabrique</b> : Le Local, Veigné, Tours. Saint-Avertin n'a pas de colonne.</li>
+    <li><b>En tête de colonne</b> : nombre de pros, combien ont le lien, et la règle de secours : Le Local fermé le lundi → Veigné ; Veigné ouvert 7/7 → pas de secours ; Tours → pas de secours.</li>
+    <li><b>À droite de chaque nom, la boutique de secours</b> : en clair si réglée dans la fiche, « Veigné (par défaut) » en grisé pour les pros du Local sans réglage, « — » à Veigné et à Tours. Un tap dessus ouvre la fiche.</li>
+    <li><b>Les boutons</b> : 📤 image + message, 💬 WhatsApp (seulement avec un téléphone), 📋 copier le lien. Repères envoyé / jamais / pas de téléphone inchangés.</li>
+    <li><b>Recherche et « masquer ceux qui l'ont reçu »</b> filtrent dans les trois colonnes à la fois.</li>
+    <li><b>iPad portrait</b> : 2 colonnes, téléphone : 1 colonne, paysage : 3.</li>
   </ol>
-  <h2>À trancher</h2>
+</div>
+
+<!-- ===== Maquette 2 : nouvelle fiche pro, catalogue vide par défaut ===== -->
+<div class="modal" style="margin-top:18px;max-width:560px">
+  <div class="title">Nouvelle fiche pro — Catalogue</div>
+  <div class="sub">Aujourd'hui : tout est coché à la création. Demandé : <b>rien de coché</b>, tu coches ce que le pro commande.</div>
+
+  <div style="background:#FBE8D6;border-left:4px solid var(--orange);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:10px">
+    <b style="color:var(--orange)">0 produit autorisé</b> sur 48 actifs — ce pro ne pourra rien commander tant que tu n'as rien coché.
+    <button class="btn ghost" style="flex:none;padding:5px 10px;font-size:12px;margin-left:6px">Tout autoriser</button>
+  </div>
+  <input type="search" placeholder="🔍 Filtrer un produit…" style="width:100%;padding:9px 12px;border:1px solid #DDD3BE;border-radius:10px;font-family:inherit;font-size:14px;background:#FAF8F4;margin-bottom:10px">
+
+  <div style="border:1px solid #F0E8D6;border-radius:10px;padding:8px 10px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;margin-bottom:6px">Pains <span style="font-weight:400;color:var(--brown-mid)">(6)</span><button class="btn ghost" style="flex:none;padding:5px 10px;font-size:12px">Tout cocher</button></div>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Tradition</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Tradition Graines</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox" checked> Pain Burger 90 g</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox" checked> Pain Hot-dog</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Khorasan 800 g précuit surgelé</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Tradition précuite surgelée</label>
+  </div>
+  <div style="border:1px solid #F0E8D6;border-radius:10px;padding:8px 10px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;margin-bottom:6px">Viennoiserie <span style="font-weight:400;color:var(--brown-mid)">(5)</span><button class="btn ghost" style="flex:none;padding:5px 10px;font-size:12px">Tout cocher</button></div>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Croissant</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0"><input type="checkbox"> Pain Chocolat</label>
+    <label style="display:block;font-size:13.5px;padding:4px 0;color:#B4A88E">… (3 autres)</label>
+  </div>
+
+  <div style="background:#FFF8E7;border-left:3px solid var(--gold);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--brown-mid)">
+    Au moment d'enregistrer avec 0 produit coché : « <b>Ce client n'a aucun produit autorisé, il ne pourra rien commander. Enregistrer quand même ?</b> » Oui / Non.
+  </div>
+</div>
+
+<div class="notes">
+  <h2>Catalogue vide par défaut — ce qui change sous le capot</h2>
   <ul>
-    <li>Toucher « secours : Veigné (par défaut) » ouvre la fiche pour la régler, ou on laisse ça dans la fiche uniquement ?</li>
-    <li>Le même rangement par colonnes pour la liste des pros du BackOffice (onglet Pros → Liste) ? Aujourd'hui c'est une liste unique triée par nom.</li>
-    <li>Le nom en gros, le secours à droite : ça te va, ou tu préfères le secours sur une 2ᵉ ligne ?</li>
+    <li><b>Le piège</b> : aujourd'hui une liste vide veut dire « tout autorisé » dans quatre endroits (page client, ancien espace pro, formulaire équipe, génération auto). Si on décoche tout par défaut sans toucher à ça, un pro créé vite fait verrait… tout le catalogue. Donc une liste vide devra vouloir dire « rien », partout.</li>
+    <li><b>Les fiches existantes ne bougent pas</b> : celles qui sont en « tout autorisé » le restent.</li>
+    <li><b>Garde-fou</b> : à l'enregistrement avec 0 produit, la question ci-dessus. « Tout autoriser » reste à portée de main pour les rares pros qui prennent de tout.</li>
+    <li><b>Au Local / Veigné / Tours</b>, l'onglet Pros ne change pas.</li>
+  </ul>
+  <h2>Deux questions</h2>
+  <ul>
+    <li><b>Tours sans secours</b> : si un pro de Tours commande pour un dimanche (Tours fermé), on <b>refuse la commande</b> avec un message clair (« Tours ne livre pas le dimanche ») plutôt que de l'envoyer à Veigné ? Aujourd'hui la règle v20.282 l'enverrait à Veigné.</li>
+    <li><b>La liste des pros du BackOffice</b> (onglet Pros → Liste, aujourd'hui une liste unique par nom) : même rangement en colonnes par boutique, oui ou non ?</li>
   </ul>
 </div>
 
