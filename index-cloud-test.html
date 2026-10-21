@@ -2684,7 +2684,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.283';
+const APP_VERSION  = 'v20.284';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11343,7 +11343,7 @@ async function openProAccessModal(proId) {
   }
   h += '<img class="pa-img" src="' + card.dataUrl + '" alt="QR code">'
     + '<div class="pa-actions">'
-    + '<button class="btn-gold" onclick="proAccessShare()">📤 Partager l\'image</button>'
+    + '<button class="btn-gold" onclick="proAccessShare()">📤 Partager image + message</button>'
     + '<button class="btn-gold" onclick="proAccessSaveImage()">💾 Enregistrer l\'image</button>'
     + '</div>'
     + '<div class="sp-lbl" style="margin:10px 0 4px">Le message (modifiable)</div>'
@@ -11352,7 +11352,7 @@ async function openProAccessModal(proId) {
     + '<button class="btn-gold" onclick="proAccessCopyMsg()">📋 Copier le message</button>'
     + '<button class="btn-gold" style="background:#25D366;border-color:#25D366;color:#fff" onclick="proAccessWhatsApp()">💬 WhatsApp' + (ct.tel ? ' (' + escapeHtml(ct.tel) + ')' : '') + '</button>'
     + '</div>'
-    + '<div class="pro-form-hint" style="margin-top:8px">Conseil : envoie d\'abord l\'image, puis le message. Si le lien a déjà été envoyé et fuité : « 🔄 Renouveler » dans la fiche, puis renvoie.</div>'
+    + '<div class="pro-form-hint" style="margin-top:8px">Le plus simple : « Partager image + message », puis WhatsApp dans la liste qui s\'ouvre — le message part en légende de l\'image. Sinon envoie l\'image, puis le message. Si le lien a déjà été envoyé et fuité : « 🔄 Renouveler » dans la fiche, puis renvoie.</div>'
     + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeProAccessModal()">Fermer</button>'
     + '</div>';
   el.innerHTML = h;
@@ -11378,7 +11378,7 @@ function renderProLinksModal() {
   const nbSent = actifs.filter(function(p) { return !!p.magic_sent_at; }).length;
   let h = '<div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">'
     + '<div class="modal-title">📱 Liens pros</div>'
-    + '<div class="modal-sub">Un tap sur 💬 = la conversation WhatsApp s\'ouvre avec le message et le lien déjà écrits. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
+    + '<div class="modal-sub">📤 = l\'image QR et le message partent ensemble (WhatsApp, Messages, mail…). 💬 = la conversation WhatsApp s\'ouvre avec le message et le lien déjà écrits. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
     + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
     + '<input type="search" class="product-filter-input" style="flex:1;min-width:160px" placeholder="🔍 Chercher un client…" value="' + escapeHtml(proLinksSearch) + '" oninput="proLinksFilter(this.value)">'
     + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" ' + (proLinksHideSent ? 'checked' : '') + ' onchange="proLinksToggleHide(this)"> Masquer ceux qui l\'ont reçu</label>'
@@ -11395,6 +11395,7 @@ function renderProLinksModal() {
       + (!ct.tel ? ' <a href="#" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\');return false">ajouter un téléphone</a>' : '')
       + ' ' + statut + '</div></div>'
       + '<div class="pl-actions">'
+      + '<button type="button" class="btn-gold-sm pl-share" onclick="proLinksShare(\'' + escapeHtml(p.id) + '\')">📤 Image + message</button>'
       + (ct.tel ? '<button type="button" class="btn-gold-sm pl-wa" onclick="proLinksWhatsApp(\'' + escapeHtml(p.id) + '\')">💬 WhatsApp</button>' : '')
       + '<button type="button" class="btn-gold-sm pl-copy" onclick="proLinksCopy(\'' + escapeHtml(p.id) + '\')">📋 Copier</button>'
       + '</div></div>';
@@ -11436,6 +11437,21 @@ async function proLinksMarkSent(pro) {
   pro.magic_sent_at = now;
   renderProLinksModal();
 }
+// v20.284 — depuis la liste : image QR + message en un geste (pas besoin de téléphone en fiche, on choisit dans la feuille de partage)
+async function proLinksShare(proId) {
+  const pro = adminPros.find(function(p) { return p.id === proId; });
+  if (!pro) return;
+  if (!(await proLinksEnsureToken(pro))) return;
+  const url = proMagicUrl(pro.magic_token);
+  setSyncStatus('syncing');
+  let card;
+  try { card = await drawProAccessCard(pro, url); }
+  catch (e) { setSyncStatus('error'); showToast(e.message, 'error'); return; }
+  setSyncStatus('ok');
+  const r = await shareProAccess(pro, card.blob, proAccessMessage(pro, url));
+  if (r === null) { closeProLinksModal(); openProAccessModal(proId); }   // pas de partage de fichier ici : la fiche propose image + message séparément
+  else if (r) showToast('Image + message partagés — repère « envoyé » mis à jour', 'sync');
+}
 async function proLinksWhatsApp(proId) {
   const pro = adminPros.find(function(p) { return p.id === proId; });
   if (!pro) return;
@@ -11461,15 +11477,24 @@ function _proAccessFileName() {
   const n = (proAccessState && proAccessState.pro.nom) || 'pro';
   return 'LBDD-commande-' + n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-') + '.png';
 }
+// v20.284 — un seul geste : l'image QR ET le message partent ensemble par la feuille de partage
+// (sur iPhone/iPad, WhatsApp met le message en légende de l'image). Partage abouti = « envoyé le … ».
+// Renvoie true si le partage a abouti, false s'il a été annulé, null si l'appareil ne sait pas partager un fichier.
+async function shareProAccess(pro, blob, msg) {
+  const file = new File([blob], 'LBDD-commande-' + String(pro.nom || 'pro').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-') + '.png', { type: 'image/png' });
+  if (!(navigator.canShare && navigator.canShare({ files: [file] }))) return null;
+  try { await navigator.share({ files: [file], text: msg, title: 'Les Blés de Demain — vos commandes' }); }
+  catch (e) { return false; }   // annulé
+  await proLinksMarkSent(pro);
+  return true;
+}
 async function proAccessShare() {
   const st = proAccessState;
   if (!st) return;
-  const file = new File([st.blob], _proAccessFileName(), { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file] }); } catch (e) { /* annulé */ }
-  } else {
-    proAccessSaveImage();
-  }
+  const ta = document.getElementById('pa-msg');
+  const r = await shareProAccess(st.pro, st.blob, ta ? ta.value : proAccessMessage(st.pro, st.url));
+  if (r === null) { proAccessSaveImage(); showToast('Cet appareil ne sait pas partager l\'image : image enregistrée, envoie-la puis le message', 'warn'); }
+  else if (r) showToast('Image + message partagés — repère « envoyé » mis à jour', 'sync');
 }
 function proAccessSaveImage() {
   const st = proAccessState;

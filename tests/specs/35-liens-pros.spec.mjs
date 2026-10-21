@@ -102,4 +102,33 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Liens pros — v20.284 : « 📤 Image + message » partage l\'image QR ET le message en un geste ; partage abouti = envoyé, partage annulé = rien',
+    fn: async (ctx) => {
+      const page = await liensPros(ctx);
+      const r = await page.evaluate(async () => {
+        window.qrcode = function() { return { addData() {}, make() {}, getModuleCount: () => 21, isDark: (r, c) => (r + c) % 2 === 0 }; };
+        openProLinksModal();
+        const recu = [];
+        navigator.canShare = (d) => !!(d && d.files && d.files.length);
+        navigator.share = async (d) => { recu.push({ files: d.files.map((f) => f.name + '|' + f.type + '|' + f.size), text: d.text }); };
+        const rows = () => Array.from(document.querySelectorAll('#pro-links-modal .pl-row'));
+        const nbBoutons = rows().filter((x) => x.querySelector('.pl-share')).length;
+        await proLinksShare('coop');          // sans téléphone en fiche : le partage marche quand même
+        await new Promise((res) => setTimeout(res, 100));
+        const coop = window.__mockDB.pros.find((p) => p.id === 'coop');
+        navigator.share = async () => { throw new DOMException('annulé', 'AbortError'); };
+        await proLinksShare('bar');
+        await new Promise((res) => setTimeout(res, 100));
+        const bar = window.__mockDB.pros.find((p) => p.id === 'bar');
+        return { nbBoutons, nbRows: rows().length, recu, coop: { tok: coop.magic_token, sent: coop.magic_sent_at }, bar: { tok: bar.magic_token, sent: bar.magic_sent_at } };
+      });
+      assert(r.nbBoutons === r.nbRows && r.nbRows === 3, 'un bouton 📤 sur chaque ligne : ' + r.nbBoutons + ' / ' + r.nbRows);
+      assert(r.recu.length === 1 && /^LBDD-commande-Coop-Nature\.png\|image\/png\|[1-9]/.test(r.recu[0].files[0]), 'image PNG nommée au client : ' + JSON.stringify(r.recu));
+      assert(/Bonjour/.test(r.recu[0].text) && r.recu[0].text.indexOf('pro.html?t=' + r.coop.tok) !== -1 && /QR code en photo/.test(r.recu[0].text), 'le message avec le lien part avec l\'image : ' + r.recu[0].text.slice(0, 80));
+      assert(r.coop.sent, 'partage abouti → envoyé : ' + JSON.stringify(r.coop));
+      assert(r.bar.tok && !r.bar.sent, 'partage annulé → lien gardé, pas marqué envoyé : ' + JSON.stringify(r.bar));
+      await page.close();
+    },
+  },
 ];
