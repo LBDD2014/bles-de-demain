@@ -1738,6 +1738,11 @@ margin-bottom: 4px;
 .pl-st.ok { background:#E3EFE6; color:var(--green); } .pl-st.none { background:#EEE; color:var(--grey-light); } .pl-st.warn { background:#FBE8D6; color:var(--orange); }
 .pl-actions { display:flex; gap:6px; flex:0 0 auto; }
 .pl-wa { background:#25D366 !important; border-color:#25D366 !important; color:#fff !important; }
+/* v20.288 — ⏰ Horaires des pros (onglet Pros d'un site) */
+.pro-horaires-list { background:#fff; border:1px solid #E5DCC8; border-radius:12px; padding:4px 12px; margin:0 0 12px; }
+.pro-horaires-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #F0E8D6; }
+.pro-horaires-row:last-child { border-bottom:none; } .pro-horaires-main { flex:1; min-width:0; }
+#pro-horaires-modal .pro-form-section { margin:0; }
 /* v20.287 — ligne « Tous les jours cochés » de la fiche pro */
 .pro-jour-tous { background:#FBF6EA; border:1px dashed var(--gold); border-radius:10px; padding:8px 10px; flex-wrap:wrap; }
 .pro-jour-tous-lbl { font-weight:700; font-size:13px; color:var(--gold-dark); min-width:100px; }
@@ -2704,7 +2709,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.287';
+const APP_VERSION  = 'v20.288';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11034,7 +11039,12 @@ function handleProJourActif(jour) {
       tournee: cur.tournee || '' // v20.169
     };
   }
-  renderAdminPros();
+  proJoursRerender();
+}
+// v20.288 — après un changement de jour : la fenêtre ⏰ Horaires si elle est ouverte, sinon la fiche du BackOffice
+function proJoursRerender() {
+  const el = document.getElementById('pro-horaires-modal');
+  if (el && el.classList.contains('show')) renderProHorairesModal(); else renderAdminPros();
 }
 
 // v20.287 — « Tous les jours cochés » : régler butoir / heure / livraison / livreur une seule fois (Phil, 22/10).
@@ -11057,7 +11067,7 @@ function proToutAppliquer() {
     });
     if (touche) nbJours++;
   });
-  renderAdminPros();
+  proJoursRerender();
   showToast(nbJours ? 'Réglage appliqué à ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + (t.ecraser ? '' : ' (cases vides seulement)') : 'Rien à changer' + (t.ecraser ? '' : ' — coche « remplacer » pour écraser ce qui est déjà réglé'), nbJours ? 'sync' : 'warn');
 }
 function handleProJourField(jour, field, val) {
@@ -12344,6 +12354,90 @@ function renderProInterfaceForm(proEl) {
   proEl.innerHTML = html;
 }
 
+// v20.288 — partagé fiche / fenêtre ⏰ Horaires : retire les jours décochés, garde butoir, heures, livreur
+function cleanJoursLivraison(jours) {
+  const out = {};
+  Object.keys(jours || {}).forEach(function(j) {
+    const cfg = jours[j];
+    if (cfg && cfg.actif) {
+      out[j] = {
+        actif: true,
+        butoir_decalage: (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1),
+        butoir_heure: cfg.butoir_heure || null,
+        livraison: cfg.livraison || null,
+        tournee: cfg.tournee || null // v20.169 — livreur/retrait/boutique (null = auto selon boutique)
+      };
+    }
+  });
+  return out;
+}
+// v20.288 — ⏰ Horaires depuis l'onglet Pros d'un site (Phil, 22/10 : « que mes boulangers puissent le régler
+// sans aller dans le BackOffice »). Seulement les jours de livraison ; le reste de la fiche reste au BackOffice.
+let proHorairesId = null, proHorairesSauvegarde = null;
+function openProHoraires(proId) {
+  const p = adminPros.find(function(x) { return x.id === proId; });
+  if (!p) return;
+  proHorairesId = proId;
+  proHorairesSauvegarde = adminProsDraft;   // on ne casse pas une fiche BackOffice éventuellement ouverte
+  adminProsDraft = { id: p.id, nom: p.nom, jours_livraison: JSON.parse(JSON.stringify(p.jours_livraison || {})) };
+  proToutDraft = { butoir_decalage: '', butoir_heure: '', livraison: '', tournee: '', ecraser: false };
+  renderProHorairesModal();
+}
+function renderProHorairesModal() {
+  let el = document.getElementById('pro-horaires-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'pro-horaires-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  const d = adminProsDraft;
+  el.innerHTML = '<div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">'
+    + '<div class="modal-title">⏰ Horaires — ' + escapeHtml(d.nom || '') + '</div>'
+    + '<div class="modal-sub">Jours de livraison, heure limite de commande, heure de livraison, qui livre. Le client voit ces heures sur sa page.</div>'
+    + proJoursBlockHtml(d)
+    + '<div style="display:flex;gap:8px;margin-top:12px">'
+    + '<button class="btn-grey" style="flex:1;padding:12px" onclick="closeProHoraires()">Annuler</button>'
+    + '<button class="btn-gold" style="flex:2;padding:12px" onclick="saveProHoraires()">✓ Enregistrer</button>'
+    + '</div></div>';
+  el.classList.add('show');
+}
+function closeProHoraires() {
+  const el = document.getElementById('pro-horaires-modal');
+  if (el) el.classList.remove('show');
+  adminProsDraft = proHorairesSauvegarde; proHorairesSauvegarde = null; proHorairesId = null;
+}
+async function saveProHoraires() {
+  const d = adminProsDraft;
+  if (!d || !proHorairesId) return;
+  const jours = cleanJoursLivraison(d.jours_livraison);
+  if (!Object.keys(jours).length && !confirm('Aucun jour coché : ' + (d.nom || 'ce client') + ' ne pourra plus rien commander. Enregistrer quand même ?')) return;
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('pros').update({ jours_livraison: jours }).eq('id', proHorairesId).select();
+  if (error || !data || !data.length) { setSyncStatus('error'); showToast(error ? error.message : 'Enregistrement bloqué', 'error'); return; }
+  setSyncStatus('ok');
+  const p = adminPros.find(function(x) { return x.id === proHorairesId; });
+  if (p) p.jours_livraison = jours;
+  closeProHoraires();
+  showToast('Horaires enregistrés', 'sync');
+  if (currentVue === 'pros') renderProOrders();
+}
+// Liste des pros de CE site (boutique principale) avec leurs jours en un coup d'œil + bouton ⏰
+let proHorairesListOpen = false;
+function toggleProHorairesList() { proHorairesListOpen = !proHorairesListOpen; renderProOrders(); }
+function proHorairesListHtml() {
+  const JOURS_COURT = { lundi: 'L', mardi: 'Ma', mercredi: 'Me', jeudi: 'J', vendredi: 'V', samedi: 'S', dimanche: 'D' };
+  const pros = adminPros.filter(function(p) { return p.actif && (p.boutique_principale || 'local') === currentBoutique; })
+    .sort(function(a, b) { return (a.nom || '').localeCompare(b.nom || '', 'fr'); });
+  let h = '<div class="pro-horaires-list">';
+  if (!pros.length) h += '<div class="empty-state">Aucun pro préparé par cette boutique.</div>';
+  pros.forEach(function(p) {
+    const j = p.jours_livraison || {};
+    const resume = PRO_JOURS.filter(function(jp) { return j[jp[0]] && j[jp[0]].actif; }).map(function(jp) {
+      const c = j[jp[0]];
+      return JOURS_COURT[jp[0]] + (c.butoir_heure ? ' ' + c.butoir_heure.replace(':00', 'h').replace(':', 'h') : '');
+    }).join(' · ');
+    h += '<div class="pro-horaires-row"><div class="pro-horaires-main"><div class="pl-nom">' + escapeHtml(p.nom || '') + '</div>'
+      + '<div class="pl-ct">' + (resume ? escapeHtml(resume) : '<span style="color:var(--red)">aucun jour de livraison</span>') + '</div></div>'
+      + '<button type="button" class="btn-gold-sm" onclick="openProHoraires(\'' + escapeHtml(p.id) + '\')">⏰ Régler</button></div>';
+  });
+  return h + '</div>';
+}
 async function saveProForm() {
   const d = adminProsDraft;
   if (!d) return;
@@ -12387,19 +12481,7 @@ async function saveProForm() {
     if (!isNaN(v) && v >= 0) cleanPrix[pid] = v;
   });
   // v21.0.3 + v21.0.3.1 — nettoie jours : retire inactifs, persiste butoir_decalage + butoir_heure
-  const cleanJours = {};
-  Object.keys(d.jours_livraison || {}).forEach(function(j) {
-    const cfg = d.jours_livraison[j];
-    if (cfg && cfg.actif) {
-      cleanJours[j] = {
-        actif: true,
-        butoir_decalage: (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1),
-        butoir_heure: cfg.butoir_heure || null,
-        livraison: cfg.livraison || null,
-        tournee: cfg.tournee || null // v20.169 — livreur/retrait/boutique (null = auto selon boutique)
-      };
-    }
-  });
+  const cleanJours = cleanJoursLivraison(d.jours_livraison);
 
   const row = {
     id: proId,
@@ -13079,6 +13161,73 @@ function applyProsSearch() {
   });
 }
 
+// v20.288 — bloc « Jours de livraison » partagé : fiche pro (BackOffice) et fenêtre ⏰ Horaires (onglet Pros d'un site)
+function proJoursBlockHtml(d) {
+  // v21.0.3 — Jours de livraison (7 jours, chaque jour = toggle + butoir + livraison)
+  let html = '<div class="pro-form-section">'
+    + '<h3>Jours de livraison</h3>'
+    + '<div class="pro-form-hint" style="margin-bottom:10px">Coche les jours où le pro est livré. Butoir = jusqu\'à quand il peut passer commande. Livraison = heure cible. Livreur = qui livre (Auto : Local/Veigné → tournée livreur, Tours/St-Av → la boutique).</div>';
+  // v20.287 — ligne « Tous les jours cochés » : un seul réglage pour tous
+  let decOptsTous = '<option value=""' + (proToutDraft.butoir_decalage === '' ? ' selected' : '') + '>—</option>';
+  PRO_BUTOIR_DECALAGES.forEach(function(opt) {
+    decOptsTous += '<option value="' + opt[0] + '"' + (String(proToutDraft.butoir_decalage) === String(opt[0]) ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
+  });
+  html += '<div class="pro-jour-row pro-jour-tous">'
+    + '<div class="pro-jour-tous-lbl">Tous les jours cochés</div>'
+    + '<div class="pro-jour-fields">'
+      + '<label>Butoir</label>'
+      + '<select class="pro-input pro-input-decalage" onchange="proToutDraft.butoir_decalage = this.value">' + decOptsTous + '</select>'
+      + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(proToutDraft.butoir_heure) + '" oninput="proToutDraft.butoir_heure = this.value">'
+      + '<label>Livraison</label>'
+      + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(proToutDraft.livraison) + '" oninput="proToutDraft.livraison = this.value">'
+      + '<label>Livreur</label>'
+      + '<select class="pro-input" onchange="proToutDraft.tournee = this.value">'
+        + '<option value=""' + (!proToutDraft.tournee ? ' selected' : '') + '>—</option>'
+        + '<option value="livreur"' + (proToutDraft.tournee === 'livreur' ? ' selected' : '') + '>🚚 Tournée livreur</option>'
+        + '<option value="retrait"' + (proToutDraft.tournee === 'retrait' ? ' selected' : '') + '>🚶 Vient chercher</option>'
+        + '<option value="boutique"' + (proToutDraft.tournee === 'boutique' ? ' selected' : '') + '>🏪 Livré par la boutique</option>'
+      + '</select>'
+      + '<button type="button" class="btn-gold-sm" onclick="proToutAppliquer()">✓ Appliquer</button>'
+      + '<label class="pro-quick-chk" style="margin:0"><input type="checkbox"' + (proToutDraft.ecraser ? ' checked' : '') + ' onchange="proToutDraft.ecraser = this.checked"> remplacer aussi ce qui est déjà réglé</label>'
+    + '</div>'
+    + '<div class="pro-form-hint" style="flex-basis:100%;margin-top:4px">Remplis ce que tu veux, « Appliquer » le pose sur les jours cochés sans toucher à ce qui est déjà réglé (sauf si tu coches « remplacer »). Heure limite vide = la veille 23h59.</div>'
+  + '</div>';
+  PRO_JOURS.forEach(function(jp) {
+    const jourId = jp[0];
+    const jourLbl = jp[1];
+    const cfg = d.jours_livraison[jourId] || {};
+    const isActif = !!cfg.actif;
+    const curDec = (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1);
+    let decOpts = '';
+    PRO_BUTOIR_DECALAGES.forEach(function(opt) {
+      decOpts += '<option value="' + opt[0] + '"' + (curDec === opt[0] ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
+    });
+    html += '<div class="pro-jour-row' + (isActif ? ' actif' : '') + '">'
+      + '<button class="toggle-btn ' + (isActif ? 'active' : '') + '" onclick="handleProJourActif(\'' + jourId + '\')">' + jourLbl + '</button>'
+      + (isActif
+        ? '<div class="pro-jour-fields">'
+          + '<label>Butoir</label>'
+          + '<select class="pro-input pro-input-decalage" onchange="handleProJourField(\'' + jourId + '\', \'butoir_decalage\', this.value)">' + decOpts + '</select>'
+          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir_heure || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir_heure\', this.value)">'
+          + '<label>Livraison</label>'
+          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.livraison || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'livraison\', this.value)">'
+          // v20.169 — qui livre ce jour-là ? (pilote la tournée du livreur)
+          + '<label>Livreur</label>'
+          + '<select class="pro-input" onchange="handleProJourField(\'' + jourId + '\', \'tournee\', this.value)">'
+            + '<option value=""' + (!cfg.tournee ? ' selected' : '') + '>Auto (selon boutique)</option>'
+            + '<option value="livreur"' + (cfg.tournee === 'livreur' ? ' selected' : '') + '>🚚 Tournée livreur</option>'
+            + '<option value="retrait"' + (cfg.tournee === 'retrait' ? ' selected' : '') + '>🚶 Vient chercher</option>'
+            + '<option value="boutique"' + (cfg.tournee === 'boutique' ? ' selected' : '') + '>🏪 Livré par la boutique</option>'
+          + '</select>'
+        + '</div>'
+        : '<div class="pro-jour-fields-off">—</div>')
+    + '</div>';
+  });
+  html += '</div>';
+
+  return html;
+}
+
 function renderProForm(mc) {
   const d = adminProsDraft;
   const isNew = (adminProsEditingId === 'new');
@@ -13183,67 +13332,7 @@ function renderProForm(mc) {
     + '</div>'
   + '</div>';
 
-  // v21.0.3 — Jours de livraison (7 jours, chaque jour = toggle + butoir + livraison)
-  html += '<div class="pro-form-section">'
-    + '<h3>Jours de livraison</h3>'
-    + '<div class="pro-form-hint" style="margin-bottom:10px">Coche les jours où le pro est livré. Butoir = jusqu\'à quand il peut passer commande. Livraison = heure cible. Livreur = qui livre (Auto : Local/Veigné → tournée livreur, Tours/St-Av → la boutique).</div>';
-  // v20.287 — ligne « Tous les jours cochés » : un seul réglage pour tous
-  let decOptsTous = '<option value=""' + (proToutDraft.butoir_decalage === '' ? ' selected' : '') + '>—</option>';
-  PRO_BUTOIR_DECALAGES.forEach(function(opt) {
-    decOptsTous += '<option value="' + opt[0] + '"' + (String(proToutDraft.butoir_decalage) === String(opt[0]) ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
-  });
-  html += '<div class="pro-jour-row pro-jour-tous">'
-    + '<div class="pro-jour-tous-lbl">Tous les jours cochés</div>'
-    + '<div class="pro-jour-fields">'
-      + '<label>Butoir</label>'
-      + '<select class="pro-input pro-input-decalage" onchange="proToutDraft.butoir_decalage = this.value">' + decOptsTous + '</select>'
-      + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(proToutDraft.butoir_heure) + '" oninput="proToutDraft.butoir_heure = this.value">'
-      + '<label>Livraison</label>'
-      + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(proToutDraft.livraison) + '" oninput="proToutDraft.livraison = this.value">'
-      + '<label>Livreur</label>'
-      + '<select class="pro-input" onchange="proToutDraft.tournee = this.value">'
-        + '<option value=""' + (!proToutDraft.tournee ? ' selected' : '') + '>—</option>'
-        + '<option value="livreur"' + (proToutDraft.tournee === 'livreur' ? ' selected' : '') + '>🚚 Tournée livreur</option>'
-        + '<option value="retrait"' + (proToutDraft.tournee === 'retrait' ? ' selected' : '') + '>🚶 Vient chercher</option>'
-        + '<option value="boutique"' + (proToutDraft.tournee === 'boutique' ? ' selected' : '') + '>🏪 Livré par la boutique</option>'
-      + '</select>'
-      + '<button type="button" class="btn-gold-sm" onclick="proToutAppliquer()">✓ Appliquer</button>'
-      + '<label class="pro-quick-chk" style="margin:0"><input type="checkbox"' + (proToutDraft.ecraser ? ' checked' : '') + ' onchange="proToutDraft.ecraser = this.checked"> remplacer aussi ce qui est déjà réglé</label>'
-    + '</div>'
-    + '<div class="pro-form-hint" style="flex-basis:100%;margin-top:4px">Remplis ce que tu veux, « Appliquer » le pose sur les jours cochés sans toucher à ce qui est déjà réglé (sauf si tu coches « remplacer »). Heure limite vide = la veille 23h59.</div>'
-  + '</div>';
-  PRO_JOURS.forEach(function(jp) {
-    const jourId = jp[0];
-    const jourLbl = jp[1];
-    const cfg = d.jours_livraison[jourId] || {};
-    const isActif = !!cfg.actif;
-    const curDec = (cfg.butoir_decalage != null ? cfg.butoir_decalage : -1);
-    let decOpts = '';
-    PRO_BUTOIR_DECALAGES.forEach(function(opt) {
-      decOpts += '<option value="' + opt[0] + '"' + (curDec === opt[0] ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
-    });
-    html += '<div class="pro-jour-row' + (isActif ? ' actif' : '') + '">'
-      + '<button class="toggle-btn ' + (isActif ? 'active' : '') + '" onclick="handleProJourActif(\'' + jourId + '\')">' + jourLbl + '</button>'
-      + (isActif
-        ? '<div class="pro-jour-fields">'
-          + '<label>Butoir</label>'
-          + '<select class="pro-input pro-input-decalage" onchange="handleProJourField(\'' + jourId + '\', \'butoir_decalage\', this.value)">' + decOpts + '</select>'
-          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.butoir_heure || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'butoir_heure\', this.value)">'
-          + '<label>Livraison</label>'
-          + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(cfg.livraison || '') + '" oninput="handleProJourField(\'' + jourId + '\', \'livraison\', this.value)">'
-          // v20.169 — qui livre ce jour-là ? (pilote la tournée du livreur)
-          + '<label>Livreur</label>'
-          + '<select class="pro-input" onchange="handleProJourField(\'' + jourId + '\', \'tournee\', this.value)">'
-            + '<option value=""' + (!cfg.tournee ? ' selected' : '') + '>Auto (selon boutique)</option>'
-            + '<option value="livreur"' + (cfg.tournee === 'livreur' ? ' selected' : '') + '>🚚 Tournée livreur</option>'
-            + '<option value="retrait"' + (cfg.tournee === 'retrait' ? ' selected' : '') + '>🚶 Vient chercher</option>'
-            + '<option value="boutique"' + (cfg.tournee === 'boutique' ? ' selected' : '') + '>🏪 Livré par la boutique</option>'
-          + '</select>'
-        + '</div>'
-        : '<div class="pro-jour-fields-off">—</div>')
-    + '</div>';
-  });
-  html += '</div>';
+  html += proJoursBlockHtml(d);   // v20.288 — bloc partagé avec la fenêtre ⏰ Horaires
 
   // v21.0.3 — Catalogue restreint (par catégorie, vide = tout autorisé)
   // v21.0.3.2 — exclure les produits sur mesure d'autres pros (pros_only_id ≠ current)
@@ -15080,6 +15169,7 @@ function renderProOrders() {
   if (currentBoutique === 'tours') html += ferieRappelProsHtml('tours');
   html += '<div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
     + '<button class="btn-gold" onclick="openProOrderForm(\'new\')">+ Nouvelle commande</button>'
+    + '<button class="btn-gold' + (proHorairesListOpen ? '' : '-sm') + '" style="' + (proHorairesListOpen ? 'background:var(--green);border-color:var(--green)' : 'padding:10px 14px') + '" onclick="toggleProHorairesList()">⏰ Horaires des pros</button>'
     + '<button class="btn-gold' + (proOrdersWeekGridOpen ? '' : '-sm') + '" style="' + (proOrdersWeekGridOpen ? 'background:var(--green);border-color:var(--green)' : 'padding:10px 14px') + '" onclick="toggleProOrdersWeekGrid()">🗓️ ' + (proOrdersWeekGridOpen ? 'Fermer la semaine' : 'Semaine') + '</button>'   // v20.260
     + '<div class="pro-period-filter">'
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'today' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'today\')">Aujourd\'hui</button>'
@@ -15087,6 +15177,8 @@ function renderProOrders() {
       + '<button class="pro-period-btn ' + (proOrderFilterPeriod === 'week' ? 'active' : '') + '" onclick="handleProOrderFilterPeriod(\'week\')">Semaine</button>'
     + '</div>'
   + '</div>';
+  // v20.288 — ⏰ horaires des pros de ce site, réglables sans le BackOffice
+  if (proHorairesListOpen) html += proHorairesListHtml();
   // v20.260 — la grille de la semaine de CE site, pour l'équipe
   if (proOrdersWeekGridOpen) html += proOrdersWeekGridBlockHtml();
   // v20.274 — pièces par client, semaine et mois (consultation, pour pointer les factures)

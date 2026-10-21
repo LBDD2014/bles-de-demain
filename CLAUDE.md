@@ -170,6 +170,10 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   Une **nouvelle fiche démarre à `[]`** (rien de coché), message rouge « 0 produit autorisé », confirmation
   à l'enregistrement. Migration `migration-v20.286-catalogue-vide.sql` : les fiches existantes à `[]`
   repassent à `null`.
+- **Jours de livraison** : ligne « Tous les jours cochés » (v20.287) = un réglage posé sur les jours cochés,
+  cases vides seulement (case « remplacer » pour écraser). **« ⏰ Horaires des pros »** (v20.288) dans l'onglet
+  Pros de chaque site : les pros dont ce site est la boutique principale, bouton ⏰ Régler → fenêtre avec les
+  jours seuls (bloc partagé `proJoursBlockHtml`), enregistrée sans passer par le BackOffice.
 - Envoi de l'accès : « 📤 Image + message » = image QR + message dans la feuille de partage (iPhone/iPad :
   WhatsApp met le texte en légende) ; partage abouti = « envoyé le … ». « 📋 Copier » ne marque « envoyé »
   qu'après confirmation. Message signé Philippe, 4 boutiques (portables) en fin, la sienne en premier.
