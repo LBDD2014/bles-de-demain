@@ -23,7 +23,9 @@ begin
   -- 1. toutes les tables qui ont une colonne product_id → bascule des doublons sur vp_bur
   for r in
     select table_name from information_schema.columns
-    where table_schema = 'public' and column_name = 'product_id' and table_name <> 'db_backups'
+    where table_schema = 'public' and column_name = 'product_id'
+      and data_type in ('text', 'character varying')      -- vieilles sauvegardes en uuid (_backup_…) ignorées
+      and table_name not like '\_backup%' and table_name <> 'db_backups'
     order by table_name
   loop
     n := 0; conflits := 0;
