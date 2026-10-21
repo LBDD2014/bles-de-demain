@@ -22,6 +22,40 @@ async function backofficePros(ctx) {
 
 export const tests = [
   {
+    name: 'Liste des pros (v20.286) — colonnes par boutique avec secours visible ; nouvelle fiche = rien de coché, 0 produit = message rouge, enregistrer demande confirmation ; liste vide = le pro ne voit rien',
+    fn: async (ctx) => {
+      const page = await backofficePros(ctx);
+      const r = await page.evaluate(async () => {
+        const cols = Array.from(document.querySelectorAll('.pros-list.pros-cols .pros-col')).map((c) => c.getAttribute('data-site') + ':' + c.querySelectorAll('.pro-card').length);
+        const shops = Array.from(document.querySelectorAll('.pro-card-shops')).map((x) => x.textContent.replace(/\s+/g, ' ').trim());
+        // nouvelle fiche : rien de coché
+        openProForm('new');
+        const draftCat = JSON.stringify(adminProsDraft.catalogue_restreint);
+        const coches = document.querySelectorAll('.pro-form-section input[type=checkbox]:checked').length;
+        const hint = Array.from(document.querySelectorAll('.pro-form-hint')).map((x) => x.textContent).find((t) => /produit autorisé/.test(t)) || '';
+        // enregistrer avec 0 produit → confirm() ; ici annulé → rien d'enregistré
+        adminProsDraft.nom = 'Test Vide';
+        let question = ''; window.confirm = (m) => { question = m; return false; };
+        await saveProForm();
+        const n1 = window.__mockDB.pros.length;
+        // accepté → enregistré avec [] ; et [] = aucun produit disponible pour lui
+        window.confirm = () => true;
+        await saveProForm();
+        const saved = window.__mockDB.pros.find((p) => p.nom === 'Test Vide');
+        const dispo = saved ? getProAvailableProducts(saved).length : -1;
+        const dispoTout = getProAvailableProducts({ id: 'x', catalogue_restreint: null }).length;
+        return { cols, shops, draftCat, coches, hint, question, n1, savedCat: saved && JSON.stringify(saved.catalogue_restreint), dispo, dispoTout };
+      });
+      assert(r.cols.join(',') === 'local:2,veigne:0,tours:0', 'colonnes Le Local / Veigné / Tours : ' + r.cols.join(','));
+      assert(r.shops.every((t) => /Le Local · secours : Veigné \(par défaut\)/.test(t)), 'secours par défaut affiché : ' + JSON.stringify(r.shops));
+      assert(r.draftCat === '[]' && r.coches === 0, 'nouvelle fiche : liste vide, rien de coché : ' + r.draftCat + ' / ' + r.coches);
+      assert(/0 produit autorisé/.test(r.hint) && /ne pourra rien commander/.test(r.hint), 'message rouge : ' + r.hint);
+      assert(/aucun produit autorisé/.test(r.question) && r.n1 === 2, 'confirmation demandée, annulée = pas enregistré : ' + r.question + ' / ' + r.n1);
+      assert(r.savedCat === '[]' && r.dispo === 0 && r.dispoTout > 0, 'enregistré à [] = aucun produit dispo (null = tout) : ' + JSON.stringify({ c: r.savedCat, d: r.dispo, t: r.dispoTout }));
+      await page.close();
+    },
+  },
+  {
     name: 'Liste des pros — la loupe filtre par nom, contact ou téléphone',
     fn: async (ctx) => {
       const page = await backofficePros(ctx);

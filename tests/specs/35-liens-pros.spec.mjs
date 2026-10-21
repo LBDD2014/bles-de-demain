@@ -23,6 +23,35 @@ async function liensPros(ctx) {
 
 export const tests = [
   {
+    name: 'Liens pros — v20.286 : une colonne par boutique (Le Local / Veigné / Tours), en-tête avec la règle de secours, secours à droite du nom, un tap ouvre la fiche',
+    fn: async (ctx) => {
+      const page = await liensPros(ctx);
+      const r = await page.evaluate(async () => {
+        window.__mockDB.fab_jours_off = [{ site: 'local', jours: '0' }, { site: 'tours', jours: '6' }];
+        window.__mockDB.pros.find((p) => p.id === 'bar').boutique_secours = 'tours';
+        adminPros.find((p) => p.id === 'bar').boutique_secours = 'tours';
+        joursOffBySite = null;   // forcer la relecture des jours de fermeture
+        await openProLinksModal();
+        const cols = Array.from(document.querySelectorAll('#pro-links-modal .pl-col')).map((c) => ({
+          site: c.getAttribute('data-site'), h: c.querySelector('.pl-col-h').textContent.replace(/\s+/g, ' ').trim(),
+          pros: Array.from(c.querySelectorAll('.pl-row')).map((x) => x.querySelector('.pl-nom').firstChild.textContent.trim() + ' [' + x.querySelector('.pl-sec').textContent + ']'),
+          vide: !!c.querySelector('.pl-empty'),
+        }));
+        document.querySelector('#pro-links-modal .pl-col[data-site="local"] .pl-sec').click();
+        return { cols, ficheOuverte: adminProsEditingId, modaleFermee: !document.getElementById('pro-links-modal').classList.contains('show') };
+      });
+      assert(r.cols.map((c) => c.site).join(',') === 'local,veigne,tours', '3 colonnes dans l\'ordre : ' + r.cols.map((c) => c.site).join(','));
+      const compact = (t) => t.replace(/\s+/g, '');
+      assert(compact(r.cols[0].h) === compact('Le Local 2 pros · 1 a le lien Fermé le lundi → secours Veigné'), 'en-tête Local : ' + r.cols[0].h);
+      assert(compact(r.cols[1].h) === compact('Veigné 0 pro · 0 a le lien Ouvert 7/7 → pas de secours') && r.cols[1].vide, 'en-tête Veigné + « Aucun pro » : ' + r.cols[1].h);
+      assert(compact(r.cols[2].h) === compact('Tours 1 pro · 0 a le lien Fermé le dimanche → pas de boutique de secours'), 'en-tête Tours : ' + r.cols[2].h);
+      assert(JSON.stringify(r.cols[0].pros) === '["Bar du Marché [secours : Tours]","Relais d\'Amboise [secours : Veigné (par défaut)]"]', 'Local : secours réglé / par défaut : ' + JSON.stringify(r.cols[0].pros));
+      assert(JSON.stringify(r.cols[2].pros) === '["Coop Nature [secours : —]"]', 'Tours : pas de secours : ' + JSON.stringify(r.cols[2].pros));
+      assert(r.ficheOuverte === 'bar' && r.modaleFermee, 'un tap sur le secours ouvre la fiche du pro : ' + JSON.stringify({ f: r.ficheOuverte, m: r.modaleFermee }));
+      await page.close();
+    },
+  },
+  {
     name: 'Liens pros — un écran, une ligne par pro actif, WhatsApp seulement avec un téléphone, repère envoyé / jamais / pas de téléphone',
     fn: async (ctx) => {
       const page = await liensPros(ctx);
@@ -37,8 +66,9 @@ export const tests = [
         };
       });
       assert(r.ouvert && /1 \/ 3/.test(r.sub), 'modale ouverte, « 1 / 3 ont reçu leur lien » : ' + r.sub);
-      assert(r.rows.length === 3 && r.rows.map((x) => x.nom.split(' ')[0]).join(',') === 'Bar,Coop,Relais', 'les 3 pros actifs triés par nom, pas l\'inactif : ' + JSON.stringify(r.rows.map((x) => x.nom)));
-      const bar = r.rows[0], coop = r.rows[1], relais = r.rows[2];
+      // v20.286 — colonnes par boutique : Le Local (Bar, Relais, par nom) puis Veigné (vide) puis Tours (Coop)
+      assert(r.rows.length === 3 && r.rows.map((x) => x.nom.split(' ')[0]).join(',') === 'Bar,Relais,Coop', 'les 3 pros actifs par colonne puis par nom, pas l\'inactif : ' + JSON.stringify(r.rows.map((x) => x.nom)));
+      const bar = r.rows[0], relais = r.rows[1], coop = r.rows[2];
       assert(relais.st === '✓ envoyé le 03/07' && relais.wa && relais.copy, 'Relais : envoyé le 03/07, WhatsApp + Copier : ' + JSON.stringify(relais));
       assert(bar.st === 'jamais envoyé' && bar.wa, 'Bar : jamais envoyé, WhatsApp dispo : ' + JSON.stringify(bar));
       assert(coop.st === '📞 pas de téléphone' && !coop.wa && coop.copy && coop.lien, 'Coop : pas de téléphone, Copier seulement + lien vers la fiche : ' + JSON.stringify(coop));

@@ -150,14 +150,29 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   commande vaut pour tous ceux qui fabriquent une ligne. Sinon Veigné « voit toutes les commandes ».
   Tout nouvel écran de production qui affiche des commandes doit afficher ces notes, filtrées ainsi.
 
-**Commandes pros — site fermé ce jour-là** (v20.282, 20/10/2026, cas Steff le boulanger) :
+**Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
   les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique
-  de secours** de la fiche, sinon **Veigné** d'office. Même règle dans l'app (`proSourceEffective`)
-  et dans `pro.html` (`sourceEffective`) ; la génération auto passe par le même chemin.
+  de secours** de la fiche. Sans réglage (Phil, 21/10) : **Le Local → Veigné** ; **Tours → pas de
+  secours, commande refusée** avec un message clair (le jour est grisé « fermé » sur pro.html) ;
+  **Veigné ouvert 7/7**. Même règle dans l'app (`proSourceEffective`, null = refusé) et dans `pro.html`
+  (`sourceEffective`) ; la génération auto passe par le même chemin.
 - Formulaire équipe (onglet Pros) : une boutique **changée à la main** = dépannage, elle vaut pour
   toute la commande et gagne sur la fiche (cassé entre v20.257 et v20.281). L'équipe voit un message
   « Le Local fermé ce lundi → commande envoyée à Veigné ».
+
+**Pros — fiches et liens** (v20.283-286, 21/10/2026) :
+- Liste des pros (BackOffice) et « 📱 Liens pros » : **une colonne par boutique qui fabrique**
+  (Le Local / Veigné / Tours ; St-Avertin seulement si un pro l'a en principale), en-tête avec la règle
+  de fermeture/secours, **boutique de secours à droite du nom** (« Veigné (par défaut) » pour le Local
+  sans réglage, « — » sinon), un tap ouvre la fiche.
+- **Catalogue restreint** : `null` = tout autorisé, **`[]` = rien** (avant v20.286, `[]` valait « tout »).
+  Une **nouvelle fiche démarre à `[]`** (rien de coché), message rouge « 0 produit autorisé », confirmation
+  à l'enregistrement. Migration `migration-v20.286-catalogue-vide.sql` : les fiches existantes à `[]`
+  repassent à `null`.
+- Envoi de l'accès : « 📤 Image + message » = image QR + message dans la feuille de partage (iPhone/iPad :
+  WhatsApp met le texte en légende) ; partage abouti = « envoyé le … ». « 📋 Copier » ne marque « envoyé »
+  qu'après confirmation. Message signé Philippe, 4 boutiques (portables) en fin, la sienne en premier.
 
 ### Quantités par caisse (viennoiserie)
 

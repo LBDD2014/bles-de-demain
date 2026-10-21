@@ -26,6 +26,19 @@ function dbRelais() {
 
 export const tests = [
   {
+    name: 'Page pro — v20.286 : catalogue vide ([]) = aucun produit proposé ; null = tout le catalogue',
+    fn: async (ctx) => {
+      const db = dbRelais();
+      db.pros[0].catalogue_restreint = [];
+      const page = await preparePage(ctx, { db });
+      await page.goto('http://127.0.0.1:8787/pro.html?t=tok_relais');
+      await page.waitForFunction(() => document.querySelector('.hello'));
+      const r = await page.evaluate(() => ({ vide: catalogueOf(etabs[0]).length, tout: catalogueOf(Object.assign({}, etabs[0], { catalogue_restreint: null })).length }));
+      assert(r.vide === 0 && r.tout > 3, '[] = rien, null = tout : ' + JSON.stringify(r));
+      await page.close();
+    },
+  },
+  {
     name: 'Page pro — produit en caisse de 8 : compteur en caisses (+ = +8 pièces), libellé, « la dernière fois : 2 caisses (16 p.) », commande enregistrée en pièces',
     fn: async (ctx) => {
       const page = await preparePage(ctx, { db: dbRelais() });

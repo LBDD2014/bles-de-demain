@@ -15,15 +15,16 @@ import { makeDB, TENANT_ID } from '../helpers/fixtures.mjs';
 const T = TENANT_ID;
 const JOURS = {};
 ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'].forEach((j) => { JOURS[j] = { actif: true, butoir_decalage: -1, butoir_heure: '23:59', livraison: '08:00' }; });
-const LUNDI = '2026-07-27', MARDI = '2026-07-28';
+const LUNDI = '2026-07-27', MARDI = '2026-07-28', DIMANCHE = '2026-07-26';
+const JOURS7 = Object.assign({ dimanche: { actif: true, butoir_decalage: -1, butoir_heure: '23:59', livraison: '08:00' } }, JOURS);
 
 function dbSteff(opts = {}) {
   const db = makeDB();
   db.products.push({ id: 'cadre_royal_surg', tenant_id: T, name: 'Cadre Royal surgelé', category: 'patisserie_gros',
     actif: true, usage: 'reappro', supply_by_boutique: {}, pros_only_id: null, prix_cession: 30 });
-  db.pros = [{ id: 'steff', tenant_id: T, nom: 'STEFF LE BOULANGER', boutique_principale: 'local',
+  db.pros = [{ id: 'steff', tenant_id: T, nom: 'STEFF LE BOULANGER', boutique_principale: opts.principale || 'local',
     boutique_secours: 'secours' in opts ? opts.secours : 'veigne', contacts: [], actif: true, magic_token: 'tok_steff',
-    jours_livraison: JOURS, catalogue_restreint: null, prix_speciaux: {}, template_items: [],
+    jours_livraison: opts.jours || JOURS, catalogue_restreint: null, prix_speciaux: {}, template_items: [],
     sources_par_categorie: opts.sources || {} }];
   // Local fermé le lundi (0), Tours le dimanche (6) — réglage réel du Planning
   db.fab_jours_off = 'joursOff' in opts ? opts.joursOff : [{ site: 'local', jours: '0' }, { site: 'tours', jours: '6' }, { site: 'veigne', jours: '' }];
@@ -142,6 +143,54 @@ export const tests = [
       assert(!r.forcee1 && JSON.stringify(r.a) === '["veigne:vt_trad=12"]', 'sans toucher : Veigné : ' + JSON.stringify(r));
       assert(r.toasts.some((t) => /Commande créée — Le Local fermé ce lundi → commande envoyée à Veigné/.test(t)), 'message : ' + r.toasts.join(' | '));
       assert(JSON.stringify(r.b) === '["tours:vt_trad=7"]', 'forcé Tours : ' + JSON.stringify(r.b));
+      await page.close();
+    },
+  },
+  {
+    name: 'Tours sans secours (v20.286) — un pro de Tours qui commande pour un dimanche (Tours fermé) : commande refusée avec un message clair, rien en base ; avec un secours réglé dans la fiche, elle y part',
+    fn: async (ctx) => {
+      const p1 = await appSteff(ctx, { principale: 'tours', secours: null, joursOff: [{ site: 'local', jours: '0' }, { site: 'tours', jours: '6' }] });
+      const r1 = await p1.evaluate(async (d) => {
+        const pro = window.__mockDB.pros[0];
+        const res = await saveProOrderSplit({ pro, date: d, editingId: null, statut: 'confirme', notes: null, created_by: 'test', items: [{ product_id: 'vt_trad', qty: 5, prix_applique: null }] });
+        return { err: res.error, rows: lire(d), eff: proSourceEffective(pro, 'tours', d, joursOffBySite), label: proSecoursLabel(pro), regle: proColonneRegle('tours') };
+      }, DIMANCHE);
+      assert(r1.eff === null && r1.err === 'Tours est fermé ce dimanche et n\'a pas de boutique de secours : pas de commande possible pour ce jour.', 'refusée avec le message : ' + JSON.stringify(r1));
+      assert(r1.rows.length === 0, 'rien en base : ' + JSON.stringify(r1.rows));
+      assert(r1.label === '—' && r1.regle === 'Fermé le dimanche → pas de boutique de secours', 'secours « — », règle de colonne : ' + r1.label + ' / ' + r1.regle);
+      await p1.close();
+      const p2 = await appSteff(ctx, { principale: 'tours', secours: 'veigne', joursOff: [{ site: 'local', jours: '0' }, { site: 'tours', jours: '6' }] });
+      const r2 = await p2.evaluate(async (d) => {
+        const pro = window.__mockDB.pros[0];
+        const res = await saveProOrderSplit({ pro, date: d, editingId: null, statut: 'confirme', notes: null, created_by: 'test', items: [{ product_id: 'vt_trad', qty: 5, prix_applique: null }] });
+        return { err: res.error, rows: lire(d), label: proSecoursLabel(pro), local: proSecoursLabel({ boutique_principale: 'local' }), veigne: proSecoursLabel({ boutique_principale: 'veigne' }), regleLocal: proColonneRegle('local'), regleVeigne: proColonneRegle('veigne') };
+      }, DIMANCHE);
+      assert(!r2.err && JSON.stringify(r2.rows) === '["veigne:vt_trad=5"]', 'secours Veigné réglé → Veigné : ' + JSON.stringify(r2));
+      assert(r2.label === 'Veigné' && r2.local === 'Veigné (par défaut)' && r2.veigne === '—', 'libellés secours : ' + JSON.stringify(r2));
+      assert(r2.regleLocal === 'Fermé le lundi → secours Veigné' && r2.regleVeigne === 'Ouvert 7/7 → pas de secours', 'règles de colonne : ' + r2.regleLocal + ' / ' + r2.regleVeigne);
+      await p2.close();
+    },
+  },
+  {
+    name: 'Page pro (pro.html) — pro de Tours : le dimanche est grisé « fermé » et pas cliquable ; en forçant, la commande est refusée',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbSteff({ principale: 'tours', secours: null, jours: JOURS7, joursOff: [{ site: 'local', jours: '0' }, { site: 'tours', jours: '6' }] }) });
+      await page.goto('http://127.0.0.1:8787/pro.html?t=tok_steff');
+      await page.waitForFunction(() => document.querySelector('.hello'));
+      const r = await page.evaluate(async (d) => {
+        const st = dateStates().find((x) => x.iso === d);
+        go('order');
+        const chip = Array.from(document.querySelectorAll('.dt')).find((c) => c.getAttribute('onclick').indexOf(d) !== -1);
+        pickDate(d);
+        const resteSur = draft.date;
+        draft.date = d; setQty('steff', 'vt_trad', 10);
+        let msg = ''; window.toast = (m) => { msg = m; };
+        await saveOrder();
+        return { state: st && st.state, chip: chip ? chip.className + ' | ' + chip.querySelector('em').textContent : null, resteSur, msg, n: window.__mockDB.pro_orders.filter((o) => o.date_livraison === d).length };
+      }, DIMANCHE);
+      assert(r.state === 'ferme' && /\bferme\b/.test(r.chip) && /fermé$/.test(r.chip), 'dimanche grisé « fermé » : ' + JSON.stringify(r));
+      assert(r.resteSur !== DIMANCHE, 'un tap dessus ne change pas le jour : ' + r.resteSur);
+      assert(/Tours est fermé ce dimanche/.test(r.msg) && r.n === 0, 'forcé → refusé, rien en base : ' + JSON.stringify(r));
       await page.close();
     },
   },

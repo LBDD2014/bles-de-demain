@@ -64,7 +64,7 @@ button{font-family:inherit}
 .dt b{display:block;font-size:19px;color:var(--grey-dark);margin:2px 0}
 .dt em{display:block;font-style:normal;font-size:9.5px;color:var(--green);font-weight:700;min-height:11px}
 .dt.on{border-color:var(--gold);background:#FBF6EA;box-shadow:0 0 0 2px rgba(206,171,82,.3)}
-.dt.late{opacity:.45;cursor:default}.dt.late em{color:var(--red)}
+.dt.late,.dt.ferme{opacity:.45;cursor:default}.dt.late em{color:var(--red)}
 .dt.has em{color:var(--blue)}
 .hint{font-size:12px;color:var(--grey-light);margin:4px 0 10px;line-height:1.45}
 .cols{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--grey-light);padding:4px 0 2px}
@@ -174,7 +174,7 @@ function catalogueOf(etab) {
   return products.filter(function(p) {
     if (!p.actif) return false;
     if (p.pros_only_id && p.pros_only_id !== etab.id) return false;
-    if (Array.isArray(etab.catalogue_restreint) && etab.catalogue_restreint.length) return etab.catalogue_restreint.indexOf(p.id) !== -1;
+    if (Array.isArray(etab.catalogue_restreint)) return etab.catalogue_restreint.indexOf(p.id) !== -1;   // v20.286 — liste vide = rien
     return true;
   });
 }
@@ -197,13 +197,16 @@ function sourceFor(etab, pid) { const cat = productCategory(pid); const spc = et
 let joursOff = {};   // { site: [0=lundi … 6=dimanche] } depuis fab_jours_off (table absente = rien de fermé)
 async function loadJoursOff() { try { const r = await supa.from('fab_jours_off').select('site,jours'); (r.data || []).forEach(function(x) { joursOff[x.site] = String(x.jours || '').split(',').filter(function(v) { return v !== ''; }).map(Number); }); } catch (e) {} }
 function siteFerme(site, iso) { const l = joursOff[site]; if (!l || !l.length) return false; return l.indexOf((dowOf(iso) + 6) % 7) !== -1; }
+// v20.286 — seul Le Local a Veigné en secours par défaut ; Tours n'en a pas. null = fermé ce jour-là, pas de commande possible.
 function sourceEffective(etab, src, iso) {
   if (!siteFerme(src, iso)) return src;
   const sec = etab.boutique_secours;
   if (sec && sec !== src && !siteFerme(sec, iso)) return sec;
-  if (src !== 'veigne' && !siteFerme('veigne', iso)) return 'veigne';
-  return src;
+  if (src === 'local' && !siteFerme('veigne', iso)) return 'veigne';
+  return null;
 }
+function jourPossible(etab, iso) { return sourceEffective(etab, etab.boutique_principale || 'local', iso) !== null; }
+function prepareLabel(etab, iso) { return BOUTIQUE_NAMES[sourceEffective(etab, etab.boutique_principale || 'local', iso) || etab.boutique_principale] || 'la boulangerie'; }
 function appliedPrice(etab, pid) { if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
 // « Tours » / « Chambray-les-Tours » à partir de « DAKOTA CAFE Tours » / « DAKOTA CAFE CHAMBRAY-LES-TOURS »
 function shortLabel(etab) {
@@ -355,8 +358,9 @@ function dateStates() {
     const configured = etabs.some(function(e) { return butoirMs(e, iso) != null; });
     const has = etabs.some(function(e) { return ordersOf(e.id, iso).length > 0; });
     if (!configured && !has) continue;
-    const open = etabs.some(function(e) { return etabOpen(e, iso); });
-    out.push({ iso: iso, state: open ? (has ? 'has' : 'open') : 'late', has: has });
+    const open = etabs.some(function(e) { return etabOpen(e, iso) && jourPossible(e, iso); });
+    const ferme = !open && !has && etabs.some(function(e) { return etabOpen(e, iso); });   // v20.286 — ouvert à la commande mais boutique fermée sans secours
+    out.push({ iso: iso, state: open ? (has ? 'has' : 'open') : (ferme ? 'ferme' : 'late'), has: has });
   }
   return out;
 }
@@ -384,7 +388,7 @@ function openOrder(iso) {
   draft = { date: date, qty: qty, notes: notes, who: who, editing: existingAny };
   tab = 'order'; detailKey = null; doneInfo = null; render();
 }
-function pickDate(iso) { const st = dateStates().find(function(x) { return x.iso === iso; }); if (!st || st.state === 'late') return; openOrder(iso); }
+function pickDate(iso) { const st = dateStates().find(function(x) { return x.iso === iso; }); if (!st || st.state === 'late' || st.state === 'ferme') return; openOrder(iso); }
 function setQty(etabId, pid, v) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const n = Math.max(0, Math.round(Number(v) || 0)) * pk; draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) inp.value = n / pk; refreshTotals(); }
 function bump(etabId, pid, delta) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const cur = Number(draft.qty[etabId][pid]) || 0; const n = Math.max(0, delta > 0 ? (Math.floor(cur / pk) + 1) * pk : (Math.ceil(cur / pk) - 1) * pk); draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) { inp.value = n / pk; inp.parentNode.className = 'step' + (n > 0 ? ' has' : ''); } refreshTotals(); }
 function refreshTotals() {
@@ -400,12 +404,12 @@ function renderOrder(b) {
   let h = '<div class="sec">1 · Pour quel jour ?</div><div class="dates">';
   ds.forEach(function(x) {
     const d = new Date(x.iso + 'T12:00');
-    const em = x.state === 'late' ? (x.has ? 'clôturée' : 'trop tard') : (x.has ? 'déjà commandé' : (x.iso === draft.date ? 'jusqu\'à ' + butoirTxt(etabs.find(function(e) { return etabOpen(e, x.iso); }) || etabs[0], x.iso).replace(/^(ce soir|aujourd'hui|demain) /, '$1 ') : 'ouvert'));
+    const em = x.state === 'ferme' ? 'fermé' : x.state === 'late' ? (x.has ? 'clôturée' : 'trop tard') : (x.has ? 'déjà commandé' : (x.iso === draft.date ? 'jusqu\'à ' + butoirTxt(etabs.find(function(e) { return etabOpen(e, x.iso); }) || etabs[0], x.iso).replace(/^(ce soir|aujourd'hui|demain) /, '$1 ') : 'ouvert'));
     h += '<div class="dt ' + x.state + (x.iso === draft.date ? ' on' : '') + '" onclick="pickDate(\'' + x.iso + '\')"><small>' + DOW_SHORT[d.getDay()] + '</small><b>' + d.getDate() + '</b><em>' + escapeHtml(em) + '</em></div>';
   });
   h += '</div>';
   const e0 = etabs.find(function(e) { return etabOpen(e, draft.date); }) || etabs[0];
-  h += '<div class="hint">Livraison <b>' + escapeHtml(formatDateFr(draft.date)) + '</b>' + (livraisonHeure(e0, draft.date) ? ' vers ' + livraisonHeure(e0, draft.date) : '') + ' par ' + escapeHtml(BOUTIQUE_NAMES[e0.boutique_principale] || 'la boulangerie') + '. Tu peux modifier jusqu\'à <b>' + escapeHtml(butoirTxt(e0, draft.date)) + '</b>.</div>';
+  h += '<div class="hint">Livraison <b>' + escapeHtml(formatDateFr(draft.date)) + '</b>' + (livraisonHeure(e0, draft.date) ? ' vers ' + livraisonHeure(e0, draft.date) : '') + ' par ' + escapeHtml(prepareLabel(e0, draft.date)) + '. Tu peux modifier jusqu\'à <b>' + escapeHtml(butoirTxt(e0, draft.date)) + '</b>.</div>';
   const elig = teamEligible();
   if (elig.length > 1) {
     h += '<span class="lbl">Qui passe la commande ?</span><select class="who" onchange="draft.who=this.value"><option value="">— Choisir —</option>' + elig.map(function(c) { return '<option value="' + escapeHtml(c.nom) + '"' + (draft.who === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>'; }).join('') + '</select>';
@@ -439,6 +443,8 @@ async function saveOrder() {
   etabs.forEach(function(e) { items[e.id] = Object.keys(d.qty[e.id]).filter(function(pid) { return Number(d.qty[e.id][pid]) > 0 && inCatalogue(e, pid); }).map(function(pid) { return { product_id: pid, qty: Number(d.qty[e.id][pid]) }; }); if (items[e.id].length) any = true; });
   if (!any && !(d.notes || '').trim()) { toast('Ajoute au moins un produit', 'err'); return; }
   if (teamEligible().length > 1 && !(d.who || '').trim()) { toast('Choisis qui passe la commande', 'err'); return; }
+  const fermes = etabs.filter(function(e) { return items[e.id].length && !jourPossible(e, d.date); });   // v20.286
+  if (fermes.length) { const src = fermes[0].boutique_principale || 'local'; toast((BOUTIQUE_NAMES[src] || 'La boulangerie') + ' est fermé ce ' + DOW_NAMES[dowOf(d.date)] + ' : pas de livraison possible ce jour-là', 'err'); return; }
   const tooLate = etabs.filter(function(e) { return (items[e.id].length || ordersOf(e.id, d.date).length) && !etabOpen(e, d.date); });
   if (tooLate.length) { const src = tooLate[0].boutique_principale || 'local'; toast('Trop tard pour ' + formatDateFr(d.date) + ' : appelle ' + (BOUTIQUE_NAMES[src] || 'la boulangerie') + ' au ' + (SHOP_TELS[src] || SHOP_TELS.local), 'err'); return; }
   const created_by = 'pro_self' + ((d.who || '').trim() ? ':' + d.who.trim() : '');
@@ -456,8 +462,8 @@ async function saveOrder() {
 // même découpage par site que l'app interne (sources par catégorie), un morceau par site
 async function saveSplit(etab, date, items, notes, created_by, editing) {
   const groups = {};
-  items.forEach(function(it) { const src = sourceEffective(etab, sourceFor(etab, it.product_id), date); (groups[src] = groups[src] || []).push(it); });
-  if (!Object.keys(groups).length) groups[sourceEffective(etab, etab.boutique_principale || 'local', date)] = [];
+  for (let k = 0; k < items.length; k++) { const src = sourceEffective(etab, sourceFor(etab, items[k].product_id), date); if (src === null) return { error: 'fermé ce jour-là' }; (groups[src] = groups[src] || []).push(items[k]); }
+  if (!Object.keys(groups).length) { const s0 = sourceEffective(etab, etab.boutique_principale || 'local', date); if (s0 === null) return { error: 'fermé ce jour-là' }; groups[s0] = []; }
   let siblings = [];
   if (editing) { const s = await supa.from('pro_orders').select('id,boutique_source,statut').eq('tenant_id', TENANT_ID).eq('pro_id', etab.id).eq('date_livraison', date).neq('statut', 'annule'); siblings = s.data || []; }
   const used = [];
@@ -507,7 +513,7 @@ function renderDone(b) {
   const multi = etabs.length > 1;
   const gs = groupedOrders().filter(function(g) { return g.date === doneInfo.date; });
   const e0 = gs[0] ? gs[0].etab : etabs[0];
-  let h = '<div class="okbox">✓ C\'est noté' + (firstName() ? ', merci ' + escapeHtml(firstName()) : '') + ' !<small>Livraison ' + escapeHtml(formatDateFr(doneInfo.date)) + (livraisonHeure(e0, doneInfo.date) ? ' vers ' + livraisonHeure(e0, doneInfo.date) : '') + ' par ' + escapeHtml(BOUTIQUE_NAMES[e0.boutique_principale] || 'la boulangerie') + '</small></div>';
+  let h = '<div class="okbox">✓ C\'est noté' + (firstName() ? ', merci ' + escapeHtml(firstName()) : '') + ' !<small>Livraison ' + escapeHtml(formatDateFr(doneInfo.date)) + (livraisonHeure(e0, doneInfo.date) ? ' vers ' + livraisonHeure(e0, doneInfo.date) : '') + ' par ' + escapeHtml(prepareLabel(e0, doneInfo.date)) + '</small></div>';
   gs.forEach(function(g) { h += '<div class="card">' + (multi ? '<div class="sec" style="margin:0 0 6px">' + escapeHtml(shortLabel(g.etab)) + '</div>' : '') + '<div class="dtl">' + Object.keys(g.items).filter(function(k) { return g.items[k] > 0; }).map(function(k) { return '<span>' + escapeHtml(productName(k)) + '</span><span class="q">' + g.items[k] + '</span>'; }).join('') + '</div><div class="tot"><span>Total</span><b>' + totalPieces(g.items) + ' pièces</b></div></div>'; });
   if (!gs.length) h += '<div class="card"><div class="empty">Commande sans produit (mot pour la boulangerie).</div></div>';
   if (gs.some(function(g) { return etabOpen(g.etab, g.date); })) h += '<button class="btn2" onclick="openOrder(\'' + doneInfo.date + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(e0, doneInfo.date)) + ')</button>';

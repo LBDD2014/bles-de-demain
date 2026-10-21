@@ -1738,6 +1738,22 @@ margin-bottom: 4px;
 .pl-st.ok { background:#E3EFE6; color:var(--green); } .pl-st.none { background:#EEE; color:var(--grey-light); } .pl-st.warn { background:#FBE8D6; color:var(--orange); }
 .pl-actions { display:flex; gap:6px; flex:0 0 auto; }
 .pl-wa { background:#25D366 !important; border-color:#25D366 !important; color:#fff !important; }
+/* v20.286 — colonnes par boutique (Liens pros + liste des pros) */
+.pl-cols, .pros-list.pros-cols { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; }
+.pros-list.pros-cols { margin-top:14px; }
+@media (max-width: 820px) { .pl-cols, .pros-list.pros-cols { grid-template-columns:1fr 1fr; } }
+@media (max-width: 560px) { .pl-cols, .pros-list.pros-cols { grid-template-columns:1fr; } }
+.pl-col, .pros-col { background:var(--cream); border-radius:12px; border:1px solid #ECE3D2; overflow:hidden; min-width:0; }
+.pl-col-h { background:var(--grey-dark); color:#fff; padding:8px 12px; font-size:15px; font-weight:700; font-family:'Playfair Display', Georgia, serif; display:flex; flex-wrap:wrap; gap:6px; align-items:baseline; }
+.pl-col-h small { color:var(--gold-light); font-weight:400; font-size:11.5px; margin-left:auto; font-family:Georgia, serif; white-space:nowrap; }
+.pl-col-h .pl-rule { flex-basis:100%; font-size:11px; color:var(--gold-light); font-weight:400; font-family:Georgia, serif; }
+.pl-col .pl-row { background:#fff; margin:8px; border-radius:10px; border:1px solid #F0E8D6; padding:9px 10px; flex-direction:column; align-items:stretch; gap:6px; }
+.pl-col .pl-actions button { flex:1; } .pl-col .pl-actions .pl-wa, .pl-col .pl-actions .pl-copy { flex:0 0 46px; }
+.pl-nom { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pl-sec { font-size:11.5px; color:var(--grey-light); font-weight:400; margin-left:auto; white-space:nowrap; text-decoration:underline dotted; cursor:pointer; }
+.pl-sec.none { color:#B4A88E; font-style:italic; }
+.pl-empty { font-size:12.5px; color:#B4A88E; font-style:italic; padding:14px 12px; }
+.pros-col .pro-card { margin:8px; padding:12px; }
 .modal-grid {
 display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
 }
@@ -2684,7 +2700,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.285';
+const APP_VERSION  = 'v20.286';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10886,7 +10902,7 @@ function openProForm(pid) {
       sources_par_categorie: {},
       // v21.0.3 — jours, catalogue restreint, prix spéciaux, panier type
       jours_livraison: {},     // { 'lundi': { actif, butoir, livraison }, ... }
-      catalogue_restreint: null, // null = tout autorisé ; array = liste autorisée
+      catalogue_restreint: [],   // v20.286 — nouvelle fiche : rien de coché (Phil, 21/10) ; null = tout autorisé ; array = liste autorisée
       prix_speciaux: {},       // { product_id: prix }
       template_items: [],      // [{ product_id, qty }]
       notes: '', actif: true
@@ -11376,7 +11392,15 @@ function closeProAccessModal() {
 // Phil (10/10) : « c'est très long de devoir aller sur chaque lien pour les envoyer ». Pas d'image QR ici
 // (elle reste dans la fiche) : le message + le lien, WhatsApp direct, et la date d'envoi mémorisée.
 let proLinksSearch = '', proLinksHideSent = false;
-function openProLinksModal() { proLinksSearch = ''; proLinksHideSent = false; renderProLinksModal(); }
+// v20.286 — la fenêtre s'ouvre tout de suite ; les jours de fermeture (en-tête des colonnes) arrivent juste après si pas encore chargés
+function openProLinksModal() {
+  proLinksSearch = ''; proLinksHideSent = false; renderProLinksModal();
+  if (joursOffBySite !== null) return Promise.resolve();
+  return loadJoursOff().then(function() {
+    const el = document.getElementById('pro-links-modal');
+    if (el && el.classList.contains('show')) renderProLinksModal();
+  });
+}
 function closeProLinksModal() { const el = document.getElementById('pro-links-modal'); if (el) el.classList.remove('show'); }
 function _plDateFr(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); }
 function renderProLinksModal() {
@@ -11384,30 +11408,47 @@ function renderProLinksModal() {
   if (!el) { el = document.createElement('div'); el.id = 'pro-links-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
   const actifs = adminPros.filter(function(p) { return p.actif; }).slice().sort(function(a, b) { return (a.nom || '').localeCompare(b.nom || '', 'fr'); });
   const nbSent = actifs.filter(function(p) { return !!p.magic_sent_at; }).length;
-  let h = '<div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">'
+  let h = '<div class="modal" style="max-width:1100px;max-height:92vh;overflow-y:auto">'
     + '<div class="modal-title">📱 Liens pros</div>'
-    + '<div class="modal-sub">📤 = l\'image QR et le message partent ensemble (WhatsApp, Messages, mail…). 💬 = la conversation WhatsApp s\'ouvre avec le message et le lien déjà écrits. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
+    + '<div class="modal-sub">Une colonne par boutique qui prépare les commandes ; à droite de chaque nom, la boutique de secours (un tap ouvre la fiche). 📤 = l\'image QR et le message partent ensemble. 💬 = WhatsApp avec le message déjà écrit. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
     + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
     + '<input type="search" class="product-filter-input" style="flex:1;min-width:160px" placeholder="🔍 Chercher un client…" value="' + escapeHtml(proLinksSearch) + '" oninput="proLinksFilter(this.value)">'
     + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" ' + (proLinksHideSent ? 'checked' : '') + ' onchange="proLinksToggleHide(this)"> Masquer ceux qui l\'ont reçu</label>'
     + '</div>';
-  actifs.forEach(function(p) {
-    const ct = proAccessContact(p);
-    const sent = p.magic_sent_at;
-    const statut = sent ? '<span class="pl-st ok">✓ envoyé le ' + _plDateFr(sent) + '</span>'
-      : (ct.tel ? '<span class="pl-st none">jamais envoyé</span>' : '<span class="pl-st warn">📞 pas de téléphone</span>');
-    const key = ((p.nom || '') + ' ' + (ct.nom || '') + ' ' + (ct.tel || '')).toLowerCase();
-    h += '<div class="pl-row" data-k="' + escapeHtml(key) + '" data-sent="' + (sent ? 1 : 0) + '">'
-      + '<div class="pl-main"><div class="pl-nom">' + escapeHtml(p.nom || '') + ' <small>' + escapeHtml(BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale || '') + '</small></div>'
-      + '<div class="pl-ct">' + (ct.nom ? escapeHtml(ct.nom) : '') + (ct.tel ? (ct.nom ? ' · ' : '') + escapeHtml(ct.tel) : '')
-      + (!ct.tel ? ' <a href="#" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\');return false">ajouter un téléphone</a>' : '')
-      + ' ' + statut + '</div></div>'
-      + '<div class="pl-actions">'
-      + '<button type="button" class="btn-gold-sm pl-share" onclick="proLinksShare(\'' + escapeHtml(p.id) + '\')">📤 Image + message</button>'
-      + (ct.tel ? '<button type="button" class="btn-gold-sm pl-wa" onclick="proLinksWhatsApp(\'' + escapeHtml(p.id) + '\')">💬 WhatsApp</button>' : '')
-      + '<button type="button" class="btn-gold-sm pl-copy" onclick="proLinksCopy(\'' + escapeHtml(p.id) + '\')">📋 Copier</button>'
-      + '</div></div>';
+  // v20.286 — une colonne par boutique qui fabrique (Phil, 21/10 : « un visuel plus simplifié, et voir la boutique de secours »)
+  const colonnes = ['local', 'veigne', 'tours', 'saint-avertin'].filter(function(b) {
+    return b !== 'saint-avertin' || actifs.some(function(p) { return p.boutique_principale === 'saint-avertin'; });
   });
+  h += '<div class="pl-cols">';
+  colonnes.forEach(function(site) {
+    const pros = actifs.filter(function(p) { return (p.boutique_principale || 'local') === site; });
+    const ok = pros.filter(function(p) { return !!p.magic_sent_at; }).length;
+    h += '<div class="pl-col" data-site="' + site + '"><div class="pl-col-h">' + escapeHtml(BOUTIQUE_NAMES[site] || site)
+      + '<small>' + pros.length + ' pro' + (pros.length > 1 ? 's' : '') + ' · ' + ok + ' ' + (ok > 1 ? 'ont' : 'a') + ' le lien</small>'
+      + '<span class="pl-rule">' + escapeHtml(proColonneRegle(site)) + '</span></div>';
+    pros.forEach(function(p) {
+      const ct = proAccessContact(p);
+      const sent = p.magic_sent_at;
+      const statut = sent ? '<span class="pl-st ok">✓ envoyé le ' + _plDateFr(sent) + '</span>'
+        : (ct.tel ? '<span class="pl-st none">jamais envoyé</span>' : '<span class="pl-st warn">📞 pas de téléphone</span>');
+      const key = ((p.nom || '') + ' ' + (ct.nom || '') + ' ' + (ct.tel || '')).toLowerCase();
+      const sec = proSecoursEffectif(p);
+      h += '<div class="pl-row" data-k="' + escapeHtml(key) + '" data-sent="' + (sent ? 1 : 0) + '">'
+        + '<div class="pl-main"><div class="pl-nom">' + escapeHtml(p.nom || '')
+        + '<span class="pl-sec' + (sec.site && !sec.defaut ? '' : ' none') + '" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\')" title="Régler la boutique de secours dans la fiche">secours : ' + escapeHtml(proSecoursLabel(p)) + '</span></div>'
+        + '<div class="pl-ct">' + (ct.nom ? escapeHtml(ct.nom) : '') + (ct.tel ? (ct.nom ? ' · ' : '') + escapeHtml(ct.tel) : '')
+        + (!ct.tel ? ' <a href="#" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\');return false">ajouter un téléphone</a>' : '')
+        + ' ' + statut + '</div></div>'
+        + '<div class="pl-actions">'
+        + '<button type="button" class="btn-gold-sm pl-share" onclick="proLinksShare(\'' + escapeHtml(p.id) + '\')">📤 Image + message</button>'
+        + (ct.tel ? '<button type="button" class="btn-gold-sm pl-wa" onclick="proLinksWhatsApp(\'' + escapeHtml(p.id) + '\')">💬</button>' : '')
+        + '<button type="button" class="btn-gold-sm pl-copy" onclick="proLinksCopy(\'' + escapeHtml(p.id) + '\')">📋</button>'
+        + '</div></div>';
+    });
+    if (!pros.length) h += '<div class="pl-empty">Aucun pro</div>';
+    h += '</div>';
+  });
+  h += '</div>';
   if (!actifs.length) h += '<div class="empty-state">Aucun pro actif.</div>';
   h += '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeProLinksModal()">Fermer</button></div>';
   el.innerHTML = h;
@@ -11670,7 +11711,7 @@ async function loadProInterfaceProducts() {
   const pro = proInterfacePro;
   proInterfaceProducts = all.filter(function(p) {
     if (p.pros_only_id && p.pros_only_id !== pro.id) return false;
-    if (Array.isArray(pro.catalogue_restreint) && pro.catalogue_restreint.length > 0) {
+    if (Array.isArray(pro.catalogue_restreint)) {   // v20.286 — liste vide = rien d'autorisé
       if (pro.catalogue_restreint.indexOf(p.id) === -1) return false;
     }
     return true;
@@ -12284,6 +12325,9 @@ async function saveProForm() {
   if (d.boutique_secours && d.boutique_secours === d.boutique_principale) {
     showToast('La boutique de secours doit être différente de la principale', 'error'); return;
   }
+  // v20.286 — garde-fou : fiche sans aucun produit coché
+  if (Array.isArray(d.catalogue_restreint) && !d.catalogue_restreint.length
+      && !confirm('Ce client n\'a aucun produit autorisé : il ne pourra rien commander.\n\nEnregistrer quand même ?')) return;
   setSyncStatus('syncing');
   const isNew = (adminProsEditingId === 'new');
   let proId = isNew ? makeProSlug(nom) : d.id;
@@ -12950,10 +12994,21 @@ function renderAdminPros() {
   } else {
     // v20.258 — 🔍 retrouver un client par son nom, son contact ou son téléphone (Phil, 28/09)
     html += '<div class="product-filter" style="margin-top:12px"><input type="search" class="product-filter-input" placeholder="🔍 Chercher un client…" value="' + escapeHtml(adminProsSearch) + '" oninput="handleProsSearch(this.value)"></div>';
-    html += '<div class="pros-list">';
-    adminPros.forEach(function(p) {
+    // v20.286 — une colonne par boutique qui fabrique, secours visible (Phil, 21/10)
+    if (joursOffBySite === null) loadJoursOff().then(function() { if (currentVue === 'pros' && adminProsEditingId === null && adminProsView === 'list') renderAdminPros(); });
+    const colonnesBO = ['local', 'veigne', 'tours', 'saint-avertin'].filter(function(b) {
+      return b !== 'saint-avertin' || adminPros.some(function(p) { return p.boutique_principale === 'saint-avertin'; });
+    });
+    html += '<div class="pros-list pros-cols">';
+    colonnesBO.forEach(function(site) {
+    const prosSite = adminPros.filter(function(p) { return (p.boutique_principale || 'local') === site; });
+    html += '<div class="pros-col" data-site="' + site + '"><div class="pl-col-h">' + escapeHtml(BOUTIQUE_NAMES[site] || site)
+      + '<small>' + prosSite.length + ' pro' + (prosSite.length > 1 ? 's' : '') + '</small>'
+      + '<span class="pl-rule">' + escapeHtml(proColonneRegle(site)) + '</span></div>';
+    prosSite.forEach(function(p) {
       const bp = BOUTIQUE_NAMES[p.boutique_principale] || p.boutique_principale;
-      const bs = p.boutique_secours ? (BOUTIQUE_NAMES[p.boutique_secours] || p.boutique_secours) : null;
+      const secBO = proSecoursEffectif(p);
+      const bs = secBO.site ? proSecoursLabel(p) : null;
       // v21.0.2 — 1er contact pour l'aperçu + indicateur "+N" si plusieurs
       const contacts = Array.isArray(p.contacts) ? p.contacts : [];
       const firstContact = contacts[0] || {};
@@ -12968,7 +13023,7 @@ function renderAdminPros() {
           + '<div class="pro-card-name">' + escapeHtml(p.nom) + ' <span class="pro-card-id">(' + escapeHtml(p.id) + ')</span></div>'
           + '<div class="pro-card-contact">' + contactLine + '</div>'
           + '<div class="pro-card-shops"><strong>' + escapeHtml(bp) + '</strong>'
-            + (bs ? ' &middot; secours : ' + escapeHtml(bs) : '')
+            + ' &middot; <span class="pl-sec' + (bs && !secBO.defaut ? '' : ' none') + '" style="margin-left:0">secours : ' + escapeHtml(bs || '—') + '</span>'
             + '</div>'
         + '</div>'
         + '<div class="pro-card-actions">'
@@ -12977,6 +13032,9 @@ function renderAdminPros() {
           + '<button class="pro-card-btn pro-card-btn-del" onclick="deletePro(\'' + p.id + '\')" title="Supprimer">🗑️</button>'
         + '</div>'
       + '</div>';
+    });
+    if (!prosSite.length) html += '<div class="pl-empty">Aucun pro</div>';
+    html += '</div>';
     });
     html += '</div>';
   }
@@ -13057,7 +13115,7 @@ function renderProForm(mc) {
     + '<h3>Boutique source</h3>'
     + '<label>Boutique principale *</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_principale\', this.value)">' + selOpts(d.boutique_principale, false) + '</select>'
-    + '<label>Boutique de secours (si la principale est fermée ce jour-là — sinon Veigné)</label>'
+    + '<label>Boutique de secours (si la principale est fermée ce jour-là ; sans réglage : Le Local → Veigné, Tours → pas de commande ce jour-là)</label>'
     + '<select class="pro-input" onchange="handleProField(\'boutique_secours\', this.value)">' + selOpts(d.boutique_secours, true) + '</select>'
     + '<div class="pro-form-hint">St-Avertin en secours = click & collect (le pro vient chercher).</div>'
     // v20.273 — groupe : un même client avec plusieurs établissements livrés au même endroit
@@ -13150,6 +13208,8 @@ function renderProForm(mc) {
     + '<div class="pro-form-hint" style="margin-bottom:10px">'
       + (allowedSet === null
           ? '<strong style="color:var(--green)">Tout le catalogue actif est autorisé.</strong> Décoche des produits pour passer en mode restriction.'
+          : allowedSet.size === 0
+          ? '<strong style="color:var(--red)">0 produit autorisé</strong> sur ' + allActiveProds.length + ' actifs — ce client ne pourra rien commander tant que tu n\'as rien coché. '
           : '<strong style="color:var(--orange)">' + allowedSet.size + ' produits autorisés</strong> sur ' + allActiveProds.length + ' actifs. '
             + '<button onclick="handleProCatalogueReset()" style="background:none;border:none;color:var(--gold-dark);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:11px;padding:0">Tout autoriser</button>')
     + '</div>'
@@ -13266,7 +13326,7 @@ function renderProForm(mc) {
   const tmplCatalogue = (adminProducts || []).filter(function(p) {
     if (!p.actif) return false;
     if (p.pros_only_id && d.id && p.pros_only_id !== d.id) return false;
-    if (Array.isArray(d.catalogue_restreint) && d.catalogue_restreint.length > 0) {
+    if (Array.isArray(d.catalogue_restreint)) {   // v20.286 — liste vide = rien d'autorisé
       if (d.catalogue_restreint.indexOf(p.id) === -1) return false;
     }
     return true;
@@ -14302,12 +14362,36 @@ function siteFermeLeJour(site, iso, joursOff) {
 }
 // v20.282 — Site qui fabrique VRAIMENT ce jour-là (Phil, 20/10 : commande de Steff pour un lundi, Local fermé,
 // jamais vue à Veigné). Si le site prévu est fermé : boutique de secours de la fiche pro, sinon Veigné.
+// v20.286 (Phil, 21/10) : seul Le Local a un secours par défaut (Veigné) ; Tours n'en a pas ; Veigné est ouvert 7/7.
+// Renvoie le site qui fabrique, ou null = site fermé ce jour-là sans secours possible → commande refusée.
 function proSourceEffective(pro, src, iso, joursOff) {
   if (!siteFermeLeJour(src, iso, joursOff)) return src;
   const sec = pro && pro.boutique_secours;
   if (sec && sec !== src && !siteFermeLeJour(sec, iso, joursOff)) return sec;
-  if (src !== 'veigne' && !siteFermeLeJour('veigne', iso, joursOff)) return 'veigne';
-  return src;   // tout est fermé ce jour-là : on laisse tel quel, l'équipe verra
+  if (src === 'local' && !siteFermeLeJour('veigne', iso, joursOff)) return 'veigne';
+  return null;
+}
+function proJourNom(iso) { return iso ? ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][new Date(iso + 'T12:00').getDay()] : ''; }
+function proFermeTexte(src, iso) {
+  return (BOUTIQUE_NAMES[src] || src) + ' est fermé ce ' + proJourNom(iso) + ' et n\'a pas de boutique de secours : pas de commande possible pour ce jour.';
+}
+// Secours tel qu'il s'appliquera (pour l'affichage) : réglé dans la fiche, sinon Veigné pour Le Local, sinon aucun
+function proSecoursEffectif(pro) {
+  if (pro && pro.boutique_secours) return { site: pro.boutique_secours, defaut: false };
+  if (pro && (pro.boutique_principale || 'local') === 'local') return { site: 'veigne', defaut: true };
+  return { site: null, defaut: true };
+}
+function proSecoursLabel(pro) {
+  const s = proSecoursEffectif(pro);
+  if (!s.site) return '—';
+  return (BOUTIQUE_NAMES[s.site] || s.site) + (s.defaut ? ' (par défaut)' : '');
+}
+// En-tête de colonne : « Fermé le lundi → secours Veigné » / « Ouvert 7/7 → pas de secours » / « Fermé le dimanche → pas de boutique de secours »
+function proColonneRegle(site) {
+  const jo = (joursOffBySite || {})[site] || [];
+  if (!jo.length) return 'Ouvert 7/7 → pas de secours';
+  const noms = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+  return 'Fermé le ' + jo.map(function(i) { return noms[i] || ''; }).filter(Boolean).join(' et ') + ' → ' + (site === 'local' ? 'secours Veigné' : 'pas de boutique de secours');
 }
 function splitProItemsBySource(pro, items, iso, joursOff) {
   const groups = {};
@@ -14338,14 +14422,16 @@ async function saveProOrderSplit(opts) {
   if (opts.forceSource) {
     groups = {}; groups[opts.forceSource] = (opts.items || []).slice();
   } else {
-    groups = splitProItemsBySource(pro, opts.items, opts.date, joursOff);
     const prevus = {};
     (opts.items || []).forEach(function(it) { prevus[proSourceForProduct(pro, it.product_id)] = true; });
     if (!Object.keys(prevus).length) prevus[principal] = true;
-    Object.keys(prevus).forEach(function(src) {
-      const eff = proSourceEffective(pro, src, opts.date, joursOff);
-      if (eff !== src) bascules.push({ de: src, vers: eff });
-    });
+    const srcs = Object.keys(prevus);
+    for (let k = 0; k < srcs.length; k++) {
+      const eff = proSourceEffective(pro, srcs[k], opts.date, joursOff);
+      if (eff === null) return { error: proFermeTexte(srcs[k], opts.date) };   // v20.286 — fermé sans secours : refusé
+      if (eff !== srcs[k]) bascules.push({ de: srcs[k], vers: eff });
+    }
+    groups = splitProItemsBySource(pro, opts.items, opts.date, joursOff);
     if (!Object.keys(groups).length) groups[proSourceEffective(pro, principal, opts.date, joursOff)] = [];   // note seule (demande spéciale)
   }
   let siblings = [];
@@ -14399,7 +14485,7 @@ async function saveProOrderSplit(opts) {
 // v20.282 — phrase pour l'équipe : « Le Local fermé ce lundi → commande envoyée à Veigné »
 function proBasculesTexte(bascules, iso) {
   if (!bascules || !bascules.length) return '';
-  const jour = iso ? ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][new Date(iso + 'T12:00').getDay()] : '';
+  const jour = proJourNom(iso);
   return bascules.map(function(b) {
     return (BOUTIQUE_NAMES[b.de] || b.de) + ' fermé' + (jour ? ' ce ' + jour : '') + ' → commande envoyée à ' + (BOUTIQUE_NAMES[b.vers] || b.vers);
   }).join(' · ');
@@ -14473,7 +14559,7 @@ function getProAvailableProducts(pro) {
   return all.filter(function(p) {
     if (!p.actif) return false;
     if (p.pros_only_id && p.pros_only_id !== pro.id) return false;
-    if (Array.isArray(pro.catalogue_restreint) && pro.catalogue_restreint.length > 0) {
+    if (Array.isArray(pro.catalogue_restreint)) {   // v20.286 — liste vide = rien d'autorisé
       if (pro.catalogue_restreint.indexOf(p.id) === -1) return false;
     }
     return true;
@@ -15092,7 +15178,7 @@ function renderProOrderForm(mc) {
     + '<input type="date" class="pro-input" value="' + escapeHtml(d.date_livraison) + '" oninput="handleProOrderField(\'date_livraison\', this.value)">'
     + '<label>Boutique source *</label>'
     + '<select class="pro-input" onchange="handleProOrderField(\'boutique_source\', this.value)">' + boutiqueOptsHtml + '</select>'
-    + '<div class="pro-form-hint">Par défaut = boutique principale du pro (ou sa boutique de secours si elle est fermée ce jour-là, sinon Veigné). Modifie si dépannage : ton choix vaut pour toute la commande.</div>'
+    + '<div class="pro-form-hint">Par défaut = boutique principale du pro. Si elle est fermée ce jour-là : sa boutique de secours ; sans réglage, Le Local bascule sur Veigné et Tours refuse la commande. Modifie si dépannage : ton choix vaut pour toute la commande.</div>'
   + '</div>';
 
   // Section items
