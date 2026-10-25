@@ -16,9 +16,12 @@
 --   · pas de prix spécial, catalogue limité aux produits ci-dessus
 --   · lien client généré tout de suite (à envoyer depuis « 📱 Liens pros »)
 --
--- Les produits sont retrouvés PAR LEUR NOM : le script s'arrête avec un
--- message clair s'il ne trouve pas la Tradition ou la Grande Tourte de Meule.
+-- Les produits sont retrouvés PAR LEUR NOM. Si la Grande Tourte de Meule n'est
+-- pas reconnue, les deux fiches sont créées quand même (Châteauneuf avec la
+-- Tradition seule) et le script le dit dans les messages : il suffit alors de
+-- cocher la tourte dans la fiche du Châteauneuf (BackOffice → Pros).
 -- Relançable sans risque (ON CONFLICT DO NOTHING : une fiche existante n'est pas écrasée).
+-- Lis l'onglet « Messages » / « Results » du SQL Editor après l'exécution.
 -- =====================================================================
 
 DO $$
@@ -36,8 +39,9 @@ BEGIN
 
   -- Tradition : la fiche « Tradition » tout court (id vp_tra chez les autres pros), active, pas réservée
   SELECT id INTO v_trad FROM public.products
-   WHERE actif AND pros_only_id IS NULL AND lower(name) = 'tradition'
+   WHERE actif AND pros_only_id IS NULL AND lower(btrim(name)) IN ('tradition', 'pain tradition', 'baguette tradition')
    ORDER BY (id = 'vp_tra') DESC, id LIMIT 1;
+  IF v_trad IS NULL THEN SELECT id INTO v_trad FROM public.products WHERE id = 'vp_tra' AND actif; END IF;
   IF v_trad IS NULL THEN
     SELECT string_agg(id || ' = ' || name, ', ' ORDER BY name) INTO v_liste
       FROM public.products WHERE actif AND name ILIKE '%tradition%';
@@ -52,7 +56,7 @@ BEGIN
   IF v_tourte IS NULL THEN
     SELECT string_agg(id || ' = ' || name, ', ' ORDER BY name) INTO v_liste
       FROM public.products WHERE actif AND name ILIKE '%tourte%';
-    RAISE EXCEPTION 'Produit « Grande Tourte de Meule » introuvable. Produits actifs contenant « tourte » : %  → renomme la bonne fiche en « Tourte de Meule Grande » ou mets son id à la main dans ce script.', coalesce(v_liste, 'aucun');
+    RAISE WARNING 'Grande Tourte de Meule non reconnue : Le Châteauneuf est créé avec la Tradition seule. Coche la tourte dans sa fiche (BackOffice → Pros). Produits actifs contenant « tourte » : %', coalesce(v_liste, 'aucun');
   END IF;
 
   v_jours := '{}'::jsonb;
@@ -71,14 +75,14 @@ BEGIN
      '{}'::jsonb, 'Resto, vient chercher à Tours. Traditions seulement. Matin + après-midi.', true,
      replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')),
     ('le_chateauneuf', v_tenant, 'Le Châteauneuf', '[]'::jsonb, 'tours', NULL,
-     v_jours, v_aprem, jsonb_build_array(v_trad, v_tourte), '{}'::jsonb, '[]'::jsonb,
+     v_jours, v_aprem, CASE WHEN v_tourte IS NULL THEN jsonb_build_array(v_trad) ELSE jsonb_build_array(v_trad, v_tourte) END, '{}'::jsonb, '[]'::jsonb,
      '{}'::jsonb, 'Resto, vient chercher à Tours. Traditions + Grande Tourte de Meule. Matin + après-midi.', true,
      replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
   ON CONFLICT (id) DO NOTHING;
 
-  RAISE NOTICE 'OK — Tradition = %, Grande Tourte de Meule = %', v_trad, v_tourte;
+  RAISE NOTICE 'OK — Tradition = %, Grande Tourte de Meule = %', v_trad, coalesce(v_tourte, '(non trouvée, à cocher à la main)');
 END $$;
 
--- Vérification
-SELECT id, nom, boutique_principale, catalogue_restreint, creneau_aprem, magic_token IS NOT NULL AS lien_pret
+-- Vérification : 2 lignes attendues. Si 0 ligne : lis le message d'erreur au-dessus (souvent « Tradition introuvable »).
+SELECT id, nom, boutique_principale, actif, catalogue_restreint, creneau_aprem, magic_token IS NOT NULL AS lien_pret
   FROM public.pros WHERE id IN ('le_strapontin', 'le_chateauneuf');
