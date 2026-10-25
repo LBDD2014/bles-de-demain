@@ -44,7 +44,7 @@ Toute nouvelle table doit utiliser `product_id TEXT`.
   (jsonb, rétention 10 jours). Table append-only : l'app peut lire, jamais modifier.
   Restauration = régénérer les lignes depuis `db_backups.data`.
 
-## Connexion équipe (v20.289, préparée sur la branche le 22/10/2026 — PAS ENCORE EN LIGNE)
+## Connexion équipe (v20.289 — front EN LIGNE depuis le 25/10/2026 avec la v20.290, SQL pas encore lancé : mode doux)
 
 Constat : app équipe et page client partagent la même clé publique, les règles de base disent
 « tout le monde peut tout ». Le code boutique et le PIN sont des barrières d'écran. Réponse validée
@@ -60,6 +60,10 @@ par Phil : **le code boutique devient la clé**, sans rien distribuer de nouveau
   (marchés compris) ; l'accueil reste affiché. fabrication.html ouvre la même session (même navigateur).
 - **Page client pro.html** : plus aucune lecture/écriture directe des tables, uniquement les fonctions
   `pro_page_*` (SECURITY DEFINER) qui ne répondent qu'au lien présenté ; le lien secret ne sort jamais.
+- **État au 25/10** : le front est en ligne (fusion de la branche pour la v20.290), mais
+  `migration-v20.289-auth-equipe.sql` n'a pas été lancé : l'app tourne en mode doux, rien ne change pour l'équipe.
+  ⚠️ pro.html passe déjà par les fonctions `pro_page_*` : elles existent en base (sinon la page client
+  afficherait « Connexion impossible ») — vérifier au moindre doute avec `select proname from pg_proc where proname like 'pro_page%'`.
 - **Bascule en 3 temps** : (1) `migration-v20.289-auth-equipe.sql` (sans risque, comptes + droits
   authenticated + fonctions) ; (2) mise en ligne du front, chaque appareil retape son code une fois ;
   (3) le jour choisi, `migration-v20.289b-verrou.sql` (clé publique révoquée). Retour arrière :
