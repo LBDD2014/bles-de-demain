@@ -2715,7 +2715,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.290';
+const APP_VERSION  = 'v20.291';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -14740,11 +14740,15 @@ async function saveProOrderSplit(opts) {
   const creneau = (opts.creneau === 'apres_midi') ? 'apres_midi' : 'matin';   // v20.290
   let siblings = [];
   if (opts.editingId) {
+    // v20.291 — les morceaux existants sont ceux de la commande D'ORIGINE (pro, date, créneau d'avant la modif) :
+    // changer le pro, la date ou le créneau dans le formulaire DÉPLACE la commande au lieu d'en créer une
+    // deuxième en laissant l'ancienne sous le mauvais nom (Phil, 25/10 : commande du QG tapée sur « la folie »)
+    const origCreneau = opts.origCreneau ? ((opts.origCreneau === 'apres_midi') ? 'apres_midi' : 'matin') : creneau;
     const { data } = await supa.from('pro_orders').select('id,boutique_source,statut,creneau')
-      .eq('tenant_id', TENANT_ID).eq('pro_id', pro.id)
+      .eq('tenant_id', TENANT_ID).eq('pro_id', opts.origProId || pro.id)
       .eq('date_livraison', opts.origDate || opts.date).neq('statut', 'annule');
     // v20.290 — la commande de l'autre créneau du même jour n'est pas un morceau de celle-ci
-    siblings = (data || []).filter(function(s) { return (s.creneau || 'matin') === creneau; });
+    siblings = (data || []).filter(function(s) { return (s.creneau || 'matin') === origCreneau; });
   }
   const used = [], ids = [];
   const sources = Object.keys(groups);
@@ -14904,6 +14908,8 @@ async function openProOrderForm(orderId) {
     proOrderDraft = {
       id: o.id,
       orig_date: o.date_livraison,
+      orig_pro_id: o.pro_id,                 // v20.291 — changer le pro déplace la commande (cas la folie / QG de Loulou, 25/10)
+      orig_creneau: o.creneau || 'matin',    // v20.291 — idem pour le créneau
       pro_id: o.pro_id,
       date_livraison: o.date_livraison,
       boutique_source: o.boutique_source,
@@ -15111,7 +15117,8 @@ async function saveProOrder() {
     pro: proFiche, date: d.date_livraison, origDate: d.orig_date, editingId: isNew ? null : d.id,
     statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null, created_by: currentBoutique,
     items: validItems, forceSource: d.source_forcee ? d.boutique_source : null,
-    creneau: d.creneau || 'matin'   // v20.290
+    creneau: d.creneau || 'matin',   // v20.290
+    origProId: d.orig_pro_id, origCreneau: d.orig_creneau   // v20.291
   });
   if (r.error) { setSyncStatus('error'); showToast(r.error, 'error'); return; }
   setSyncStatus('ok');
@@ -15492,6 +15499,7 @@ function renderProOrderForm(mc) {
     + '<h3>Client + livraison</h3>'
     + '<label>Pro *</label>'
     + '<select class="pro-input" onchange="handleProOrderField(\'pro_id\', this.value)">' + proOpts + '</select>'
+    + (!isNew && d.orig_pro_id && d.pro_id !== d.orig_pro_id ? '<div class="pro-form-hint" style="color:var(--orange);font-weight:700">↪ La commande sera déplacée chez ce pro (elle disparaît de l\'ancien).</div>' : '')   // v20.291
     + '<label>Date de livraison *</label>'
     + '<input type="date" class="pro-input" value="' + escapeHtml(d.date_livraison) + '" oninput="handleProOrderField(\'date_livraison\', this.value)">'
     + '<label>Boutique source *</label>'

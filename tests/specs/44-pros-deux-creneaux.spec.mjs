@@ -166,6 +166,36 @@ export const tests = [
     },
   },
   {
+    name: 'App équipe — corriger une commande tapée sur le mauvais pro : changer le pro (ou le créneau) dans la carte DÉPLACE la commande, pas de doublon sous l\'ancien nom (cas la folie / QG de Loulou, 25/10)',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbStrapontin() });
+      await gotoApp(page);
+      const r = await page.evaluate(async (d) => {
+        const strap = window.__mockDB.pros[0], clap = window.__mockDB.pros[1];
+        const lire = () => window.__mockDB.pro_orders.filter((o) => o.statut !== 'annule' && o.date_livraison === d)
+          .map((o) => o.pro_id + '|' + (o.creneau || 'matin') + ':' + window.__mockDB.pro_order_items.filter((i) => i.pro_order_id === o.id).map((i) => i.product_id + '=' + i.qty).join('+')).sort();
+        // tapée par erreur sur Le Clapotis
+        const a = await saveProOrderSplit({ pro: clap, date: d, editingId: null, statut: 'confirme', notes: '6 boules à pizza', created_by: 'tours', creneau: 'matin', items: [{ product_id: 'vt_trad', qty: 1, prix_applique: null }] });
+        // 1. corrigée : même carte, pro changé → Strapontin
+        const b = await saveProOrderSplit({ pro: strap, date: d, origDate: d, editingId: a.ids[0], origProId: 'clapotis', origCreneau: 'matin', statut: 'confirme', notes: '6 boules à pizza', created_by: 'tours', creneau: 'matin', items: [{ product_id: 'vt_trad', qty: 1, prix_applique: null }] });
+        const apresPro = lire();
+        // 2. puis créneau changé → après-midi
+        const c = await saveProOrderSplit({ pro: strap, date: d, origDate: d, editingId: b.ids[0], origProId: 'le_strapontin', origCreneau: 'matin', statut: 'confirme', notes: '6 boules à pizza', created_by: 'tours', creneau: 'apres_midi', items: [{ product_id: 'vt_trad', qty: 2, prix_applique: null }] });
+        return { memeId: a.ids[0] === b.ids[0] && b.ids[0] === c.ids[0], apresPro, fin: lire(), annulees: window.__mockDB.pro_orders.filter((o) => o.statut === 'annule').length };
+      }, DEMAIN);
+      assert(r.memeId && JSON.stringify(r.apresPro) === '["le_strapontin|matin:vt_trad=1"]', 'changer le pro déplace la commande (même ligne, plus rien chez Le Clapotis) : ' + JSON.stringify(r));
+      assert(JSON.stringify(r.fin) === '["le_strapontin|apres_midi:vt_trad=2"]' && r.annulees === 0, 'changer le créneau déplace aussi, aucune commande annulée ni doublée : ' + JSON.stringify(r));
+      // le formulaire prévient quand le pro change
+      await enterBoutique(page, 'tours');
+      await page.evaluate(async () => { currentVue = 'pros'; proOrderFilterPeriod = 'tomorrow'; await loadAdminPros(); await loadProOrders('tours'); renderProOrders(); });
+      await page.waitForSelector('.pro-order-card');
+      await page.evaluate(async () => { const o = proOrdersData.find((x) => x.statut !== 'annule'); await openProOrderForm(o.id); handleProOrderField('pro_id', 'clapotis'); });
+      const hint = await page.evaluate(() => Array.from(document.querySelectorAll('.pro-form-hint')).map((x) => x.textContent).find((t) => /déplacée/.test(t)) || '');
+      assert(/sera déplacée chez ce pro/.test(hint), 'avertissement « la commande sera déplacée » : ' + hint);
+      await page.close();
+    },
+  },
+  {
     name: 'Fiche pro / ⏰ Horaires — bloc « 🌇 Après-midi » (jour même 11h, retrait 15h par défaut), réglage lu par créneau, enregistré en null quand désactivé ; résumé des horaires le mentionne',
     fn: async (ctx) => {
       const page = await preparePage(ctx, { db: dbStrapontin() });

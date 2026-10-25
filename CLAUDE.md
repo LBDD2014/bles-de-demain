@@ -189,6 +189,9 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
 - Écrans équipe : badge 🌅/🌇 sur les cartes (onglet Pros, à anticiper, récap semaine), matin avant après-midi ;
   production : une ligne par pro **et** par créneau dans le détail d'un produit ; grille semaine : ligne 🌇 à part.
 - Tests : `tests/specs/44-pros-deux-creneaux.spec.mjs`.
+- **v20.291 (25/10)** : dans la carte d'une commande, **changer le pro, la date ou le créneau déplace la commande**
+  (les morceaux d'origine sont réécrits, `origProId` / `origDate` / `origCreneau` dans `saveProOrderSplit`) ;
+  avant, ça créait un doublon sous le nouveau pro en laissant l'ancien (commande du QG de Loulou tapée sur « la folie »).
 
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
