@@ -1906,6 +1906,12 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .pro-order-card + .pro-order-card { margin-top: 6px; }
 .pro-order-main { flex: 1; min-width: 0; }
 .pro-order-name { font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: var(--brown); }
+/* v20.290 — créneau d'une commande pro (matin / après-midi) */
+.pro-creneau-badge { display:inline-block; font-size:10.5px; font-weight:700; color:var(--gold-dark); background:#FBF3DD; border:1px solid var(--gold-light); border-radius:8px; padding:1px 7px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
+.pro-creneau-badge.aprem { color:white; background:var(--orange); border-color:var(--orange); }
+.pro-creneau-pick { display:flex; gap:8px; margin:6px 0 4px; }
+.pro-creneau-pick button { flex:1; padding:12px 8px; border-radius:10px; border:2px solid var(--gold-light); background:white; font-size:14px; font-weight:700; color:var(--brown); }
+.pro-creneau-pick button.on { background:var(--gold); border-color:var(--gold); color:white; }
 .pro-order-meta { font-size: 12px; color: var(--brown-mid); margin-top: 2px; }
 .pro-order-arrow { color: var(--brown-mid); font-size: 22px; font-weight: 700; padding-top: 2px; }
 .pro-order-special-badge {
@@ -2709,7 +2715,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.289';
+const APP_VERSION  = 'v20.290';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7581,6 +7587,39 @@ function proTourneeMode(pro, boutiqueSource, dateISO) {
   return (boutiqueSource === 'local' || boutiqueSource === 'veigne') ? 'livreur' : 'boutique';
 }
 
+// v20.290 — Deux créneaux par jour (Phil, 25/10 : Le Strapontin et Le Châteauneuf commandent pour le matin
+// ET pour l'après-midi). Une commande porte un créneau ('matin' par défaut, 'apres_midi'). La fiche pro règle
+// l'après-midi dans `creneau_aprem` ({ actif, butoir_decalage, butoir_heure, livraison }), valable les jours cochés.
+const PRO_CRENEAUX = [['matin', '🌅 Matin'], ['apres_midi', '🌇 Après-midi']];
+function proCreneauLbl(c) { return c === 'apres_midi' ? '🌇 Après-midi' : '🌅 Matin'; }
+function proDeuxCreneaux(pro) { return !!(pro && pro.creneau_aprem && pro.creneau_aprem.actif); }
+// Réglage (butoir, heure de retrait, qui livre) d'un créneau pour un jour de la semaine ; null = pas ce créneau ce jour-là
+function proCreneauCfg(pro, day, creneau) {
+  const cfg = pro && pro.jours_livraison && pro.jours_livraison[day];
+  if (!cfg || !cfg.actif) return null;
+  if (creneau !== 'apres_midi') return cfg;
+  if (!proDeuxCreneaux(pro)) return null;
+  const a = pro.creneau_aprem;
+  return { actif: true, butoir_decalage: (a.butoir_decalage != null ? a.butoir_decalage : 0), butoir_heure: a.butoir_heure || '11:00', livraison: a.livraison || '', tournee: cfg.tournee || '' };
+}
+// Brouillon de fiche / nettoyage avant enregistrement (null en base = un seul créneau, comme avant)
+function proCreneauApremDraft(a) {
+  a = (a && typeof a === 'object') ? a : {};
+  return { actif: !!a.actif, butoir_decalage: (a.butoir_decalage != null ? a.butoir_decalage : 0), butoir_heure: a.butoir_heure || '11:00', livraison: a.livraison || '15:00' };
+}
+function cleanCreneauAprem(a) {
+  if (!a || !a.actif) return null;
+  return { actif: true, butoir_decalage: (a.butoir_decalage != null ? parseInt(a.butoir_decalage, 10) : 0), butoir_heure: a.butoir_heure || '11:00', livraison: a.livraison || null };
+}
+// Badge sur une commande : rien pour un pro à un seul créneau (écrans inchangés pour les autres)
+function proCreneauBadge(o, pro) {
+  const c = (o && o.creneau) || 'matin';
+  if (c !== 'apres_midi' && !proDeuxCreneaux(pro)) return '';
+  return '<span class="pro-creneau-badge' + (c === 'apres_midi' ? ' aprem' : '') + '">' + proCreneauLbl(c) + '</span>';
+}
+function proCreneauTxt(o, pro) { const c = (o && o.creneau) || 'matin'; return (c === 'apres_midi' || proDeuxCreneaux(pro)) ? ' · ' + proCreneauLbl(c) : ''; }
+function proCreneauRank(o) { return ((o && o.creneau) === 'apres_midi') ? 1 : 0; }
+
 function renderLivreurProOrdersSection() {
   const prosMap = {};
   adminPros.forEach(function(p) { prosMap[p.id] = p; });
@@ -8982,7 +9021,7 @@ function renderProductionUpcomingProsSection(vue) {
     }).join(', ');
     html += '<div onclick="goToProductionDate(\'' + escapeHtml(o.date_livraison) + '\')" style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F5F0E8;cursor:pointer">';
     html += '<div style="flex:0 0 auto;min-width:110px;font-size:11px;color:var(--brown-mid);font-weight:700">' + escapeHtml(formatDateFr(o.date_livraison)) + '</div>';
-    html += '<div style="flex:1;min-width:0;font-size:12px;color:var(--brown)"><strong>' + escapeHtml(proNom) + '</strong> · ' + escapeHtml(itemsLbl) + '</div>';
+    html += '<div style="flex:1;min-width:0;font-size:12px;color:var(--brown)"><strong>' + escapeHtml(proNom) + '</strong>' + proCreneauBadge(o, pro) + ' · ' + escapeHtml(itemsLbl) + '</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -11000,6 +11039,7 @@ function openProForm(pid) {
       catalogue_restreint: [],   // v20.286 — nouvelle fiche : rien de coché (Phil, 21/10) ; null = tout autorisé ; array = liste autorisée
       prix_speciaux: {},       // { product_id: prix }
       template_items: [],      // [{ product_id, qty }]
+      creneau_aprem: proCreneauApremDraft(null),   // v20.290 — après-midi (désactivé par défaut)
       notes: '', actif: true
     };
   } else {
@@ -11041,6 +11081,7 @@ function openProForm(pid) {
       magic_token: p.magic_token || null,  // v21.3.0
       magic_sent_at: p.magic_sent_at || null,   // v20.272 — date du dernier envoi du lien
       groupe: p.groupe || '',   // v20.273 — même client, plusieurs établissements → un seul lien
+      creneau_aprem: proCreneauApremDraft(p.creneau_aprem),   // v20.290
       notes: p.notes || '', actif: !!p.actif
     };
   }
@@ -12464,7 +12505,7 @@ function openProHoraires(proId) {
   if (!p) return;
   proHorairesId = proId;
   proHorairesSauvegarde = adminProsDraft;   // on ne casse pas une fiche BackOffice éventuellement ouverte
-  adminProsDraft = { id: p.id, nom: p.nom, jours_livraison: JSON.parse(JSON.stringify(p.jours_livraison || {})) };
+  adminProsDraft = { id: p.id, nom: p.nom, jours_livraison: JSON.parse(JSON.stringify(p.jours_livraison || {})), creneau_aprem: proCreneauApremDraft(p.creneau_aprem) };   // v20.290 — l'après-midi se règle ici aussi
   proToutDraft = { butoir_decalage: '', butoir_heure: '', livraison: '', tournee: '', ecraser: false };
   renderProHorairesModal();
 }
@@ -12493,11 +12534,12 @@ async function saveProHoraires() {
   const jours = cleanJoursLivraison(d.jours_livraison);
   if (!Object.keys(jours).length && !confirm('Aucun jour coché : ' + (d.nom || 'ce client') + ' ne pourra plus rien commander. Enregistrer quand même ?')) return;
   setSyncStatus('syncing');
-  const { data, error } = await supa.from('pros').update({ jours_livraison: jours }).eq('id', proHorairesId).select();
+  const aprem = cleanCreneauAprem(d.creneau_aprem);   // v20.290
+  const { data, error } = await supa.from('pros').update({ jours_livraison: jours, creneau_aprem: aprem }).eq('id', proHorairesId).select();
   if (error || !data || !data.length) { setSyncStatus('error'); showToast(error ? error.message : 'Enregistrement bloqué', 'error'); return; }
   setSyncStatus('ok');
   const p = adminPros.find(function(x) { return x.id === proHorairesId; });
-  if (p) p.jours_livraison = jours;
+  if (p) { p.jours_livraison = jours; p.creneau_aprem = aprem; }
   closeProHoraires();
   showToast('Horaires enregistrés', 'sync');
   if (currentVue === 'pros') renderProOrders();
@@ -12516,7 +12558,7 @@ function proHorairesListHtml() {
     const resume = PRO_JOURS.filter(function(jp) { return j[jp[0]] && j[jp[0]].actif; }).map(function(jp) {
       const c = j[jp[0]];
       return JOURS_COURT[jp[0]] + (c.butoir_heure ? ' ' + c.butoir_heure.replace(':00', 'h').replace(':', 'h') : '');
-    }).join(' · ');
+    }).join(' · ') + (proDeuxCreneaux(p) ? ' · 🌇 après-midi jusqu\'à ' + String(p.creneau_aprem.butoir_heure || '11:00').replace(':00', 'h').replace(':', 'h') + (p.creneau_aprem.butoir_decalage === -1 ? ' la veille' : '') : '');   // v20.290
     h += '<div class="pro-horaires-row"><div class="pro-horaires-main"><div class="pl-nom">' + escapeHtml(p.nom || '') + '</div>'
       + '<div class="pl-ct">' + (resume ? escapeHtml(resume) : '<span style="color:var(--red)">aucun jour de livraison</span>') + '</div></div>'
       + '<button type="button" class="btn-gold-sm" onclick="openProHoraires(\'' + escapeHtml(p.id) + '\')">⏰ Régler</button></div>';
@@ -12580,6 +12622,7 @@ async function saveProForm() {
     template_items:        cleanTemplate,
     boutique_principale:   d.boutique_principale,
     boutique_secours:      d.boutique_secours || null,
+    creneau_aprem:         cleanCreneauAprem(d.creneau_aprem),   // v20.290 — null = un seul créneau
     groupe:                (d.groupe || '').trim().toLowerCase() || null,   // v20.273
     notes:                 (d.notes || '').trim() || null,
     actif:                 !!d.actif
@@ -13310,9 +13353,39 @@ function proJoursBlockHtml(d) {
         : '<div class="pro-jour-fields-off">—</div>')
     + '</div>';
   });
+  // v20.290 — deux créneaux par jour : l'après-midi reprend les jours cochés, avec son heure limite et son heure de retrait
+  const ap = d.creneau_aprem || proCreneauApremDraft(null);
+  let decOptsAprem = '';
+  [[0, 'Jour même'], [-1, 'La veille']].forEach(function(opt) {
+    decOptsAprem += '<option value="' + opt[0] + '"' + (Number(ap.butoir_decalage) === opt[0] ? ' selected' : '') + '>' + escapeHtml(opt[1]) + '</option>';
+  });
+  html += '<div class="pro-jour-row pro-jour-aprem' + (ap.actif ? ' actif' : '') + '" style="margin-top:10px;border-top:1px dashed var(--gold-light);padding-top:10px">'
+    + '<button type="button" class="toggle-btn ' + (ap.actif ? 'active' : '') + '" onclick="handleProApremToggle()">🌇 Après-midi</button>'
+    + (ap.actif
+      ? '<div class="pro-jour-fields">'
+        + '<label>Butoir</label>'
+        + '<select class="pro-input pro-input-decalage" onchange="handleProApremField(\'butoir_decalage\', this.value)">' + decOptsAprem + '</select>'
+        + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(ap.butoir_heure || '') + '" oninput="handleProApremField(\'butoir_heure\', this.value)">'
+        + '<label>Retrait</label>'
+        + '<input type="time" class="pro-input pro-input-time" value="' + escapeHtml(ap.livraison || '') + '" oninput="handleProApremField(\'livraison\', this.value)">'
+        + '</div>'
+      : '<div class="pro-jour-fields-off">un seul créneau par jour (le matin)</div>')
+  + '</div>'
+  + '<div class="pro-form-hint" style="margin-top:4px">Après-midi coché = le client peut passer <strong>deux commandes par jour</strong> (matin + après-midi), les jours cochés ci-dessus. Le matin garde les réglages du jour ; l\'après-midi a sa propre heure limite (par défaut : le jour même 11h, retrait vers 15h).</div>';
   html += '</div>';
 
   return html;
+}
+function handleProApremToggle() {
+  if (!adminProsDraft) return;
+  const ap = adminProsDraft.creneau_aprem = proCreneauApremDraft(adminProsDraft.creneau_aprem);
+  ap.actif = !ap.actif;
+  proJoursRerender();
+}
+function handleProApremField(field, val) {
+  if (!adminProsDraft) return;
+  const ap = adminProsDraft.creneau_aprem = proCreneauApremDraft(adminProsDraft.creneau_aprem);
+  ap[field] = (field === 'butoir_decalage') ? parseInt(val, 10) : val;
 }
 
 function renderProForm(mc) {
@@ -14099,7 +14172,7 @@ function renderProsWeek(mc) {
           const statutLbl = ({ brouillon: 'Brouillon', confirme: 'Confirmée', livre: 'Livrée' })[o.statut] || o.statut;
           const statutColor = ({ brouillon: 'var(--brown-mid)', confirme: 'var(--blue)', livre: 'var(--green)' })[o.statut] || 'var(--brown-mid)';
           html += '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;gap:6px;flex-wrap:wrap">'
-            + '<div style="font-size:12px"><strong>' + escapeHtml(proNom) + '</strong>'
+            + '<div style="font-size:12px"><strong>' + escapeHtml(proNom) + '</strong>' + proCreneauBadge(o, pro)
               + ' <span style="color:#888;font-size:11px">· ' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + '</span>'
               + ' <span style="color:' + statutColor + ';font-size:10px;font-weight:700"> · ' + statutLbl + '</span>'
               + (o.notes ? ' <span style="color:var(--gold-dark)" title="' + escapeHtml(o.notes) + '">⭐</span>' : '')
@@ -14241,8 +14314,9 @@ function prosWeekGridTableHtml(orders, days, prosMap, productsMap) {
       const cell = ((byPro[o.pro_id] = byPro[o.pro_id] || {})[o.date_livraison] = byPro[o.pro_id][o.date_livraison] || []);
       (o.pro_order_items || []).forEach(function(it) {
         if (!(Number(it.qty) > 0)) return;
-        const ex = cell.find(function(c) { return c.pid === it.product_id; });
-        if (ex) ex.qty += Number(it.qty); else cell.push({ pid: it.product_id, qty: Number(it.qty), brouillon: o.statut === 'brouillon' });
+        const aprem = o.creneau === 'apres_midi';   // v20.290 — l'après-midi sur sa propre ligne
+        const ex = cell.find(function(c) { return c.pid === it.product_id && !!c.aprem === aprem; });
+        if (ex) ex.qty += Number(it.qty); else cell.push({ pid: it.product_id, qty: Number(it.qty), brouillon: o.statut === 'brouillon', aprem: aprem });
       });
     });
     const dayTot = {}, dayN = {};
@@ -14253,7 +14327,7 @@ function prosWeekGridTableHtml(orders, days, prosMap, productsMap) {
         const cell = byPro[pid][d] || [];
         if (!cell.length) { h += '<td></td>'; return; }
         const brouillon = cell.some(function(c) { return c.brouillon; });
-        const lines = cell.map(function(c) { weekQty += c.qty; dayTot[d] = (dayTot[d] || 0) + c.qty; return '<div>' + fmtQtyShort(c.qty) + ' ' + escapeHtml(nameOf(c.pid)) + '</div>'; }).join('');
+        const lines = cell.map(function(c) { weekQty += c.qty; dayTot[d] = (dayTot[d] || 0) + c.qty; return '<div>' + (c.aprem ? '🌇 ' : '') + fmtQtyShort(c.qty) + ' ' + escapeHtml(nameOf(c.pid)) + '</div>'; }).join('');
         dayN[d] = (dayN[d] || 0) + 1;
         h += '<td class="' + (brouillon ? 'brouillon' : '') + '">' + (brouillon ? '⏳ ' : '') + lines + '</td>';
       });
@@ -14663,12 +14737,14 @@ async function saveProOrderSplit(opts) {
     groups = splitProItemsBySource(pro, opts.items, opts.date, joursOff);
     if (!Object.keys(groups).length) groups[proSourceEffective(pro, principal, opts.date, joursOff)] = [];   // note seule (demande spéciale)
   }
+  const creneau = (opts.creneau === 'apres_midi') ? 'apres_midi' : 'matin';   // v20.290
   let siblings = [];
   if (opts.editingId) {
-    const { data } = await supa.from('pro_orders').select('id,boutique_source,statut')
+    const { data } = await supa.from('pro_orders').select('id,boutique_source,statut,creneau')
       .eq('tenant_id', TENANT_ID).eq('pro_id', pro.id)
       .eq('date_livraison', opts.origDate || opts.date).neq('statut', 'annule');
-    siblings = data || [];
+    // v20.290 — la commande de l'autre créneau du même jour n'est pas un morceau de celle-ci
+    siblings = (data || []).filter(function(s) { return (s.creneau || 'matin') === creneau; });
   }
   const used = [], ids = [];
   const sources = Object.keys(groups);
@@ -14676,7 +14752,8 @@ async function saveProOrderSplit(opts) {
     const src = sources[i];
     const row = {
       tenant_id: TENANT_ID, pro_id: pro.id, date_livraison: opts.date, boutique_source: src,
-      statut: opts.statut || 'confirme', notes: opts.notes || null, created_by: opts.created_by
+      statut: opts.statut || 'confirme', notes: opts.notes || null, created_by: opts.created_by,
+      creneau: creneau   // v20.290
     };
     let target = siblings.find(function(s) { return s.boutique_source === src && used.indexOf(s.id) === -1; });
     let orderId;
@@ -14723,7 +14800,7 @@ function proBasculesTexte(bascules, iso) {
 function mergeProOrdersByDate(orders) {
   const out = [];
   (orders || []).forEach(function(o) {
-    const m = out.find(function(x) { return x.pro_id === o.pro_id && x.date_livraison === o.date_livraison; });
+    const m = out.find(function(x) { return x.pro_id === o.pro_id && x.date_livraison === o.date_livraison && (x.creneau || 'matin') === (o.creneau || 'matin'); });   // v20.290
     if (!m) {
       out.push(Object.assign({}, o, { ids: [o.id], sources: [o.boutique_source],
         pro_order_items: (o.pro_order_items || []).slice() }));
@@ -14807,6 +14884,7 @@ async function openProOrderForm(orderId) {
       pro_id: '',
       date_livraison: tmwISO,
       boutique_source: currentBoutique,
+      creneau: 'matin',   // v20.290
       statut: 'confirme',
       notes: '',
       items: []
@@ -14818,7 +14896,9 @@ async function openProOrderForm(orderId) {
     // L'écran ne charge que les commandes de CE site : les autres morceaux viennent de la base.
     const sr = await supa.from('pro_orders').select('*, pro_order_items(*)')
       .eq('tenant_id', TENANT_ID).eq('pro_id', o.pro_id).eq('date_livraison', o.date_livraison).neq('statut', 'annule');
-    const sibs = (sr.data && sr.data.length) ? sr.data : [o];
+    // v20.290 — seulement les morceaux du MÊME créneau (la commande du matin et celle de l'après-midi sont indépendantes)
+    const sibs0 = (sr.data || []).filter(function(x) { return ((x.creneau || 'matin') === (o.creneau || 'matin')); });
+    const sibs = sibs0.length ? sibs0 : [o];
     let allItems = [];
     sibs.forEach(function(x) { allItems = allItems.concat(x.pro_order_items || []); });
     proOrderDraft = {
@@ -14827,6 +14907,7 @@ async function openProOrderForm(orderId) {
       pro_id: o.pro_id,
       date_livraison: o.date_livraison,
       boutique_source: o.boutique_source,
+      creneau: o.creneau || 'matin',   // v20.290
       statut: o.statut || 'confirme',
       notes: o.notes || (sibs.map(function(x) { return x.notes; }).filter(Boolean)[0]) || '',
       items: allItems.map(function(it) {
@@ -15029,7 +15110,8 @@ async function saveProOrder() {
   const r = await saveProOrderSplit({
     pro: proFiche, date: d.date_livraison, origDate: d.orig_date, editingId: isNew ? null : d.id,
     statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null, created_by: currentBoutique,
-    items: validItems, forceSource: d.source_forcee ? d.boutique_source : null
+    items: validItems, forceSource: d.source_forcee ? d.boutique_source : null,
+    creneau: d.creneau || 'matin'   // v20.290
   });
   if (r.error) { setSyncStatus('error'); showToast(r.error, 'error'); return; }
   setSyncStatus('ok');
@@ -15143,8 +15225,10 @@ function aggregateProOrdersForProduction(vue) {
       if (!result[it.product_id]) result[it.product_id] = { totalQty: 0, byPro: {} };
       const qty = Number(it.qty) || 0;
       result[it.product_id].totalQty += qty;
-      if (!result[it.product_id].byPro[o.pro_id]) result[it.product_id].byPro[o.pro_id] = 0;
-      result[it.product_id].byPro[o.pro_id] += qty;
+      // v20.290 — une ligne par pro ET par créneau (le boulanger voit ce qui part le matin et l'après-midi)
+      const k = o.pro_id + (o.creneau === 'apres_midi' ? '|apres_midi' : '');
+      if (!result[it.product_id].byPro[k]) result[it.product_id].byPro[k] = 0;
+      result[it.product_id].byPro[k] += qty;
     });
   });
   return result;
@@ -15163,9 +15247,10 @@ function openProsDetailModal(productId) {
   html += '<div class="pros-detail-modal">';
   html += '<div class="pros-detail-title">' + escapeHtml(prodName) + ' <span class="pros-detail-total">' + entry.totalQty + ' au total</span></div>';
   html += '<div class="pros-detail-list">';
-  const lines = Object.keys(entry.byPro).map(function(proId) {
+  const lines = Object.keys(entry.byPro).map(function(k) {
+    const proId = k.split('|')[0], aprem = k.indexOf('|apres_midi') !== -1;   // v20.290
     const pro = adminPros.find(function(x) { return x.id === proId; });
-    return { name: pro ? pro.nom : proId, qty: entry.byPro[proId] };
+    return { name: (pro ? pro.nom : proId) + proCreneauTxt({ creneau: aprem ? 'apres_midi' : 'matin' }, pro), qty: entry.byPro[k] };
   });
   lines.sort(function(a, b) { return b.qty - a.qty; });
   lines.forEach(function(l) {
@@ -15297,6 +15382,7 @@ function renderProOrders() {
     Object.keys(byDate).sort().forEach(function(date) {
       html += '<div class="pro-orders-date-group">';
       html += '<div class="pro-orders-date">' + escapeHtml(formatProOrderDate(date)) + '</div>';
+      byDate[date].sort(function(a, b) { return proCreneauRank(a) - proCreneauRank(b); });   // v20.290 — le matin avant l'après-midi
       byDate[date].forEach(function(o) {
         const pro = adminPros.find(function(p) { return p.id === o.pro_id; });
         const proName = pro ? pro.nom : o.pro_id;
@@ -15340,7 +15426,7 @@ function renderProOrders() {
         html += '<div class="pro-order-card" onclick="openProOrderForm(\'' + escapeHtml(o.id) + '\')">'
           + '<div class="pro-order-main">'
             + '<div class="pro-order-card-header">'
-              + '<div class="pro-order-name">' + escapeHtml(proName) + srcBadge
+              + '<div class="pro-order-name">' + escapeHtml(proName) + proCreneauBadge(o, pro) + srcBadge
                 + (byName ? ' <span style="font-size:11px;color:var(--brown-mid);font-weight:500">👤 ' + escapeHtml(byName) + '</span>' : '')
               + '</div>'
               + '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>'
@@ -15410,6 +15496,13 @@ function renderProOrderForm(mc) {
     + '<input type="date" class="pro-input" value="' + escapeHtml(d.date_livraison) + '" oninput="handleProOrderField(\'date_livraison\', this.value)">'
     + '<label>Boutique source *</label>'
     + '<select class="pro-input" onchange="handleProOrderField(\'boutique_source\', this.value)">' + boutiqueOptsHtml + '</select>'
+    // v20.290 — créneau, seulement pour un pro à deux créneaux (ou une commande déjà de l'après-midi)
+    + ((proDeuxCreneaux(pro) || d.creneau === 'apres_midi')
+      ? '<label>Créneau *</label><div class="pro-creneau-pick">' + PRO_CRENEAUX.map(function(c) {
+          const cfg = pro ? proCreneauCfg(pro, proJourNom(d.date_livraison), c[0]) : null;
+          return '<button type="button" class="' + ((d.creneau || 'matin') === c[0] ? 'on' : '') + '" onclick="handleProOrderField(\'creneau\', \'' + c[0] + '\')">' + c[1] + (cfg && cfg.livraison ? '<br><small style="font-weight:500">retrait vers ' + escapeHtml(String(cfg.livraison).slice(0, 5).replace(/^0/, '').replace(':00', 'h').replace(':', 'h')) + '</small>' : '') + '</button>';
+        }).join('') + '</div>'
+      : '')
     + '<div class="pro-form-hint">Par défaut = boutique principale du pro. Si elle est fermée ce jour-là : sa boutique de secours ; sans réglage, Le Local bascule sur Veigné et Tours refuse la commande. Modifie si dépannage : ton choix vaut pour toute la commande.</div>'
   + '</div>';
 
@@ -17609,7 +17702,7 @@ function proStockPrepLines() {
       lines.push({
         itemId: it.id, orderId: o.id, productId: it.product_id,
         productName: prod.name, qty: Number(it.qty),
-        proName: pro ? pro.nom : (o.pro_id || 'Pro'),
+        proName: (pro ? pro.nom : (o.pro_id || 'Pro')) + proCreneauTxt(o, pro),   // v20.290
         mode: o.mode_retrait || o.retrait || null,
         prepared: !!it.prepared_at
       });

@@ -173,6 +173,23 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   commande vaut pour tous ceux qui fabriquent une ligne. Sinon Veigné « voit toutes les commandes ».
   Tout nouvel écran de production qui affiche des commandes doit afficher ces notes, filtrées ainsi.
 
+**Pros — deux créneaux par jour (v20.290, 25/10/2026, cas Le Strapontin et Le Châteauneuf)** :
+- Deux restos de Tours qui **viennent chercher** (`tournee: retrait`) et commandent **pour le matin ET pour
+  l'après-midi** du même jour. Strapontin : Tradition seule ; Châteauneuf : Tradition + Grande Tourte de Meule.
+  Création : `migration-v20.290b-strapontin-chateauneuf.sql` (produits retrouvés par leur nom, lien client généré).
+- Modèle : `pro_orders.creneau` (`matin` par défaut / `apres_midi`) ; fiche `pros.creneau_aprem`
+  (`null` = un seul créneau, sinon `{ actif, butoir_decalage (0 = jour même), butoir_heure, livraison }`).
+  L'après-midi **reprend les jours cochés** du matin avec sa propre heure limite (défaut : jour même 11h,
+  retrait vers 15h). Réglable dans la fiche BackOffice et dans « ⏰ Horaires des pros » (bloc partagé).
+- Une commande par créneau et par jour, **indépendantes** (modifier/annuler l'une ne touche pas l'autre) ;
+  les morceaux par site d'une commande sont ceux du même créneau. Helpers `proCreneauCfg`, `proDeuxCreneaux`,
+  `proCreneauBadge` (app) / `creneauCfg`, `deuxCreneaux` (pro.html).
+- pro.html : boutons Matin / Après-midi sous les jours, « la dernière fois » lue par créneau, un jour passe
+  « déjà commandé » seulement quand plus aucun créneau n'est libre. **Un pro à un seul créneau ne voit rien de nouveau.**
+- Écrans équipe : badge 🌅/🌇 sur les cartes (onglet Pros, à anticiper, récap semaine), matin avant après-midi ;
+  production : une ligne par pro **et** par créneau dans le détail d'un produit ; grille semaine : ligne 🌇 à part.
+- Tests : `tests/specs/44-pros-deux-creneaux.spec.mjs`.
+
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
   les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique

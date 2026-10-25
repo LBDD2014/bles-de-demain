@@ -268,13 +268,14 @@
       if (a.p_order_id) {
         const o = tableRows('pro_orders').find(function (x) { return String(x.id) === String(a.p_order_id) && x.pro_id === pro.id; });
         if (!o) throw new Error('commande introuvable');
-        Object.assign(o, { date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null });
+        Object.assign(o, { date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null, creneau: a.p_row.creneau === 'apres_midi' ? 'apres_midi' : 'matin' });
         id = o.id;
         const items = tableRows('pro_order_items');
         for (let i = items.length - 1; i >= 0; i--) if (String(items[i].pro_order_id) === String(id)) items.splice(i, 1);
       } else {
         id = 'mock_' + (++idCounter);
-        tableRows('pro_orders').push({ id: id, tenant_id: pro.tenant_id, pro_id: pro.id, date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null });
+        // v20.290 — créneau (matin par défaut, comme la colonne SQL)
+        tableRows('pro_orders').push({ id: id, tenant_id: pro.tenant_id, pro_id: pro.id, date_livraison: a.p_row.date_livraison, boutique_source: a.p_row.boutique_source, statut: a.p_row.statut || 'confirme', notes: a.p_row.notes || null, created_by: a.p_row.created_by || null, creneau: a.p_row.creneau === 'apres_midi' ? 'apres_midi' : 'matin' });
       }
       (a.p_items || []).forEach(function (it) { tableRows('pro_order_items').push({ id: 'mock_' + (++idCounter), pro_order_id: id, product_id: it.product_id, qty: Number(it.qty), prix_applique: it.prix_applique == null ? null : Number(it.prix_applique) }); });
       LOG.push({ table: 'pro_orders', action: 'rpc_upsert', id: id });

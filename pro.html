@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Les Blés — Mes commandes</title>
+<!-- v20.290 — deux créneaux par jour (matin / après-midi) pour les clients réglés ainsi (Le Strapontin, Le Châteauneuf) :
+     une commande par créneau, chacune avec son heure limite et son heure de retrait. -->
 <!-- v20.289 — sécurité côté serveur (étape B) : la page ne lit et n'écrit plus les tables directement, elle passe par des
      fonctions (pro_page_*) qui ne répondent qu'au lien présenté — un client ne peut voir et toucher que ses propres commandes.
 <!-- v20.282 — site fermé ce jour-là (jours de fermeture du Planning) : la commande part à la boutique de secours de la fiche, sinon Veigné.
@@ -68,6 +70,15 @@ button{font-family:inherit}
 .dt.on{border-color:var(--gold);background:#FBF6EA;box-shadow:0 0 0 2px rgba(206,171,82,.3)}
 .dt.late,.dt.ferme{opacity:.45;cursor:default}.dt.late em{color:var(--red)}
 .dt.has em{color:var(--blue)}
+/* v20.290 — matin / après-midi */
+.crens{display:flex;gap:8px;margin:2px 0 6px}
+.cren{flex:1;border:1.5px solid #ddd;border-radius:12px;padding:9px 6px;background:#fff;text-align:center;cursor:pointer;line-height:1.15}
+.cren b{display:block;font-size:14px;color:var(--grey-dark)}
+.cren em{display:block;font-style:normal;font-size:10px;color:var(--green);font-weight:700;margin-top:2px}
+.cren.on{border-color:var(--gold);background:#FBF6EA;box-shadow:0 0 0 2px rgba(206,171,82,.3)}
+.cren.has em{color:var(--blue)}.cren.late{opacity:.45;cursor:default}.cren.late em{color:var(--red)}
+.cr{display:inline-block;font-size:10px;font-weight:700;color:var(--gold-dark);background:#FBF3DD;border-radius:7px;padding:0 6px;margin-left:5px;vertical-align:middle}
+.cr.ap{color:#fff;background:var(--orange)}
 .hint{font-size:12px;color:var(--grey-light);margin:4px 0 10px;line-height:1.45}
 .cols{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--grey-light);padding:4px 0 2px}
 .cols .c{display:flex;gap:8px}.cols .c span{width:132px;text-align:center}
@@ -152,8 +163,25 @@ let doneInfo = null;     // { date } après validation
 let teamEdit = null;     // null | -1 (nouveau) | index
 
 /* ---------- règles métier (identiques à l'app interne) ---------- */
-function butoirMs(etab, iso) {
+// v20.290 — deux créneaux par jour (matin / après-midi) : même règle que l'app interne (proCreneauCfg).
+// L'après-midi reprend les jours cochés, avec sa propre heure limite et son heure de retrait (fiche : creneau_aprem).
+const CRENEAUX = ['matin', 'apres_midi'];
+const CRENEAU_LBL = { matin: 'Matin', apres_midi: 'Après-midi' };
+const CRENEAU_ICO = { matin: '🌅', apres_midi: '🌇' };
+function deuxCreneaux(etab) { return !!(etab && etab.creneau_aprem && etab.creneau_aprem.actif); }
+function creneauCfg(etab, iso, creneau) {
   const cfg = (etab.jours_livraison || {})[DOW_NAMES[dowOf(iso)]];
+  if (!cfg || !cfg.actif) return null;
+  if (creneau !== 'apres_midi') return cfg;
+  if (!deuxCreneaux(etab)) return null;
+  const a = etab.creneau_aprem;
+  return { actif: true, butoir_decalage: (a.butoir_decalage != null ? a.butoir_decalage : 0), butoir_heure: a.butoir_heure || '11:00', livraison: a.livraison || '' };
+}
+function creneauLbl(c) { return c === 'apres_midi' ? 'après-midi' : 'matin'; }
+// étiquette dans les listes : seulement pour un client à deux créneaux (rien ne change pour les autres)
+function creneauTag(etab, c) { return (deuxCreneaux(etab) || c === 'apres_midi') ? '<span class="cr' + (c === 'apres_midi' ? ' ap' : '') + '">' + CRENEAU_ICO[c || 'matin'] + ' ' + CRENEAU_LBL[c || 'matin'] + '</span>' : ''; }
+function butoirMs(etab, iso, creneau) {
+  const cfg = creneauCfg(etab, iso, creneau || 'matin');
   if (!cfg || !cfg.actif) return null;
   const dec = cfg.butoir_decalage != null ? cfg.butoir_decalage : -1;
   const heure = cfg.butoir_heure || '23:59';
@@ -161,10 +189,12 @@ function butoirMs(etab, iso) {
   const p = heure.split(':'); const hh = parseInt(p[0], 10), mm = parseInt(p[1], 10); d.setHours(isNaN(hh) ? 23 : hh, isNaN(mm) ? 59 : mm, 0, 0);
   return d.getTime();
 }
-function etabOpen(etab, iso) { const b = butoirMs(etab, iso); return b != null && Date.now() < b; }
-function livraisonHeure(etab, iso) { const cfg = (etab.jours_livraison || {})[DOW_NAMES[dowOf(iso)]]; return cfg && cfg.livraison ? heureLbl(cfg.livraison) : ''; }
-function butoirTxt(etab, iso) {
-  const b = butoirMs(etab, iso); if (b == null) return '';
+function etabOpen(etab, iso, creneau) { const b = butoirMs(etab, iso, creneau); return b != null && Date.now() < b; }
+// ouvert à la commande pour AU MOINS un créneau de ce jour
+function etabOpenAny(etab, iso) { return CRENEAUX.some(function(c) { return etabOpen(etab, iso, c); }); }
+function livraisonHeure(etab, iso, creneau) { const cfg = creneauCfg(etab, iso, creneau || 'matin'); return cfg && cfg.livraison ? heureLbl(cfg.livraison) : ''; }
+function butoirTxt(etab, iso, creneau) {
+  const b = butoirMs(etab, iso, creneau); if (b == null) return '';
   const d = new Date(b); const j = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const hh = heureLbl(String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
   const t = todayISO();
@@ -219,19 +249,21 @@ function shortLabel(etab) {
   const rest = (etab.nom || '').split(/\s+/).slice(common).join(' ') || etab.nom || '';
   return rest.length > 3 && rest === rest.toUpperCase() ? rest.charAt(0) + rest.slice(1).toLowerCase() : rest;
 }
-function ordersOf(etabId, iso) { return orders.filter(function(o) { return o.pro_id === etabId && o.date_livraison === iso && o.statut !== 'annule'; }); }
+// creneau absent = les deux créneaux
+function ordersOf(etabId, iso, creneau) { return orders.filter(function(o) { return o.pro_id === etabId && o.date_livraison === iso && o.statut !== 'annule' && (!creneau || (o.creneau || 'matin') === creneau); }); }
 function itemsOf(list) { const m = {}; list.forEach(function(o) { (o.pro_order_items || []).forEach(function(it) { m[it.product_id] = (m[it.product_id] || 0) + Number(it.qty || 0); }); }); return m; }
 function statutOf(list) { if (list.some(function(o) { return o.statut === 'livre'; })) return 'livre'; if (list.some(function(o) { return o.statut === 'confirme'; })) return 'confirme'; return list[0] ? list[0].statut : 'confirme'; }
-// une « commande » côté client = un établissement × une date (les morceaux par site sont regroupés)
+// une « commande » côté client = un établissement × une date × un créneau (les morceaux par site sont regroupés)
 function groupedOrders() {
   const seen = {}, out = [];
   orders.forEach(function(o) {
     if (o.statut === 'annule') return;
-    const k = o.pro_id + '|' + o.date_livraison;
+    const cr = o.creneau || 'matin';
+    const k = o.pro_id + '|' + o.date_livraison + '|' + cr;
     if (seen[k]) return; seen[k] = true;
-    const list = ordersOf(o.pro_id, o.date_livraison);
+    const list = ordersOf(o.pro_id, o.date_livraison, cr);
     const etab = etabs.find(function(e) { return e.id === o.pro_id; }) || {};
-    out.push({ key: k, etab: etab, date: o.date_livraison, items: itemsOf(list), statut: statutOf(list), notes: list.map(function(x) { return x.notes; }).filter(Boolean)[0] || '', who: (list[0].created_by || '').indexOf('pro_self:') === 0 ? list[0].created_by.slice(9) : '' });
+    out.push({ key: k, etab: etab, date: o.date_livraison, creneau: cr, items: itemsOf(list), statut: statutOf(list), notes: list.map(function(x) { return x.notes; }).filter(Boolean)[0] || '', who: (list[0].created_by || '').indexOf('pro_self:') === 0 ? list[0].created_by.slice(9) : '' });
   });
   return out;
 }
@@ -245,10 +277,11 @@ function teamContacts() {
 function teamEligible() { return teamContacts().filter(function(c) { return c.peut_commander !== false; }); }
 function firstName() { const c = teamEligible()[0] || teamContacts()[0]; return c ? c.nom.split(' ')[0] : ''; }
 // « la dernière fois » : dernière commande passée de cet établissement (sinon sa commande de base)
-function lastItems(etab) {
-  const t = todayISO();
-  const past = orders.filter(function(o) { return o.pro_id === etab.id && o.date_livraison < t && o.statut !== 'annule' && (o.pro_order_items || []).length; }).sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
-  if (past.length) return itemsOf(ordersOf(etab.id, past[0].date_livraison));
+function lastItems(etab, creneau) {
+  const t = todayISO(), cr = creneau || 'matin';
+  // v20.290 — la dernière commande du MÊME créneau (le soir ne ressemble pas au matin)
+  const past = orders.filter(function(o) { return o.pro_id === etab.id && o.date_livraison < t && o.statut !== 'annule' && (o.pro_order_items || []).length && (o.creneau || 'matin') === cr; }).sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
+  if (past.length) return itemsOf(ordersOf(etab.id, past[0].date_livraison, cr));
   const m = {}; (etab.template_items || []).forEach(function(ti) { if (ti.product_id && Number(ti.qty) > 0) m[ti.product_id] = Number(ti.qty); });
   return m;
 }
@@ -306,7 +339,7 @@ function clientLabel() { return etabs.length > 1 ? etabs.map(shortLabel).join(' 
 function orderRow(g, showEtab) {
   const d = new Date(g.date + 'T12:00');
   return '<div class="ord" onclick="openDetail(\'' + escapeHtml(g.key) + '\')"><div class="dd"><b>' + d.getDate() + '</b><small>' + DOW_SHORT[d.getDay()] + '</small></div>'
-    + '<div class="m"><b>' + escapeHtml(summary(g.items)) + (showEtab ? '<span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : '') + '</b><span>' + escapeHtml(formatDateFr(g.date)) + (livraisonHeure(g.etab, g.date) ? ' · ' + livraisonHeure(g.etab, g.date) : '') + '</span></div>'
+    + '<div class="m"><b>' + escapeHtml(summary(g.items)) + (showEtab ? '<span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : '') + '</b><span>' + escapeHtml(formatDateFr(g.date)) + creneauTag(g.etab, g.creneau) + (livraisonHeure(g.etab, g.date, g.creneau) ? ' · ' + livraisonHeure(g.etab, g.date, g.creneau) : '') + '</span></div>'
     + '<span class="pill ' + (g.statut === 'livre' ? 'done' : (g.statut === 'confirme' ? 'ok' : 'wait')) + '">' + (STATUT_LBL[g.statut] || g.statut) + '</span><span class="chev">›</span></div>';
 }
 function a2hsHtml() {
@@ -319,16 +352,16 @@ function renderHome(b) {
   setHdr('Les Blés de Demain', 'Mes commandes · ' + clientLabel(), false);
   const t = todayISO(), multi = etabs.length > 1;
   const all = groupedOrders();
-  const upcoming = all.filter(function(g) { return g.date >= t; }).sort(function(a, b) { return a.date.localeCompare(b.date) || shortLabel(a.etab).localeCompare(shortLabel(b.etab)); });
+  const upcoming = all.filter(function(g) { return g.date >= t; }).sort(function(a, b) { return a.date.localeCompare(b.date) || (a.creneau === 'apres_midi') - (b.creneau === 'apres_midi') || shortLabel(a.etab).localeCompare(shortLabel(b.etab)); });
   const past = all.filter(function(g) { return g.date < t; }).sort(function(a, b) { return b.date.localeCompare(a.date); }).slice(0, 5);
   let h = a2hsHtml() + '<div class="hello">Bonjour' + (firstName() ? ' ' + escapeHtml(firstName()) : '') + ' 👋</div>';
   if (upcoming.length) {
     const n = upcoming[0], sameDay = upcoming.filter(function(g) { return g.date === n.date; });
     const d = new Date(n.date + 'T12:00');
-    const can = sameDay.some(function(g) { return etabOpen(g.etab, g.date); });
-    h += '<div class="next"><div class="d"><b>' + DOW_SHORT[d.getDay()].toUpperCase() + '</b><small>prochaine livraison</small></div><div class="x"><b>' + escapeHtml(formatDateFr(n.date)) + (livraisonHeure(n.etab, n.date) ? ' · ' + livraisonHeure(n.etab, n.date) : '') + '</b><br>'
-      + sameDay.map(function(g) { return escapeHtml(summary(g.items)) + (multi ? ' <span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : ''); }).join('<br>')
-      + '<br><span style="color:var(--green);font-weight:700">✓ ' + (STATUT_LBL[n.statut] || n.statut) + '</span>' + (can ? ' · modifiable jusqu\'à ' + escapeHtml(butoirTxt(n.etab, n.date)) : '') + '</div></div>';
+    const can = sameDay.some(function(g) { return etabOpen(g.etab, g.date, g.creneau); });
+    h += '<div class="next"><div class="d"><b>' + DOW_SHORT[d.getDay()].toUpperCase() + '</b><small>prochaine livraison</small></div><div class="x"><b>' + escapeHtml(formatDateFr(n.date)) + (livraisonHeure(n.etab, n.date, n.creneau) ? ' · ' + livraisonHeure(n.etab, n.date, n.creneau) : '') + '</b><br>'
+      + sameDay.map(function(g) { return escapeHtml(summary(g.items)) + creneauTag(g.etab, g.creneau) + (multi ? ' <span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : ''); }).join('<br>')
+      + '<br><span style="color:var(--green);font-weight:700">✓ ' + (STATUT_LBL[n.statut] || n.statut) + '</span>' + (can ? ' · modifiable jusqu\'à ' + escapeHtml(butoirTxt(n.etab, n.date, n.creneau)) : '') + '</div></div>';
   }
   const canOrder = nextOpenDate() != null;
   h += '<button class="cta" onclick="go(\'order\')"' + (canOrder ? '' : ' disabled') + '>+ Nouvelle commande</button>';
@@ -347,7 +380,9 @@ function butoirRuleTxt() {
   const e = etabs[0]; const j = e.jours_livraison || {}; const actifs = Object.keys(j).filter(function(k) { return j[k] && j[k].actif; });
   if (!actifs.length) return '';
   const c = j[actifs[0]]; const dec = c.butoir_decalage != null ? c.butoir_decalage : -1; const hh = heureLbl(c.butoir_heure || '23:59');
-  return 'Les commandes se ferment ' + (dec === 0 ? 'le jour même' : dec === -1 ? 'la veille' : (-dec) + ' jours avant') + ' à ' + hh + '.';
+  let txt = 'Les commandes se ferment ' + (dec === 0 ? 'le jour même' : dec === -1 ? 'la veille' : (-dec) + ' jours avant') + ' à ' + hh + '.';
+  if (deuxCreneaux(e)) { const a = e.creneau_aprem; txt = 'Matin : commandes fermées ' + (dec === 0 ? 'le jour même' : dec === -1 ? 'la veille' : (-dec) + ' jours avant') + ' à ' + hh + '. Après-midi : ' + ((a.butoir_decalage != null ? a.butoir_decalage : 0) === -1 ? 'la veille' : 'le jour même') + ' à ' + heureLbl(a.butoir_heure || '11:00') + '.'; }
+  return txt;
 }
 
 /* ---------- commande ---------- */
@@ -358,37 +393,56 @@ function dateStates() {
     const configured = etabs.some(function(e) { return butoirMs(e, iso) != null; });
     const has = etabs.some(function(e) { return ordersOf(e.id, iso).length > 0; });
     if (!configured && !has) continue;
-    const open = etabs.some(function(e) { return etabOpen(e, iso) && jourPossible(e, iso); });
-    const ferme = !open && !has && etabs.some(function(e) { return etabOpen(e, iso); });   // v20.286 — ouvert à la commande mais boutique fermée sans secours
-    out.push({ iso: iso, state: open ? (has ? 'has' : 'open') : (ferme ? 'ferme' : 'late'), has: has });
+    // v20.290 — un jour reste « ouvert » tant qu'un créneau (matin ou après-midi) est encore libre et ouvert
+    const open = etabs.some(function(e) { return etabOpenAny(e, iso) && jourPossible(e, iso); });
+    // libre = un créneau encore ouvert où PERSONNE (aucun établissement) n'a commandé — un groupe à un seul créneau garde « déjà commandé » dès la 1re commande
+    const libre = CRENEAUX.some(function(c) { return etabs.some(function(e) { return etabOpen(e, iso, c) && jourPossible(e, iso); }) && !etabs.some(function(e) { return ordersOf(e.id, iso, c).length > 0; }); });
+    const ferme = !open && !has && etabs.some(function(e) { return etabOpenAny(e, iso); });   // v20.286 — ouvert à la commande mais boutique fermée sans secours
+    out.push({ iso: iso, state: open ? (has && !libre ? 'has' : 'open') : (ferme ? 'ferme' : 'late'), has: has, libre: libre });
   }
   return out;
 }
+// v20.290 — état de chaque créneau d'un jour (pour les deux boutons Matin / Après-midi)
+function creneauStates(iso) {
+  return CRENEAUX.filter(function(c) { return c === 'matin' || etabs.some(deuxCreneaux); }).map(function(c) {
+    const has = etabs.some(function(e) { return ordersOf(e.id, iso, c).length > 0; });
+    const open = etabs.some(function(e) { return etabOpen(e, iso, c) && jourPossible(e, iso); });
+    return { creneau: c, has: has, open: open, state: open ? (has ? 'has' : 'open') : 'late' };
+  });
+}
 function nextOpenDate() { const d = dateStates().find(function(x) { return x.state === 'open'; }); return d ? d.iso : (dateStates().find(function(x) { return x.state === 'has'; }) || {}).iso || null; }
-function openOrder(iso) {
+// créneau proposé d'office pour un jour : le premier ouvert et pas encore commandé, sinon le premier ouvert, sinon le premier commandé
+function defaultCreneau(iso) {
+  const cs = creneauStates(iso);
+  const pick = cs.find(function(x) { return x.state === 'open'; }) || cs.find(function(x) { return x.open; }) || cs.find(function(x) { return x.has; }) || cs[0];
+  return pick ? pick.creneau : 'matin';
+}
+function openOrder(iso, creneau) {
   const ds = dateStates();
   const date = iso || nextOpenDate();
   if (!date) { tab = 'order'; render(); return; }
+  const cr = creneau || defaultCreneau(date);
   const st = ds.find(function(x) { return x.iso === date; });
   const qty = {};
   etabs.forEach(function(e) {
-    const existing = ordersOf(e.id, date);
+    const existing = ordersOf(e.id, date, cr);
     qty[e.id] = existing.length ? itemsOf(existing) : {};
   });
-  const existingAny = etabs.some(function(e) { return ordersOf(e.id, date).length; });
+  const existingAny = etabs.some(function(e) { return ordersOf(e.id, date, cr).length; });
   // nouvelle date : pré-rempli avec « la dernière fois » ; date déjà commandée : seulement ce qui existe
-  if (!existingAny) etabs.forEach(function(e) { if (etabOpen(e, date)) qty[e.id] = lastItems(e); });
-  const notes = existingAny ? (orders.filter(function(o) { return o.date_livraison === date && o.notes; })[0] || {}).notes || '' : '';
-  const whoOld = existingAny ? ((orders.filter(function(o) { return o.date_livraison === date; })[0] || {}).created_by || '') : '';
+  if (!existingAny) etabs.forEach(function(e) { if (etabOpen(e, date, cr)) qty[e.id] = lastItems(e, cr); });
+  const notes = existingAny ? (orders.filter(function(o) { return o.date_livraison === date && (o.creneau || 'matin') === cr && o.notes; })[0] || {}).notes || '' : '';
+  const whoOld = existingAny ? ((orders.filter(function(o) { return o.date_livraison === date && (o.creneau || 'matin') === cr; })[0] || {}).created_by || '') : '';
   // qui commande : la personne de la commande existante, sinon celle de la dernière commande, sinon la seule éligible
   const elig = teamEligible();
   let who = whoOld.indexOf('pro_self:') === 0 ? whoOld.slice(9) : '';
   if (!who) { const last = orders.filter(function(o) { return (o.created_by || '').indexOf('pro_self:') === 0; }).sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); })[0]; if (last) who = last.created_by.slice(9); }
   if (!who || !elig.some(function(c) { return c.nom === who; })) who = elig.length === 1 ? elig[0].nom : '';
-  draft = { date: date, qty: qty, notes: notes, who: who, editing: existingAny };
+  draft = { date: date, creneau: cr, qty: qty, notes: notes, who: who, editing: existingAny };
   tab = 'order'; detailKey = null; doneInfo = null; render();
 }
 function pickDate(iso) { const st = dateStates().find(function(x) { return x.iso === iso; }); if (!st || st.state === 'late' || st.state === 'ferme') return; openOrder(iso); }
+function pickCreneau(c) { if (!draft) return; const st = creneauStates(draft.date).find(function(x) { return x.creneau === c; }); if (!st || (st.state === 'late' && !st.has)) return; openOrder(draft.date, c); }
 function setQty(etabId, pid, v) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const n = Math.max(0, Math.round(Number(v) || 0)) * pk; draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) inp.value = n / pk; refreshTotals(); }
 function bump(etabId, pid, delta) { if (!draft) return; const pk = packOf(prodOf(pid)) || 1; const cur = Number(draft.qty[etabId][pid]) || 0; const n = Math.max(0, delta > 0 ? (Math.floor(cur / pk) + 1) * pk : (Math.ceil(cur / pk) - 1) * pk); draft.qty[etabId][pid] = n; const inp = document.getElementById('q_' + etabId + '_' + pid); if (inp) { inp.value = n / pk; inp.parentNode.className = 'step' + (n > 0 ? ' has' : ''); } refreshTotals(); }
 function refreshTotals() {
@@ -404,25 +458,36 @@ function renderOrder(b) {
   let h = '<div class="sec">1 · Pour quel jour ?</div><div class="dates">';
   ds.forEach(function(x) {
     const d = new Date(x.iso + 'T12:00');
-    const em = x.state === 'ferme' ? 'fermé' : x.state === 'late' ? (x.has ? 'clôturée' : 'trop tard') : (x.has ? 'déjà commandé' : (x.iso === draft.date ? 'jusqu\'à ' + butoirTxt(etabs.find(function(e) { return etabOpen(e, x.iso); }) || etabs[0], x.iso).replace(/^(ce soir|aujourd'hui|demain) /, '$1 ') : 'ouvert'));
+    const em = x.state === 'ferme' ? 'fermé' : x.state === 'late' ? (x.has ? 'clôturée' : 'trop tard') : (x.state === 'has' ? 'déjà commandé' : (x.iso === draft.date && !x.has ? 'jusqu\'à ' + butoirTxt(etabs.find(function(e) { return etabOpen(e, x.iso, draft.creneau); }) || etabs[0], x.iso, draft.creneau).replace(/^(ce soir|aujourd'hui|demain) /, '$1 ') : 'ouvert'));
     h += '<div class="dt ' + x.state + (x.iso === draft.date ? ' on' : '') + '" onclick="pickDate(\'' + x.iso + '\')"><small>' + DOW_SHORT[d.getDay()] + '</small><b>' + d.getDate() + '</b><em>' + escapeHtml(em) + '</em></div>';
   });
   h += '</div>';
-  const e0 = etabs.find(function(e) { return etabOpen(e, draft.date); }) || etabs[0];
-  h += '<div class="hint">Livraison <b>' + escapeHtml(formatDateFr(draft.date)) + '</b>' + (livraisonHeure(e0, draft.date) ? ' vers ' + livraisonHeure(e0, draft.date) : '') + ' par ' + escapeHtml(prepareLabel(e0, draft.date)) + '. Tu peux modifier jusqu\'à <b>' + escapeHtml(butoirTxt(e0, draft.date)) + '</b>.</div>';
+  const e0 = etabs.find(function(e) { return etabOpen(e, draft.date, draft.creneau); }) || etabs[0];
+  // v20.290 — client à deux créneaux : Matin / Après-midi, chacun avec son état
+  if (etabs.some(deuxCreneaux)) {
+    h += '<div class="sec">Matin ou après-midi ?</div><div class="crens">';
+    creneauStates(draft.date).forEach(function(c) {
+      const eo = etabs.find(function(e) { return etabOpen(e, draft.date, c.creneau); }) || etabs[0];
+      const em = c.state === 'late' ? (c.has ? 'clôturée' : 'trop tard') : (c.has ? 'déjà commandé' : 'jusqu\'à ' + butoirTxt(eo, draft.date, c.creneau));
+      const hr = livraisonHeure(eo, draft.date, c.creneau);
+      h += '<div class="cren ' + c.state + (c.creneau === draft.creneau ? ' on' : '') + '" onclick="pickCreneau(\'' + c.creneau + '\')"><b>' + CRENEAU_ICO[c.creneau] + ' ' + CRENEAU_LBL[c.creneau] + (hr ? ' <small style="font-weight:500;color:var(--grey-light)">vers ' + escapeHtml(hr) + '</small>' : '') + '</b><em>' + escapeHtml(em) + '</em></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="hint">Livraison <b>' + escapeHtml(formatDateFr(draft.date)) + (deuxCreneaux(e0) ? ' · ' + creneauLbl(draft.creneau) : '') + '</b>' + (livraisonHeure(e0, draft.date, draft.creneau) ? ' vers ' + livraisonHeure(e0, draft.date, draft.creneau) : '') + ' par ' + escapeHtml(prepareLabel(e0, draft.date)) + '. Tu peux modifier jusqu\'à <b>' + escapeHtml(butoirTxt(e0, draft.date, draft.creneau)) + '</b>.</div>';
   const elig = teamEligible();
   if (elig.length > 1) {
     h += '<span class="lbl">Qui passe la commande ?</span><select class="who" onchange="draft.who=this.value"><option value="">— Choisir —</option>' + elig.map(function(c) { return '<option value="' + escapeHtml(c.nom) + '"' + (draft.who === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>'; }).join('') + '</select>';
   }
   h += '<div class="sec">2 · Quoi ? <span class="n">' + (draft.editing ? 'ta commande actuelle' : 'pré-rempli avec la dernière fois') + '</span></div><div class="card" style="padding:4px 14px 10px">';
   catalogueUnion().forEach(function(p) {
-    const lastSingle = !multi && lastItems(etabs[0])[p.id];
+    const lastSingle = !multi && lastItems(etabs[0], draft.creneau)[p.id];
     const pk = packOf(p) || 1;
     h += '<div class="prow' + (multi ? ' multi' : '') + '"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(packLabel(p)) + (lastSingle ? ' · la dernière fois : ' + escapeHtml(fmtQty(p, lastSingle)) : '') + '</small></div><div class="steps">';
     etabs.forEach(function(e) {
-      const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date);
+      const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date, draft.creneau);
       const q = Number(draft.qty[e.id][p.id]) || 0;
-      const last = lastItems(e)[p.id];
+      const last = lastItems(e, draft.creneau)[p.id];
       const step = '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + (q / pk) + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
       // plusieurs établissements : l'étiquette (et « dernière fois ») sur chaque compteur
       h += multi ? '<div class="stp"><small><b>' + escapeHtml(shortLabel(e)) + '</b>' + (ok ? (last ? ' · dernière fois ' + escapeHtml(fmtQty(p, last)) : '') : ' · pas ce produit') + '</small>' + step + '</div>' : step;
@@ -431,8 +496,8 @@ function renderOrder(b) {
   });
   h += '<div class="tot" id="tot"></div></div>';
   h += '<textarea class="note" rows="2" placeholder="Un mot pour la boulangerie ? (facultatif)" oninput="draft.notes=this.value">' + escapeHtml(draft.notes || '') + '</textarea>';
-  h += '<button class="cta" style="margin-top:12px" onclick="saveOrder()">✓ Valider pour ' + escapeHtml(DOW_NAMES[dowOf(draft.date)] + ' ' + new Date(draft.date + 'T12:00').getDate()) + '</button>';
-  if (draft.editing) h += '<button class="btn2 danger" onclick="cancelOrder(\'' + draft.date + '\')">Annuler cette commande</button>';
+  h += '<button class="cta" style="margin-top:12px" onclick="saveOrder()">✓ Valider pour ' + escapeHtml(DOW_NAMES[dowOf(draft.date)] + ' ' + new Date(draft.date + 'T12:00').getDate() + (etabs.some(deuxCreneaux) ? ' · ' + creneauLbl(draft.creneau) : '')) + '</button>';
+  if (draft.editing) h += '<button class="btn2 danger" onclick="cancelOrder(\'' + draft.date + '\', null, \'' + draft.creneau + '\')">Annuler cette commande</button>';
   h += '<div class="foot">Un + ou un − par tap, ou tape le nombre (pour les produits en caisse ou en sac, c\'est le nombre de colis). Les demandes hors catalogue se font dans le mot pour la boulangerie.</div>';
   b.innerHTML = h;
   refreshTotals();
@@ -445,33 +510,34 @@ async function saveOrder() {
   if (teamEligible().length > 1 && !(d.who || '').trim()) { toast('Choisis qui passe la commande', 'err'); return; }
   const fermes = etabs.filter(function(e) { return items[e.id].length && !jourPossible(e, d.date); });   // v20.286
   if (fermes.length) { const src = fermes[0].boutique_principale || 'local'; toast((BOUTIQUE_NAMES[src] || 'La boulangerie') + ' est fermé ce ' + DOW_NAMES[dowOf(d.date)] + ' : pas de livraison possible ce jour-là', 'err'); return; }
-  const tooLate = etabs.filter(function(e) { return (items[e.id].length || ordersOf(e.id, d.date).length) && !etabOpen(e, d.date); });
+  const tooLate = etabs.filter(function(e) { return (items[e.id].length || ordersOf(e.id, d.date, d.creneau).length) && !etabOpen(e, d.date, d.creneau); });
   if (tooLate.length) { const src = tooLate[0].boutique_principale || 'local'; toast('Trop tard pour ' + formatDateFr(d.date) + ' : appelle ' + (BOUTIQUE_NAMES[src] || 'la boulangerie') + ' au ' + (SHOP_TELS[src] || SHOP_TELS.local), 'err'); return; }
   const created_by = 'pro_self' + ((d.who || '').trim() ? ':' + d.who.trim() : '');
   for (let i = 0; i < etabs.length; i++) {
     const e = etabs[i];
-    const had = ordersOf(e.id, d.date);
+    const had = ordersOf(e.id, d.date, d.creneau);
     if (!items[e.id].length && !had.length && !(etabs.length === 1 && (d.notes || '').trim())) continue;   // rien pour cet établissement
-    const r = await saveSplit(e, d.date, items[e.id], (d.notes || '').trim() || null, created_by, had.length > 0);
+    const r = await saveSplit(e, d.date, items[e.id], (d.notes || '').trim() || null, created_by, had.length > 0, d.creneau);
     if (r.error) { toast('Erreur : ' + r.error, 'err'); return; }
   }
   await loadOrders();
-  doneInfo = { date: d.date, editing: d.editing }; draft = null; tab = 'home';
+  doneInfo = { date: d.date, creneau: d.creneau, editing: d.editing }; draft = null; tab = 'home';
   render(); window.scrollTo(0, 0);
 }
 // même découpage par site que l'app interne (sources par catégorie), un morceau par site
-async function saveSplit(etab, date, items, notes, created_by, editing) {
+async function saveSplit(etab, date, items, notes, created_by, editing, creneau) {
+  creneau = (creneau === 'apres_midi') ? 'apres_midi' : 'matin';   // v20.290
   const groups = {};
   for (let k = 0; k < items.length; k++) { const src = sourceEffective(etab, sourceFor(etab, items[k].product_id), date); if (src === null) return { error: 'fermé ce jour-là' }; (groups[src] = groups[src] || []).push(items[k]); }
   if (!Object.keys(groups).length) { const s0 = sourceEffective(etab, etab.boutique_principale || 'local', date); if (s0 === null) return { error: 'fermé ce jour-là' }; groups[s0] = []; }
   // v20.289 — les morceaux existants viennent de la base (fonction filtrée par le lien), pas de l'écran
   let siblings = [];
-  if (editing) { const s = await supa.rpc('pro_page_orders', { p_token: token, p_from: date, p_to: date }); siblings = (s.data || []).filter(function(o) { return o.pro_id === etab.id && o.statut !== 'annule'; }); }
+  if (editing) { const s = await supa.rpc('pro_page_orders', { p_token: token, p_from: date, p_to: date }); siblings = (s.data || []).filter(function(o) { return o.pro_id === etab.id && o.statut !== 'annule' && (o.creneau || 'matin') === creneau; }); }
   const used = [];
   const sources = Object.keys(groups);
   for (let i = 0; i < sources.length; i++) {
     const src = sources[i];
-    const row = { pro_id: etab.id, date_livraison: date, boutique_source: src, statut: 'confirme', notes: notes, created_by: created_by };
+    const row = { pro_id: etab.id, date_livraison: date, boutique_source: src, statut: 'confirme', notes: notes, created_by: created_by, creneau: creneau };
     const target = siblings.find(function(s) { return s.boutique_source === src && used.indexOf(s.id) === -1; });
     if (!target && !groups[src].length) continue;
     const items = groups[src].map(function(it) { return { product_id: it.product_id, qty: it.qty, prix_applique: appliedPrice(etab, it.product_id) }; });
@@ -483,37 +549,39 @@ async function saveSplit(etab, date, items, notes, created_by, editing) {
   if (restes.length) { const c = await supa.rpc('pro_page_cancel', { p_token: token, p_ids: restes, p_delete_items: true }); if (c.error) return { error: c.error.message }; }
   return { ok: true };
 }
-async function cancelOrder(date, etabId) {
+async function cancelOrder(date, etabId, creneau) {
+  const cr = creneau || 'matin';
   const list = etabs.filter(function(e) { return !etabId || e.id === etabId; });
-  const open = list.filter(function(e) { return ordersOf(e.id, date).length && etabOpen(e, date); });
+  const open = list.filter(function(e) { return ordersOf(e.id, date, cr).length && etabOpen(e, date, cr); });
   if (!open.length) { toast('Modification clôturée (heure limite dépassée)', 'err'); return; }
-  if (!confirm('Annuler la commande du ' + formatDateFr(date) + (etabId ? ' pour ' + shortLabel(etabs.find(function(e) { return e.id === etabId; })) : '') + ' ?')) return;
-  const ids = []; open.forEach(function(e) { ordersOf(e.id, date).forEach(function(o) { ids.push(o.id); }); });
+  if (!confirm('Annuler la commande du ' + formatDateFr(date) + (etabs.some(deuxCreneaux) ? ' (' + creneauLbl(cr) + ')' : '') + (etabId ? ' pour ' + shortLabel(etabs.find(function(e) { return e.id === etabId; })) : '') + ' ?')) return;
+  const ids = []; open.forEach(function(e) { ordersOf(e.id, date, cr).forEach(function(o) { ids.push(o.id); }); });
   const r = await supa.rpc('pro_page_cancel', { p_token: token, p_ids: ids, p_delete_items: false });
   if (r.error) { toast('Erreur : ' + r.error.message, 'err'); return; }
   await loadOrders(); draft = null; detailKey = null; doneInfo = null; tab = 'home'; render(); toast('Commande annulée');
 }
 function renderDone(b) {
-  setHdr('Commande du ' + DOW_NAMES[dowOf(doneInfo.date)] + ' ' + new Date(doneInfo.date + 'T12:00').getDate(), clientLabel(), true);
+  const cr = doneInfo.creneau || 'matin';
+  setHdr('Commande du ' + DOW_NAMES[dowOf(doneInfo.date)] + ' ' + new Date(doneInfo.date + 'T12:00').getDate() + (etabs.some(deuxCreneaux) ? ' · ' + creneauLbl(cr) : ''), clientLabel(), true);
   const multi = etabs.length > 1;
-  const gs = groupedOrders().filter(function(g) { return g.date === doneInfo.date; });
+  const gs = groupedOrders().filter(function(g) { return g.date === doneInfo.date && g.creneau === cr; });
   const e0 = gs[0] ? gs[0].etab : etabs[0];
-  let h = '<div class="okbox">✓ C\'est noté' + (firstName() ? ', merci ' + escapeHtml(firstName()) : '') + ' !<small>Livraison ' + escapeHtml(formatDateFr(doneInfo.date)) + (livraisonHeure(e0, doneInfo.date) ? ' vers ' + livraisonHeure(e0, doneInfo.date) : '') + ' par ' + escapeHtml(prepareLabel(e0, doneInfo.date)) + '</small></div>';
+  let h = '<div class="okbox">✓ C\'est noté' + (firstName() ? ', merci ' + escapeHtml(firstName()) : '') + ' !<small>Livraison ' + escapeHtml(formatDateFr(doneInfo.date)) + (deuxCreneaux(e0) ? ' · ' + creneauLbl(cr) : '') + (livraisonHeure(e0, doneInfo.date, cr) ? ' vers ' + livraisonHeure(e0, doneInfo.date, cr) : '') + ' par ' + escapeHtml(prepareLabel(e0, doneInfo.date)) + '</small></div>';
   gs.forEach(function(g) { h += '<div class="card">' + (multi ? '<div class="sec" style="margin:0 0 6px">' + escapeHtml(shortLabel(g.etab)) + '</div>' : '') + '<div class="dtl">' + Object.keys(g.items).filter(function(k) { return g.items[k] > 0; }).map(function(k) { return '<span>' + escapeHtml(productName(k)) + '</span><span class="q">' + g.items[k] + '</span>'; }).join('') + '</div><div class="tot"><span>Total</span><b>' + totalPieces(g.items) + ' pièces</b></div></div>'; });
   if (!gs.length) h += '<div class="card"><div class="empty">Commande sans produit (mot pour la boulangerie).</div></div>';
-  if (gs.some(function(g) { return etabOpen(g.etab, g.date); })) h += '<button class="btn2" onclick="openOrder(\'' + doneInfo.date + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(e0, doneInfo.date)) + ')</button>';
+  if (gs.some(function(g) { return etabOpen(g.etab, g.date, g.creneau); })) h += '<button class="btn2" onclick="openOrder(\'' + doneInfo.date + '\', \'' + cr + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(e0, doneInfo.date, cr)) + ')</button>';
   h += '<button class="btn2" onclick="go(\'home\')">Retour à l\'accueil</button>';
   b.innerHTML = h;
 }
 function openDetail(key) { detailKey = key; doneInfo = null; render(); window.scrollTo(0, 0); }
 function renderDetail(b) {
-  const g = groupedOrders().find(function(x) { return x.key === detailKey; });
+  const g = groupedOrders().find(function(x) { return x.key === detailKey; }) || groupedOrders().find(function(x) { return x.key.indexOf(detailKey + '|') === 0; });   // v20.290 — ancienne clé « etab|date » acceptée
   if (!g) { detailKey = null; return render(); }
-  setHdr('Commande du ' + DOW_NAMES[dowOf(g.date)] + ' ' + new Date(g.date + 'T12:00').getDate(), (etabs.length > 1 ? shortLabel(g.etab) + ' · ' : '') + (STATUT_LBL[g.statut] || g.statut), true);
-  const can = etabOpen(g.etab, g.date) && g.statut !== 'livre';
+  setHdr('Commande du ' + DOW_NAMES[dowOf(g.date)] + ' ' + new Date(g.date + 'T12:00').getDate() + (deuxCreneaux(g.etab) ? ' · ' + creneauLbl(g.creneau) : ''), (etabs.length > 1 ? shortLabel(g.etab) + ' · ' : '') + (STATUT_LBL[g.statut] || g.statut), true);
+  const can = etabOpen(g.etab, g.date, g.creneau) && g.statut !== 'livre';
   let h = '<div class="card"><div class="dtl">' + Object.keys(g.items).filter(function(k) { return g.items[k] > 0; }).map(function(k) { return '<span>' + escapeHtml(productName(k)) + '</span><span class="q">' + g.items[k] + '</span>'; }).join('') + '</div>'
     + '<div class="tot"><span>Total' + (g.who ? ' · commandé par ' + escapeHtml(g.who) : '') + '</span><b>' + totalPieces(g.items) + ' pièces</b></div>' + (g.notes ? '<div class="hint" style="margin:8px 0 0">📝 ' + escapeHtml(g.notes) + '</div>' : '') + '</div>';
-  if (can) h += '<button class="btn2" onclick="openOrder(\'' + g.date + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(g.etab, g.date)) + ')</button><button class="btn2 danger" onclick="cancelOrder(\'' + g.date + '\',\'' + g.etab.id + '\')">Annuler cette commande</button>';
+  if (can) h += '<button class="btn2" onclick="openOrder(\'' + g.date + '\', \'' + g.creneau + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(g.etab, g.date, g.creneau)) + ')</button><button class="btn2 danger" onclick="cancelOrder(\'' + g.date + '\',\'' + g.etab.id + '\',\'' + g.creneau + '\')">Annuler cette commande</button>';
   else if (g.statut !== 'livre') h += '<div class="hint">Modification clôturée (heure limite dépassée). Pour un dépannage, appelle la boulangerie.</div>';
   h += footerHtml();
   b.innerHTML = h;
