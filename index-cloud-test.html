@@ -2715,7 +2715,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.291';
+const APP_VERSION  = 'v20.292';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7689,7 +7689,7 @@ function renderLivreurProOrdersSection() {
           + '<div style="flex:1;min-width:0">'
             + '<div style="font-weight:700;color:var(--brown);font-size:14px">' + escapeHtml(proNom) + (isDelivered ? ' <span style="color:var(--green);font-size:11px">✓ Livrée</span>' : '') + '</div>'
             + (contactInfo ? '<div style="color:var(--brown-mid);font-size:11px;margin-top:2px">' + contactInfo + '</div>' : '')
-            + '<div style="color:#888;font-size:11px;margin-top:2px">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + ' · <strong style="color:var(--brown)">' + fmtEUR(totalOrder) + '</strong></div>'
+            + '<div style="color:#888;font-size:11px;margin-top:2px">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + (prixVisibles() ? ' · <strong style="color:var(--brown)">' + fmtEUR(totalOrder) + '</strong>' : '') + '</div>'
             + (o.notes ? '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:4px 8px;margin-top:4px;font-size:11px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>' : '')
           + '</div>'
           + '<button class="livreur-check ' + (isDelivered ? 'checked' : '') + '" onclick="markProOrderDelivered(\'' + o.id + '\', \'' + o.statut + '\')" title="' + (isDelivered ? 'Annuler la livraison' : 'Marquer livrée') + '">✓</button>'
@@ -11990,7 +11990,7 @@ function renderProInterfaceOrdersList(orders, productsMap, pro, canShowActions) 
           + ' <span style="color:' + statutColor + ';font-size:11px;font-weight:700"> · ' + statutLbl + '</span>'
           + (proOrderByName(o) ? ' <span style="color:var(--brown-mid);font-size:11px">· 👤 ' + escapeHtml(proOrderByName(o)) + '</span>' : '')
         + '</div>'
-        + '<div style="font-weight:800;color:var(--gold-dark)">' + (total > 0 ? total.toFixed(2).replace('.', ',') + ' €' : '—') + '</div>'
+        + (prixVisibles() ? '<div style="font-weight:800;color:var(--gold-dark)">' + (total > 0 ? total.toFixed(2).replace('.', ',') + ' €' : '—') + '</div>' : '')   // v20.292
       + '</div>';
     if (o.notes) {
       html += '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:6px 10px;margin:6px 0;font-size:12px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>';
@@ -12227,6 +12227,10 @@ async function proTeamDelete(idx) {
 }
 
 // Nom du commanditaire tracé dans created_by ('pro_self:Kevin') — null si non renseigné
+// v20.292 — les prix des pros ne s'affichent qu'en BackOffice (Phil, 26/10 : « juste moi en back office ») :
+// l'équipe en boutique, le livreur et la production ne voient que les quantités. Les prix restent
+// enregistrés sur chaque ligne (prix_applique) pour les récaps et la facturation côté BackOffice.
+function prixVisibles() { return currentBoutique === 'backoffice'; }
 function proOrderByName(o) {
   return (o && typeof o.created_by === 'string' && o.created_by.indexOf('pro_self:') === 0)
     ? o.created_by.slice(9) : null;
@@ -12450,13 +12454,13 @@ function renderProInterfaceForm(proEl) {
       html += '<button onclick="removeProInterfaceItem(' + idx + ')" style="padding:8px 10px;background:#FEF2F2;border:1px solid var(--red);border-radius:6px;color:var(--red);font-size:12px;cursor:pointer">🗑️</button>';
       html += '</div>';
       // Sous-total
-      if (it.prix_applique != null && it.qty > 0) {
+      if (prixVisibles() && it.prix_applique != null && it.qty > 0) {   // v20.292
         html += '<div style="text-align:right;font-size:11px;color:var(--brown-mid);padding-bottom:6px">' + (prod ? escapeHtml(prod.name) + ' · ' : '') + Number(it.prix_applique).toFixed(2).replace('.', ',') + ' € × ' + it.qty + ' = <strong style="color:var(--brown)">' + sub.toFixed(2).replace('.', ',') + ' €</strong></div>';
       }
     });
   }
   html += '<button onclick="addProInterfaceItem()" style="width:100%;padding:10px;background:transparent;border:1px dashed var(--gold);border-radius:8px;color:var(--gold-dark);font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">+ Ajouter un produit</button>';
-  if (total > 0) {
+  if (total > 0 && prixVisibles()) {   // v20.292
     html += '<div style="text-align:right;font-family:Georgia,serif;font-size:16px;font-weight:800;color:var(--gold-dark);margin-top:10px;padding-top:10px;border-top:2px solid #F5F0E8">Total : ' + total.toFixed(2).replace('.', ',') + ' €</div>';
   }
   html += '</div>';
@@ -15415,7 +15419,7 @@ function renderProOrders() {
             itemsHtml += '<div class="pro-order-item-inline">'
               + '<span class="pro-order-item-qty-inline">' + escapeHtml(String(it.qty)) + '×</span>'
               + '<span class="pro-order-item-name-inline">' + escapeHtml(prodName) + prodUnit + '</span>'
-              + '<span class="pro-order-item-prix-inline">' + prix + (sousTotal ? ' → ' + sousTotal : '') + '</span>'
+              + (prixVisibles() ? '<span class="pro-order-item-prix-inline">' + prix + (sousTotal ? ' → ' + sousTotal : '') + '</span>' : '')   // v20.292
             + '</div>';
           });
           itemsHtml += '</div>';
@@ -15436,7 +15440,7 @@ function renderProOrders() {
               + '<div class="pro-order-name">' + escapeHtml(proName) + proCreneauBadge(o, pro) + srcBadge
                 + (byName ? ' <span style="font-size:11px;color:var(--brown-mid);font-weight:500">👤 ' + escapeHtml(byName) + '</span>' : '')
               + '</div>'
-              + '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>'
+              + (prixVisibles() ? '<div class="pro-order-card-total">' + totalVal.toFixed(2) + ' €</div>' : '')   // v20.292
             + '</div>'
             + itemsHtml
             + specialHtml
@@ -15545,8 +15549,9 @@ function renderProOrderForm(mc) {
       return opts;
     }
     d.items.forEach(function(it, idx) {
-      const prixDisp = (it.prix_applique != null) ? Number(it.prix_applique).toFixed(2) + ' €' : '—';
-      let sousTotal = (it.prix_applique != null && it.qty)
+      // v20.292 — prix seulement en BackOffice ; en boutique la colonne ne sert qu'au conditionnement
+      const prixDisp = !prixVisibles() ? '' : (it.prix_applique != null) ? Number(it.prix_applique).toFixed(2) + ' €' : '—';
+      let sousTotal = (prixVisibles() && it.prix_applique != null && it.qty)
         ? (Number(it.prix_applique) * Number(it.qty)).toFixed(2) + ' €'
         : '';
       // v20.275 — conditionnement imposé : rappel « 2 caisses de 8 » sous le prix, arrondi au colis à la validation du champ
@@ -15561,7 +15566,7 @@ function renderProOrderForm(mc) {
       + '</div>';
     });
     html += '<button class="pro-add-btn" onclick="addProOrderItem()">+ Ajouter un produit</button>';
-    if (totalVal > 0) {
+    if (totalVal > 0 && prixVisibles()) {   // v20.292
       html += '<div class="pro-order-total">Total commande : <strong>' + totalVal.toFixed(2) + ' €</strong></div>';
     }
   }

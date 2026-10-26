@@ -197,6 +197,12 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
   (les morceaux d'origine sont réécrits, `origProId` / `origDate` / `origCreneau` dans `saveProOrderSplit`) ;
   avant, ça créait un doublon sous le nouveau pro en laissant l'ancien (commande du QG de Loulou tapée sur « la folie »).
 
+**Pros — prix visibles seulement en BackOffice (v20.292, 26/10/2026)** : `prixVisibles()` =
+`currentBoutique === 'backoffice'`. Onglet Pros des boutiques (cartes + formulaire), tournée livreur et
+ancien espace pro intégré n'affichent que les quantités ; `prix_applique` reste enregistré sur chaque ligne
+pour les récaps / la facturation du BackOffice (fiche prix spéciaux, Récap, Semaine inchangés). Tout nouvel
+écran équipe qui montre une commande pro doit passer par `prixVisibles()`. Test : spec 45.
+
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
   les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique
