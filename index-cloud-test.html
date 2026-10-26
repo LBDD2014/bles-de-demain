@@ -2718,7 +2718,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.293';
+const APP_VERSION  = 'v20.294';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -7129,6 +7129,7 @@ html += '<div class="empty-state">'
 }
 
 mc.innerHTML = html;
+if (isLivreurMode) livreurPopupAuto('ouverture');   // v20.294 — à partir de 17h : commandes pros pas mises en compte
 }
 
 // v20.1 : Validation produit par produit côté livreur
@@ -7588,6 +7589,7 @@ async function markProOrderDelivered(orderId, currentStatus) {
   // Optimistic local update (realtime suit, mais évite le flicker)
   if (order) order.statut = newStatus;
   renderLivraison();
+  if (newStatus === 'livre') livreurPopupAuto('derniere');   // v20.294
 }
 
 // v20.169 — Qui livre ce pro ce jour-là ? 'livreur' | 'retrait' (le pro vient chercher)
@@ -7706,6 +7708,7 @@ function renderLivreurProOrdersSection() {
             + (contactInfo ? '<div style="color:var(--brown-mid);font-size:11px;margin-top:2px">' + contactInfo + '</div>' : '')
             + '<div style="color:#888;font-size:11px;margin-top:2px">' + items.length + ' ligne' + (items.length > 1 ? 's' : '') + (prixVisibles() ? ' · <strong style="color:var(--brown)">' + fmtEUR(totalOrder) + '</strong>' : '') + '</div>'
             + (o.notes ? '<div style="background:#FEF8E6;border-left:3px solid var(--gold);padding:4px 8px;margin-top:4px;font-size:11px;color:var(--brown)">⭐ ' + escapeHtml(o.notes) + '</div>' : '')
+            + proMiseEnCompteBtnHtml(o)   // v20.294 — le livreur met en compte
           + '</div>'
           + '<button class="livreur-check ' + (isDelivered ? 'checked' : '') + '" onclick="markProOrderDelivered(\'' + o.id + '\', \'' + o.statut + '\')" title="' + (isDelivered ? 'Annuler la livraison' : 'Marquer livrée') + '">✓</button>'
         + '</div>';
@@ -12261,7 +12264,8 @@ function proMiseEnCompteBtnHtml(o) {
   return '<button type="button" class="pro-compte-btn' + (fait ? ' fait' : '') + '" onclick="event.stopPropagation(); toggleProMiseEnCompte(\'' + escapeHtml(o.id) + '\')" title="' + (fait ? 'Annuler la mise en compte' : 'Marquer passée en caisse') + '">' + lbl + '</button>';
 }
 async function toggleProMiseEnCompte(orderId) {
-  const o = proOrdersData.find(function(x) { return x.id === orderId; });
+  // v20.294 — aussi depuis l'écran du livreur (c'est lui qui met en compte les commandes du Local)
+  const o = proOrdersData.find(function(x) { return x.id === orderId; }) || livreurProOrders.find(function(x) { return x.id === orderId; });
   if (!o) return;
   const fait = proEnCompte(o);
   if (fait && !confirm('Annuler la mise en compte de cette commande ?')) return;
@@ -12271,9 +12275,63 @@ async function toggleProMiseEnCompte(orderId) {
   if (error || !data || !data.length) { setSyncStatus('error'); showToast(error ? error.message : 'Modif bloquée par Supabase (RLS).', 'error'); return; }
   setSyncStatus('ok');
   Object.assign(o, row);
-  renderProOrders();
+  livreurProOrders.concat(proOrdersData).forEach(function(x) { if (x.id === orderId) Object.assign(x, row); });
+  if (isLivreurMode) { renderLivraison(); livreurProsEnComptePopup(false); } else renderProOrders();   // v20.294
   showToast(fait ? 'Mise en compte annulée' : 'Mise en compte ✓', 'sync');
   refreshOublis(true);   // la commande sort du bandeau des oublis tout de suite
+}
+// v20.294 — Livreur (Phil, 26/10 : « au Local c'est lui qui met en compte ») : bouton 💶 sur ses cartes de tournée
+// et pop-up avec les commandes pros du jour pas encore en compte, à la dernière livraison cochée et à l'ouverture
+// de la Tournée à partir de 17h (une fois par jour et par ouverture de l'app). Toutes les commandes qu'il livre.
+let livreurPopupKey = '';
+function livreurTourneeOrders() {
+  const prosMap = {};
+  (adminPros || []).forEach(function(p) { prosMap[p.id] = p; });
+  return livreurProOrders.filter(function(o) {
+    const pro = prosMap[o.pro_id];
+    const src = o.boutique_source || (pro && pro.boutique_principale) || '?';
+    return o.statut !== 'annule' && proTourneeMode(pro, src, currentDate) === 'livreur';
+  });
+}
+function livreurProsPasEnCompte() {
+  return livreurTourneeOrders().filter(function(o) { return o.statut !== 'brouillon' && !proEnCompte(o); });
+}
+function livreurProsEnComptePopup(ouvrir) {
+  let el = document.getElementById('livreur-compte-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'livreur-compte-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  if (!ouvrir && !el.classList.contains('show')) return;   // rafraîchissement : seulement si déjà ouverte
+  const list = livreurProsPasEnCompte();
+  if (!list.length) { el.classList.remove('show'); el.innerHTML = ''; if (!ouvrir) showToast('Tout est en compte ✓', 'sync'); return; }
+  const prosMap = {};
+  (adminPros || []).forEach(function(p) { prosMap[p.id] = p; });
+  let h = '<div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">'
+    + '<div class="modal-title">💶 Mise en compte — ' + list.length + ' commande' + (list.length > 1 ? 's' : '') + ' pro</div>'
+    + '<div class="modal-sub">Pas encore passée' + (list.length > 1 ? 's' : '') + ' en caisse aujourd\'hui. Un tap sur 💶 quand c\'est fait.</div>';
+  list.forEach(function(o) {
+    const pro = prosMap[o.pro_id];
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed #E8D5A3">'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:700;color:var(--brown)">' + escapeHtml(pro ? pro.nom : o.pro_id) + proCreneauBadge(o, pro)
+      + (o.statut === 'livre' ? ' <span style="color:var(--green);font-size:11px">✓ Livrée</span>' : '') + '</div>'
+      + '<div style="font-size:12px;color:var(--brown-mid)">' + escapeHtml(maJourneeOrderSummary(o)) + ' · ' + escapeHtml(BOUTIQUE_NAMES[o.boutique_source] || o.boutique_source || '') + '</div></div>'
+      + '<button type="button" class="pro-compte-btn" style="margin:0;flex:0 0 auto" onclick="toggleProMiseEnCompte(\'' + escapeHtml(o.id) + '\')">💶 Mise en compte</button>'
+    + '</div>';
+  });
+  h += '<button class="btn-grey" style="width:100%;padding:12px;margin-top:12px" onclick="document.getElementById(\'livreur-compte-modal\').classList.remove(\'show\')">Plus tard</button></div>';
+  el.innerHTML = h;
+  el.classList.add('show');
+}
+// à l'ouverture de la Tournée : à partir de 17h, une fois par jour ; à la dernière livraison cochée : tout de suite
+function livreurPopupAuto(declencheur) {
+  if (!isLivreurMode || currentDate !== serviceDateISO()) return;
+  if (declencheur === 'ouverture') {
+    if (livreurPopupKey === currentDate || oublisHeureActuelle() < OUBLIS_PROCOMPTE_HEURE) return;
+  } else {
+    const t = livreurTourneeOrders();
+    if (!t.length || t.some(function(o) { return o.statut !== 'livre'; })) return;   // il reste des livraisons
+  }
+  if (!livreurProsPasEnCompte().length) return;
+  livreurPopupKey = currentDate;
+  livreurProsEnComptePopup(true);
 }
 function proOrderByName(o) {
   return (o && typeof o.created_by === 'string' && o.created_by.indexOf('pro_self:') === 0)

@@ -210,6 +210,10 @@ Chaque boutique compte **les commandes qu'elle prépare** (`boutique_source`), L
 Bandeau « oublis à rattraper » : ligne « 💶 Commandes pros pas mises en compte » avec les noms des pros, jours
 passés + **aujourd'hui à partir de 17h** (`OUBLIS_PROCOMPTE_HEURE`) **ou dès que les ventes du jour sont validées** ;
 rappel (toast) à la validation des ventes (`rappelProsEnCompte`). BackOffice → Oublis : ligne par site. Test : spec 46.
+**v20.294 — Livreur** : « au Local c'est lui qui met en compte ». Bouton 💶 sur ses cartes de tournée (toutes les
+commandes qu'il livre, Local et Veigné), `mise_en_compte_by = 'livreur'`. **Pop-up** (`livreurProsEnComptePopup`,
+liste + bouton 💶 par commande + « Plus tard ») : à la **dernière livraison pro cochée** du jour, et à l'ouverture de la
+Tournée **à partir de 17h**, une fois par jour. Le Local garde sa ligne dans le bandeau. Test : spec 47.
 
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
