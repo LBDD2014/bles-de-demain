@@ -1914,6 +1914,9 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 .pro-creneau-pick button.on { background:var(--gold); border-color:var(--gold); color:white; }
 .pro-order-meta { font-size: 12px; color: var(--brown-mid); margin-top: 2px; }
 .pro-order-arrow { color: var(--brown-mid); font-size: 22px; font-weight: 700; padding-top: 2px; }
+/* v20.293 — 💶 Mise en compte (passée en caisse) */
+.pro-compte-btn { margin-top: 8px; padding: 9px 14px; border-radius: 10px; border: 1.5px solid var(--gold-dark); background: #fff; color: var(--gold-dark); font-weight: 700; font-size: 13px; cursor: pointer; }
+.pro-compte-btn.fait { background: var(--green); border-color: var(--green); color: #fff; }
 .pro-order-special-badge {
   font-size: 14px; vertical-align: middle;
   filter: drop-shadow(0 1px 2px rgba(206,171,82,0.5));
@@ -2715,7 +2718,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.292';
+const APP_VERSION  = 'v20.293';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -6452,6 +6455,18 @@ async function validateDay() {
   if (unvalidateRows.length) parts.push(unvalidateRows.length + ' nettoyés');
   showToast(parts.join(' · '), 'sync');
   refreshOublis(true);   // v20.264 — la journée validée sort tout de suite de la barre d'oublis
+  rappelProsEnCompte();  // v20.293 — fin de journée : commandes pros pas encore passées en caisse
+}
+// v20.293 — à la validation des ventes du jour : rappel (sans bloquer) des commandes pros du site pas mises en compte
+async function rappelProsEnCompte() {
+  if (!OUBLIS_CTRL[currentBoutique] || !OUBLIS_CTRL[currentBoutique].procompte || currentDate !== serviceDateISO()) return;
+  const { data } = await supa.from('pro_orders').select('id,pro_id,statut,mise_en_compte_at')
+    .eq('tenant_id', TENANT_ID).eq('boutique_source', currentBoutique).eq('date_livraison', currentDate);
+  const manque = (data || []).filter(function(o) { return !o.mise_en_compte_at && o.statut !== 'annule' && o.statut !== 'brouillon'; });
+  if (!manque.length) return;
+  const noms = manque.map(function(o) { const p = (adminPros || []).find(function(x) { return x.id === o.pro_id; }); return p ? p.nom : o.pro_id; });
+  showToast('💶 ' + manque.length + ' commande' + (manque.length > 1 ? 's' : '') + ' pro pas encore mise' + (manque.length > 1 ? 's' : '') + ' en compte : ' + noms.join(', '), 'warn');
+  oublisOuvert = true;
 }
 
 // v20.1 : Importer global = J1=0 pour tous les produits avec previs
@@ -12231,6 +12246,35 @@ async function proTeamDelete(idx) {
 // l'équipe en boutique, le livreur et la production ne voient que les quantités. Les prix restent
 // enregistrés sur chaque ligne (prix_applique) pour les récaps et la facturation côté BackOffice.
 function prixVisibles() { return currentBoutique === 'backoffice'; }
+// v20.293 — « 💶 Mise en compte » (Phil, 26/10 : « c'est notre façon à nous de dire que c'est entré dans la caisse »).
+// Un tap = passée en caisse (heure + boutique), un second tap = annulé. Les commandes annulées / brouillons n'en ont pas.
+function proEnCompte(o) { return !!(o && o.mise_en_compte_at); }
+function proMiseEnCompteBtnHtml(o) {
+  if (!o || o.statut === 'annule' || o.statut === 'brouillon') return '';
+  const fait = proEnCompte(o);
+  let lbl = '💶 Mise en compte';
+  if (fait) {
+    const h = new Date(o.mise_en_compte_at);
+    lbl = '✓ En compte' + (isNaN(h.getTime()) ? '' : ' ' + String(h.getHours()).padStart(2, '0') + 'h' + String(h.getMinutes()).padStart(2, '0'))
+      + (o.mise_en_compte_by && BOUTIQUE_NAMES[o.mise_en_compte_by] ? ' · ' + BOUTIQUE_NAMES[o.mise_en_compte_by] : '');
+  }
+  return '<button type="button" class="pro-compte-btn' + (fait ? ' fait' : '') + '" onclick="event.stopPropagation(); toggleProMiseEnCompte(\'' + escapeHtml(o.id) + '\')" title="' + (fait ? 'Annuler la mise en compte' : 'Marquer passée en caisse') + '">' + lbl + '</button>';
+}
+async function toggleProMiseEnCompte(orderId) {
+  const o = proOrdersData.find(function(x) { return x.id === orderId; });
+  if (!o) return;
+  const fait = proEnCompte(o);
+  if (fait && !confirm('Annuler la mise en compte de cette commande ?')) return;
+  const row = fait ? { mise_en_compte_at: null, mise_en_compte_by: null } : { mise_en_compte_at: new Date().toISOString(), mise_en_compte_by: currentBoutique };
+  setSyncStatus('syncing');
+  const { data, error } = await supa.from('pro_orders').update(row).eq('id', orderId).select();
+  if (error || !data || !data.length) { setSyncStatus('error'); showToast(error ? error.message : 'Modif bloquée par Supabase (RLS).', 'error'); return; }
+  setSyncStatus('ok');
+  Object.assign(o, row);
+  renderProOrders();
+  showToast(fait ? 'Mise en compte annulée' : 'Mise en compte ✓', 'sync');
+  refreshOublis(true);   // la commande sort du bandeau des oublis tout de suite
+}
 function proOrderByName(o) {
   return (o && typeof o.created_by === 'string' && o.created_by.indexOf('pro_self:') === 0)
     ? o.created_by.slice(9) : null;
@@ -15444,6 +15488,7 @@ function renderProOrders() {
             + '</div>'
             + itemsHtml
             + specialHtml
+            + proMiseEnCompteBtnHtml(o)   // v20.293
           + '</div>'
           + '<div class="pro-order-arrow">›</div>'
         + '</div>';
@@ -16828,11 +16873,15 @@ const OUBLIS_FOURN_MOIS = [['four_mimosas', 'GAEC des Mimosas', 'phil', 'facture
 const OUBLIS_FOURN_MOIS_RAPPEL_DES = 25;   // à partir du 25 : « pense à saisir les bons du mois »
 const OUBLIS_FERME_SEMAINE = { 'saint-avertin': [1], local: [1], tours: [0], veigne: [] };   // getDay() : 0 = dim, 1 = lun
 const OUBLIS_CTRL = {
-  veigne:          { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true },
-  tours:           { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true },
-  'saint-avertin': { ventes: true,  fab: false, farine: false, fournMois: false, inventaire: false },
-  local:           { ventes: false, fab: true,  farine: true,  fournMois: true,  inventaire: true }
+  veigne:          { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true,  procompte: true },
+  tours:           { ventes: true,  fab: true,  farine: true,  fournMois: false, inventaire: true,  procompte: true },
+  'saint-avertin': { ventes: true,  fab: false, farine: false, fournMois: false, inventaire: false, procompte: false },
+  local:           { ventes: false, fab: true,  farine: true,  fournMois: true,  inventaire: true,  procompte: true }
 };
+// v20.293 — « 💶 Mise en compte » des commandes pros : la journée en cours entre dans le bandeau à partir de cette heure
+// (ou dès que les ventes du jour sont validées) ; les jours passés y restent tant que ce n'est pas fait.
+const OUBLIS_PROCOMPTE_HEURE = 17;
+function oublisHeureActuelle() { return new Date().getHours(); }
 const OUBLIS_SITES = ['veigne', 'tours', 'saint-avertin', 'local'];
 let oublisCache = null, oublisCacheAt = 0, oublisCacheKey = '', oublisOuvert = true;
 
@@ -16884,10 +16933,11 @@ async function loadOublis(sites, nbJours) {
   const fSites = sites.filter(function(s) { return OUBLIS_CTRL[s] && (OUBLIS_CTRL[s].fab || OUBLIS_CTRL[s].farine || OUBLIS_CTRL[s].inventaire); });
   const debMoisPrec = addDaysISO(today.slice(0, 8) + '01', -1).slice(0, 8) + '01';
   const vide = { data: [] };
-  const [sa, fp, fl, fi] = await Promise.all([
+  const pSites = sites.filter(function(s) { return OUBLIS_CTRL[s] && OUBLIS_CTRL[s].procompte; });   // v20.293
+  const [sa, fp, fl, fi, po, pn] = await Promise.all([
     vSites.length ? oublisFetchAll(function(a, b) {
       return supa.from('sales').select('boutique_id,date').eq('tenant_id', TENANT_ID).in('boutique_id', vSites)
-        .eq('day_closed', true).gte('date', d0).lte('date', d1).order('date').range(a, b);
+        .eq('day_closed', true).gte('date', d0).lte('date', today).order('date').range(a, b);   // v20.293 — aujourd'hui compris (ventes validées = fin de journée)
     }) : vide,
     fSites.length ? oublisFetchAll(function(a, b) {
       return supa.from('fab_production').select('site,date_prod,valide').in('site', fSites)
@@ -16896,8 +16946,19 @@ async function loadOublis(sites, nbJours) {
     fSites.length ? supa.from('fab_livraisons').select('site,date_livraison,fournisseur_id').in('site', fSites)
       .gte('date_livraison', addDaysISO(today, -60)).order('date_livraison', { ascending: false }).limit(500) : vide,
     fSites.length ? supa.from('fab_inventaires').select('site,date_inv').in('site', fSites)
-      .gte('date_inv', debMoisPrec).order('date_inv', { ascending: false }).limit(1000) : vide
+      .gte('date_inv', debMoisPrec).order('date_inv', { ascending: false }).limit(1000) : vide,
+    // v20.293 — commandes pros du site (préparées par lui) pas encore mises en compte, jours passés + aujourd'hui
+    pSites.length ? supa.from('pro_orders').select('id,pro_id,boutique_source,date_livraison,statut,mise_en_compte_at')
+      .eq('tenant_id', TENANT_ID).in('boutique_source', pSites).gte('date_livraison', d0).lte('date_livraison', today).limit(2000) : vide,
+    pSites.length ? supa.from('pros').select('id,nom').eq('tenant_id', TENANT_ID) : vide
   ]);
+  const proNoms = {};
+  ((pn && pn.data) || []).forEach(function(r) { proNoms[r.id] = r.nom; });
+  const proManque = {};   // site_date → [noms]
+  ((po && po.data) || []).forEach(function(r) {
+    if (r.mise_en_compte_at || r.statut === 'annule' || r.statut === 'brouillon') return;
+    (proManque[r.boutique_source + '_' + r.date_livraison] = proManque[r.boutique_source + '_' + r.date_livraison] || []).push(proNoms[r.pro_id] || r.pro_id);
+  });
   const closes = {};
   ((sa && sa.data) || []).forEach(function(r) { closes[r.boutique_id + '_' + r.date] = true; });
   const prod = {};
@@ -16921,7 +16982,7 @@ async function loadOublis(sites, nbJours) {
   const res = { jours: jours, today: today, parSite: {}, erreur: !!(sa.error || fp.error) };
   sites.forEach(function(s) {
     const c = OUBLIS_CTRL[s]; if (!c) return;
-    const o = res.parSite[s] = { ventes: {}, fab: {}, farineDernier: lastBon[s] || null, suire: null, fournMois: [], inventaire: null };
+    const o = res.parSite[s] = { ventes: {}, fab: {}, farineDernier: lastBon[s] || null, suire: null, fournMois: [], inventaire: null, procompte: {}, procompteJ: {} };
     const mesBons = bons[s] || [];
     if (c.farine) o.suire = { lundi: semSuire.lundi, ok: mesBons.some(function(r) {
       return r.fournisseur_id === OUBLIS_SUIRE && r.date_livraison >= semSuire.lundi && r.date_livraison <= semSuire.dimanche; }) };
@@ -16933,6 +16994,15 @@ async function loadOublis(sites, nbJours) {
       const ok = mesBons.some(function(r) { return r.fournisseur_id === f[0] && r.date_livraison.slice(0, 7) === mois; });
       if (!ok) o.fournMois.push({ id: f[0], nom: f[1], mois: mois, rappel: mois === today.slice(0, 7), phil: f[2] === 'phil', facture: f[3] === 'facture' });
     });
+    // v20.293 — mise en compte : jours passés + aujourd'hui (noms des pros pas encore passés en caisse)
+    if (c.procompte) {
+      jours.concat([today]).forEach(function(iso) {
+        const m = proManque[s + '_' + iso] || [];
+        if (m.length) o.procompte[iso] = m;
+        o.procompteJ[iso] = m.length ? 'vide' : 'ok';
+      });
+      o.procompteAujOuvert = oublisHeureActuelle() >= OUBLIS_PROCOMPTE_HEURE || !!closes[s + '_' + today];
+    }
     jours.forEach(function(iso) {
       const ouvert = oublisSiteOuvert(s, iso);
       if (c.ventes) o.ventes[iso] = !ouvert ? 'ferme' : (closes[s + '_' + iso] ? 'ok' : 'vide');
@@ -16980,6 +17050,17 @@ function oublisLignes(data, s, veilleSeule) {
       L.push({ kind: 'fab', dates: nv.concat(vd), html: t + parts.join(' · ') + ' <button class="oublis-go" onclick="oublisOuvrirFab()">Ouvrir la Fabrication →</button>' });
     }
   }
+  // v20.293 — commandes pros pas mises en compte : jours passés (fenêtre du bandeau) + aujourd'hui à partir de 17h / ventes validées
+  if (c.procompte) {
+    const aujOuvert = o.procompteAujOuvert || (!veilleSeule && oublisHeureActuelle() >= OUBLIS_PROCOMPTE_HEURE);
+    const pj = jours.filter(function(iso) { return (o.procompte[iso] || []).length; });
+    if (aujOuvert && (o.procompte[data.today] || []).length) pj.push(data.today);
+    if (pj.length) {
+      L.push({ kind: 'procompte', dates: pj, html: '💶 <b>Commandes pros pas mises en compte</b> : ' + pj.map(function(iso) {
+        return (iso === data.today ? 'aujourd\'hui' : oublisJourCourt(iso)) + ' — ' + o.procompte[iso].map(escapeHtml).join(', ');
+      }).join(' · ') + ' <button class="oublis-go" onclick="oublisOuvrirPros()">Ouvrir les Pros →</button>' });
+    }
+  }
   if (c.farine && o.suire && !o.suire.ok)
     L.push({ kind: 'farine', html: '🌾 <b>Pas de bon Girardeau-Suire</b> saisi pour la semaine du ' + oublisJourCourt(o.suire.lundi)
       + ' (à saisir le jeudi midi au plus tard) <button class="oublis-go" onclick="oublisOuvrirFab()">Saisir le bon →</button>' });
@@ -17024,6 +17105,7 @@ async function oublisOuvrirVentes(iso) {
   await setVue('ventes');
 }
 function oublisOuvrirFab() { window.location.href = 'fabrication.html'; }
+async function oublisOuvrirPros() { await setVue('pros'); }   // v20.293
 
 // ---------- BackOffice → Oublis : le récap tous sites pour Phil (14 jours) ----------
 let oublisAdminData = null;
@@ -17053,6 +17135,8 @@ function renderOublisAdmin() {
   h += ligne('Veigné', 'veigne', 'ventes') + ligne('Tours', 'tours', 'ventes') + ligne('St-Avertin', 'saint-avertin', 'ventes');
   h += '<tr class="oa-sep"><th colspan="' + (d.jours.length + 2) + '">🥖 Fabrication validée</th></tr>';
   h += ligne('Le Local', 'local', 'fab') + ligne('Veigné', 'veigne', 'fab') + ligne('Tours', 'tours', 'fab');
+  h += '<tr class="oa-sep"><th colspan="' + (d.jours.length + 2) + '">💶 Commandes pros mises en compte</th></tr>';   // v20.293
+  h += ligne('Veigné', 'veigne', 'procompteJ') + ligne('Tours', 'tours', 'procompteJ') + ligne('Le Local', 'local', 'procompteJ');
   h += '</tbody></table></div>';
   // Farine + inventaire
   h += '<div class="section" style="padding:10px 14px;font-size:13px">';

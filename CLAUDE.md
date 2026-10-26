@@ -203,6 +203,14 @@ ancien espace pro intégré n'affichent que les quantités ; `prix_applique` res
 pour les récaps / la facturation du BackOffice (fiche prix spéciaux, Récap, Semaine inchangés). Tout nouvel
 écran équipe qui montre une commande pro doit passer par `prixVisibles()`. Test : spec 45.
 
+**Pros — « 💶 Mise en compte » (v20.293, 26/10/2026)** : « c'est notre façon à nous de dire que c'est entré
+dans la caisse ». Colonnes `pro_orders.mise_en_compte_at / _by` (`migration-v20.293-mise-en-compte.sql`). Bouton sur
+chaque carte de l'onglet Pros (un tap = heure + boutique, un second = annulé ; rien sur annulée / brouillon).
+Chaque boutique compte **les commandes qu'elle prépare** (`boutique_source`), Le Local compris, St-Avertin non.
+Bandeau « oublis à rattraper » : ligne « 💶 Commandes pros pas mises en compte » avec les noms des pros, jours
+passés + **aujourd'hui à partir de 17h** (`OUBLIS_PROCOMPTE_HEURE`) **ou dès que les ventes du jour sont validées** ;
+rappel (toast) à la validation des ventes (`rappelProsEnCompte`). BackOffice → Oublis : ligne par site. Test : spec 46.
+
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
   les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique
