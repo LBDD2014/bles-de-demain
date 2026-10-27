@@ -221,6 +221,11 @@ farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties =
 des comptages, sites sans comptage signalés), puis une page par site (tableau + bons à pointer + envois), signatures
 une fois. `bilExportToutHtml` réutilise `bilComputeRows` et `bilExportHtml(site, d1, d2, sansSignature)`. Test : spec 33.
 Vue globale des bons = Livraisons → « Registre des lots » avec Site = Tous les sites + période → PDF.
+**v20.296** : les champs photo (bon, facture, perte, planning) n'imposent plus l'appareil photo (`capture` retiré) :
+sur iPad on choisit photo / photothèque / fichier ; **PDF accepté** pour bon, facture et perte (ouvert en lien 📷 / 🧾) ;
+la lecture automatique (IA) reste réservée aux photos. Requête de diagnostic `sql/17_bilan_ce_qui_manque_par_site.sql`
+(lecture seule) : même calcul que le Bilan, à aujourd'hui, une ligne par farine × site. Chez le GAEC des Mimosas,
+« farine de blé type bise » = **Blés de pop** (`ing_bp`), pas le T80 Bio Bise.
 
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie

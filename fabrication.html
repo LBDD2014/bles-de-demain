@@ -351,7 +351,7 @@
     <div class="plan-toolbar">
       <button class="btn ghost sm" onclick="planCopyPrevWeek()">⬇️ Copier la semaine précédente</button>
       <button class="btn sm" onclick="planValiderSemaine()" title="Décompte les farines du stock pour les jours remplis">✓ Valider la semaine (farines)</button>
-      <input type="file" id="planPhoto" accept="image/*" capture="environment" style="display:none" onchange="planScanFile()">
+      <input type="file" id="planPhoto" accept="image/*" style="display:none" onchange="planScanFile()">
       <button class="btn sm" id="planScanBtn" onclick="document.getElementById('planPhoto').click()" title="Remplit la semaine affichée à partir d'une photo de la feuille">📷 Scanner la feuille</button>
       <button class="btn ghost sm" onclick="planPrintWeek()">📄 Imprimer (A4)</button>
       <label class="plan-sw">
@@ -419,11 +419,11 @@
     <h2>Enregistrer une livraison</h2>
     <p class="hint">📷 Photographie le bon, indique la farine et la quantité — c'est tout.</p>
     <label>📷 Photo du bon de livraison <span style="font-weight:400;color:var(--grey-light)">(l'essentiel : lot, date, fournisseur y figurent)</span></label>
-    <input type="file" id="livPhoto" accept="image/*" capture="environment" onchange="livScanReset()">
+    <input type="file" id="livPhoto" accept="image/*,application/pdf" onchange="livScanReset()">   <!-- v20.296 — photo, photothèque ou fichier PDF (plus d'appareil photo forcé) -->
     <div class="btn-row" style="margin-top:6px"><button class="btn sm" id="livScanBtn" onclick="livScanPhoto()">🤖 Lire la photo automatiquement</button></div>
     <div id="livScanResult"></div>
     <label>🧾 Photo de la facture <span style="font-weight:400;color:var(--grey-light)">(optionnel — pour le contrôle BV)</span></label>
-    <input type="file" id="livFacture" accept="image/*" capture="environment">
+    <input type="file" id="livFacture" accept="image/*,application/pdf">
     <div class="row">
       <div><label>Matière</label><select id="livIng" onchange="setLivQty()"></select></div>
       <div><label>Quantité</label><span id="livQteWrap"></span></div>
@@ -493,7 +493,7 @@
       <div><label>Date</label><input type="date" id="perDate"></div>
     </div>
     <label>📷 Photo <span style="font-weight:400;color:var(--grey-light)">(optionnel — preuve pour le contrôle bio)</span></label>
-    <input type="file" id="perPhoto" accept="image/*" capture="environment">
+    <input type="file" id="perPhoto" accept="image/*,application/pdf">
     <label>Note (optionnel)</label><input type="text" id="perNote" placeholder="">
     <div class="btn-row"><button class="btn" onclick="perSave()">✓ Enregistrer la perte</button></div>
   </div>
@@ -1856,8 +1856,9 @@ function fileToBase64(f){return new Promise((res,rej)=>{const r=new FileReader()
 function livMatieres(){return ingredients.filter(x=>(x.bio||x.categorie==='farine')&&x.categorie!=='levain');}
 async function livScanPhoto(){
   const fi=document.getElementById('livPhoto');
-  if(!(fi&&fi.files&&fi.files[0])){toast('Prends d\'abord la photo du bon');return;}
+  if(!(fi&&fi.files&&fi.files[0])){toast('Choisis d\'abord la photo ou le fichier du bon');return;}
   const f=fi.files[0];const btn=document.getElementById('livScanBtn');const old=btn.textContent;
+  if(!/^image\//.test(f.type||'')){toast('La lecture automatique marche sur une photo ; un PDF est bien gardé en pièce jointe, saisis les lignes à la main');return;}   // v20.296
   btn.disabled=true;btn.textContent='⏳ Lecture en cours…';setSync('lecture du bon par l\'IA…');
   try{
     const image=await fileToBase64(f);
@@ -1980,7 +1981,7 @@ let _livGroups=[];
 function livAddFacture(gi){
   const g=_livGroups[gi]; if(!g)return;
   const inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  inp.type='file'; inp.accept='image/*,application/pdf'; inp.style.display='none';   // v20.296 — PDF accepté
   document.body.appendChild(inp);
   inp.onchange=async function(){
     if(!inp.files||!inp.files[0]){inp.remove();return;}
