@@ -158,7 +158,7 @@ export const tests = [
     },
   },
   {
-    name: 'Bilan BV — v20.298 « Conso farine bio » : par site, par mois ou par semaine, produits bio seulement, farine du levain comprise, impression',
+    name: 'Bilan BV — v20.298/299 « Conso farine bio » : par site, par mois ou par semaine, produits bio seulement, farine du levain comprise, colonne Fleurage / pesées (sorties validées de farine bio), impression',
     fn: async (ctx) => {
       const page = await ouvrirBilan(ctx);
       const r = await page.evaluate(() => {
@@ -171,6 +171,15 @@ export const tests = [
           { site: 'local', date_prod: '2026-07-15', quantite: 70, valide: true, produit_id: 'p_blanc', fab_recettes: REC_BLANC },    // produit NON bio → exclu
           { site: 'tours', date_prod: '2026-08-02', quantite: 20, valide: true, produit_id: 'p_trad', fab_recettes: REC_BLANC },     // autre site, autre mois
         ];
+        // v20.299 — fleurage (sortie validée Tradition Bio) + une pesée non validée (ignorée) + une sortie de farine non bio (ignorée)
+        ingredients.push({ id: 'ing_trad_bio', nom: 'Tradition Bio', categorie: 'farine', bio: true, unite: 'kg' }, { id: 'ing_t65', nom: 'T65 conv.', categorie: 'farine', bio: false, unite: 'kg' });
+        _ingById = {}; ingredients.forEach((i) => { _ingById[i.id] = i; });
+        bilSorties = [
+          { ingredient_id: 'ing_trad_bio', site: 'local', date_sortie: '2026-07-05', quantite_kg: 6.25, valide: true },
+          { ingredient_id: 'ing_trad_bio', site: 'local', date_sortie: '2026-07-13', quantite_kg: 2.5, valide: true },
+          { ingredient_id: 'ing_trad_bio', site: 'local', date_sortie: '2026-07-20', quantite_kg: 99, valide: false },
+          { ingredient_id: 'ing_t65', site: 'local', date_sortie: '2026-07-20', quantite_kg: 40, valide: true },
+        ];
         document.getElementById('bilD1').value = '2026-07-01'; document.getElementById('bilD2').value = '2026-08-31';
         consoMode = 'mois'; consoRender();
         const lire = () => Array.from(document.querySelectorAll('#consoBox table')).map((t) => Array.from(t.querySelectorAll('tr')).map((tr) => Array.from(tr.children).map((c) => c.textContent.trim()).join('|')));
@@ -182,9 +191,9 @@ export const tests = [
         return { titres, mois, sem, print };
       });
       assert(JSON.stringify(r.titres) === '["Le Local","Veigné","Tours"]', 'un tableau par site : ' + JSON.stringify(r.titres));
-      assert(JSON.stringify(r.mois[0]) === '["Mois|T80 Bio Bise|Total kg","Juillet 2026|175|175","Total période|175|175"]', 'Local par mois = 125 + 50, sans le pain blanc ni la non validée : ' + JSON.stringify(r.mois[0]));
-      assert(JSON.stringify(r.mois[1]) === '["Mois|T80 Bio Bise|Total kg","Août 2026|20|20","Total période|20|20"]', 'Tours : 20 kg en août : ' + JSON.stringify(r.mois[1]));
-      assert(JSON.stringify(r.sem[0]) === '["Semaine|T80 Bio Bise|Total kg","Sem. du 13/07/2026|50|50","Sem. du 29/06/2026|125|125","Total période|175|175"]', 'Local par semaine (lundi) : ' + JSON.stringify(r.sem[0]));
+      assert(JSON.stringify(r.mois[0]) === '["Mois|T80 Bio Bise|Fleurage / pesées|Total kg","Juillet 2026|175|8,8|183,8","Total période|175|8,8|183,8"]', 'Local par mois = 125 + 50 de recettes + 8,75 de fleurage (sans la pesée non validée ni la farine non bio) : ' + JSON.stringify(r.mois[0]));
+      assert(JSON.stringify(r.mois[1]) === '["Mois|T80 Bio Bise|Fleurage / pesées|Total kg","Août 2026|20||20","Total période|20|0|20"]', 'Tours : 20 kg en août, pas de fleurage : ' + JSON.stringify(r.mois[1]));
+      assert(JSON.stringify(r.sem[0]) === '["Semaine|T80 Bio Bise|Fleurage / pesées|Total kg","Sem. du 13/07/2026|50|2,5|52,5","Sem. du 29/06/2026|125|6,3|131,3","Total période|175|8,8|183,8"]', 'Local par semaine (lundi), fleurage compris : ' + JSON.stringify(r.sem[0]));
       assert(/Consommation de farine bio · par semaine/.test(r.print) && /Le Local/.test(r.print) && /175/.test(r.print), 'impression A4 : ' + r.print.slice(0, 120));
       await page.close();
     },

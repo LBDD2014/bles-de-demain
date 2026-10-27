@@ -2299,6 +2299,14 @@ function consoCompute(d1,d2){
       const s=out[p.site]||(out[p.site]={});const pp=s[per]||(s[per]={});pp[ing]=(pp[ing]||0)+kg;
     });
   });
+  // v20.299 — fleurage (5 % du total farine du jour, imputé sur Tradition Bio à la validation de la journée)
+  // + pesées saisies à la main : les sorties validées de farine bio, dans une colonne à part (clé '_fleurage')
+  bilSorties.forEach(so=>{
+    if(!so.valide||so.date_sortie<d1||so.date_sortie>d2||sites.indexOf(so.site)===-1)return;
+    const li=_ingById[so.ingredient_id];if(!li||!li.bio||li.categorie!=='farine')return;
+    const per=consoMode==='mois'?so.date_sortie.slice(0,7):consoWeekStart(so.date_sortie);
+    const s=out[so.site]||(out[so.site]={});const pp=s[per]||(s[per]={});pp._fleurage=(pp._fleurage||0)+(+so.quantite_kg||0);
+  });
   return out;
 }
 function consoPerLbl(per){if(consoMode==='mois'){const q=per.split('-');return MOIS_FR[+q[1]-1]+' '+q[0];}const q=per.split('-');return 'Sem. du '+q[2]+'/'+q[1]+'/'+q[0];}
@@ -2310,15 +2318,17 @@ function consoTablesHtml(d1,d2){
     const site=data[s[0]];
     h+='<h5 style="margin:12px 0 4px;font-size:13px;color:var(--gold-dark)">'+s[1]+'</h5>';
     if(!site){h+='<div class="hint">Aucune production bio validée sur la période.</div>';return;}
-    const ings={};Object.values(site).forEach(pp=>Object.keys(pp).forEach(i=>ings[i]=true));
+    const ings={};Object.values(site).forEach(pp=>Object.keys(pp).forEach(i=>{if(i!=='_fleurage')ings[i]=true;}));
     const cols=Object.keys(ings).sort((a,b)=>ingNom(a).localeCompare(ingNom(b),'fr'));
+    cols.push('_fleurage');   // v20.299 — toujours en dernier, avant le total
     const pers=Object.keys(site).sort().reverse();
     const tot={};
-    h+='<div style="overflow-x:auto"><table class="bx"><thead><tr><th>'+(consoMode==='mois'?'Mois':'Semaine')+'</th>'+cols.map(c=>'<th>'+ingNom(c)+'</th>').join('')+'<th>Total kg</th></tr></thead><tbody>';
+    h+='<div style="overflow-x:auto"><table class="bx"><thead><tr><th>'+(consoMode==='mois'?'Mois':'Semaine')+'</th>'+cols.map(c=>'<th>'+(c==='_fleurage'?'Fleurage / pesées':ingNom(c))+'</th>').join('')+'<th>Total kg</th></tr></thead><tbody>';
     pers.forEach(per=>{let t=0;h+='<tr><td>'+consoPerLbl(per)+'</td>'+cols.map(c=>{const v=site[per][c]||0;t+=v;tot[c]=(tot[c]||0)+v;return '<td>'+(v>0.05?fk(v):'')+'</td>';}).join('')+'<td><b>'+fk(t)+'</b></td></tr>';});
     let tt=0;h+='<tr style="font-weight:bold;background:#FAF6EE"><td>Total période</td>'+cols.map(c=>{tt+=tot[c]||0;return '<td>'+fk(tot[c]||0)+'</td>';}).join('')+'<td>'+fk(tt)+'</td></tr>';
     h+='</tbody></table></div>';
   });
+  h+='<div style="font-size:11px;color:var(--grey-light);margin-top:6px">Fleurage / pesées = sorties validées de farine bio : le fleurage ajouté à la validation de la journée ('+FLEURAGE_PCT+' % du total farine du jour, pains bio et non bio, imputé sur Tradition Bio) + les pesées saisies à la main. Comme au Bilan.</div>';
   return h;
 }
 function consoRender(){

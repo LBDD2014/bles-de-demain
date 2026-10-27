@@ -232,6 +232,9 @@ les règles Storage pour les PDF dans `bons-bio` (la règle d'origine, créée d
 colonne par farine bio + total ; seulement les **produits bio** (`fab_produits.bio`) et les farines bio, production
 validée, farine des levains comprise ; période = celle du Bilan ; impression A4. `consoCompute` lit `bilProd`
 (qui charge désormais `produit_id`). Équivalent SQL : `sql/18_conso_farine_bio_par_site.sql`. Test : spec 33.
+**v20.299** : colonne **« Fleurage / pesées »** = sorties validées de farine bio (`fab_sorties`), c'est-à-dire le
+fleurage posé à la validation de la journée (`FLEURAGE_PCT` = 5 % du total farine du jour, pains bio et non bio,
+imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au Bilan (qui comptait déjà ces sorties).
 
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
