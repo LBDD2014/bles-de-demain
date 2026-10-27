@@ -559,6 +559,14 @@
     <div id="bilCards"></div>
     <div id="bilBons" style="display:none;margin-top:12px"></div>
   </div>
+  <!-- v20.298 — Conso farine bio par site, par mois ou par semaine (Phil, 27/10) -->
+  <div class="card">
+    <h2>🌾 Conso farine bio</h2>
+    <p class="hint">Farine bio consommée par les recettes des <b>produits bio</b> (production validée, farine des levains comprise), sur la période du Bilan ci-dessus. Un tableau par site.</p>
+    <div class="seg" id="consoModeSeg" style="margin-bottom:8px"><button class="on" onclick="consoSetMode('mois')">Par mois</button><button onclick="consoSetMode('semaine')">Par semaine</button></div>
+    <div id="consoBox"><div class="hint">Choisis une période puis ↻ Calculer.</div></div>
+    <div class="btn-row" style="margin-top:8px"><button class="btn dark sm" onclick="consoExport()">🖨️ Imprimer (A4)</button></div>
+  </div>
   <div class="card">
     <h2>🏷️ Solde par lot (FIFO)</h2>
     <p class="hint">Exigence Bureau Veritas. Pour chaque lot reçu : <b>reçu − consommé − pertes = restant</b>. Méthode <b>FIFO</b> (le lot le plus ancien est consommé en premier). Conso calculée via les recettes ; calcul global par farine bio (tous sites).</p>
@@ -2107,7 +2115,7 @@ async function bilLoadRaw(){
     supa.from('fab_livraisons').select('ingredient_id,site,date_livraison,quantite_kg,numero_lot,numero_bon,fournisseur_id'),
     // v20.240 — paginé : Supabase plafonne à 1000 lignes par requête, la production en avait 2567
     // → plus de la moitié des journées manquaient au Bilan/Inventaire (conso sous-comptée, stocks gonflés en orange)
-    fabFetchAll((a,b)=>supa.from('fab_production').select('site,date_prod,quantite,valide,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))').order('id').range(a,b)),
+    fabFetchAll((a,b)=>supa.from('fab_production').select('site,date_prod,quantite,valide,produit_id,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))').order('id').range(a,b)),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
     supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
     supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false}),
@@ -2264,6 +2272,68 @@ function bilLoad(){
   box.innerHTML=rows.map(r=>bilCard(r,d1,d2)).join('')
     +'<div class="btotal"><div><b>'+nomSite+'</b><small>'+rows.length+' farines bio suivies</small></div><div><b>'+n.ok+' 🟢</b><small>cohérentes</small></div><div><b>'+n.warn+' 🟠</b><small>plus de sacs que prévu</small></div><div><b>'+n.bad+' 🔴</b><small>il manque des sacs</small></div><div><b>'+n.none+' ⚪</b><small>pas comptées</small></div></div>';
   if(bons.style.display!=='none')bons.innerHTML=bilBonsHtml(bilSite,d1,d2);
+  consoRender();   // v20.298
+}
+// v20.298 — Conso farine bio (Phil, 27/10 : « notre consommation de farine au mois, seulement les farines bio et
+// les recettes bio, par semaine et par mois, pour chaque site bien distinct »). Même calcul que le Bilan :
+// production validée × ligne de recette ÷ rendement de base, farine des levains comprise ; seulement les
+// produits marqués bio et les farines bio. Période = celle du Bilan. Un tableau par site, une ligne par mois
+// ou par semaine (du lundi), une colonne par farine + total.
+let consoMode='mois';
+function consoSetMode(m){consoMode=m;const seg=document.getElementById('consoModeSeg');if(seg)Array.from(seg.children).forEach((b,i)=>b.classList.toggle('on',(i===0)===(m==='mois')));consoRender();}
+function consoWeekStart(d){const t=new Date(d+'T12:00:00');t.setDate(t.getDate()-((t.getDay()+6)%7));const p=n=>String(n).padStart(2,'0');return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());}
+function consoCompute(d1,d2){
+  const bioProd={};(produits||[]).forEach(p=>{if(p.bio)bioProd[p.id]=true;});
+  const sites=_lockedSite?[_lockedSite]:SITES.map(s=>s[0]);
+  const out={};   // site → période → farine → kg
+  bilProd.forEach(p=>{
+    if(!p.valide||p.date_prod<d1||p.date_prod>d2||!bioProd[p.produit_id]||sites.indexOf(p.site)===-1)return;
+    const rec=p.fab_recettes||{};const rb=(+rec.rendement_base)||1;
+    const per=consoMode==='mois'?p.date_prod.slice(0,7):consoWeekStart(p.date_prod);
+    (rec.fab_recette_lignes||[]).forEach(rl=>{
+      const qty=(+rl.quantite)*(+p.quantite/rb);const li=_ingById[rl.ingredient_id];if(!li)return;
+      let ing=null,kg=0;
+      if(li.bio&&li.categorie==='farine'){ing=li.id;kg=qty;}
+      else if(li.categorie==='levain'&&li.farine_levain_id){const fi=_ingById[li.farine_levain_id];if(fi&&fi.bio){ing=fi.id;kg=qty/(1+((+li.eau_ratio)||0));}}
+      if(!ing)return;
+      const s=out[p.site]||(out[p.site]={});const pp=s[per]||(s[per]={});pp[ing]=(pp[ing]||0)+kg;
+    });
+  });
+  return out;
+}
+function consoPerLbl(per){if(consoMode==='mois'){const q=per.split('-');return MOIS_FR[+q[1]-1]+' '+q[0];}const q=per.split('-');return 'Sem. du '+q[2]+'/'+q[1]+'/'+q[0];}
+function consoTablesHtml(d1,d2){
+  const data=consoCompute(d1,d2);
+  const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES;
+  let h='';
+  sites.forEach(s=>{
+    const site=data[s[0]];
+    h+='<h5 style="margin:12px 0 4px;font-size:13px;color:var(--gold-dark)">'+s[1]+'</h5>';
+    if(!site){h+='<div class="hint">Aucune production bio validée sur la période.</div>';return;}
+    const ings={};Object.values(site).forEach(pp=>Object.keys(pp).forEach(i=>ings[i]=true));
+    const cols=Object.keys(ings).sort((a,b)=>ingNom(a).localeCompare(ingNom(b),'fr'));
+    const pers=Object.keys(site).sort().reverse();
+    const tot={};
+    h+='<div style="overflow-x:auto"><table class="bx"><thead><tr><th>'+(consoMode==='mois'?'Mois':'Semaine')+'</th>'+cols.map(c=>'<th>'+ingNom(c)+'</th>').join('')+'<th>Total kg</th></tr></thead><tbody>';
+    pers.forEach(per=>{let t=0;h+='<tr><td>'+consoPerLbl(per)+'</td>'+cols.map(c=>{const v=site[per][c]||0;t+=v;tot[c]=(tot[c]||0)+v;return '<td>'+(v>0.05?fk(v):'')+'</td>';}).join('')+'<td><b>'+fk(t)+'</b></td></tr>';});
+    let tt=0;h+='<tr style="font-weight:bold;background:#FAF6EE"><td>Total période</td>'+cols.map(c=>{tt+=tot[c]||0;return '<td>'+fk(tot[c]||0)+'</td>';}).join('')+'<td>'+fk(tt)+'</td></tr>';
+    h+='</tbody></table></div>';
+  });
+  return h;
+}
+function consoRender(){
+  const box=document.getElementById('consoBox');if(!box)return;
+  const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
+  if(!d1||!d2){box.innerHTML='<div class="hint">Choisis une période.</div>';return;}
+  box.innerHTML=consoTablesHtml(d1,d2);
+}
+function consoExport(){
+  const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
+  if(!d1||!d2){toast('Choisis une période');return;}
+  const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  printDoc('<div class="rx-head">Les Blés de Demain — Consommation de farine bio · '+(consoMode==='mois'?'par mois':'par semaine')+'</div>'
+    +'<div class="rx-meta">Période du '+fr(d1)+' au '+fr(d2)+' · produits bio, production validée, farine des levains comprise · document généré le '+new Date().toLocaleDateString('fr-FR')+'</div>'
+    +consoTablesHtml(d1,d2),BIL_PRINT_CSS);
 }
 function bilBonsToggle(){const b=document.getElementById('bilBons');const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;if(b.style.display==='none'){if(!d1||!d2){toast('Choisis une période');return;}b.style.display='block';b.innerHTML=bilBonsHtml(bilSite,d1,d2);}else b.style.display='none';}
 // la liste que le contrôleur pointe : bons de livraison (n°, lot) + envois entre sites, pour un site et une période

@@ -228,6 +228,10 @@ plus la saisie (confirmation « enregistrer sans la pièce jointe ») ; `migrati
 les règles Storage pour les PDF dans `bons-bio` (la règle d'origine, créée dans le tableau de bord, n'accepte que les images). Requête de diagnostic `sql/17_bilan_ce_qui_manque_par_site.sql`
 (lecture seule) : même calcul que le Bilan, à aujourd'hui, une ligne par farine × site. Chez le GAEC des Mimosas,
 « farine de blé type bise » = **Blés de pop** (`ing_bp`), pas le T80 Bio Bise.
+**v20.298 — « 🌾 Conso farine bio »** (carte sous le Bilan) : par site, **par mois ou par semaine** (du lundi), une
+colonne par farine bio + total ; seulement les **produits bio** (`fab_produits.bio`) et les farines bio, production
+validée, farine des levains comprise ; période = celle du Bilan ; impression A4. `consoCompute` lit `bilProd`
+(qui charge désormais `produit_id`). Équivalent SQL : `sql/18_conso_farine_bio_par_site.sql`. Test : spec 33.
 
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie

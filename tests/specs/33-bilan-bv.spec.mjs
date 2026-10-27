@@ -157,4 +157,36 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Bilan BV — v20.298 « Conso farine bio » : par site, par mois ou par semaine, produits bio seulement, farine du levain comprise, impression',
+    fn: async (ctx) => {
+      const page = await ouvrirBilan(ctx);
+      const r = await page.evaluate(() => {
+        produits = [{ id: 'p_trad', nom: 'Tradition Bio', bio: true }, { id: 'p_blanc', nom: 'Pain blanc', bio: false }];
+        const REC_BLANC = { rendement_base: 1, fab_recette_lignes: [{ ingredient_id: 'ing_t80', quantite: 1 }] };
+        bilProd = [
+          { site: 'local', date_prod: '2026-07-05', quantite: 100, valide: true, produit_id: 'p_trad', fab_recettes: { rendement_base: 1, fab_recette_lignes: [{ ingredient_id: 'ing_t80', quantite: 1 }, { ingredient_id: 'ing_levain_dur', quantite: 0.4 }] } },   // 100 + 100×0,4/1,6 = 125
+          { site: 'local', date_prod: '2026-07-13', quantite: 50, valide: true, produit_id: 'p_trad', fab_recettes: { rendement_base: 1, fab_recette_lignes: [{ ingredient_id: 'ing_t80', quantite: 1 }] } },       // semaine suivante : 50
+          { site: 'local', date_prod: '2026-07-14', quantite: 999, valide: false, produit_id: 'p_trad', fab_recettes: REC_BLANC },   // pas validée
+          { site: 'local', date_prod: '2026-07-15', quantite: 70, valide: true, produit_id: 'p_blanc', fab_recettes: REC_BLANC },    // produit NON bio → exclu
+          { site: 'tours', date_prod: '2026-08-02', quantite: 20, valide: true, produit_id: 'p_trad', fab_recettes: REC_BLANC },     // autre site, autre mois
+        ];
+        document.getElementById('bilD1').value = '2026-07-01'; document.getElementById('bilD2').value = '2026-08-31';
+        consoMode = 'mois'; consoRender();
+        const lire = () => Array.from(document.querySelectorAll('#consoBox table')).map((t) => Array.from(t.querySelectorAll('tr')).map((tr) => Array.from(tr.children).map((c) => c.textContent.trim()).join('|')));
+        const mois = lire(), titres = Array.from(document.querySelectorAll('#consoBox h5')).map((h) => h.textContent);
+        consoSetMode('semaine');
+        const sem = lire();
+        consoExport();
+        const print = document.getElementById('printwrap') ? document.getElementById('printwrap').textContent : '';
+        return { titres, mois, sem, print };
+      });
+      assert(JSON.stringify(r.titres) === '["Le Local","Veigné","Tours"]', 'un tableau par site : ' + JSON.stringify(r.titres));
+      assert(JSON.stringify(r.mois[0]) === '["Mois|T80 Bio Bise|Total kg","Juillet 2026|175|175","Total période|175|175"]', 'Local par mois = 125 + 50, sans le pain blanc ni la non validée : ' + JSON.stringify(r.mois[0]));
+      assert(JSON.stringify(r.mois[1]) === '["Mois|T80 Bio Bise|Total kg","Août 2026|20|20","Total période|20|20"]', 'Tours : 20 kg en août : ' + JSON.stringify(r.mois[1]));
+      assert(JSON.stringify(r.sem[0]) === '["Semaine|T80 Bio Bise|Total kg","Sem. du 13/07/2026|50|50","Sem. du 29/06/2026|125|125","Total période|175|175"]', 'Local par semaine (lundi) : ' + JSON.stringify(r.sem[0]));
+      assert(/Consommation de farine bio · par semaine/.test(r.print) && /Le Local/.test(r.print) && /175/.test(r.print), 'impression A4 : ' + r.print.slice(0, 120));
+      await page.close();
+    },
+  },
 ];
