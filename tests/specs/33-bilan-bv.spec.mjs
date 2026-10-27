@@ -129,4 +129,32 @@ export const tests = [
       assert(/Compté par/.test(h) && /Contrôleur/.test(h), 'cases de signature');
     },
   },
+  {
+    name: 'Bilan BV — v20.295 feuille TOUS SITES : tableau consolidé (bons reçus = somme des bons, production + pertes, compté = somme des comptages), puis une page par site avec ses bons, signatures une seule fois',
+    fn: async (ctx) => {
+      const page = await ouvrirBilan(ctx);
+      const r = await page.evaluate(() => {
+        const html = bilExportToutHtml('2026-07-01', '2026-07-31');
+        const rows = bilComputeRows('2026-07-01', '2026-07-31');
+        const t80 = rows.filter((x) => x.ing === 'ing_t80');
+        const somme = (k) => fk(t80.reduce((a, x) => a + x[k], 0));
+        const div = document.createElement('div'); div.innerHTML = html;
+        const ligne = Array.from(div.querySelectorAll('table.bx tr')).find((tr) => /^T80 Bio Bise/.test(tr.textContent));
+        return {
+          heads: Array.from(div.querySelectorAll('.rx-head')).map((x) => x.textContent),
+          signatures: div.querySelectorAll('.bsign').length,
+          pages: div.querySelectorAll('[style*="page-break-before"]').length,
+          bons: (html.match(/Bons de livraison de la période/g) || []).length,
+          cells: ligne ? Array.from(ligne.querySelectorAll('td')).map((td) => td.textContent.trim()) : null,
+          attendu: { recu: somme('recu'), sorties: fk(t80.reduce((a, x) => a + x.conso + x.pertes, 0)), fin: somme('fin'), compte: fk(t80.filter((x) => x.compte).reduce((a, x) => a + x.compte.qte, 0)) },
+          nbSitesT80: t80.length, nbComptes: t80.filter((x) => x.compte).length,
+        };
+      });
+      assert(r.heads.length === 1 + 3 && /TOUS SITES/.test(r.heads[0]) && /LE LOCAL/.test(r.heads[1]), 'un en-tête consolidé puis un par site : ' + JSON.stringify(r.heads));
+      assert(r.signatures === 1 && r.pages === 3 && r.bons === 3, 'une signature, une page par site, les bons de chaque site : ' + JSON.stringify([r.signatures, r.pages, r.bons]));
+      assert(r.cells && r.cells[2] === r.attendu.recu && r.cells[3] === r.attendu.sorties && r.cells[4] === r.attendu.fin, 'ligne T80 consolidée = somme des sites : ' + JSON.stringify(r));
+      assert(r.nbComptes ? r.cells[5].indexOf(r.attendu.compte) === 0 : r.cells[5] === '—', 'compté consolidé : ' + JSON.stringify(r));
+      await page.close();
+    },
+  },
 ];

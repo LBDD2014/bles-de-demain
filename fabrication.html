@@ -546,6 +546,7 @@
       <button class="btn sm" onclick="bilLoad()">↻ Calculer</button>
       <button class="btn ghost sm" onclick="bilBonsToggle()">📋 Bons de la période</button>
       <button class="btn dark sm" onclick="bilExport()">🖨️ Feuille BV (A4)</button>
+      <button class="btn dark sm" id="bilExportToutBtn" onclick="bilExportTout()">🖨️ Feuille BV tous sites</button>
     </div>
     <div id="bilSteps">
       <div><span class="n">1</span><b>Départ</b>compté (ou calculé) la veille</div>
@@ -2242,7 +2243,7 @@ function bilCard(r,d1,d2){
   h+='<div class="bdetail"><div><h4>Entrées</h4>'+e+'</div><div><h4>Sorties</h4>'+so+(lec?'<h4 style="margin-top:10px">Lecture</h4><div class="lecture">'+lec+'</div>':'')+'</div></div></div>';
   return h;
 }
-function bilSiteSeg(){const seg=document.getElementById('bilSiteSeg');if(!seg)return;const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES;seg.innerHTML=sites.map(s=>'<button class="'+(s[0]===bilSite?'on':'')+'" onclick="bilSetSite(\''+s[0]+'\')">'+s[1]+'</button>').join('');}
+function bilSiteSeg(){const bt=document.getElementById('bilExportToutBtn');if(bt)bt.style.display=_lockedSite?'none':'';const seg=document.getElementById('bilSiteSeg');if(!seg)return;const sites=_lockedSite?SITES.filter(s=>s[0]===_lockedSite):SITES;seg.innerHTML=sites.map(s=>'<button class="'+(s[0]===bilSite?'on':'')+'" onclick="bilSetSite(\''+s[0]+'\')">'+s[1]+'</button>').join('');}
 function bilSetSite(s){bilSite=s;bilLoad();}
 function bilLoad(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
@@ -2277,7 +2278,7 @@ const BIL_PRINT_CSS='@page{size:A4;margin:10mm}'
   +'#printwrap h5{margin:12px 0 4px;font-size:12px;color:#8B6914}'
   +'#printwrap .bsign{display:flex;gap:40px;margin-top:22px;font-size:11px}#printwrap .bsign div{flex:1;border-top:1px solid #999;padding-top:4px}';
 // la feuille A4 qu'on tend au contrôleur : tableau, puis les bons à pointer, puis les signatures — un site, une période
-function bilExportHtml(site,d1,d2){
+function bilExportHtml(site,d1,d2,sansSignature){
   const rows=bilComputeRows(d1,d2,site).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
   const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
   const nomSite=(SITES.find(s=>s[0]===site)||['',site])[1];
@@ -2291,7 +2292,41 @@ function bilExportHtml(site,d1,d2){
     +'</tbody></table>'
     +'<div style="font-size:10.5px;color:#555;margin:6px 0 10px">Entrées = bons de livraison + reçu d\'un autre site · Sorties = production validée (recettes) + envoyé à un autre site + pertes · Écart = compté − devrait rester (🟩 ≤ 1 sac · 🟧 sacs en plus · 🟥 sacs manquants ou négatif = saisie manquante)</div>'
     +bilBonsHtml(site,d1,d2)
-    +'<div class="bsign"><div>Compté par</div><div>Contrôleur</div><div>Date</div></div>';
+    +(sansSignature?'':'<div class="bsign"><div>Compté par</div><div>Contrôleur</div><div>Date</div></div>');
+}
+// v20.295 — Feuille BV TOUS SITES (Phil, 27/10/2026, jour du contrôle) : un seul document.
+// 1) tableau consolidé entreprise, farine par farine : les envois entre sites s'annulent
+//    (Entrées = bons de livraison seulement · Sorties = production validée + pertes), compté = somme
+//    des comptages de la période (sites sans comptage signalés), écart = somme des écarts ;
+// 2) une page par site (le tableau habituel + les bons à pointer + les envois) ; 3) signatures une fois.
+function bilExportToutHtml(d1,d2){
+  const fr=d=>{const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const rows=bilComputeRows(d1,d2);
+  const agg={};
+  rows.forEach(r=>{
+    const a=agg[r.ing]||(agg[r.ing]={ing:r.ing,nom:r.nom,dep:0,recu:0,conso:0,pertes:0,fin:0,compte:0,ecart:0,nbCompte:0,sansCompte:[]});
+    a.dep+=r.dep;a.recu+=r.recu;a.conso+=r.conso;a.pertes+=r.pertes;a.fin+=r.fin;
+    if(r.compte){a.compte+=r.compte.qte;a.ecart+=r.compte.ecart;a.nbCompte++;}else a.sansCompte.push(r.site);
+  });
+  const list=Object.values(agg).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const cls=a=>{if(!a.nbCompte)return a.fin<-0.005?'bad':'';const sac=bilSacKg(a.ing)||5;return Math.abs(a.ecart)<=sac*a.nbCompte+0.005?'ok':(a.ecart>0?'warn':'bad');};
+  let h='<div class="rx-head">Les Blés de Demain — Bilan matière bio · TOUS SITES</div>'
+    +'<div class="rx-meta">Période du '+fr(d1)+' au '+fr(d2)+' · '+SITES.map(s=>s[1]).join(' + ')+' · document généré le '+new Date().toLocaleDateString('fr-FR')+'</div>'
+    +'<table class="bx"><thead><tr><th>Farine bio</th><th>Départ '+bilFr(prevDay(d1))+'</th><th>Bons reçus</th><th>Production + pertes</th><th>Devrait rester</th><th>Compté</th><th>Écart</th></tr></thead><tbody>'
+    +(list.map(a=>'<tr><td>'+a.nom+(bilUnite(a.ing)==='L'?' (L)':'')+'</td><td>'+fk(a.dep)+'</td><td>'+fk(a.recu)+'</td><td>'+fk(a.conso+a.pertes)+'</td><td'+(a.fin<-0.005?' class="bad"':'')+'>'+fk(a.fin)+'</td>'
+      +'<td>'+(a.nbCompte?fk(a.compte)+(a.sansCompte.length?' <small>(sans '+a.sansCompte.join(', ')+')</small>':''):'—')+'</td><td class="'+cls(a)+'">'+(a.nbCompte?fkS(a.ecart):'—')+'</td></tr>').join('')
+      ||'<tr><td colspan="7" style="text-align:center">Aucun mouvement sur cette période.</td></tr>')
+    +'</tbody></table>'
+    +'<div style="font-size:10.5px;color:#555;margin:6px 0 10px">Vue entreprise : les envois entre sites s\'annulent (Entrées = bons de livraison seulement · Sorties = production validée + pertes). Compté = somme des comptages de la période ; un site sans comptage est signalé. Le détail par site suit, avec les bons à pointer.</div>';
+  SITES.forEach(s=>{h+='<div style="page-break-before:always"></div>'+bilExportHtml(s[0],d1,d2,true);});
+  h+='<div class="bsign"><div>Compté par</div><div>Contrôleur</div><div>Date</div></div>';
+  return h;
+}
+function bilExportTout(){
+  if(_lockedSite){toast('Feuille tous sites : seulement avec le code maître');return;}
+  const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;
+  if(!d1||!d2){toast('Choisis une période');return;}
+  printDoc(bilExportToutHtml(d1,d2),BIL_PRINT_CSS);
 }
 function bilExport(){
   const d1=document.getElementById('bilD1').value,d2=document.getElementById('bilD2').value;

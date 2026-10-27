@@ -215,6 +215,13 @@ commandes qu'il livre, Local et Veigné), `mise_en_compte_by = 'livreur'`. **Pop
 liste + bouton 💶 par commande + « Plus tard ») : à la **dernière livraison pro cochée** du jour, et à l'ouverture de la
 Tournée **à partir de 17h**, une fois par jour. Le Local garde sa ligne dans le bandeau. Test : spec 47.
 
+**Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
+bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
+farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme
+des comptages, sites sans comptage signalés), puis une page par site (tableau + bons à pointer + envois), signatures
+une fois. `bilExportToutHtml` réutilise `bilComputeRows` et `bilExportHtml(site, d1, d2, sansSignature)`. Test : spec 33.
+Vue globale des bons = Livraisons → « Registre des lots » avec Site = Tous les sites + période → PDF.
+
 **Commandes pros — site fermé ce jour-là** (v20.282 → v20.286, 20-21/10/2026, cas Steff le boulanger) :
 - Le site qui fabrique vient de la fiche pro (principale / sources par catégorie), **puis** on vérifie
   les jours de fermeture du Planning (`fab_jours_off`, 0=lundi…6=dimanche). Site fermé → **boutique
