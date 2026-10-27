@@ -1802,6 +1802,11 @@ function recExportAll(){
 }
 
 /* ---------- LIVRAISONS ---------- */
+// v20.297 — la pièce jointe refusée par le stockage (ex : PDF non autorisé par la règle du dossier bons-bio)
+// ne doit pas bloquer la saisie : on propose d'enregistrer la livraison SANS la pièce jointe.
+function photoRefusee(e){
+  return confirm('La pièce jointe a été refusée par le stockage :\n'+(e&&e.message?e.message:e)+'\n\nEnregistrer quand même la saisie SANS la pièce jointe ?\n(tu pourras la rattacher plus tard avec ＋🧾 dans la liste)');
+}
 async function uploadPhoto(inputId,prefix){
   const fi=document.getElementById(inputId);
   if(!(fi&&fi.files&&fi.files[0]))return null;
@@ -1839,7 +1844,7 @@ async function livSave(){
       setSync('envoi des photos…');
       const bon=await uploadPhoto('livPhoto','bon');if(bon)row.photo_url=bon;
       const fac=await uploadPhoto('livFacture','facture');if(fac)row.photo_facture_url=fac;
-    }catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
+    }catch(e){setSync('⚠️');if(!photoRefusee(e))return;}   // v20.297 — on continue sans la pièce jointe si Phil le veut
     setSync('enregistrement…');
     const q=await supa.from('fab_livraisons').insert(row);
     if(q.error){setSync('⚠️');toast(q.error.message);return;}
@@ -1917,7 +1922,7 @@ async function livScanSaveAll(){
   try{
     setSync('envoi de la photo…');
     let photo_url=null;
-    try{photo_url=await uploadPhoto('livPhoto','bon');}catch(e){setSync('⚠️');toast('Photo : '+e.message);return;}
+    try{photo_url=await uploadPhoto('livPhoto','bon');}catch(e){setSync('⚠️');if(!photoRefusee(e))return;}   // v20.297
     setSync('enregistrement…');
     const rows=lignes.map(l=>({ingredient_id:l.ingredient_id,quantite_kg:l.quantite_kg,
       numero_lot:l.numero_lot||null,numero_bon:l.numero_bon||null,site,
@@ -2035,8 +2040,8 @@ async function perSave(){
     const f=fi.files[0];const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
     const path='perte_'+Date.now()+'.'+ext;
     const up=await supa.storage.from('bons-bio').upload(path,f,{upsert:false});
-    if(up.error){setSync('⚠️');toast('Photo : '+up.error.message);return;}
-    row.photo_url=supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
+    if(up.error){setSync('⚠️');if(!photoRefusee(up.error))return;}   // v20.297
+    else row.photo_url=supa.storage.from('bons-bio').getPublicUrl(path).data.publicUrl;
   }
   setSync('enregistrement…');
   const q=await supa.from('fab_pertes').insert(row);

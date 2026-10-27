@@ -223,7 +223,9 @@ une fois. `bilExportToutHtml` réutilise `bilComputeRows` et `bilExportHtml(site
 Vue globale des bons = Livraisons → « Registre des lots » avec Site = Tous les sites + période → PDF.
 **v20.296** : les champs photo (bon, facture, perte, planning) n'imposent plus l'appareil photo (`capture` retiré) :
 sur iPad on choisit photo / photothèque / fichier ; **PDF accepté** pour bon, facture et perte (ouvert en lien 📷 / 🧾) ;
-la lecture automatique (IA) reste réservée aux photos. Requête de diagnostic `sql/17_bilan_ce_qui_manque_par_site.sql`
+la lecture automatique (IA) reste réservée aux photos. **v20.297** : une pièce jointe refusée par le stockage ne bloque
+plus la saisie (confirmation « enregistrer sans la pièce jointe ») ; `migration-v20.297-storage-bons-bio-pdf.sql` ajoute
+les règles Storage pour les PDF dans `bons-bio` (la règle d'origine, créée dans le tableau de bord, n'accepte que les images). Requête de diagnostic `sql/17_bilan_ce_qui_manque_par_site.sql`
 (lecture seule) : même calcul que le Bilan, à aujourd'hui, une ligne par farine × site. Chez le GAEC des Mimosas,
 « farine de blé type bise » = **Blés de pop** (`ing_bp`), pas le T80 Bio Bise.
 
