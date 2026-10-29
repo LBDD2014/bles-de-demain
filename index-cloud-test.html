@@ -2783,7 +2783,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.315';
+const APP_VERSION  = 'v20.316';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -19983,7 +19983,7 @@ const TICKET_COUPURE_DEFAUT = '14:00';
 // v20.314 — téléphones FIXES des boutiques pour le ticket client (Phil, 29/10 : « je préférerais mettre les fixes »).
 // Numéros donnés par Phil le 29/10 (fiches contact) : Tours fixe, Veigné et Le Local sur leur portable, St-Avertin 09.
 // Marchés (Amboise, Beaujardin) : le numéro de Veigné.
-const SHOP_TELS_FIXES = { tours: '02 47 64 14 51', veigne: '07 57 77 05 39', 'saint-avertin': '09 80 99 96 52', local: '07 50 05 22 96' };
+const SHOP_TELS_FIXES = { tours: '02 47 64 14 51', veigne: '02 47 26 02 82', 'saint-avertin': '09 80 99 96 52', local: '07 50 05 22 96' };
 // Adresses des boutiques (fiches contact de Phil, 29/10/2026) — pas encore imprimées, gardées ici pour les tickets / documents
 const SHOP_ADRESSES = { tours: '31 Place du Grand Marché, 37000 Tours', veigne: '20 Place du Maréchal Leclerc, 37250 Veigné', 'saint-avertin': '17 Mail René Cassin, 37550 Saint-Avertin', local: 'Esvres' };
 function ticketTel(site) { const s = (site === 'amboise' || site === 'beaujardin') ? 'veigne' : site; return SHOP_TELS_FIXES[s] || SHOP_TELS[s] || ''; }
