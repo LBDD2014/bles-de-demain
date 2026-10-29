@@ -1243,6 +1243,7 @@ background: var(--green); color: white; border-color: var(--green);
 .rj-cmd { font-size:13.5px; color:var(--brown); margin-top:2px; }
 .rj-pay { font-size:12px; color:var(--brown-mid); margin-top:2px; }
 .rj-note { font-weight:700; color:var(--orange); }
+.brother-switch { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px; color:var(--brown-mid); cursor:pointer; } .brother-switch input { width:20px; height:20px; margin:0; accent-color:var(--green); } .brother-switch small { color:var(--grey-light); }
 .sp-status-undo { margin-left:6px; padding:6px 10px; border-radius:20px; border:1px solid #E0D8C8; background:#fff; color:var(--brown-mid); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; }
 .rj-act { display:flex; gap:6px; flex:0 0 auto; align-items:center; }
 .rj-st { font-size:12.5px; font-weight:700; color:var(--green); white-space:nowrap; }
@@ -2753,7 +2754,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.324';
+const APP_VERSION  = 'v20.325';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4444,6 +4445,7 @@ function renderFetes() {
     + '<button class="recap-toggle-btn" onclick="openRecapJour(\'fete\')">🏷️ Récap du jour</button>'   // v20.305
     + (showProd ? '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production' + (nNotesProd ? ' <span class="prod-specials-notes">✏️ ' + nNotesProd + '</span>' : '') + '</button>' : '')
     + '</div>';
+  html += '<div style="padding:0 10px 6px">' + brotherSwitchHtml() + '</div>';   // v20.325
   if (feteView === 'new') html += feteFormHtml();
   else if (feteView === 'list') html += feteListHtml();
   else html += feteProdHtml();
@@ -4581,7 +4583,7 @@ async function feteSave() {
   feteEditingId = null; feteDraftQty = {};
   await loadFeteOrders();
   feteView = 'list'; renderFetes();
-  if (saved && !wasEdit) printOrderTickets('fete', saved.id, false); // ticket client direct à la création (v20.305 : étiquette 62 mm)
+  if (saved && !wasEdit && brotherBranchee()) printOrderTickets('fete', saved.id, false); // ticket client direct à la création (v20.305 : étiquette 62 mm ; v20.325 : si la Brother est branchée sur cette tablette)
 }
 function feteListHtml() {
   const mine = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
@@ -19215,7 +19217,7 @@ currentSpecialWeekStart = getMondayOf(d.pickup_date);
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 renderSpecials();
 showToast(nbSerie ? '🔁 Commande enregistrée + ' + nbSerie + ' à venir' : 'Commande enregistrée', 'sync');
-if (!d.id) printOrderTickets('special', orderId, false);   // v20.318 — ticket client d'office à la création (Phil : « à la commande, que pour le client »)
+if (!d.id && brotherBranchee()) printOrderTickets('special', orderId, false);   // v20.318 — ticket client d'office à la création (v20.325 : si la Brother est branchée sur cette tablette)
 }
 
 async function deleteSpecialOrder(oid) {
@@ -20030,6 +20032,17 @@ async function assignOrderNum(table, o, force) {
   return n;
 }
 function ticketNum(n) { return n ? String(n).padStart(2, '0') : '—'; }
+// v20.325 — interrupteur PAR TABLETTE « Brother branchée » (Phil, 29/10 : les imprimantes arrivent en boutique dans
+// quelques jours). Éteint par défaut : rien ne s'imprime tout seul à la commande ; les boutons 🖨 restent disponibles.
+function brotherBranchee() { try { return localStorage.getItem('lbdd_brother') === '1'; } catch (e) { return false; } }
+function toggleBrotherBranchee(el) {
+  const on = !!(el && el.checked);
+  try { localStorage.setItem('lbdd_brother', on ? '1' : '0'); } catch (e) {}
+  showToast(on ? '🖨 Brother branchée : le ticket client sortira à chaque commande' : 'Brother débranchée : plus d\'impression automatique', 'sync');
+}
+function brotherSwitchHtml() {
+  return '<label class="brother-switch"><input type="checkbox" ' + (brotherBranchee() ? 'checked' : '') + ' onchange="toggleBrotherBranchee(this)"> 🖨 Brother branchée sur cette tablette <small>(ticket client automatique à la commande)</small></label>';
+}
 // v20.321 — qui prépare : le prénom réglé sur la tablette (le même que « commande prise par » au début du service)
 function ticketPreparateur() { return (typeof rememberedPerson === 'function' ? rememberedPerson() : '') || ''; }
 // Si aucun prénom n'est réglé et que la boutique a sa liste : on le demande une fois, puis on le garde pour la journée
@@ -20632,6 +20645,7 @@ html += '</div>';
 if (currentBoutique !== 'local') {
 html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button>'
   + '<button class="btn-grey" onclick="openRecapJour(\'special\')" style="width:100%;padding:11px;font-size:14px;margin-top:8px">📋 Récap du jour · tickets retrait</button>'   // v20.305
+  + brotherSwitchHtml()   // v20.325
   + (shopPeopleReady ? '<div style="text-align:right;margin-top:6px"><button class="btn-gold-sm" onclick="openPeopleModal()">⚙️ Prénoms (' + peopleOf(currentBoutique).length + ')</button></div>' : '')
   + '</div>';
 }

@@ -309,6 +309,10 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   **pas de pied de page** (v20.322 : plus de « RETRAIT · Préparé par »), réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 02 47 26 02 82 (v20.316), St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
   marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av, Le Local depuis v20.324 ; pas les marchés ; `SHOP_ADRESSES`), pied « Merci de votre confiance, à très bientôt ! » (v20.321). Marchés : nom du marché en haut.
+- **Interrupteur par tablette « 🖨 Brother branchée sur cette tablette »** (v20.325, `brotherBranchee()`, `localStorage lbdd_brother`,
+  dans l'onglet Special sous « Récap du jour » et dans la barre de l'onglet Fêtes) : **éteint par défaut** → aucune impression
+  automatique à la commande (les imprimantes arrivent en boutique quelques jours après le 29/10) ; allumé → le ticket client sort
+  d'office à chaque commande. Les boutons 🖨 marchent dans les deux cas.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression

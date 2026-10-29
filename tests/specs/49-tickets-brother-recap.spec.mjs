@@ -200,6 +200,17 @@ export const tests = [
       const r = await page.evaluate(async () => {
         setVue('specials'); openNewSpecialOrder();
         Object.assign(specialFormDraft, { customer_name: 'Nouveau Client', customer_phone: '0611223344', pickup_date: '2026-07-24', pickup_time: '10:00', taken_by: 'Noé', items: [{ product_id: 'vt_trad', product_name_custom: '', qty: '2', notes: '', category: '', tranche: false }] });
+        // v20.325 — sans Brother branchée sur la tablette : rien ne s'imprime tout seul
+        window.__printed = [];
+        localStorage.setItem('lbdd_brother', '0');
+        Object.assign(specialFormDraft, { customer_name: 'Sans Brother', customer_phone: '0611223355', pickup_date: '2026-07-24', pickup_time: '09:00', taken_by: 'Noé', items: [{ product_id: 'vt_trad', product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }] });
+        await upsertSpecialOrder();
+        await new Promise((res) => setTimeout(res, 300));
+        const sw = document.querySelector('.brother-switch input');   // visible sur la liste, après l'enregistrement
+        const sansBrother = window.__printed.length + '|' + (sw ? (sw.checked ? 'on' : 'off') : 'absent');
+        localStorage.setItem('lbdd_brother', '1');
+        openNewSpecialOrder();
+        Object.assign(specialFormDraft, { customer_name: 'Nouveau Client', customer_phone: '0611223344', pickup_date: '2026-07-24', pickup_time: '10:00', taken_by: 'Noé', items: [{ product_id: 'vt_trad', product_name_custom: '', qty: '2', notes: '', category: '', tranche: false }] });
         window.__printed = [];
         await upsertSpecialOrder();
         await new Promise((res) => setTimeout(res, 300));
@@ -219,11 +230,12 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 200));
         const fete = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).map((x) => x.querySelector('.rj-client').textContent.trim() + ' / ' + x.querySelector('.rj-cmd').textContent + ' / ' + x.querySelector('.rj-pay').textContent);
         closeRecapJour();
-        return { num1, auto, date2: o2.pickup_date, num2: o2.num_jour, compteur, fete };
+        return { num1, auto, sansBrother, date2: o2.pickup_date, num2: o2.num_jour, compteur, fete };
       });
-      assert(r.num1 === 1, 'nouvelle commande du 24 : n° 1 : ' + r.num1);
-      assert(r.auto === '1/0', 'à la création : le ticket client part d\'office, pas le sac : ' + r.auto);
-      assert(r.date2 === '2026-07-25' && r.num2 === 1 && r.compteur.indexOf('veigne|2026-07-24|1') !== -1 && r.compteur.indexOf('veigne|2026-07-25|1') !== -1, 'déplacée au 25 : nouveau numéro dans la suite du 25 : ' + JSON.stringify(r));
+      assert(r.sansBrother === '0|off', 'Brother débranchée (défaut) : pas d\'impression automatique, interrupteur visible : ' + r.sansBrother);
+      assert(r.num1 === 2, 'nouvelle commande du 24 : n° 2 (la commande sans Brother a pris le 1) : ' + r.num1);
+      assert(r.auto === '1/0', 'Brother branchée : à la création, le ticket client part d\'office, pas le retrait : ' + r.auto);
+      assert(r.date2 === '2026-07-25' && r.num2 === 1 && r.compteur.indexOf('veigne|2026-07-24|2') !== -1 && r.compteur.indexOf('veigne|2026-07-25|1') !== -1, 'déplacée au 25 : nouveau numéro dans la suite du 25 : ' + JSON.stringify(r));
       assert(r.fete.length === 1 && /M\. Lefèvre Fête/.test(r.fete[0]) && /1 Bûche 6 pers\. · 6 Croissant/.test(r.fete[0]) && /Reste au retrait : 22,00 €/.test(r.fete[0]), 'récap fêtes : ' + JSON.stringify(r.fete));
       await page.close();
     },
