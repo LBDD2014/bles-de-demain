@@ -2783,7 +2783,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.312';
+const APP_VERSION  = 'v20.313';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20077,9 +20077,8 @@ function ticketLabelHtml(o, kind, variant) {
   h += '</ul>';
   if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
   if (sac) {
-    const ailleurs = kind === 'special' && o.production_shop && o.production_shop !== o.origin_shop;
     h += '<div class="lb-pay"><div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';   // v20.312 — réglé ou non, visible sur le sac au moment de le remettre
-    h += '<div class="lb-foot"><b>SAC</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + (ailleurs ? ' · fait à ' + escapeHtml(ticketSiteNom(o.production_shop)) : '') + '</div>';
+    h += '<div class="lb-foot"><b>SAC</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + '</div>';   // v20.313 — plus de « fait à X » (Phil, 29/10)
   } else {
     h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
     const tel = SHOP_TELS[site] || '';

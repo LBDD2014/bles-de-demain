@@ -290,7 +290,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   (div `#print-label`, classe `printing-label`, `@page 62mm auto` injectée le temps de l'impression). Bouton 🖨 (formulaire spéciale,
   carte fête) → fenêtre `openTicketChoice` : « Ticket client » / « Client + étiquette sac » / « Ticket A4 (ancien) ». **Le ticket
   client part toujours** ; à la création d'une commande de fête il sort d'office. Sac : n° du jour en gros, téléphone client,
-  « prise par », « fait à X » si produit ailleurs, pas de prix. Client : paiement (réglé / acompte + reste / à régler), téléphone
+  « prise par », réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS`). Marchés : nom du marché en haut.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.

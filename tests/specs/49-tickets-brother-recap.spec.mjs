@@ -95,7 +95,7 @@ export const tests = [
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 07 57 77 05 39/.test(r.client) && /à mercredi !/.test(r.client), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
-      assert(/N° du jour 07/.test(r.sac) && /SAC · fait à Le Local/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, fait ailleurs, réglé ou non (sans montant), pas le pied client : ' + r.sac);
+      assert(/N° du jour 07/.test(r.sac) && /SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, pas de « fait à », réglé ou non (sans montant), pas le pied client : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
       assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket client · Brother 62 mm|🏷️ Client + étiquette sac · Brother 62 mm|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 avec le rappel de l\'imprimante : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
