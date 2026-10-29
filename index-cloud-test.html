@@ -2781,7 +2781,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.309';
+const APP_VERSION  = 'v20.310';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20090,8 +20090,9 @@ function printLabels(labelsHtml) {
 }
 // v20.309 — sur la tablette Android, window.print() rend la main tout de suite et Chrome fabrique l'aperçu APRÈS :
 // si on remet l'écran normal au bout de 0,3 s, c'est toute l'app qui part à l'imprimante (vu le 29/10, aperçu « 62mm x 1m »
-// avec le formulaire de commande). Le mode impression reste donc posé jusqu'à la fin de l'impression (afterprint),
-// ou au premier geste sur la page une fois revenu, ou au pire 2 minutes.
+// avec le formulaire de commande). Le mode impression reste donc posé jusqu'au premier geste sur la page une fois
+// revenu de la fenêtre d'impression, ou au pire 2 minutes. v20.310 : on n'écoute plus « afterprint », Chrome Android
+// peut l'envoyer AVANT d'avoir fabriqué l'aperçu (récap du jour parti à l'imprimante à la place des étiquettes, 29/10 20h42).
 let _printModeEnd = null;
 function _printModeStart(html, pageRule) {
   if (_printModeEnd) _printModeEnd();
@@ -20108,12 +20109,10 @@ function _printModeStart(html, pageRule) {
     if (_printModeEnd !== end) return;   // une impression plus récente a pris la main
     _printModeEnd = null;
     clearTimeout(timer);
-    window.removeEventListener('afterprint', end);
     ['touchstart', 'mousedown', 'keydown'].forEach(function(ev) { document.removeEventListener(ev, end, true); });
     document.body.classList.remove('printing-label'); st.textContent = ''; document.title = titre;
   };
   _printModeEnd = end;
-  window.addEventListener('afterprint', end);
   timer = setTimeout(end, 120000);
   setTimeout(function() {
     window.print();
