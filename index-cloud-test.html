@@ -2781,7 +2781,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.294';
+const APP_VERSION  = 'v20.308';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20091,7 +20091,7 @@ function printLabels(labelsHtml) {
   div.innerHTML = labelsHtml;
   let st = document.getElementById('label-page-style');
   if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page { size: 62mm auto; margin: 0; }';   // marge 0 : Chrome n'a plus de place pour imprimer le titre de la page en en-tête (vu sur le 1er ticket, 29/10)
+  st.textContent = '@page { size: 62mm auto; margin: 0; } body::before { content: none !important; display: none !important; }';   // marge 0 (Chrome n'a plus de place pour un en-tête) + pas d'en-tête « Les Blés de Demain - » des impressions A4 (vu sur les 1ers tickets, 29/10)
   document.body.classList.add('printing-label');
   const titre = document.title; document.title = ' ';
   setTimeout(function() {
@@ -20284,7 +20284,7 @@ function recapPrintSheet() {
   div.innerHTML = recapSheetHtml();
   let st = document.getElementById('label-page-style');
   if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page { size: A4 portrait; margin: 12mm; }';
+  st.textContent = '@page { size: A4 portrait; margin: 12mm; } body::before { content: none !important; display: none !important; }';
   document.body.classList.add('printing-label');
   setTimeout(function() { window.print(); setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; }, 300); }, 50);
 }
