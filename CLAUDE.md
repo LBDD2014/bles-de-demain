@@ -284,7 +284,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
   retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL
-  `next_order_num` + table `order_day_counters`, `migration-v20.305-tickets-numeros.sql`). Secours sans migration : max + 1.
+  `next_order_num` + table `order_day_counters`, `migration-v20.305-tickets-numeros.sql`, **lancée le 29/10/2026**). Secours sans migration : max + 1.
   Changer le jour ou la boutique de retrait = nouveau numéro. Anciennes commandes : numéro à la 1re impression (`assignOrderNum`).
 - **Étiquettes 62 mm** (rouleau continu DK-22205, noir) : `ticketLabelHtml(o, kind, 'client'|'sac')`, impression par `printLabels`
   (div `#print-label`, classe `printing-label`, `@page 62mm auto` injectée le temps de l'impression). Bouton 🖨 (formulaire spéciale,
