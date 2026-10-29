@@ -2752,7 +2752,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.321';
+const APP_VERSION  = 'v20.322';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4601,8 +4601,9 @@ function feteListHtml() {
       + (o.customer_phone ? '<div class="fete-card-sub">📞 ' + escapeHtml(o.customer_phone) + '</div>' : '')
       + '<div class="fete-card-items">' + (o.items || []).map(function(it) { return escapeHtml(it.qty + '× ' + it.nom + (it.taille ? ' ' + it.taille : '')); }).join(' · ') + '</div>'
       + '<div class="fete-card-sub"><b>' + feteEUR(o.total || 0) + '</b> · ' + escapeHtml(payTxt) + (o.notes ? ' · ✏️ ' + escapeHtml(o.notes) : '') + '</div>'
-      + ((o.taken_by || o.given_by) ? '<div class="fete-card-sub" style="margin-top:3px">'
+      + ((o.taken_by || o.given_by || o.prepared_by) ? '<div class="fete-card-sub" style="margin-top:3px">'
           + (o.taken_by ? '<span class="sp-who">👤 ' + escapeHtml(o.taken_by) + '</span> ' : '')
+          + preparedBadge(o) + ' '   // v20.322
           + (o.given_by ? '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>' : '') + '</div>' : '')
       + '<div class="btn-row" style="margin-top:6px">'
       + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
@@ -4622,10 +4623,15 @@ async function feteStatus(id, st, givenBy) {
     openGivenByModal(id, 'fete');
     return;
   }
+  // v20.322 — « Mis de côté » : on note qui prépare
+  if (st === 'prete' && !ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) {
+    ticketDemandePreparateur(function() { feteStatus(id, st, givenBy); });
+    return;
+  }
   setSyncStatus('syncing');
   const patch = { status: st, updated_at: new Date().toISOString() };
   if (st === 'recuperee' && givenBy) patch.given_by = givenBy;
-  const r = await supa.from('fete_orders').update(patch).eq('id', id);
+  const r = st === 'prete' ? await updateAvecPrepare('fete_orders', id, patch) : await supa.from('fete_orders').update(patch).eq('id', id);
   if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
   setSyncStatus('ok');
   await loadFeteOrders(); renderFetes();
@@ -19228,14 +19234,21 @@ if (newStatus === 'livree' && !givenBy && shopPeopleReady && peopleOf(currentBou
   openGivenByModal(oid);
   return;
 }
+// v20.322 — « Mis de côté » : on note qui prépare (prénom réglé sur la tablette, demandé une fois sinon)
+if (newStatus === 'prete' && !ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) {
+  ticketDemandePreparateur(function() { changeSpecialOrderStatus(oid, newStatus, givenBy); });
+  return;
+}
 setSyncStatus('syncing');
 const patch = { status: newStatus, updated_at: new Date().toISOString() };
 if (newStatus === 'livree' && givenBy) patch.given_by = givenBy;
-const { error } = await supa.from('special_orders').update(patch).eq('id', oid);
+let error = null, prep = null;
+if (newStatus === 'prete') { const r = await updateAvecPrepare('special_orders', oid, patch); error = r.error; if (r.prepared) prep = preparedPatch(); }
+else { error = (await supa.from('special_orders').update(patch).eq('id', oid)).error; }
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
 const o = specialOrdersData.find(function(x) { return x.id === oid; });
-if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; }
+if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; if (prep) { o.prepared_by = prep.prepared_by; o.prepared_at = prep.prepared_at; } }
 renderSpecials();
 }
 
@@ -20020,10 +20033,29 @@ function ticketDemandePreparateur(suite) {
   let el = document.getElementById('prep-modal');
   if (!el) { el = document.createElement('div'); el.id = 'prep-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
   el.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-title">👤 Qui prépare ce matin ?</div>'
-    + '<div class="modal-sub">Le prénom s\'écrit sur les tickets retrait (« Préparé par … ») et reste réglé sur cette tablette pour la journée.</div>'
+    + '<div class="modal-sub">Le prénom est noté sur la commande (« préparée par … ») et reste réglé sur cette tablette pour la journée.</div>'
     + '<div style="display:grid;gap:8px">' + peopleOf(currentBoutique).map(function(n) { return '<button class="btn-gold" style="padding:13px" onclick="ticketChoisitPreparateur(\'' + escapeHtml(n) + '\')">' + escapeHtml(n) + '</button>'; }).join('') + '</div>'
     + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="ticketChoisitPreparateur(\'\')">Sans nom</button></div>';
   el.classList.add('show');
+}
+// v20.322 — « Mis de côté » note qui a préparé (prénom réglé sur la tablette) et quand
+let _prepWarned = false;
+function preparedPatch() { return { prepared_by: ticketPreparateur() || null, prepared_at: new Date().toISOString() }; }
+// Mise à jour avec les colonnes prepared_* ; si la base ne les connaît pas encore, on réécrit sans (et on prévient une fois)
+async function updateAvecPrepare(table, id, patch) {
+  let r = await supa.from(table).update(Object.assign({}, patch, preparedPatch())).eq('id', id);
+  if (r.error && /prepared_/.test(r.error.message || '')) {
+    if (!_prepWarned) { _prepWarned = true; showToast('« Préparé par » non enregistré : migration v20.322 à lancer', 'warn'); }
+    r = await supa.from(table).update(patch).eq('id', id);
+    return { error: r.error, prepared: false };
+  }
+  return { error: r.error, prepared: !r.error };
+}
+function preparedBadge(o) {
+  if (!o || !o.prepared_by) return '';
+  const d = o.prepared_at ? new Date(o.prepared_at) : null;
+  const h = d && !isNaN(d.getTime()) ? ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0') : '';
+  return '<span class="sp-who" title="Mise de côté par">🧺 ' + escapeHtml(o.prepared_by) + h + '</span>';
 }
 function ticketChoisitPreparateur(nom) {
   const el = document.getElementById('prep-modal'); if (el) el.classList.remove('show');
@@ -20076,8 +20108,7 @@ function ticketLabelHtml(o, kind, variant) {
   if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
   if (sac) {
     h += '<div class="lb-pay"><div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';   // v20.312 — réglé ou non, visible sur le sac au moment de le remettre
-    const prep = ticketPreparateur();   // v20.321 — le prénom réglé sur la tablette ce matin-là (Phil, 29/10)
-    h += '<div class="lb-foot"><b>RETRAIT</b>' + (prep ? ' · Préparé par ' + escapeHtml(prep) : '') + '</div>';
+    // v20.322 — plus de pied de page sur le ticket retrait (Phil, 29/10) : « qui a préparé » se voit sur la tablette
   } else {
     h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
     const tel = ticketTel(site);
@@ -20157,7 +20188,6 @@ function ticketOrderOf(kind, oid) {
 async function printOrderTickets(kind, oid, quoi) {
   const o = ticketOrderOf(kind, oid);
   if (!o) { showToast('Commande introuvable', 'error'); return; }
-  if (quoi && !ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { printOrderTickets(kind, oid, quoi); }); return; }
   if (!o.num_jour && o.id) await assignOrderNum(kind === 'fete' ? 'fete_orders' : 'special_orders', o);
   const labels = [];
   if (quoi !== 'sac') labels.push(ticketLabelHtml(o, kind, 'client'));
@@ -20260,7 +20290,7 @@ function renderRecapJour() {
         + '<div class="rj-cmd">' + escapeHtml(recapResume(o, s.kind)) + (o.notes && ticketLignes(o, s.kind).length ? ' <span class="rj-note">📝 ' + escapeHtml(o.notes) + '</span>' : '') + '</div>'
         + '<div class="rj-pay">' + escapeHtml(ticketPaiement(o, s.kind).big) + (o.taken_by ? ' · 👤 ' + escapeHtml(o.taken_by) : '') + '</div></div>'
         + '<div class="rj-act">'
-        + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + '</span>'
+        + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + (o.prepared_by ? ' · 🧺 ' + escapeHtml(o.prepared_by) + (o.prepared_at ? ' ' + String(new Date(o.prepared_at).getHours()).padStart(2, '0') + 'h' + String(new Date(o.prepared_at).getMinutes()).padStart(2, '0') : '') : '') + '</span>'
                 : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
         + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Ticket retrait (avec le téléphone du client)">🏷️ Retrait</button>'
         + '</div></div>';
@@ -20291,20 +20321,21 @@ function recapApplyFilter() {
 async function recapMisDeCote(oid) {
   const s = recapJour; if (!s) return;
   const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
+  if (!ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { recapMisDeCote(oid); }); return; }   // v20.322
   setSyncStatus('syncing');
-  const { error } = await supa.from(s.kind === 'fete' ? 'fete_orders' : 'special_orders').update({ status: 'prete', updated_at: new Date().toISOString() }).eq('id', oid);
-  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  const r = await updateAvecPrepare(s.kind === 'fete' ? 'fete_orders' : 'special_orders', oid, { status: 'prete', updated_at: new Date().toISOString() });
+  if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
   setSyncStatus('ok');
   o.status = 'prete';
+  if (r.prepared) { const pp = preparedPatch(); o.prepared_by = pp.prepared_by; o.prepared_at = pp.prepared_at; }
   // les écrans d'origine suivent
   const src = s.kind === 'fete' ? (feteOrders || []) : (specialOrdersData || []);
-  const same = src.find(function(x) { return x.id === oid; }); if (same) same.status = 'prete';
+  const same = src.find(function(x) { return x.id === oid; }); if (same) { same.status = 'prete'; same.prepared_by = o.prepared_by; same.prepared_at = o.prepared_at; }
   renderRecapJour();
   showToast(escapeHtml(o.customer_name || '') + ' : mis de côté ✓', 'sync');
 }
 async function recapPrintOne(oid) {
   const s = recapJour; if (!s) return;
-  if (!ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { recapPrintOne(oid); }); return; }
   const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
   if (!o.num_jour) await assignOrderNum(s.kind === 'fete' ? 'fete_orders' : 'special_orders', o);
   printLabels(ticketLabelHtml(o, s.kind, 'sac'));   // v20.318 — le matin du retrait : l'étiquette sac seule
@@ -20313,7 +20344,6 @@ async function recapPrintOne(oid) {
 // toutes les étiquettes sac de la liste affichée (filtre matin / après-midi respecté), dans l'ordre des heures
 async function recapPrintSacs() {
   const s = recapJour; if (!s) return;
-  if (!ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { recapPrintSacs(); }); return; }
   const list = recapVisibleRows().filter(function(o) { const q = (s.q || '').trim().toLowerCase(); return !q || (recapCustomerKey(o.customer_name) + ' ' + ticketNum(o.num_jour)).indexOf(q) !== -1; });
   if (!list.length) return;
   const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders';
@@ -20328,7 +20358,7 @@ function recapSheetHtml() {
     + '<div class="rj-sheet-sub">' + (s.kind === 'fete' ? 'Commandes de fêtes' : 'Commandes spéciales') + ' · ' + escapeHtml(formatDateFr(s.date)) + ' · ' + (s.period === 'am' ? 'matin' : s.period === 'pm' ? 'après-midi' : 'journée') + ' · ' + (s.sort === 'nom' ? 'par nom' : 'par heure') + ' · ' + list.length + ' commande' + (list.length > 1 ? 's' : '') + '</div>'
     + '<table><thead><tr><th>N°</th><th>Heure</th><th>Client</th><th>Commande</th><th>Paiement</th><th>Fait</th></tr></thead><tbody>';
   list.forEach(function(o) {
-    h += '<tr><td class="n">' + ticketNum(o.num_jour) + '</td><td class="h">' + escapeHtml(ticketHeure(o)) + '</td><td><strong>' + escapeHtml(o.customer_name || '') + '</strong>' + (o.customer_phone ? '<br><small>📞 ' + escapeHtml(o.customer_phone) + '</small>' : '') + (o.taken_by ? '<br><small>👤 ' + escapeHtml(o.taken_by) + '</small>' : '') + '</td><td>' + escapeHtml(recapResume(o, s.kind)) + (o.notes ? '<br><small>📝 ' + escapeHtml(o.notes) + '</small>' : '') + '</td><td>' + escapeHtml(ticketPaiement(o, s.kind).big) + '</td><td class="c">' + (recapIsDone(o) ? '✓' : '☐') + '</td></tr>';
+    h += '<tr><td class="n">' + ticketNum(o.num_jour) + '</td><td class="h">' + escapeHtml(ticketHeure(o)) + '</td><td><strong>' + escapeHtml(o.customer_name || '') + '</strong>' + (o.customer_phone ? '<br><small>📞 ' + escapeHtml(o.customer_phone) + '</small>' : '') + (o.taken_by ? '<br><small>👤 ' + escapeHtml(o.taken_by) + '</small>' : '') + '</td><td>' + escapeHtml(recapResume(o, s.kind)) + (o.notes ? '<br><small>📝 ' + escapeHtml(o.notes) + '</small>' : '') + '</td><td>' + escapeHtml(ticketPaiement(o, s.kind).big) + '</td><td class="c">' + (recapIsDone(o) ? '✓' + (o.prepared_by ? '<br><small>' + escapeHtml(o.prepared_by) + '</small>' : '') : '☐') + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -20684,6 +20714,7 @@ html += '<span class="sp-status-badge sp-st-' + o.status + '">' + STATUS_LBL[o.s
 // v20.237 — qui a pris / qui a remis
 if (o.taken_by) html += '<span class="sp-who">👤 ' + escapeHtml(o.taken_by) + '</span>';
 if (o.given_by) html += '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>';
+html += preparedBadge(o);   // v20.322 — 🧺 qui a mis de côté, et quand
 // v20.185 — pastille paiement (visible d'un coup d'œil au retrait)
 if (o.paiement === 'regle') html += '<span style="background:#EAF3EC;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Réglé</span>';
 else if (o.paiement === 'acompte') html += '<span style="background:#FDEEDC;color:var(--orange);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Acompte ' + formatQty(o.acompte_montant || 0) + ' €</span>';

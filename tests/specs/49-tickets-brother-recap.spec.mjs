@@ -102,7 +102,7 @@ export const tests = [
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 02 47 26 02 82 20 Place du Maréchal Leclerc, 37250 Veigné Merci de votre confiance, à très bientôt !/.test(r.client) && !/Place du Maréchal/.test(r.sac), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
-      assert(/N° du jour 07/.test(r.sac) && /RETRAIT · Préparé par Zora/.test(r.sac) && !/prise par/.test(r.sac) && !/Préparé/.test(r.sansPrep) && /📞 pas de numéro/.test(r.sac) && !/SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, pas de « fait à », réglé ou non (sans montant), pas le pied client : ' + r.sac);
+      assert(/N° du jour 07/.test(r.sac) && !/RETRAIT/.test(r.sac) && !/Préparé/.test(r.sac) && !/prise par/.test(r.sac) && /📞 pas de numéro/.test(r.sac) && !/SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓\s*$/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'ticket retrait : n° du jour, sans pied de page (v20.322), réglé ou non (sans montant), pas le pied client : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
       const ticketTelOk = r.tels.tours === '02 47 64 14 51' && r.tels.amboise === '02 47 26 02 82' && r.tels.local === '07 50 05 22 96';
       assert(ticketTelOk, 'téléphones du ticket : Tours fixe, marchés = Veigné : ' + JSON.stringify(r.tels));
@@ -141,14 +141,18 @@ export const tests = [
         const loupe = rows(); const memeInput = document.querySelector('#recap-jour-modal input[type=search]') === inp;
         inp.value = ''; inp.dispatchEvent(new Event('input'));
         // mis de côté : la ligne disparaît
+        rememberPerson('Zora');   // v20.322 — prénom réglé sur la tablette = qui prépare
         const btn = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).find((x) => /Barbier/.test(x.textContent)).querySelector('button.btn-gold-sm');
         btn.click();
         await new Promise((res) => setTimeout(res, 150));
         const apres = rows();
-        const enBase = window.__mockDB.special_orders.find((o) => o.id === 's1').status;
+        const s1 = window.__mockDB.special_orders.find((o) => o.id === 's1');
+        const enBase = s1.status;
+        const prepare = s1.prepared_by + '|' + (s1.prepared_at ? 'date' : 'rien');
         const cb = document.querySelector('#recap-jour-modal .rj-done input'); cb.checked = true; cb.dispatchEvent(new Event('change'));
         const avecFaites = rows();
         const faitesLbl = document.querySelector('#recap-jour-modal .rj-done').textContent.trim();
+        const ligneFaite = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).find((x) => /Barbier/.test(x.textContent)).querySelector('.rj-st').textContent;
         cb.checked = false; cb.dispatchEvent(new Event('change'));
         // tous les sacs (liste visible, ordre des heures), numéros attribués au passage
         window.__printed = [];
@@ -160,7 +164,7 @@ export const tests = [
         const nbSac = (sacs.match(/lb-sac/g) || []).length, nbClient = (sacs.match(/Votre commande/g) || []).length;
         recapSet('period', 'all'); recapSet('sort', 'heure'); recapSet('showDone', '1');   // Barbier (mise de côté) doit figurer sur la feuille
         const feuille = recapSheetHtml();
-        return { heure, nom, pm14, am14, pm11, loupe, memeInput, apres, enBase, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient, feuille };
+        return { heure, nom, pm14, am14, pm11, loupe, memeInput, apres, enBase, prepare, ligneFaite, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient, feuille };
       });
       assert(r.heure.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure', 'par heure, faites cachées (Aubry mis de côté), annulée absente, sans heure en fin : ' + r.heure.join(','));
       assert(r.nom.join(',') === 'Mme Barbier,Dupont Claire,Sans Heure', 'par nom (Mme ignoré : Barbier < Dupont < Sans) : ' + r.nom.join(','));
@@ -169,9 +173,10 @@ export const tests = [
       assert(r.loupe.join(',') === 'Mme Barbier' && r.memeInput, 'loupe « barb » sans re-rendu : ' + r.loupe.join(','));
       assert(r.apres.join(',') === 'Dupont Claire,Sans Heure' && r.enBase === 'prete', 'mis de côté → cachée, statut prete en base : ' + r.apres.join(',') + ' / ' + r.enBase);
       assert(r.avecFaites.length === 4 && /Voir les faites \(2\)/.test(r.faitesLbl), 'voir les faites : 4 lignes, (2) : ' + r.avecFaites.join(',') + ' / ' + r.faitesLbl);
+      assert(r.prepare === 'Zora|date' && /Mis de côté · 🧺 Zora \d\dh\d\d/.test(r.ligneFaite), 'mis de côté → préparée par Zora + heure, en base et à l\'écran : ' + r.prepare + ' / ' + r.ligneFaite);
       assert(r.ordre.join(',') === 'Dupont Claire,Sans Heure' && r.nbSac === 2 && r.nbClient === 0, 'tous les sacs : les 2 à faire, ordre des heures, étiquettes sac seulement : ' + JSON.stringify({ ordre: r.ordre, s: r.nbSac, c: r.nbClient }));
       assert(r.nums.every((x) => /:\d+$/.test(x)), 'numéros attribués au passage : ' + r.nums.join(','));
-      assert(/<img src="data:image\/png;base64,/.test(r.feuille) && /Retraits à Veigné/.test(r.feuille) && /📞 0612345678/.test(r.feuille) && /👤 Noé/.test(r.feuille) && /À régler au retrait/.test(r.feuille) && /11h15/.test(r.feuille) && /sans graines/.test(r.feuille), 'feuille A4 : logo, lieu de retrait, téléphone, prise par, paiement, heure, note : ' + r.feuille.slice(0, 200));
+      assert(/<img src="data:image\/png;base64,/.test(r.feuille) && /Retraits à Veigné/.test(r.feuille) && /📞 0612345678/.test(r.feuille) && /👤 Noé/.test(r.feuille) && /À régler au retrait/.test(r.feuille) && /11h15/.test(r.feuille) && /sans graines/.test(r.feuille) && /✓<br><small>Zora<\/small>/.test(r.feuille), 'feuille A4 : logo, lieu de retrait, téléphone, prise par, paiement, heure, note : ' + r.feuille.slice(0, 200));
       await page.close();
     },
   },

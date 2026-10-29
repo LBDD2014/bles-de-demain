@@ -306,8 +306,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   « Tous les tickets retrait »). `printOrderTickets(kind, id, false | 'sac' | true)`. **v20.320 : l'étiquette « sac » s'appelle
   « ticket retrait »** (Phil : « je veux le ticket du retrait avec le numéro de téléphone des gens »), code interne inchangé (`'sac'`).
   Retrait : n° du jour en gros, **téléphone client toujours** (« 📞 pas de numéro » sinon),
-  **« Préparé par <prénom réglé sur la tablette> »** (v20.321, `rememberedPerson()` ; demandé une fois via `ticketDemandePreparateur`
-  si rien n'est réglé et que la boutique a sa liste de prénoms), réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
+  **pas de pied de page** (v20.322 : plus de « RETRAIT · Préparé par »), réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 02 47 26 02 82 (v20.316), St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
   marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av seulement, `SHOP_ADRESSES`), pied « Merci de votre confiance, à très bientôt ! » (v20.321). Marchés : nom du marché en haut.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
@@ -319,6 +318,11 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   que le secours. La règle A4 `body::before` (« Les Blés de Demain - »)
   est neutralisée pendant l'impression des étiquettes (v20.308). `APP_VERSION` doit être bumpé à chaque version (il était
   resté à v20.294, impossible de savoir ce que la tablette avait chargé).
+- **🧺 Qui a préparé** (v20.322, `migration-v20.322-prepare-par.sql` : `special_orders` / `fete_orders.prepared_by, prepared_at`) :
+  « Mis de côté ✓ » (récap du jour, carte spéciale, carte fête) enregistre **le prénom réglé sur la tablette** (`rememberedPerson()`,
+  demandé une fois via `ticketDemandePreparateur` si rien n'est réglé et que la boutique a sa liste) et l'heure. Écriture tolérante
+  `updateAvecPrepare` (sans la migration : statut seul + toast une fois). Affiché : badge 🧺 sur les cartes (`preparedBadge`), ligne
+  faite du récap (« ✓ Mis de côté · 🧺 Zora 07h12 »), prénom sous le ✓ de la feuille A4. Rien sur les tickets.
 - **Coupure matin / après-midi** : `ticket_reglages.coupure_aprem` par site, **défaut 14h00**, réglable en BackOffice → Codes
   (`coupureAprem(site)`, `ticketPeriode(o)`) ; sans heure de retrait = matin.
 - **📋 Récap du jour** (`openRecapJour('special'|'fete')`, bouton sous « + Nouvelle commande » de l'onglet Special et dans la barre
