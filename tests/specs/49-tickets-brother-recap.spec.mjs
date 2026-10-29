@@ -91,12 +91,14 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 1200));
         document.dispatchEvent(new Event('touchstart'));   // premier geste sur la page = retour de la fenêtre d'impression
         const modeFini = !document.body.classList.contains('printing-label') && document.title.trim() !== '' && document.getElementById('label-page-style').textContent === '';
-        return { client, sac, fete, boutons, n1, n2, modeApres, modeIgnore, modeFini, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
+        return { client, sac, fete, boutons, n1, n2, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 07 57 77 05 39/.test(r.client) && /Merci de votre confiance !/.test(r.client), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
       assert(/N° du jour 07/.test(r.sac) && /SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, pas de « fait à », réglé ou non (sans montant), pas le pied client : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
+      const ticketTelOk = r.tels.tours === '02 47 64 14 51' && r.tels.amboise === '07 57 77 05 39' && r.tels.local === '07 50 05 22 96';
+      assert(ticketTelOk, 'téléphones du ticket : Tours fixe, marchés = Veigné : ' + JSON.stringify(r.tels));
       assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket client · Brother 62 mm|🏷️ Client + étiquette sac · Brother 62 mm|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 avec le rappel de l\'imprimante : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
       assert(r.modeApres && r.modeIgnore && r.modeFini, 'mode étiquette gardé après window.print et après afterprint (Android), levé au premier geste : ' + JSON.stringify({ a: r.modeApres, i: r.modeIgnore, f: r.modeFini }));

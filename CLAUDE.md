@@ -291,7 +291,8 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   carte fête) → fenêtre `openTicketChoice` : « Ticket client » / « Client + étiquette sac » / « Ticket A4 (ancien) ». **Le ticket
   client part toujours** ; à la création d'une commande de fête il sort d'office. Sac : n° du jour en gros, téléphone client,
   « prise par », réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
-  de la boutique (`SHOP_TELS`). Marchés : nom du marché en haut.
+  de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 07 57 77 05 39, St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
+  marchés = Veigné), pied « Merci de votre confiance ! ». Marchés : nom du marché en haut.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression
