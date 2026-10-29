@@ -1920,6 +1920,9 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 /* v20.293 — 💶 Mise en compte (passée en caisse) */
 .pro-compte-btn { margin-top: 8px; padding: 9px 14px; border-radius: 10px; border: 1.5px solid var(--gold-dark); background: #fff; color: var(--gold-dark); font-weight: 700; font-size: 13px; cursor: pointer; }
 .pro-compte-btn.fait { background: var(--green); border-color: var(--green); color: #fff; }
+/* v20.303 — 📑 Dupliquer une commande pro */
+.pro-dup-btn { margin: 8px 0 0 8px; padding: 9px 14px; border-radius: 10px; border: 1.5px solid #E0D8C8; background: #fff; color: var(--brown); font-weight: 700; font-size: 13px; cursor: pointer; }
+.pro-dup-banner { background: #FBF6EA; border-left: 4px solid var(--gold); }
 .pro-order-special-badge {
   font-size: 14px; vertical-align: middle;
   filter: drop-shadow(0 1px 2px rgba(206,171,82,0.5));
@@ -15027,6 +15030,13 @@ async function openProOrderForm(orderId) {
   } else {
     const o = proOrdersData.find(function(x) { return x.id === orderId; });
     if (!o) { editingProOrderId = null; renderProOrders(); return; }
+    proOrderDraft = await proOrderDraftFrom(o);
+  }
+  renderProOrders();
+}
+// v20.303 — le brouillon d'une commande existante (partagé entre « modifier » et « 📑 Dupliquer »)
+async function proOrderDraftFrom(o) {
+  {
     // v20.257 — on rassemble les morceaux (un par site) pour les rééditer ensemble.
     // L'écran ne charge que les commandes de CE site : les autres morceaux viennent de la base.
     const sr = await supa.from('pro_orders').select('*, pro_order_items(*)')
@@ -15036,7 +15046,7 @@ async function openProOrderForm(orderId) {
     const sibs = sibs0.length ? sibs0 : [o];
     let allItems = [];
     sibs.forEach(function(x) { allItems = allItems.concat(x.pro_order_items || []); });
-    proOrderDraft = {
+    return {
       id: o.id,
       orig_date: o.date_livraison,
       orig_pro_id: o.pro_id,                 // v20.291 — changer le pro déplace la commande (cas la folie / QG de Loulou, 25/10)
@@ -15052,7 +15062,51 @@ async function openProOrderForm(orderId) {
       })
     };
   }
+}
+// v20.303 — « 📑 Dupliquer » (Phil, 29/10 : « le même bouton dupliquer dans l'app équipe ») : même commande, même pro,
+// même créneau, pour le PROCHAIN JOUR coché de la fiche sans commande déjà posée (même créneau) ; à défaut le prochain
+// jour coché ; à défaut demain. La date reste modifiable avant « Créer ». La boutique n'est pas forcée : la fiche décide.
+async function proNextFreeDate(pro, creneau) {
+  const JOURS_DOW = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const t = todayISO(), cr = creneau || 'matin';
+  const from = addDays(t, 1), to = addDays(t, 21);
+  let pris = {};
+  if (pro) {
+    const q = await supa.from('pro_orders').select('date_livraison, creneau').eq('tenant_id', TENANT_ID).eq('pro_id', pro.id)
+      .gte('date_livraison', from).lte('date_livraison', to).neq('statut', 'annule');
+    (q.data || []).forEach(function(o) { if ((o.creneau || 'matin') === cr) pris[o.date_livraison] = true; });
+  }
+  const jl = (pro && pro.jours_livraison) || {};
+  let premierCoche = null;
+  for (let i = 1; i <= 21; i++) {
+    const iso = addDays(t, i);
+    const cfg = jl[JOURS_DOW[new Date(iso + 'T12:00').getDay()]];
+    if (!cfg || !cfg.actif) continue;
+    if (!premierCoche) premierCoche = iso;
+    if (!pris[iso]) return iso;
+  }
+  return premierCoche || from;
+}
+async function proOrderDuplicate(orderId) {
+  const o = proOrdersData.find(function(x) { return x.id === orderId; });
+  if (!o) return;
+  const pro = adminPros.find(function(p) { return p.id === o.pro_id; });
+  setSyncStatus('syncing');
+  const d = await proOrderDraftFrom(o);
+  const date = await proNextFreeDate(pro, o.creneau);
+  setSyncStatus('ok');
+  delete d.orig_date; delete d.orig_pro_id; delete d.orig_creneau;
+  d.id = null;
+  d.date_livraison = date;
+  d.statut = 'confirme';
+  d.notes = '';
+  d.items = d.items.map(function(it) { return { product_id: it.product_id, qty: it.qty, prix_applique: it.prix_applique }; });
+  d.dup_from = { date: o.date_livraison, nom: pro ? pro.nom : '' };
+  proOrderDraft = d;
+  editingProOrderId = 'new';
   renderProOrders();
+  const mc = document.querySelector('.pro-form-title'); if (mc) mc.scrollIntoView({ block: 'start' });
+  showToast('Commande du ' + formatProOrderDate(o.date_livraison) + ' copiée pour ' + formatProOrderDate(date) + ' — vérifie la date puis Créer', 'sync');
 }
 
 function closeProOrderForm() {
@@ -15572,6 +15626,7 @@ function renderProOrders() {
             + itemsHtml
             + specialHtml
             + proMiseEnCompteBtnHtml(o)   // v20.293
+            + '<button type="button" class="pro-dup-btn" onclick="event.stopPropagation(); proOrderDuplicate(\'' + escapeHtml(o.id) + '\')" title="Refaire cette commande pour le prochain jour libre">📑 Dupliquer</button>'   // v20.303
           + '</div>'
           + '<div class="pro-order-arrow">›</div>'
         + '</div>';
@@ -15620,9 +15675,11 @@ function renderProOrderForm(mc) {
 
   let html = '<div class="pro-form-header">'
     + '<button class="modal-action cancel" onclick="closeProOrderForm()">← Retour</button>'
-    + '<div class="pro-form-title">' + (isNew ? 'Nouvelle commande pro' : (pro ? escapeHtml(pro.nom) : 'Commande pro')) + '</div>'
+    + '<div class="pro-form-title">' + (isNew ? (d.dup_from ? '📑 Copie d\'une commande' : 'Nouvelle commande pro') : (pro ? escapeHtml(pro.nom) : 'Commande pro')) + '</div>'
     + '<button class="btn-gold" onclick="saveProOrder()">' + (isNew ? 'Créer' : 'Enregistrer') + '</button>'
   + '</div>';
+  // v20.303 — dupliquée : on dit d'où elle vient et pour quand elle est proposée
+  if (isNew && d.dup_from) html += '<div class="info-banner pro-dup-banner">📑 Copie de la commande de <strong>' + escapeHtml(d.dup_from.nom || '') + '</strong> du ' + escapeHtml(formatProOrderDate(d.dup_from.date)) + ', proposée pour <strong>' + escapeHtml(formatProOrderDate(d.date_livraison)) + '</strong> (prochain jour libre). Change la date ou les quantités si besoin, puis <strong>Créer</strong>.</div>';
 
   html += '<div class="pro-form">';
 

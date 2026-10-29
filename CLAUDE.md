@@ -274,6 +274,11 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   commande pour <jour> » dans le détail : ouvre le **prochain jour libre** (`nextFreeDate`, même créneau si possible) avec
   les quantités de cette commande (produits sortis du catalogue ignorés) ; dans un groupe, seul l'établissement de la
   commande est rempli. Pas de bouton quand aucun jour n'est libre. Tests : specs 36 et 44.
+- **App équipe — « 📑 Dupliquer »** (v20.303, 29/10/2026) : bouton sur chaque carte de l'onglet Pros (`proOrderDuplicate`) →
+  formulaire « Nouvelle commande » déjà rempli (pro, lignes, prix appliqués, créneau ; note pas recopiée), date = **prochain
+  jour coché de la fiche sans commande du même créneau** (`proNextFreeDate`, 3 semaines ; à défaut prochain jour coché, à
+  défaut demain), modifiable avant « Créer ». Boutique non forcée (la fiche décide). Brouillon partagé `proOrderDraftFrom(o)`.
+  Test : spec 48.
 
 ### Quantités par caisse (viennoiserie)
 
