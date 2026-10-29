@@ -291,6 +291,14 @@
       });
       return n;
     },
+    // v20.305 — compteur de numéros de commande du jour (boutique × jour)
+    next_order_num: function (a) {
+      const rows = tableRows('order_day_counters');
+      let c = rows.find(function (x) { return x.shop === a.p_shop && x.jour === a.p_jour; });
+      if (!c) { c = { tenant_id: a.p_tenant, shop: a.p_shop, jour: a.p_jour, last: 0 }; rows.push(c); }
+      c.last += 1;
+      return c.last;
+    },
     pro_page_set_contacts: function (a) {
       const p = proEtabs(a.p_token).find(function (x) { return x.id === a.p_etab; });
       if (!p) return false;

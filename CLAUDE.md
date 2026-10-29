@@ -281,6 +281,27 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   **v20.304** : le même bouton dans le détail d'une commande (formulaire de modification, bloc « 📑 Refaire cette commande »,
   à partir de la commande enregistrée). Test : spec 48.
 
+**Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
+- **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
+  retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL
+  `next_order_num` + table `order_day_counters`, `migration-v20.305-tickets-numeros.sql`). Secours sans migration : max + 1.
+  Changer le jour ou la boutique de retrait = nouveau numéro. Anciennes commandes : numéro à la 1re impression (`assignOrderNum`).
+- **Étiquettes 62 mm** (rouleau continu DK-22205, noir) : `ticketLabelHtml(o, kind, 'client'|'sac')`, impression par `printLabels`
+  (div `#print-label`, classe `printing-label`, `@page 62mm auto` injectée le temps de l'impression). Bouton 🖨 (formulaire spéciale,
+  carte fête) → fenêtre `openTicketChoice` : « Ticket client » / « Client + étiquette sac » / « Ticket A4 (ancien) ». **Le ticket
+  client part toujours** ; à la création d'une commande de fête il sort d'office. Sac : n° du jour en gros, téléphone client,
+  « prise par », « fait à X » si produit ailleurs, pas de prix. Client : paiement (réglé / acompte + reste / à régler), téléphone
+  de la boutique (`SHOP_TELS`). Marchés : nom du marché en haut.
+- **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
+  (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
+- **Coupure matin / après-midi** : `ticket_reglages.coupure_aprem` par site, **défaut 14h00**, réglable en BackOffice → Codes
+  (`coupureAprem(site)`, `ticketPeriode(o)`) ; sans heure de retrait = matin.
+- **📋 Récap du jour** (`openRecapJour('special'|'fete')`, bouton sous « + Nouvelle commande » de l'onglet Special et dans la barre
+  de l'onglet Fêtes) : date + site, tri par heure / par nom (civilité ignorée), Tout / Matin / Après-midi, loupe nom ou n° (filtre
+  sans re-rendu), bouton « Mis de côté ✓ » qui **cache la ligne au fur et à mesure** (statut `prete`), « Voir les faites (n) »
+  (prête + venu chercher), 🏷️ par ligne (client + sac), « 🏷️ Tous les sacs » (liste affichée, ordre des heures) et « 🖨 Feuille A4 ».
+- Test : spec 49.
+
 ### Quantités par caisse (viennoiserie)
 
 Croissant 77 / Pain choc 130 / Pain raisin 80 / Suisse 60 / Tartelettes 12 / Cannelé 170 / Chausson aux pommes 80 /

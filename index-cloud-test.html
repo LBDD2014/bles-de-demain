@@ -1223,6 +1223,62 @@ background: var(--green); color: white; border-color: var(--green);
 
 /* v19.1 : Ticket impression commande speciale */
 .print-only-ticket { display: none; }
+/* v20.305 — étiquettes Brother 62 mm (tickets sac / client) + feuille récap */
+.print-only-label { display: none; }
+.rj-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+.rj-pill { font-size:12px; font-weight:700; border-radius:999px; padding:4px 10px; background:var(--cream); border:1px solid #E5DCC8; color:var(--brown-mid); }
+.rj-seg { display:inline-flex; border:1.5px solid var(--gold-dark); border-radius:10px; overflow:hidden; }
+.rj-seg button { background:transparent; border:none; color:var(--gold-dark); font:inherit; font-weight:700; padding:9px 12px; cursor:pointer; min-height:40px; }
+.rj-seg button.on { background:var(--gold-dark); color:#fff; }
+.rj-search { flex:1; min-width:170px; }
+.rj-done { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; white-space:nowrap; }
+.rj-list { display:grid; gap:6px; }
+.rj-row { display:flex; gap:10px; align-items:center; background:#fff; border:1px solid #F0E8D6; border-radius:10px; padding:8px 10px; }
+.rj-row.done { opacity:.6; background:#F7F7F2; }
+.rj-n { font-size:22px; font-weight:800; min-width:40px; text-align:center; font-variant-numeric:tabular-nums; color:var(--grey-dark); }
+.rj-h { font-size:16px; font-weight:700; min-width:52px; font-variant-numeric:tabular-nums; }
+.rj-main { flex:1; min-width:0; }
+.rj-client { font-weight:700; font-size:15px; } .rj-client small { font-weight:500; color:var(--grey-light); font-size:12px; }
+.rj-fete { display:inline-block; font-size:10.5px; font-weight:800; border:1.5px solid var(--brown); border-radius:6px; padding:0 5px; vertical-align:1px; margin-left:4px; }
+.rj-cmd { font-size:13.5px; color:var(--brown); margin-top:2px; }
+.rj-pay { font-size:12px; color:var(--brown-mid); margin-top:2px; }
+.rj-act { display:flex; gap:6px; flex:0 0 auto; align-items:center; }
+.rj-st { font-size:12.5px; font-weight:700; color:var(--green); white-space:nowrap; }
+@media (max-width: 640px) { .rj-row { flex-wrap:wrap; } .rj-act { width:100%; justify-content:flex-end; } }
+@media print {
+body.printing-label > *:not(.print-only-label) { display: none !important; }
+body.printing-label .print-only-label { display: block !important; }
+.lb { width: 58mm; padding: 1mm 0 2mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }
+.lb:last-child { page-break-after: auto; break-after: auto; }
+.lb-brand { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 13pt; text-align: center; }
+.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }
+.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }
+.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }
+.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }
+.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }
+.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }
+.lb-client { font-size: 16pt; font-weight: 800; line-height: 1.1; margin: 1.5mm 0 0.5mm; word-break: break-word; }
+.lb-sac .lb-client { font-size: 19pt; }
+.lb-tel { font-size: 8.5pt; }
+.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }
+.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }
+.lb-items li:last-child { border-bottom: none; }
+.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }
+.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }
+.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }
+.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }
+.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }
+.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }
+.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }
+.rj-sheet { font-family: Georgia, serif; color: #000; }
+.rj-sheet h1 { font-size: 16pt; margin: 0 0 2mm; }
+.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }
+.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }
+.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }
+.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }
+}
 @media print {
 body.printing-ticket > *:not(.print-only-ticket) { display: none !important; }
 body.printing-ticket .print-only-ticket { display: block !important; }
@@ -3868,6 +3924,7 @@ async function loadBoutiqueCodes() {
   if (!error) (data || []).forEach(function(r) { boutiqueCodes[r.boutique_id] = r.code; });
   if (error && isPermissionDenied(error)) authStrict = true;   // v20.289 — verrou posé : la clé publique ne lit plus rien
   boutiqueCodesLoaded = !error;
+  await loadTicketReglages();   // v20.305 — coupure matin / après-midi par site
 }
 // v20.289 — validation d'un code tapé : ouvre la session ; sans compte créé (migration pas encore passée)
 // et sans verrou, un code juste suffit comme avant. Affiche la raison dans la fenêtre de code.
@@ -4411,6 +4468,7 @@ function renderFetes() {
   html += '<div class="recap-toggle">'
     + '<button class="recap-toggle-btn ' + (feteView === 'new' ? 'active' : '') + '" onclick="feteSetView(\'new\')">📝 Nouvelle</button>'
     + '<button class="recap-toggle-btn ' + (feteView === 'list' ? 'active' : '') + '" onclick="feteSetView(\'list\')">📋 Commandes (' + nOrders + ')</button>'
+    + '<button class="recap-toggle-btn" onclick="openRecapJour(\'fete\')">🏷️ Récap du jour</button>'   // v20.305
     + (showProd ? '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production' + (nNotesProd ? ' <span class="prod-specials-notes">✏️ ' + nNotesProd + '</span>' : '') + '</button>' : '')
     + '</div>';
   if (feteView === 'new') html += feteFormHtml();
@@ -4534,20 +4592,23 @@ async function feteSave() {
   let saved = null;
   if (feteEditingId) {
     row.updated_at = new Date().toISOString();
+    const avant = feteOrders.find(function(x) { return x.id === feteEditingId; });
     const r = await supa.from('fete_orders').update(row).eq('id', feteEditingId).select();
     if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
     saved = r.data && r.data[0];
+    if (saved && avant && (avant.pickup_date !== saved.pickup_date || avant.origin_shop !== saved.origin_shop)) await assignOrderNum('fete_orders', saved, true);   // v20.305
   } else {
     const r = await supa.from('fete_orders').insert(row).select();
     if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
     saved = r.data && r.data[0];
+    if (saved) await assignOrderNum('fete_orders', saved);   // v20.305 — numéro du jour
   }
   setSyncStatus('ok'); showToast('Commande enregistrée ✓', 'success');
   const wasEdit = !!feteEditingId;
   feteEditingId = null; feteDraftQty = {};
   await loadFeteOrders();
   feteView = 'list'; renderFetes();
-  if (saved && !wasEdit) printFeteTicket(saved.id); // ticket client direct à la création
+  if (saved && !wasEdit) printOrderTickets('fete', saved.id, false); // ticket client direct à la création (v20.305 : étiquette 62 mm)
 }
 function feteListHtml() {
   const mine = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
@@ -4574,7 +4635,7 @@ function feteListHtml() {
       + '<div class="btn-row" style="margin-top:6px">'
       + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
       + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button>' : '')
-      + '<button class="btn-grey" onclick="printFeteTicket(\'' + o.id + '\')">🖨 Ticket</button>'
+      + '<button class="btn-grey" onclick="openTicketChoice(\'fete\',\'' + o.id + '\')">🖨 Ticket</button>'   // v20.305 — étiquettes Brother (ou A4)
       + (o.status !== 'recuperee' && o.status !== 'annulee'
         ? '<button class="btn-grey" onclick="feteEdit(\'' + o.id + '\')">✏️ Modifier</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'annulee\')">✖ Annuler</button>'
         : '')
@@ -13318,6 +13379,18 @@ function renderAccessCodes() {
       + '</div>';
   });
   h += '</div>';
+  // v20.305 — coupure matin / après-midi (tickets et récap du jour), par site
+  h += '<div class="info-banner" style="margin-top:16px"><strong>⏰ Coupure matin / après-midi</strong><br>'
+    + 'Pour le récap du jour et les étiquettes : une commande retirée <strong>avant</strong> cette heure est « matin », à partir de cette heure « après-midi ». '
+    + 'Sans heure de retrait, elle est rangée le matin. Défaut : 14h00.</div>';
+  h += '<div class="section reappro-section" style="padding:6px 14px">';
+  RECAP_SITES.forEach(function(b) {
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #F5F0E8">'
+      + '<div class="produit-name">' + escapeHtml(ticketSiteNom(b)) + '</div>'
+      + '<input type="time" value="' + escapeHtml(coupureAprem(b)) + '" data-coupure-bid="' + b + '" style="width:130px;padding:9px;border:1px solid var(--gold);border-radius:8px;font-size:15px;font-family:inherit" onchange="saveTicketCoupure(this)">'
+      + '</div>';
+  });
+  h += '</div>';
   mc.innerHTML = h;
 }
 
@@ -19108,12 +19181,18 @@ if (orderId) {
 const { error } = await supa.from('special_orders').update(orderRow).eq('id', orderId);
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 await supa.from('special_order_items').delete().eq('order_id', orderId);
+// v20.305 — autre jour ou autre boutique de retrait : la commande change de suite, nouveau numéro
+const avant = (specialOrdersData || []).find(function(x) { return x.id === orderId; });
+if (avant && (avant.pickup_date !== orderRow.pickup_date || avant.origin_shop !== orderRow.origin_shop)) {
+  await assignOrderNum('special_orders', { id: orderId, origin_shop: orderRow.origin_shop, pickup_date: orderRow.pickup_date }, true);
+}
 } else {
 orderRow.created_by = DEVICE_ID;
 orderRow.created_at = nowISO;
 const { data, error } = await supa.from('special_orders').insert(orderRow).select('id').single();
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 orderId = data.id;
+await assignOrderNum('special_orders', { id: orderId, origin_shop: orderRow.origin_shop, pickup_date: orderRow.pickup_date });   // v20.305 — numéro du jour
 }
 
 const itemRows = cleanItems.map(function(it, idx) {
@@ -19704,6 +19783,7 @@ async function insertSerieCopies(o, dates) {
   });
   const { data: created, error: e1 } = await supa.from('special_orders').insert(orderRows).select('id,pickup_date');
   if (e1) return e1.message;
+  for (let k = 0; k < (created || []).length; k++) await assignOrderNum('special_orders', { id: created[k].id, origin_shop: orderRows[0].origin_shop, pickup_date: created[k].pickup_date });   // v20.305
   const itemRows = [];
   (created || []).forEach(function(c) {
     items.forEach(function(it, idx) {
@@ -19886,6 +19966,323 @@ function confirmGivenBy(oid, prenom, kind) {
   rememberPerson(prenom);
   if (kind === 'fete') feteStatus(oid, 'recuperee', prenom);
   else changeSpecialOrderStatus(oid, 'livree', prenom);
+}
+
+// ===== v20.305 — Tickets Brother QL-820NWB (62 mm), numéro de commande du jour, récap du jour =====
+// Phil (29/10) : « imprimer un ticket pour les clients et pour nous à mettre sur les sacs de commandes »,
+// « le nom du site, le numéro de commande du jour avec la date, le jour, l'heure », « un récapitulatif par
+// heure / alphabétique, matin et/ou aprem », « les commandes faites cachées au fur et à mesure », « une loupe ».
+// Tablettes Logicom (Android) : l'impression passe par la fenêtre d'impression de Chrome avec le
+// « Brother Print Service Plugin » installé ; rouleau continu 62 mm (DK-22205), coupe à la longueur du ticket.
+// Numéro : donné à l'enregistrement, par boutique de retrait et par jour de retrait, spéciales et fêtes
+// dans la même suite (fonction next_order_num en base ; secours max + 1 si la migration n'est pas lancée).
+const TICKET_COUPURE_DEFAUT = '14:00';
+let ticketReglages = {};          // boutique_id → coupure_aprem 'HH:MM'
+let _ticketNumWarned = false;
+async function loadTicketReglages() {
+  const r = await supa.from('ticket_reglages').select('*').eq('tenant_id', TENANT_ID);
+  ticketReglages = {};
+  if (!r.error) (r.data || []).forEach(function(x) { if (x.coupure_aprem) ticketReglages[x.boutique_id] = String(x.coupure_aprem).slice(0, 5); });
+}
+function coupureAprem(site) { return ticketReglages[site] || TICKET_COUPURE_DEFAUT; }
+// 'am' = retrait avant la coupure (ou sans heure), 'pm' = à partir de la coupure
+function ticketPeriode(o, site) {
+  const h = o.pickup_time ? String(o.pickup_time).slice(0, 5) : '';
+  return (!h || h < coupureAprem(site || o.origin_shop)) ? 'am' : 'pm';
+}
+async function saveTicketCoupure(el) {
+  const bid = el.dataset.coupureBid, v = String(el.value || '').trim();
+  if (!/^\d{2}:\d{2}$/.test(v)) { showToast('Heure invalide', 'error'); el.value = coupureAprem(bid); return; }
+  setSyncStatus('syncing');
+  const { error } = await supa.from('ticket_reglages').upsert({ tenant_id: TENANT_ID, boutique_id: bid, coupure_aprem: v, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,boutique_id' });
+  if (error) { setSyncStatus('error'); showToast(/ticket_reglages/.test(error.message || '') ? 'Réglage non enregistré : migration v20.305 à lancer' : error.message, 'error'); return; }
+  setSyncStatus('ok');
+  ticketReglages[bid] = v;
+  showToast('Coupure ' + (BOUTIQUE_NAMES[bid] || bid) + ' : ' + v.replace(':', 'h'), 'sync');
+}
+function ticketNumWarn() {
+  if (_ticketNumWarned) return;
+  _ticketNumWarned = true;
+  showToast('Numéro de commande non attribué : migration v20.305 à lancer', 'warn');
+}
+async function nextOrderNum(shop, dateISO) {
+  const r = await supa.rpc('next_order_num', { p_tenant: TENANT_ID, p_shop: shop, p_jour: dateISO });
+  if (!r.error && r.data != null) return Number(r.data);
+  // secours : max des deux tables + 1 (fonction absente tant que la migration n'est pas lancée)
+  const a = await supa.from('special_orders').select('num_jour').eq('tenant_id', TENANT_ID).eq('origin_shop', shop).eq('pickup_date', dateISO);
+  const b = await supa.from('fete_orders').select('num_jour').eq('tenant_id', TENANT_ID).eq('origin_shop', shop).eq('pickup_date', dateISO);
+  if (a.error || b.error) { ticketNumWarn(); return null; }
+  let max = 0;
+  (a.data || []).concat(b.data || []).forEach(function(x) { if (Number(x.num_jour) > max) max = Number(x.num_jour); });
+  return max + 1;
+}
+// Donne un numéro à une commande qui n'en a pas (à l'enregistrement, ou à la 1re impression pour les anciennes).
+// table = 'special_orders' | 'fete_orders' ; o doit porter id, origin_shop, pickup_date.
+async function assignOrderNum(table, o, force) {
+  if (!o || !o.id || (o.num_jour && !force)) return o ? o.num_jour : null;
+  const n = await nextOrderNum(o.origin_shop, o.pickup_date);
+  if (n == null) return null;
+  const { error } = await supa.from(table).update({ num_jour: n }).eq('id', o.id);
+  if (error) { ticketNumWarn(); return null; }
+  o.num_jour = n;
+  return n;
+}
+function ticketNum(n) { return n ? String(n).padStart(2, '0') : '—'; }
+function ticketHeure(o) { return o.pickup_time ? String(o.pickup_time).slice(0, 5).replace(':', 'h') : '—'; }
+function ticketJourCourt(iso) { const d = new Date(iso + 'T12:00'); return DOW_NAMES[d.getDay()] + ' ' + d.getDate() + ' ' + ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][d.getMonth()]; }
+function ticketSiteNom(site) { return BOUTIQUE_NAMES[site] || site || ''; }
+// lignes normalisées : [{ name, qty, note, tranche }]
+function ticketLignes(o, kind) {
+  if (kind === 'fete') return (o.items || []).map(function(it) { return { name: (it.nom || '?') + (it.taille ? ' ' + it.taille : ''), qty: it.qty, note: '', tranche: false }; });
+  return (o.items || []).map(function(it) { return { name: specialItemName(it, '?'), qty: it.qty, note: it.notes || '', tranche: !!it.tranche }; });
+}
+function ticketPaiement(o, kind) {
+  if (kind === 'fete') {
+    const total = +o.total || 0, ac = +o.acompte || 0;
+    if (o.paiement === 'regle') return { lignes: ['Total : ' + feteEUR(total)], big: 'Réglé ✓' };
+    if (o.paiement === 'acompte') return { lignes: ['Total : ' + feteEUR(total), 'Acompte versé : ' + feteEUR(ac)], big: 'Reste au retrait : ' + feteEUR(total - ac) };
+    return { lignes: total ? ['Total : ' + feteEUR(total)] : [], big: 'À régler au retrait' };
+  }
+  if (o.paiement === 'regle') return { lignes: [], big: 'Réglé ✓' };
+  if (o.paiement === 'acompte') return { lignes: ['Acompte versé : ' + formatQty(o.acompte_montant || 0) + ' €'], big: 'Reste à régler au retrait' };
+  return { lignes: [], big: 'À régler au retrait' };
+}
+function feteLabelOf(o) {
+  if (feteActive && feteActive.id === o.event_id) return feteActive.label;
+  return o.event_id ? String(o.event_id) : 'Fêtes';
+}
+// Une étiquette 62 mm. kind = 'special' | 'fete' ; variant = 'sac' | 'client'
+function ticketLabelHtml(o, kind, variant) {
+  const sac = variant === 'sac';
+  const site = o.origin_shop;
+  const pay = ticketPaiement(o, kind);
+  let h = '<div class="lb' + (sac ? ' lb-sac' : '') + '">'
+    + '<div class="lb-brand">Les Blés de Demain</div>'
+    + '<div class="lb-site">' + escapeHtml(ticketSiteNom(site)) + '</div>'
+    + '<div class="lb-cut"></div>'
+    + (kind === 'fete' ? '<div class="lb-flag">Fêtes · ' + escapeHtml(feteLabelOf(o)) + '</div>' : '')
+    + '<div class="lb-num"><div><small>' + (sac ? 'N° du jour' : 'Votre commande') + '</small><b>' + ticketNum(o.num_jour) + '</b></div>'
+    + '<div class="lb-when"><b>' + escapeHtml(ticketHeure(o)) + '</b><span>' + escapeHtml(ticketJourCourt(o.pickup_date)) + '</span></div></div>'
+    + '<div class="lb-client">' + escapeHtml(o.customer_name || '') + '</div>'
+    + (sac && o.customer_phone ? '<div class="lb-tel">' + escapeHtml(o.customer_phone) + '</div>' : '')
+    + '<ul class="lb-items">';
+  ticketLignes(o, kind).forEach(function(l) {
+    h += '<li><b>' + escapeHtml(String(l.qty || '')) + '</b><span>' + escapeHtml(l.name) + (l.tranche ? ' 🔪 tranché' : '') + (l.note ? '<small>' + escapeHtml(l.note) + '</small>' : '') + '</span></li>';
+  });
+  h += '</ul>';
+  if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
+  if (sac) {
+    const ailleurs = kind === 'special' && o.production_shop && o.production_shop !== o.origin_shop;
+    h += '<div class="lb-foot"><b>SAC</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + (ailleurs ? ' · fait à ' + escapeHtml(ticketSiteNom(o.production_shop)) : '') + '</div>';
+  } else {
+    h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
+    const tel = SHOP_TELS[site] || '';
+    h += '<div class="lb-foot">Retrait : <b>' + escapeHtml(ticketSiteNom(site)) + '</b>' + (tel ? ' · ' + escapeHtml(tel) : '') + '<br>Merci et à ' + escapeHtml(DOW_NAMES[new Date(o.pickup_date + 'T12:00').getDay()]) + ' !</div>';
+  }
+  return h + '</div>';
+}
+// Impression : un div dédié, le reste de la page masqué, @page 62 mm le temps de l'impression
+function printLabels(labelsHtml) {
+  let div = document.getElementById('print-label');
+  if (!div) { div = document.createElement('div'); div.id = 'print-label'; div.className = 'print-only-label'; document.body.appendChild(div); }
+  div.innerHTML = labelsHtml;
+  let st = document.getElementById('label-page-style');
+  if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
+  st.textContent = '@page { size: 62mm auto; margin: 2mm; }';
+  document.body.classList.add('printing-label');
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; }, 300);
+  }, 50);
+}
+function ticketOrderOf(kind, oid) {
+  if (kind === 'fete') return (feteOrders || []).find(function(x) { return x.id === oid; }) || null;
+  return (specialOrdersData || []).find(function(x) { return x.id === oid; }) || (specialFormDraft && specialFormDraft.id === oid ? specialFormDraft : null);
+}
+// Le ticket client part toujours ; le sac en plus si demandé (Phil : « demande à chaque fois mais sort le ticket client d'office »)
+async function printOrderTickets(kind, oid, avecSac) {
+  const o = ticketOrderOf(kind, oid);
+  if (!o) { showToast('Commande introuvable', 'error'); return; }
+  if (!o.num_jour && o.id) await assignOrderNum(kind === 'fete' ? 'fete_orders' : 'special_orders', o);
+  const labels = [ticketLabelHtml(o, kind, 'client')];
+  if (avecSac) labels.push(ticketLabelHtml(o, kind, 'sac'));
+  printLabels(labels.join(''));
+}
+function openTicketChoice(kind, oid) {
+  let el = document.getElementById('ticket-choice-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'ticket-choice-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  const o = ticketOrderOf(kind, oid);
+  el.innerHTML = '<div class="modal" style="max-width:420px">'
+    + '<div class="modal-title">🖨 Imprimer</div>'
+    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Étiquettes 62 mm (Brother). Le ticket client part toujours.</div>'
+    + '<div style="display:grid;gap:8px">'
+    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🏷️ Ticket client</button>'
+    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',true)">🏷️ Client + étiquette sac</button>'
+    + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();' + (kind === 'fete' ? 'printFeteTicket' : 'printSpecialOrderTicket') + '(\'' + escapeHtml(oid) + '\')">📄 Ticket A4 (ancien format)</button>'
+    + '</div>'
+    + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeTicketChoice()">Fermer</button></div>';
+  el.classList.add('show');
+}
+function closeTicketChoice() { const el = document.getElementById('ticket-choice-modal'); if (el) el.classList.remove('show'); }
+
+// ---------- Récap du jour (écran de travail + feuille A4 + toutes les étiquettes sac) ----------
+let recapJour = null;   // { kind, date, site, sort, period, q, showDone, rows }
+const RECAP_SITES = ['veigne', 'tours', 'saint-avertin', 'local', 'amboise', 'beaujardin'];
+function recapIsDone(o) { return o.status === 'prete' || o.status === 'livree' || o.status === 'recuperee'; }
+function recapCustomerKey(n) { return String(n || '').replace(/^(mme|m\.|mr|mlle|madame|monsieur)\s+/i, '').toLowerCase(); }
+async function openRecapJour(kind, dateISO) {
+  const site = RECAP_SITES.indexOf(currentBoutique) !== -1 ? currentBoutique : 'veigne';
+  recapJour = { kind: kind, date: dateISO || (kind === 'special' && typeof selectedSpecialDay !== 'undefined' && selectedSpecialDay) || todayISO(), site: site, sort: 'heure', period: 'all', q: '', showDone: false, rows: [], loading: true };
+  renderRecapJour();
+  await loadRecapJour();
+}
+function closeRecapJour() { const el = document.getElementById('recap-jour-modal'); if (el) el.classList.remove('show'); recapJour = null; }
+async function loadRecapJour() {
+  const s = recapJour; if (!s) return;
+  s.loading = true;
+  let rows = [];
+  if (s.kind === 'fete') {
+    const r = await supa.from('fete_orders').select('*').eq('tenant_id', TENANT_ID).eq('origin_shop', s.site).eq('pickup_date', s.date).neq('status', 'annulee');
+    if (r.error) { showToast(r.error.message, 'error'); } else rows = r.data || [];
+  } else {
+    const r = await supa.from('special_orders').select('*').eq('tenant_id', TENANT_ID).eq('origin_shop', s.site).eq('pickup_date', s.date).neq('status', 'annulee');
+    if (r.error) { showToast(r.error.message, 'error'); } else rows = r.data || [];
+    if (rows.length) {
+      const its = await supa.from('special_order_items').select('*').in('order_id', rows.map(function(o) { return o.id; })).order('position');
+      rows.forEach(function(o) { o.items = (its.data || []).filter(function(i) { return i.order_id === o.id; }); });
+    }
+  }
+  if (recapJour !== s) return;
+  s.rows = rows; s.loading = false;
+  renderRecapJour();
+}
+function recapVisibleRows() {
+  const s = recapJour; if (!s) return [];
+  let list = s.rows.filter(function(o) { return s.showDone || !recapIsDone(o); });
+  if (s.period !== 'all') list = list.filter(function(o) { return ticketPeriode(o, s.site) === s.period; });
+  list.sort(s.sort === 'nom'
+    ? function(a, b) { return recapCustomerKey(a.customer_name).localeCompare(recapCustomerKey(b.customer_name), 'fr') || (a.num_jour || 0) - (b.num_jour || 0); }
+    : function(a, b) { return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99')) || (a.num_jour || 0) - (b.num_jour || 0); });
+  return list;
+}
+function recapResume(o, kind) {
+  return ticketLignes(o, kind).map(function(l) { return (l.qty ? l.qty + ' ' : '') + l.name + (l.tranche ? ' 🔪' : '') + (l.note ? ' (' + l.note + ')' : ''); }).join(' · ') || (o.notes ? '📝 ' + o.notes : 'commande spéciale');
+}
+function renderRecapJour() {
+  const s = recapJour; if (!s) return;
+  let el = document.getElementById('recap-jour-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'recap-jour-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  const list = recapVisibleRows();
+  const nDone = s.rows.filter(recapIsDone).length, nAm = s.rows.filter(function(o) { return ticketPeriode(o, s.site) === 'am'; }).length;
+  const seg = function(id, cur, opts) { return '<div class="rj-seg">' + opts.map(function(o) { return '<button type="button" class="' + (cur === o[0] ? 'on' : '') + '" onclick="recapSet(\'' + id + '\',\'' + o[0] + '\')">' + o[1] + '</button>'; }).join('') + '</div>'; };
+  let h = '<div class="modal" style="max-width:1000px;max-height:94vh;overflow-y:auto">'
+    + '<div class="modal-title">📋 Récap du jour · ' + (s.kind === 'fete' ? '🎄 Fêtes' : '⭐ Commandes spéciales') + '</div>'
+    + '<div class="rj-bar">'
+    + '<input type="date" class="pro-input" style="width:auto" value="' + escapeHtml(s.date) + '" onchange="recapSet(\'date\', this.value)">'
+    + '<select class="pro-input" style="width:auto" onchange="recapSet(\'site\', this.value)">' + RECAP_SITES.map(function(b) { return '<option value="' + b + '"' + (b === s.site ? ' selected' : '') + '>' + escapeHtml(ticketSiteNom(b)) + '</option>'; }).join('') + '</select>'
+    + '<span class="rj-pill">' + s.rows.length + ' commande' + (s.rows.length > 1 ? 's' : '') + ' · ' + nAm + ' matin · ' + (s.rows.length - nAm) + ' après-midi · coupure ' + escapeHtml(coupureAprem(s.site).replace(':', 'h')) + '</span>'
+    + '<button type="button" class="btn-gold-sm" onclick="loadRecapJour()" title="Recharger">↻</button>'
+    + '</div>'
+    + '<div class="rj-bar">'
+    + seg('sort', s.sort, [['heure', '⏰ Par heure'], ['nom', '🔤 Par nom']])
+    + seg('period', s.period, [['all', 'Tout'], ['am', '🌅 Matin'], ['pm', '🌇 Après-midi']])
+    + '<input type="search" class="product-filter-input rj-search" placeholder="🔍 Nom ou n° de commande" value="' + escapeHtml(s.q) + '" oninput="recapFilter(this.value)">'
+    + '<label class="rj-done"><input type="checkbox" ' + (s.showDone ? 'checked' : '') + ' onchange="recapSet(\'showDone\', this.checked ? \'1\' : \'\')"> Voir les faites (' + nDone + ')</label>'
+    + '</div>';
+  if (s.loading) h += '<div class="empty-state">Chargement…</div>';
+  else if (!list.length) h += '<div class="empty-state">' + (s.rows.length ? 'Tout est fait sur cette période 👍' : 'Aucune commande ce jour-là à ' + escapeHtml(ticketSiteNom(s.site)) + '.') + '</div>';
+  else {
+    h += '<div class="rj-list">';
+    list.forEach(function(o) {
+      const done = recapIsDone(o);
+      const key = (recapCustomerKey(o.customer_name) + ' ' + (o.customer_name || '').toLowerCase() + ' ' + (o.num_jour || '') + ' ' + ticketNum(o.num_jour)).toLowerCase();
+      h += '<div class="rj-row' + (done ? ' done' : '') + '" data-k="' + escapeHtml(key) + '">'
+        + '<div class="rj-n">' + ticketNum(o.num_jour) + '</div>'
+        + '<div class="rj-h">' + escapeHtml(ticketHeure(o)) + '</div>'
+        + '<div class="rj-main"><div class="rj-client">' + escapeHtml(o.customer_name || '') + (s.kind === 'fete' ? ' <span class="rj-fete">Fête</span>' : '') + (o.customer_phone ? ' <small>' + escapeHtml(o.customer_phone) + '</small>' : '') + '</div>'
+        + '<div class="rj-cmd">' + escapeHtml(recapResume(o, s.kind)) + '</div>'
+        + '<div class="rj-pay">' + escapeHtml(ticketPaiement(o, s.kind).big) + (o.taken_by ? ' · 👤 ' + escapeHtml(o.taken_by) : '') + '</div></div>'
+        + '<div class="rj-act">'
+        + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + '</span>'
+                : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
+        + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Étiquettes">🏷️</button>'
+        + '</div></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="rj-bar" style="margin-top:12px">'
+    + '<button type="button" class="btn-gold" onclick="recapPrintSacs()"' + (list.length ? '' : ' disabled') + '>🏷️ Tous les sacs (' + list.length + ')</button>'
+    + '<button type="button" class="btn-gold" onclick="recapPrintSheet()"' + (list.length ? '' : ' disabled') + '>🖨 Feuille A4</button>'
+    + '<button type="button" class="btn-grey" style="margin-left:auto" onclick="closeRecapJour()">Fermer</button>'
+    + '</div></div>';
+  el.innerHTML = h;
+  el.classList.add('show');
+  recapApplyFilter();
+}
+function recapSet(k, v) {
+  const s = recapJour; if (!s) return;
+  if (k === 'showDone') s.showDone = !!v;
+  else s[k] = v;
+  if (k === 'date' || k === 'site') { renderRecapJour(); loadRecapJour(); } else renderRecapJour();
+}
+// la loupe filtre sans re-rendu (le clavier de la tablette resterait ouvert)
+function recapFilter(q) { if (recapJour) recapJour.q = q || ''; recapApplyFilter(); }
+function recapApplyFilter() {
+  const q = ((recapJour && recapJour.q) || '').trim().toLowerCase();
+  document.querySelectorAll('#recap-jour-modal .rj-row').forEach(function(r) { r.style.display = (!q || r.getAttribute('data-k').indexOf(q) !== -1) ? '' : 'none'; });
+}
+async function recapMisDeCote(oid) {
+  const s = recapJour; if (!s) return;
+  const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
+  setSyncStatus('syncing');
+  const { error } = await supa.from(s.kind === 'fete' ? 'fete_orders' : 'special_orders').update({ status: 'prete', updated_at: new Date().toISOString() }).eq('id', oid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  o.status = 'prete';
+  // les écrans d'origine suivent
+  const src = s.kind === 'fete' ? (feteOrders || []) : (specialOrdersData || []);
+  const same = src.find(function(x) { return x.id === oid; }); if (same) same.status = 'prete';
+  renderRecapJour();
+  showToast(escapeHtml(o.customer_name || '') + ' : mis de côté ✓', 'sync');
+}
+async function recapPrintOne(oid) {
+  const s = recapJour; if (!s) return;
+  const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
+  if (!o.num_jour) await assignOrderNum(s.kind === 'fete' ? 'fete_orders' : 'special_orders', o);
+  printLabels(ticketLabelHtml(o, s.kind, 'client') + ticketLabelHtml(o, s.kind, 'sac'));
+  renderRecapJour();
+}
+// toutes les étiquettes sac de la liste affichée (filtre matin / après-midi respecté), dans l'ordre des heures
+async function recapPrintSacs() {
+  const s = recapJour; if (!s) return;
+  const list = recapVisibleRows().filter(function(o) { const q = (s.q || '').trim().toLowerCase(); return !q || (recapCustomerKey(o.customer_name) + ' ' + ticketNum(o.num_jour)).indexOf(q) !== -1; });
+  if (!list.length) return;
+  const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders';
+  for (let i = 0; i < list.length; i++) if (!list[i].num_jour) await assignOrderNum(table, list[i]);
+  list.sort(function(a, b) { return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99')) || (a.num_jour || 0) - (b.num_jour || 0); });
+  printLabels(list.map(function(o) { return ticketLabelHtml(o, s.kind, 'sac'); }).join(''));
+  renderRecapJour();
+}
+function recapSheetHtml() {
+  const s = recapJour; const list = recapVisibleRows();
+  let h = '<div class="rj-sheet"><h1>Les Blés de Demain — ' + escapeHtml(ticketSiteNom(s.site)) + '</h1>'
+    + '<div class="rj-sheet-sub">' + (s.kind === 'fete' ? 'Commandes de fêtes' : 'Commandes spéciales') + ' · ' + escapeHtml(formatDateFr(s.date)) + ' · ' + (s.period === 'am' ? 'matin' : s.period === 'pm' ? 'après-midi' : 'journée') + ' · ' + (s.sort === 'nom' ? 'par nom' : 'par heure') + ' · ' + list.length + ' commande' + (list.length > 1 ? 's' : '') + '</div>'
+    + '<table><thead><tr><th>N°</th><th>Heure</th><th>Client</th><th>Commande</th><th>Paiement</th><th>Fait</th></tr></thead><tbody>';
+  list.forEach(function(o) {
+    h += '<tr><td class="n">' + ticketNum(o.num_jour) + '</td><td class="h">' + escapeHtml(ticketHeure(o)) + '</td><td><strong>' + escapeHtml(o.customer_name || '') + '</strong>' + (o.customer_phone ? '<br><small>' + escapeHtml(o.customer_phone) + '</small>' : '') + '</td><td>' + escapeHtml(recapResume(o, s.kind)) + (o.notes ? '<br><small>📝 ' + escapeHtml(o.notes) + '</small>' : '') + '</td><td>' + escapeHtml(ticketPaiement(o, s.kind).big) + '</td><td class="c">' + (recapIsDone(o) ? '✓' : '☐') + '</td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+function recapPrintSheet() {
+  if (!recapJour) return;
+  let div = document.getElementById('print-label');
+  if (!div) { div = document.createElement('div'); div.id = 'print-label'; div.className = 'print-only-label'; document.body.appendChild(div); }
+  div.innerHTML = recapSheetHtml();
+  let st = document.getElementById('label-page-style');
+  if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
+  st.textContent = '@page { size: A4 portrait; margin: 12mm; }';
+  document.body.classList.add('printing-label');
+  setTimeout(function() { window.print(); setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; }, 300); }, 50);
 }
 
 function printSpecialOrderTicket(oid) {
@@ -20123,6 +20520,7 @@ html += '</div>';
 // Nouvelle commande CTA (sauf Local qui ne prend pas de commandes client)
 if (currentBoutique !== 'local') {
 html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button>'
+  + '<button class="btn-grey" onclick="openRecapJour(\'special\')" style="width:100%;padding:11px;font-size:14px;margin-top:8px">📋 Récap du jour · tickets sacs</button>'   // v20.305
   + (shopPeopleReady ? '<div style="text-align:right;margin-top:6px"><button class="btn-gold-sm" onclick="openPeopleModal()">⚙️ Prénoms (' + peopleOf(currentBoutique).length + ')</button></div>' : '')
   + '</div>';
 }
@@ -20463,7 +20861,7 @@ let html = '<div class="sp-form-header">';
 html += '<button class="sp-back" onclick="cancelSpecialForm()">←</button>';
 html += '<div class="sp-form-title">' + (isEdit ? 'Éditer commande' : 'Nouvelle commande') + '</div>';
 if (isEdit) {
-html += '<button class="sp-del-btn" onclick="printSpecialOrderTicket(\'' + d.id + '\')" title="Imprimer ticket">🖨</button>';
+html += '<button class="sp-del-btn" onclick="openTicketChoice(\'special\',\'' + d.id + '\')" title="Imprimer (étiquettes Brother ou A4)">🖨</button>';   // v20.305
 html += '<button class="sp-del-btn" onclick="deleteSpecialOrder(\'' + d.id + '\')" title="Supprimer">🗑</button>';
 } else {
 html += '<span style="width:38px"></span>';
