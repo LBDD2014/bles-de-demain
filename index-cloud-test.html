@@ -1250,37 +1250,6 @@ background: var(--green); color: white; border-color: var(--green);
 body.printing-label > *:not(.print-only-label) { display: none !important; }
 body.printing-label .print-only-label { display: block !important; }
 body.printing-label::before, body.printing-ticket::before { content: none !important; display: none !important; }   /* pas l'en-tête « Les Blés de Demain - » des impressions A4 (vu sur le 1er ticket Brother) */
-.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }
-.lb:last-child { page-break-after: auto; break-after: auto; }
-.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }
-.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }
-.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }
-.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }
-.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }
-.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }
-.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }
-.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }
-.lb-sac .lb-client { font-size: 26pt; }
-.lb-tel { font-size: 8.5pt; }
-.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }
-.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }
-.lb-items li:last-child { border-bottom: none; }
-.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }
-.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }
-.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }
-.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }
-.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }
-.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }
-.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }
-.rj-sheet { font-family: Georgia, serif; color: #000; }
-.rj-sheet h1 { font-size: 16pt; margin: 0; }
-.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }
-.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }
-.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }
-.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }
-.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }
 }
 @media print {
 body.printing-ticket > *:not(.print-only-ticket) { display: none !important; }
@@ -2783,7 +2752,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.318';
+const APP_VERSION  = 'v20.319';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20099,7 +20068,30 @@ function ticketLabelHtml(o, kind, variant) {
 // Impression : un div dédié, le reste de la page masqué, @page 62 mm le temps de l'impression
 function printLabels(labelsHtml) {
   showToast('Dans la fenêtre d\'impression : choisir la Brother (62 mm)', 'sync');
-  _printModeStart(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
+  _printDocument(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
+}
+// Styles des étiquettes et de la feuille récap (document d'impression à part)
+const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 8.5pt; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
+// v20.319 — l'impression passe par un DOCUMENT À PART (iframe invisible) qui ne contient que les étiquettes :
+// Chrome Android fabrique son aperçu quand il veut, il ne peut plus attraper l'écran de l'app
+// (récap du jour parti à l'imprimante malgré v20.309/310, 29/10 21h). _printModeStart reste en secours.
+function _printDocument(html, pageRule) {
+  let f = document.getElementById('print-frame');
+  if (f) f.remove();
+  f = document.createElement('iframe');
+  f.id = 'print-frame';
+  f.setAttribute('aria-hidden', 'true');
+  f.style.cssText = 'position:fixed;left:-10000px;top:0;width:420px;height:600px;border:0;opacity:0;pointer-events:none';
+  document.body.appendChild(f);
+  const doc = f.contentDocument || f.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title> </title><style>' + pageRule + ' html, body { margin: 0; padding: 0; background: #fff; } ' + TICKET_PRINT_CSS + '</style></head><body>' + html + '</body></html>');
+  doc.close();
+  const go = function() {
+    try { f.contentWindow.focus(); f.contentWindow.print(); }
+    catch (e) { _printModeStart(html, pageRule); }   // secours : impression depuis la page elle-même
+  };
+  setTimeout(go, 150);   // on laisse le temps au logo (data URI) de se poser
 }
 // v20.309 — sur la tablette Android, window.print() rend la main tout de suite et Chrome fabrique l'aperçu APRÈS :
 // si on remet l'écran normal au bout de 0,3 s, c'est toute l'app qui part à l'imprimante (vu le 29/10, aperçu « 62mm x 1m »
@@ -20114,7 +20106,7 @@ function _printModeStart(html, pageRule) {
   div.innerHTML = html;
   let st = document.getElementById('label-page-style');
   if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = pageRule + ' body::before { content: none !important; display: none !important; }';   // pas d'en-tête « Les Blés de Demain - » des impressions A4
+  st.textContent = pageRule + ' body::before { content: none !important; display: none !important; } @media print { ' + TICKET_PRINT_CSS + ' }';   // pas d'en-tête « Les Blés de Demain - » des impressions A4
   document.body.classList.add('printing-label');
   const titre = document.title; document.title = ' ';
   let timer = null;
@@ -20318,7 +20310,7 @@ function recapSheetHtml() {
 function recapPrintSheet() {
   if (!recapJour) return;
   showToast('Dans la fenêtre d\'impression : choisir l\'imprimante A4 (pas la Brother)', 'sync');
-  _printModeStart(recapSheetHtml(), '@page { size: A4 portrait; margin: 12mm; }');
+  _printDocument(recapSheetHtml(), '@page { size: A4 portrait; margin: 12mm; }');
 }
 
 function printSpecialOrderTicket(oid) {

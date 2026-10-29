@@ -311,7 +311,9 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression
   (`printing-label`, `_printModeStart`) reste posé jusqu'au premier geste sur la page ou 2 min (v20.310 : `afterprint` ignoré, Chrome Android l'envoie trop tôt) ;
-  un retrait au bout de 0,3 s envoyait toute l'app à l'imprimante. La règle A4 `body::before` (« Les Blés de Demain - »)
+  un retrait au bout de 0,3 s envoyait toute l'app à l'imprimante. **v20.319 : l'impression passe par un document à part
+  (`_printDocument`, iframe invisible qui ne contient que les étiquettes + `TICKET_PRINT_CSS`)** ; `_printModeStart` n'est plus
+  que le secours. La règle A4 `body::before` (« Les Blés de Demain - »)
   est neutralisée pendant l'impression des étiquettes (v20.308). `APP_VERSION` doit être bumpé à chaque version (il était
   resté à v20.294, impossible de savoir ce que la tablette avait chargé).
 - **Coupure matin / après-midi** : `ticket_reglages.coupure_aprem` par site, **défaut 14h00**, réglable en BackOffice → Codes

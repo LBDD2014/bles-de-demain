@@ -35,7 +35,7 @@ async function ouvrir(ctx, d) {
   const page = await preparePage(ctx, { db: d || db() });
   await gotoApp(page);
   await enterBoutique(page, 'veigne');
-  await page.evaluate(() => { window.__printed = []; window.print = () => { window.__printed.push(document.getElementById('print-label').innerHTML); }; });
+  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; });
   return page;
 }
 
@@ -85,8 +85,9 @@ export const tests = [
         await printOrderTickets('special', 's2', 'sac');   // v20.318 — sac seul
         await new Promise((res) => setTimeout(res, 150));
         const sacSeul = (window.__printed[2].match(/class="lb lb-sac"/g) || []).length + '/' + (window.__printed[2].match(/Votre commande/g) || []).length;
-        // v20.309 — Android : l'aperçu se fabrique après window.print() → le mode étiquette doit rester posé, puis tomber sur afterprint
-        await printOrderTickets('special', 's2', false);
+        // v20.309 — secours (impression depuis la page) : le mode étiquette reste posé après window.print(), ne tombe pas sur afterprint
+        window.print = () => {};
+        _printModeStart(ticketLabelHtml(s2, 'special', 'client'), '@page { size: 62mm auto; margin: 0; }');
         await new Promise((res) => setTimeout(res, 500));
         const modeApres = document.body.classList.contains('printing-label') && document.title.trim() === '' && /body::before/.test(document.getElementById('label-page-style').textContent);
         window.dispatchEvent(new Event('afterprint'));   // v20.310 : ignoré (Chrome Android l'envoie trop tôt)
