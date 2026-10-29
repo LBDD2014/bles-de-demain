@@ -303,7 +303,9 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   carte fête) → fenêtre `openTicketChoice` (v20.318) : « 🏷️ Étiquette sac » (en premier, une par sac) / « 🎫 Ticket client »
   (réimpression) / « 📄 Ticket A4 ». **Flux validé par Phil (29/10) : à la création d'une commande (spéciale ou fête), le ticket
   client sort d'office, seul ; le matin du retrait, les vendeurs sortent les étiquettes sac** (récap du jour : 🏷️ Sac par ligne,
-  « Tous les sacs »). `printOrderTickets(kind, id, false | 'sac' | true)`. Sac : n° du jour en gros, téléphone client,
+  « Tous les tickets retrait »). `printOrderTickets(kind, id, false | 'sac' | true)`. **v20.320 : l'étiquette « sac » s'appelle
+  « ticket retrait »** (Phil : « je veux le ticket du retrait avec le numéro de téléphone des gens »), code interne inchangé (`'sac'`).
+  Retrait : n° du jour en gros, **téléphone client toujours** (« 📞 pas de numéro » sinon),
   « prise par », réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 02 47 26 02 82 (v20.316), St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
   marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av seulement, `SHOP_ADRESSES`), pied « Merci de votre confiance ! ». Marchés : nom du marché en haut.

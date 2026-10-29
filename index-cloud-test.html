@@ -2752,7 +2752,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.319';
+const APP_VERSION  = 'v20.320';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20046,7 +20046,7 @@ function ticketLabelHtml(o, kind, variant) {
     + '<div class="lb-num"><div><small>' + (sac ? 'N° du jour' : 'Votre commande') + '</small><b>' + ticketNum(o.num_jour) + '</b></div>'
     + '<div class="lb-when"><b>' + escapeHtml(ticketHeure(o)) + '</b><span>' + escapeHtml(ticketJourCourt(o.pickup_date)) + '</span></div></div>'
     + '<div class="lb-client">' + escapeHtml(o.customer_name || '') + '</div>'
-    + (sac && o.customer_phone ? '<div class="lb-tel">' + escapeHtml(o.customer_phone) + '</div>' : '')
+    + (sac ? '<div class="lb-tel">📞 ' + escapeHtml(o.customer_phone || 'pas de numéro') + '</div>' : '')   // v20.320 — ticket retrait : le téléphone du client, toujours
     + '<ul class="lb-items">';
   ticketLignes(o, kind).forEach(function(l) {
     h += '<li><b>' + escapeHtml(String(l.qty || '')) + '</b><span>' + escapeHtml(l.name) + (l.tranche ? ' 🔪 tranché' : '') + (l.note ? '<small>' + escapeHtml(l.note) + '</small>' : '') + '</span></li>';
@@ -20055,7 +20055,7 @@ function ticketLabelHtml(o, kind, variant) {
   if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
   if (sac) {
     h += '<div class="lb-pay"><div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';   // v20.312 — réglé ou non, visible sur le sac au moment de le remettre
-    h += '<div class="lb-foot"><b>SAC</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + '</div>';   // v20.313 — plus de « fait à X » (Phil, 29/10)
+    h += '<div class="lb-foot"><b>RETRAIT</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + '</div>';   // v20.320 — « ticket retrait » (Phil, 29/10), plus « sac »
   } else {
     h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
     const tel = ticketTel(site);
@@ -20071,7 +20071,7 @@ function printLabels(labelsHtml) {
   _printDocument(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
 }
 // Styles des étiquettes et de la feuille récap (document d'impression à part)
-const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 8.5pt; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
+const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 11pt; font-weight: 700; margin-top: 0.5mm; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
 // v20.319 — l'impression passe par un DOCUMENT À PART (iframe invisible) qui ne contient que les étiquettes :
 // Chrome Android fabrique son aperçu quand il veut, il ne peut plus attraper l'écran de l'app
 // (récap du jour parti à l'imprimante malgré v20.309/310, 29/10 21h). _printModeStart reste en secours.
@@ -20147,10 +20147,10 @@ function openTicketChoice(kind, oid) {
   const o = ticketOrderOf(kind, oid);
   el.innerHTML = '<div class="modal" style="max-width:420px">'
     + '<div class="modal-title">🖨 Imprimer</div>'
-    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client est sorti à la commande. Le matin du retrait : une étiquette sac par sac.</div>'
+    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client est sorti à la commande. Le matin du retrait : le ticket retrait, à coller sur la commande.</div>'
     + '<div class="info-banner" style="margin-bottom:10px">🏷️ Étiquettes : dans la fenêtre d\'impression, choisir la <strong>Brother</strong> (papier 62 mm). 📄 Ticket A4 : choisir l\'<strong>imprimante classique</strong>.</div>'
     + '<div style="display:grid;gap:8px">'
-    + '<button class="btn-gold" style="padding:16px;font-size:16px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',\'sac\')">🏷️ Étiquette sac <small style="font-weight:500;opacity:.85">· à coller sur la commande, une par sac</small></button>'
+    + '<button class="btn-gold" style="padding:16px;font-size:16px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',\'sac\')">🏷️ Ticket retrait <small style="font-weight:500;opacity:.85">· à coller sur la commande, avec le téléphone du client</small></button>'
     + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🎫 Ticket client <small style="font-weight:500;opacity:.85">· réimpression (il part déjà à la commande)</small></button>'
     + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();' + (kind === 'fete' ? 'printFeteTicket' : 'printSpecialOrderTicket') + '(\'' + escapeHtml(oid) + '\')">📄 Ticket A4 <small style="font-weight:500;opacity:.85">· imprimante classique</small></button>'
     + '</div>'
@@ -20239,13 +20239,13 @@ function renderRecapJour() {
         + '<div class="rj-act">'
         + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + '</span>'
                 : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
-        + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Étiquette sac (une par sac)">🏷️ Sac</button>'
+        + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Ticket retrait (avec le téléphone du client)">🏷️ Retrait</button>'
         + '</div></div>';
     });
     h += '</div>';
   }
   h += '<div class="rj-bar" style="margin-top:12px">'
-    + '<button type="button" class="btn-gold" onclick="recapPrintSacs()"' + (list.length ? '' : ' disabled') + '>🏷️ Tous les sacs (' + list.length + ') <small style="font-weight:500;opacity:.85">· Brother</small></button>'
+    + '<button type="button" class="btn-gold" onclick="recapPrintSacs()"' + (list.length ? '' : ' disabled') + '>🏷️ Tous les tickets retrait (' + list.length + ') <small style="font-weight:500;opacity:.85">· Brother</small></button>'
     + '<button type="button" class="btn-gold" onclick="recapPrintSheet()"' + (list.length ? '' : ' disabled') + '>🖨 Feuille A4 <small style="font-weight:500;opacity:.85">· imprimante classique</small></button>'
     + '<button type="button" class="btn-grey" style="margin-left:auto" onclick="closeRecapJour()">Fermer</button>'
     + '</div></div>';
@@ -20548,7 +20548,7 @@ html += '</div>';
 // Nouvelle commande CTA (sauf Local qui ne prend pas de commandes client)
 if (currentBoutique !== 'local') {
 html += '<div style="padding:10px 14px"><button class="btn-gold" onclick="openNewSpecialOrder()" style="width:100%;padding:12px;font-size:14px">+ Nouvelle commande</button>'
-  + '<button class="btn-grey" onclick="openRecapJour(\'special\')" style="width:100%;padding:11px;font-size:14px;margin-top:8px">📋 Récap du jour · tickets sacs</button>'   // v20.305
+  + '<button class="btn-grey" onclick="openRecapJour(\'special\')" style="width:100%;padding:11px;font-size:14px;margin-top:8px">📋 Récap du jour · tickets retrait</button>'   // v20.305
   + (shopPeopleReady ? '<div style="text-align:right;margin-top:6px"><button class="btn-gold-sm" onclick="openPeopleModal()">⚙️ Prénoms (' + peopleOf(currentBoutique).length + ')</button></div>' : '')
   + '</div>';
 }
