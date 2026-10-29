@@ -50,9 +50,10 @@ grant execute on function public.next_order_num(text, text, date) to anon, authe
 insert into public.order_day_counters (tenant_id, shop, jour, last)
 select tenant_id, origin_shop, pickup_date, max(num_jour)
 from (
-  select tenant_id, origin_shop, pickup_date, num_jour from public.special_orders where num_jour is not null
+  -- tenant_id n'a pas le même type dans les deux tables (uuid / text) : tout en texte
+  select tenant_id::text as tenant_id, origin_shop, pickup_date, num_jour from public.special_orders where num_jour is not null
   union all
-  select tenant_id, origin_shop, pickup_date, num_jour from public.fete_orders where num_jour is not null
+  select tenant_id::text as tenant_id, origin_shop, pickup_date, num_jour from public.fete_orders where num_jour is not null
 ) t
 group by tenant_id, origin_shop, pickup_date
 on conflict (tenant_id, shop, jour) do update set last = greatest(public.order_day_counters.last, excluded.last);
