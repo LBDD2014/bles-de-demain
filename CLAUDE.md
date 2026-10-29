@@ -313,6 +313,8 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   dans l'onglet Special sous « Récap du jour » et dans la barre de l'onglet Fêtes) : **éteint par défaut** → aucune impression
   automatique à la commande (les imprimantes arrivent en boutique quelques jours après le 29/10) ; allumé → le ticket client sort
   d'office à chaque commande. Les boutons 🖨 marchent dans les deux cas.
+- **Rouge** (v20.326) : la QL-820NWB imprime noir + rouge avec le rouleau **DK-22251** (62 mm) ; les lignes « à trancher » sont en
+  rouge souligné « — À TRANCHER » (`.lb-tranche`), noires sur le rouleau noir seul (DK-22205). Cocher « Couleur » dans la fenêtre d'impression.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression

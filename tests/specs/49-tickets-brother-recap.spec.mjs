@@ -69,6 +69,8 @@ export const tests = [
         const s2 = window.__mockDB.special_orders.find((o) => o.id === 's2'); s2.items = window.__mockDB.special_order_items.filter((i) => i.order_id === 's2'); s2.num_jour = 7;
         const txt = (h) => { const d = document.createElement('div'); d.innerHTML = h.replace(/>/g, '> '); return d.textContent.replace(/\s+/g, ' ').trim(); };
         rememberPerson('Zora');   // v20.321 — prénom réglé sur la tablette = « Préparé par »
+        const s1 = window.__mockDB.special_orders.find((o) => o.id === 's1'); s1.items = window.__mockDB.special_order_items.filter((i) => i.order_id === 's1');
+        const tranche = ticketLabelHtml(s1, 'special', 'sac');   // v20.326 — pain aux noix à trancher : rouge souligné
         const client = txt(ticketLabelHtml(s2, 'special', 'client')), sac = txt(ticketLabelHtml(s2, 'special', 'sac'));
         rememberPerson('');
         const sansPrep = txt(ticketLabelHtml(s2, 'special', 'sac'));
@@ -98,7 +100,7 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 1200));
         document.dispatchEvent(new Event('touchstart'));   // premier geste sur la page = retour de la fenêtre d'impression
         const modeFini = !document.body.classList.contains('printing-label') && document.title.trim() !== '' && document.getElementById('label-page-style').textContent === '';
-        return { client, sac, sansPrep, fete, boutons, n1, n2, sacSeul, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
+        return { client, sac, sansPrep, tranche: /<li class="lb-tranche"><b>1<\/b><span>Pain aux noix — À TRANCHER/.test(tranche) && /lb-tranche span \{ color: #e00000/.test(TICKET_PRINT_CSS), fete, boutons, n1, n2, sacSeul, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 02 47 26 02 82 20 Place du Maréchal Leclerc, 37250 Veigné Merci de votre confiance, à très bientôt !/.test(r.client) && !/Place du Maréchal/.test(r.sac), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
@@ -108,6 +110,7 @@ export const tests = [
       assert(ticketTelOk, 'téléphones du ticket : Tours fixe, marchés = Veigné : ' + JSON.stringify(r.tels));
       assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket retrait · à coller sur la commande, avec le téléphone du client|🎫 Ticket client · réimpression (il part déjà à la commande)|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 : sac seul en premier, client en réimpression : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
+      assert(r.tranche, 'ligne à trancher marquée (rouge souligné dans le CSS d\'impression)');
       assert(r.sacSeul === '1/0', 'Étiquette sac seule = 1 sac, 0 client : ' + r.sacSeul);
       assert(r.modeApres && r.modeIgnore && r.modeFini, 'mode étiquette gardé après window.print et après afterprint (Android), levé au premier geste : ' + JSON.stringify({ a: r.modeApres, i: r.modeIgnore, f: r.modeFini }));
       await page.close();
