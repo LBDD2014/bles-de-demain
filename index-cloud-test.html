@@ -2781,7 +2781,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.308';
+const APP_VERSION  = 'v20.309';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20086,17 +20086,39 @@ function ticketLabelHtml(o, kind, variant) {
 }
 // Impression : un div dédié, le reste de la page masqué, @page 62 mm le temps de l'impression
 function printLabels(labelsHtml) {
+  _printModeStart(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
+}
+// v20.309 — sur la tablette Android, window.print() rend la main tout de suite et Chrome fabrique l'aperçu APRÈS :
+// si on remet l'écran normal au bout de 0,3 s, c'est toute l'app qui part à l'imprimante (vu le 29/10, aperçu « 62mm x 1m »
+// avec le formulaire de commande). Le mode impression reste donc posé jusqu'à la fin de l'impression (afterprint),
+// ou au premier geste sur la page une fois revenu, ou au pire 2 minutes.
+let _printModeEnd = null;
+function _printModeStart(html, pageRule) {
+  if (_printModeEnd) _printModeEnd();
   let div = document.getElementById('print-label');
   if (!div) { div = document.createElement('div'); div.id = 'print-label'; div.className = 'print-only-label'; document.body.appendChild(div); }
-  div.innerHTML = labelsHtml;
+  div.innerHTML = html;
   let st = document.getElementById('label-page-style');
   if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page { size: 62mm auto; margin: 0; } body::before { content: none !important; display: none !important; }';   // marge 0 (Chrome n'a plus de place pour un en-tête) + pas d'en-tête « Les Blés de Demain - » des impressions A4 (vu sur les 1ers tickets, 29/10)
+  st.textContent = pageRule + ' body::before { content: none !important; display: none !important; }';   // pas d'en-tête « Les Blés de Demain - » des impressions A4
   document.body.classList.add('printing-label');
   const titre = document.title; document.title = ' ';
+  let timer = null;
+  const end = function() {
+    if (_printModeEnd !== end) return;   // une impression plus récente a pris la main
+    _printModeEnd = null;
+    clearTimeout(timer);
+    window.removeEventListener('afterprint', end);
+    ['touchstart', 'mousedown', 'keydown'].forEach(function(ev) { document.removeEventListener(ev, end, true); });
+    document.body.classList.remove('printing-label'); st.textContent = ''; document.title = titre;
+  };
+  _printModeEnd = end;
+  window.addEventListener('afterprint', end);
+  timer = setTimeout(end, 120000);
   setTimeout(function() {
     window.print();
-    setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; document.title = titre; }, 300);
+    // le premier geste sur la page après le retour de la fenêtre d'impression remet l'écran normal
+    setTimeout(function() { ['touchstart', 'mousedown', 'keydown'].forEach(function(ev) { document.addEventListener(ev, end, true); }); }, 1500);
   }, 50);
 }
 function ticketOrderOf(kind, oid) {
@@ -20279,14 +20301,7 @@ function recapSheetHtml() {
 }
 function recapPrintSheet() {
   if (!recapJour) return;
-  let div = document.getElementById('print-label');
-  if (!div) { div = document.createElement('div'); div.id = 'print-label'; div.className = 'print-only-label'; document.body.appendChild(div); }
-  div.innerHTML = recapSheetHtml();
-  let st = document.getElementById('label-page-style');
-  if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page { size: A4 portrait; margin: 12mm; } body::before { content: none !important; display: none !important; }';
-  document.body.classList.add('printing-label');
-  setTimeout(function() { window.print(); setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; }, 300); }, 50);
+  _printModeStart(recapSheetHtml(), '@page { size: A4 portrait; margin: 12mm; }');
 }
 
 function printSpecialOrderTicket(oid) {

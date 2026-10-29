@@ -294,6 +294,11 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   de la boutique (`SHOP_TELS`). Marchés : nom du marché en haut.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
+  ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression
+  (`printing-label`, `_printModeStart`) reste posé jusqu'à `afterprint`, au premier geste sur la page, ou 2 min (v20.309) ;
+  un retrait au bout de 0,3 s envoyait toute l'app à l'imprimante. La règle A4 `body::before` (« Les Blés de Demain - »)
+  est neutralisée pendant l'impression des étiquettes (v20.308). `APP_VERSION` doit être bumpé à chaque version (il était
+  resté à v20.294, impossible de savoir ce que la tablette avait chargé).
 - **Coupure matin / après-midi** : `ticket_reglages.coupure_aprem` par site, **défaut 14h00**, réglable en BackOffice → Codes
   (`coupureAprem(site)`, `ticketPeriode(o)`) ; sans heure de retrait = matin.
 - **📋 Récap du jour** (`openRecapJour('special'|'fete')`, bouton sous « + Nouvelle commande » de l'onglet Special et dans la barre
