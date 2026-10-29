@@ -363,5 +363,19 @@ Si pause survient : dashboard Supabase → "Resume project" (30s à 2min).
 
 ## Bugs / TODOs connus
 
+0. **PROCHAINE SESSION (demandé par Phil le 29/10/2026 au soir) — Onglet Fêtes fusionné avec les Spéciales.**
+   Question de Phil : « pourquoi Noël et Spéciales ne font pas qu'un ? si les clients veulent du pain et des bûches, on fait comment ? »
+   Aujourd'hui = deux commandes, deux numéros, deux tickets, deux récaps. Réponse validée dans l'idée : **un seul onglet Fêtes,
+   éphémère comme maintenant** (apparaît pendant la période de la fête), qui est **le même formulaire que les spéciales avec en plus
+   une section « Produits de Noël »** (bûches, tailles, prix) → une commande mêlée pain + bûches = un numéro, un ticket, un paiement,
+   un acompte. L'onglet garde catalogue, affiche, vue Production (qui doit lire les bûches dans les commandes mêlées) et le récap du
+   jour unique ; la fenêtre de commande (dates de retrait, butoir) reste réglée par la fête. À faire : lignes `special_order_items`
+   pouvant pointer un produit de fête (prix + taille), vue Production des fêtes lisant ces lignes, section Noël dans le formulaire
+   Special quand une fête est active, anciennes `fete_orders` toujours lisibles. Effort estimé : une demi-journée + migration SQL.
+   **Commencer par une maquette** (règle des tickets Brother). Question ouverte à poser : à partir de quand les commandes de Noël
+   démarrent-elles ?
+   Autre point du 29/10 à garder en tête : imprimantes Brother posées en boutique « dans quelques jours » (interrupteur par tablette
+   v20.325 éteint par défaut) ; rouleau noir/rouge DK-22251 à commander pour le rouge des lignes « À TRANCHER » (v20.326).
+
 1. **Évolution BackOffice : unités de conditionnement** (sac/caisse/seau/carton/pièce/kg/L + qté 1-200). Périmètre exact à finaliser.
 2. **v21 — module Pros** : MVP v21.0 complet en prod (2026-05-19). Paliers suivants v21.1 (génération auto récurrent), v21.2 (magic link client pro), v21.3 (facturation Menlog).
