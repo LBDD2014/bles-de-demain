@@ -15,6 +15,18 @@ Phil, propriétaire de Les Blés de Demain. Boulangerie artisanale multi-sites e
 - **Marché Amboise** (vendredi matin) + **Marché Beaujardin** (samedi matin)
 - **Pros** (v21, pas encore codé) : restos, cafés, hôtels livrés par Le Local
 
+## Coordonnées des boutiques (fiches contact de Phil, 29/10/2026)
+
+| Site | Téléphone (ticket client) | Adresse |
+|---|---|---|
+| Tours | 02 47 64 14 51 (fixe) | 31 Place du Grand Marché, 37000 Tours |
+| Veigné | 07 57 77 05 39 (portable) | 20 Place du Maréchal Leclerc, 37250 Veigné |
+| Saint-Avertin | 09 80 99 96 52 | 17 Mail René Cassin, 37550 Saint-Avertin |
+| Le Local | 07 50 05 22 96 (portable) | Esvres (adresse exacte à demander) |
+| Marchés Amboise / Beaujardin | numéro de Veigné | — |
+
+Dans l'app : `SHOP_TELS_FIXES` (tickets), `SHOP_ADRESSES`, `SHOP_TELS` (portables, message d'accès pros).
+
 ## Stack
 
 - **Frontend** : HTML/JS vanilla single-file (~6500 lignes, ~280 Ko)
