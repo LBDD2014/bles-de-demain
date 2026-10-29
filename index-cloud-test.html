@@ -2783,7 +2783,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.316';
+const APP_VERSION  = 'v20.317';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20089,7 +20089,9 @@ function ticketLabelHtml(o, kind, variant) {
   } else {
     h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
     const tel = ticketTel(site);
-    h += '<div class="lb-foot">Retrait : <b>' + escapeHtml(ticketSiteNom(site)) + '</b>' + (tel ? ' · ' + escapeHtml(tel) : '') + '<br>Merci de votre confiance !</div>';   // v20.314 — phrase de Phil
+    // v20.317 — adresse de la boutique de retrait (pas pour les marchés ni Le Local, pas d'adresse exacte)
+    const adr = (site === 'tours' || site === 'veigne' || site === 'saint-avertin') ? SHOP_ADRESSES[site] : '';
+    h += '<div class="lb-foot">Retrait : <b>' + escapeHtml(ticketSiteNom(site)) + '</b>' + (tel ? ' · ' + escapeHtml(tel) : '') + (adr ? '<br>' + escapeHtml(adr) : '') + '<br>Merci de votre confiance !</div>';   // v20.314 — phrase de Phil
   }
   return h + '</div>';
 }
