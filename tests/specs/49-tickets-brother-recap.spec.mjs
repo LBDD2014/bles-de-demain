@@ -95,7 +95,7 @@ export const tests = [
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 07 57 77 05 39/.test(r.client) && /à mercredi !/.test(r.client), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
-      assert(/N° du jour 07/.test(r.sac) && /SAC · fait à Le Local/.test(r.sac) && !/Réglé/.test(r.sac), 'sac : n° du jour, fait ailleurs, pas de paiement : ' + r.sac);
+      assert(/N° du jour 07/.test(r.sac) && /SAC · fait à Le Local/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, fait ailleurs, réglé ou non (sans montant), pas le pied client : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
       assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket client · Brother 62 mm|🏷️ Client + étiquette sac · Brother 62 mm|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 avec le rappel de l\'imprimante : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
@@ -148,7 +148,9 @@ export const tests = [
         const ordre = (sacs.match(/class="lb-client">[^<]+/g) || []).map((x) => x.replace('class="lb-client">', ''));
         const nums = window.__mockDB.special_orders.filter((o) => o.origin_shop === 'veigne' && o.status === 'confirmee').map((o) => o.customer_name + ':' + o.num_jour);
         const nbSac = (sacs.match(/lb-sac/g) || []).length, nbClient = (sacs.match(/Votre commande/g) || []).length;
-        return { heure, nom, pm14, am14, pm11, loupe, memeInput, apres, enBase, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient };
+        recapSet('period', 'all'); recapSet('sort', 'heure'); recapSet('showDone', '1');   // Barbier (mise de côté) doit figurer sur la feuille
+        const feuille = recapSheetHtml();
+        return { heure, nom, pm14, am14, pm11, loupe, memeInput, apres, enBase, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient, feuille };
       });
       assert(r.heure.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure', 'par heure, faites cachées (Aubry mis de côté), annulée absente, sans heure en fin : ' + r.heure.join(','));
       assert(r.nom.join(',') === 'Mme Barbier,Dupont Claire,Sans Heure', 'par nom (Mme ignoré : Barbier < Dupont < Sans) : ' + r.nom.join(','));
@@ -159,6 +161,7 @@ export const tests = [
       assert(r.avecFaites.length === 4 && /Voir les faites \(2\)/.test(r.faitesLbl), 'voir les faites : 4 lignes, (2) : ' + r.avecFaites.join(',') + ' / ' + r.faitesLbl);
       assert(r.ordre.join(',') === 'Dupont Claire,Sans Heure' && r.nbSac === 2 && r.nbClient === 0, 'tous les sacs : les 2 à faire, ordre des heures, étiquettes sac seulement : ' + JSON.stringify({ ordre: r.ordre, s: r.nbSac, c: r.nbClient }));
       assert(r.nums.every((x) => /:\d+$/.test(x)), 'numéros attribués au passage : ' + r.nums.join(','));
+      assert(/<img src="data:image\/png;base64,/.test(r.feuille) && /Retraits à Veigné/.test(r.feuille) && /📞 0612345678/.test(r.feuille) && /👤 Noé/.test(r.feuille) && /À régler au retrait/.test(r.feuille) && /11h15/.test(r.feuille) && /sans graines/.test(r.feuille), 'feuille A4 : logo, lieu de retrait, téléphone, prise par, paiement, heure, note : ' + r.feuille.slice(0, 200));
       await page.close();
     },
   },
