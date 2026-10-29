@@ -1243,6 +1243,7 @@ background: var(--green); color: white; border-color: var(--green);
 .rj-cmd { font-size:13.5px; color:var(--brown); margin-top:2px; }
 .rj-pay { font-size:12px; color:var(--brown-mid); margin-top:2px; }
 .rj-note { font-weight:700; color:var(--orange); }
+.sp-status-undo { margin-left:6px; padding:6px 10px; border-radius:20px; border:1px solid #E0D8C8; background:#fff; color:var(--brown-mid); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; }
 .rj-act { display:flex; gap:6px; flex:0 0 auto; align-items:center; }
 .rj-st { font-size:12.5px; font-weight:700; color:var(--green); white-space:nowrap; }
 @media (max-width: 640px) { .rj-row { flex-wrap:wrap; } .rj-act { width:100%; justify-content:flex-end; } }
@@ -2752,7 +2753,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.322';
+const APP_VERSION  = 'v20.323';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4607,7 +4608,7 @@ function feteListHtml() {
           + (o.given_by ? '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>' : '') + '</div>' : '')
       + '<div class="btn-row" style="margin-top:6px">'
       + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
-      + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button>' : '')
+      + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'a_faire\')" title="Annuler la mise de côté">↩️ Annuler</button>' : '')
       + '<button class="btn-grey" onclick="openTicketChoice(\'fete\',\'' + o.id + '\')">🖨 Ticket</button>'   // v20.305 — étiquettes Brother (ou A4)
       + (o.status !== 'recuperee' && o.status !== 'annulee'
         ? '<button class="btn-grey" onclick="feteEdit(\'' + o.id + '\')">✏️ Modifier</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'annulee\')">✖ Annuler</button>'
@@ -4631,9 +4632,12 @@ async function feteStatus(id, st, givenBy) {
   setSyncStatus('syncing');
   const patch = { status: st, updated_at: new Date().toISOString() };
   if (st === 'recuperee' && givenBy) patch.given_by = givenBy;
-  const r = st === 'prete' ? await updateAvecPrepare('fete_orders', id, patch) : await supa.from('fete_orders').update(patch).eq('id', id);
+  const fo = feteOrders.find(function(x) { return x.id === id; });
+  const retour = st === 'a_faire' && fo && fo.status === 'prete';   // v20.323 — annuler la mise de côté
+  const r = st === 'prete' ? await updateAvecPrepare('fete_orders', id, patch) : (retour ? await updateAvecPrepare('fete_orders', id, patch, true) : await supa.from('fete_orders').update(patch).eq('id', id));
   if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
   setSyncStatus('ok');
+  if (retour) showToast('Mise de côté annulée — commande à préparer', 'sync');
   await loadFeteOrders(); renderFetes();
 }
 function feteEdit(id) { feteEditingId = id; feteView = 'new'; renderFetes(); }
@@ -19243,12 +19247,15 @@ setSyncStatus('syncing');
 const patch = { status: newStatus, updated_at: new Date().toISOString() };
 if (newStatus === 'livree' && givenBy) patch.given_by = givenBy;
 let error = null, prep = null;
+const o = specialOrdersData.find(function(x) { return x.id === oid; });
+const retour = newStatus === 'confirmee' && o && o.status === 'prete';   // v20.323 — « ↩️ Annuler la mise de côté » (erreur de clic)
 if (newStatus === 'prete') { const r = await updateAvecPrepare('special_orders', oid, patch); error = r.error; if (r.prepared) prep = preparedPatch(); }
+else if (retour) { const r = await updateAvecPrepare('special_orders', oid, patch, true); error = r.error; if (r.prepared) prep = { prepared_by: null, prepared_at: null }; }
 else { error = (await supa.from('special_orders').update(patch).eq('id', oid)).error; }
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
 setSyncStatus('ok');
-const o = specialOrdersData.find(function(x) { return x.id === oid; });
 if (o) { o.status = newStatus; if (patch.given_by) o.given_by = patch.given_by; if (prep) { o.prepared_by = prep.prepared_by; o.prepared_at = prep.prepared_at; } }
+if (retour) showToast('Mise de côté annulée — commande à préparer', 'sync');
 renderSpecials();
 }
 
@@ -20041,9 +20048,10 @@ function ticketDemandePreparateur(suite) {
 // v20.322 — « Mis de côté » note qui a préparé (prénom réglé sur la tablette) et quand
 let _prepWarned = false;
 function preparedPatch() { return { prepared_by: ticketPreparateur() || null, prepared_at: new Date().toISOString() }; }
-// Mise à jour avec les colonnes prepared_* ; si la base ne les connaît pas encore, on réécrit sans (et on prévient une fois)
-async function updateAvecPrepare(table, id, patch) {
-  let r = await supa.from(table).update(Object.assign({}, patch, preparedPatch())).eq('id', id);
+// Mise à jour avec les colonnes prepared_* (effacer = true : on les vide, retour « à préparer ») ;
+// si la base ne les connaît pas encore, on réécrit sans (et on prévient une fois)
+async function updateAvecPrepare(table, id, patch, effacer) {
+  let r = await supa.from(table).update(Object.assign({}, patch, effacer ? { prepared_by: null, prepared_at: null } : preparedPatch())).eq('id', id);
   if (r.error && /prepared_/.test(r.error.message || '')) {
     if (!_prepWarned) { _prepWarned = true; showToast('« Préparé par » non enregistré : migration v20.322 à lancer', 'warn'); }
     r = await supa.from(table).update(patch).eq('id', id);
@@ -20245,7 +20253,7 @@ async function loadRecapJour() {
 }
 function recapVisibleRows() {
   const s = recapJour; if (!s) return [];
-  let list = s.rows.filter(function(o) { return s.showDone || !recapIsDone(o); });
+  let list = s.rows.filter(function(o) { return s.showDone || !recapIsDone(o) || (s.justDone && s.justDone[o.id]); });   // v20.323 — ce qu'on vient de faire reste visible (pour annuler)
   if (s.period !== 'all') list = list.filter(function(o) { return ticketPeriode(o, s.site) === s.period; });
   list.sort(s.sort === 'nom'
     ? function(a, b) { return recapCustomerKey(a.customer_name).localeCompare(recapCustomerKey(b.customer_name), 'fr') || (a.num_jour || 0) - (b.num_jour || 0); }
@@ -20291,6 +20299,7 @@ function renderRecapJour() {
         + '<div class="rj-pay">' + escapeHtml(ticketPaiement(o, s.kind).big) + (o.taken_by ? ' · 👤 ' + escapeHtml(o.taken_by) : '') + '</div></div>'
         + '<div class="rj-act">'
         + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + (o.prepared_by ? ' · 🧺 ' + escapeHtml(o.prepared_by) + (o.prepared_at ? ' ' + String(new Date(o.prepared_at).getHours()).padStart(2, '0') + 'h' + String(new Date(o.prepared_at).getMinutes()).padStart(2, '0') : '') : '') + '</span>'
+                  + (o.status === 'prete' ? '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapAnnuleMisDeCote(\'' + escapeHtml(o.id) + '\')" title="Annuler la mise de côté">↩️ Annuler</button>' : '')
                 : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
         + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Ticket retrait (avec le téléphone du client)">🏷️ Retrait</button>'
         + '</div></div>';
@@ -20310,6 +20319,7 @@ function recapSet(k, v) {
   const s = recapJour; if (!s) return;
   if (k === 'showDone') s.showDone = !!v;
   else s[k] = v;
+  if (k !== 'showDone') s.justDone = {};   // v20.323 — on repart propre
   if (k === 'date' || k === 'site') { renderRecapJour(); loadRecapJour(); } else renderRecapJour();
 }
 // la loupe filtre sans re-rendu (le clavier de la tablette resterait ouvert)
@@ -20327,12 +20337,30 @@ async function recapMisDeCote(oid) {
   if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
   setSyncStatus('ok');
   o.status = 'prete';
+  if (!s.justDone) s.justDone = {};
+  s.justDone[oid] = true;   // v20.323 — reste visible le temps de pouvoir annuler
   if (r.prepared) { const pp = preparedPatch(); o.prepared_by = pp.prepared_by; o.prepared_at = pp.prepared_at; }
   // les écrans d'origine suivent
   const src = s.kind === 'fete' ? (feteOrders || []) : (specialOrdersData || []);
   const same = src.find(function(x) { return x.id === oid; }); if (same) { same.status = 'prete'; same.prepared_by = o.prepared_by; same.prepared_at = o.prepared_at; }
   renderRecapJour();
   showToast(escapeHtml(o.customer_name || '') + ' : mis de côté ✓', 'sync');
+}
+// v20.323 — erreur de clic : la commande repasse « à préparer », qui a préparé est effacé
+async function recapAnnuleMisDeCote(oid) {
+  const s = recapJour; if (!s) return;
+  const o = s.rows.find(function(x) { return x.id === oid; }); if (!o || o.status !== 'prete') return;
+  const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders', st = s.kind === 'fete' ? 'a_faire' : 'confirmee';
+  setSyncStatus('syncing');
+  const r = await updateAvecPrepare(table, oid, { status: st, updated_at: new Date().toISOString() }, true);
+  if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+  setSyncStatus('ok');
+  o.status = st; o.prepared_by = null; o.prepared_at = null;
+  if (s.justDone) delete s.justDone[oid];
+  const src = s.kind === 'fete' ? (feteOrders || []) : (specialOrdersData || []);
+  const same = src.find(function(x) { return x.id === oid; }); if (same) { same.status = st; same.prepared_by = null; same.prepared_at = null; }
+  renderRecapJour();
+  showToast(escapeHtml(o.customer_name || '') + ' : mise de côté annulée', 'sync');
 }
 async function recapPrintOne(oid) {
   const s = recapJour; if (!s) return;
@@ -20724,6 +20752,7 @@ html += '<span class="sp-prod-tag">➜ ' + escapeHtml(BOUTIQUE_NAMES[o.productio
 if (o.status !== 'livree' && o.status !== 'annulee') {
 const next = STATUS_NEXT[o.status];
 html += '<button class="sp-status-next" onclick="event.stopPropagation(); changeSpecialOrderStatus(\'' + o.id + '\', \'' + next + '\')">' + STATUS_LBL[next] + ' ✓</button>';
+if (o.status === 'prete') html += '<button class="sp-status-undo" onclick="event.stopPropagation(); changeSpecialOrderStatus(\'' + o.id + '\', \'confirmee\')" title="Annuler la mise de côté">↩️ Annuler</button>';   // v20.323
 }
 html += '</div></div>';
 return html;

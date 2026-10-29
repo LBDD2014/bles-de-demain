@@ -145,10 +145,21 @@ export const tests = [
         const btn = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).find((x) => /Barbier/.test(x.textContent)).querySelector('button.btn-gold-sm');
         btn.click();
         await new Promise((res) => setTimeout(res, 150));
-        const apres = rows();
+        const juste = rows();   // v20.323 — la ligne qu'on vient de faire reste visible, avec ↩️ Annuler
+        const undoBtn = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).find((x) => /Barbier/.test(x.textContent)).querySelector('button[title="Annuler la mise de côté"]');
         const s1 = window.__mockDB.special_orders.find((o) => o.id === 's1');
         const enBase = s1.status;
         const prepare = s1.prepared_by + '|' + (s1.prepared_at ? 'date' : 'rien');
+        // erreur de clic → ↩️ Annuler : la commande repasse à préparer, qui a préparé effacé
+        undoBtn.click();
+        await new Promise((res) => setTimeout(res, 150));
+        const annule = s1.status + '|' + s1.prepared_by + '|' + s1.prepared_at;
+        const apresAnnul = rows();
+        // on la remet de côté pour la suite du test, puis on change de période : elle disparaît
+        Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).find((x) => /Barbier/.test(x.textContent)).querySelector('button.btn-gold-sm').click();
+        await new Promise((res) => setTimeout(res, 150));
+        recapSet('period', 'all');
+        const apres = rows();
         const cb = document.querySelector('#recap-jour-modal .rj-done input'); cb.checked = true; cb.dispatchEvent(new Event('change'));
         const avecFaites = rows();
         const faitesLbl = document.querySelector('#recap-jour-modal .rj-done').textContent.trim();
@@ -164,14 +175,16 @@ export const tests = [
         const nbSac = (sacs.match(/lb-sac/g) || []).length, nbClient = (sacs.match(/Votre commande/g) || []).length;
         recapSet('period', 'all'); recapSet('sort', 'heure'); recapSet('showDone', '1');   // Barbier (mise de côté) doit figurer sur la feuille
         const feuille = recapSheetHtml();
-        return { heure, nom, pm14, am14, pm11, loupe, memeInput, apres, enBase, prepare, ligneFaite, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient, feuille };
+        return { heure, nom, pm14, am14, pm11, loupe, memeInput, juste, undo: !!undoBtn, annule, apresAnnul, apres, enBase, prepare, ligneFaite, avecFaites, faitesLbl, ordre, nums, nbSac, nbClient, feuille };
       });
       assert(r.heure.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure', 'par heure, faites cachées (Aubry mis de côté), annulée absente, sans heure en fin : ' + r.heure.join(','));
       assert(r.nom.join(',') === 'Mme Barbier,Dupont Claire,Sans Heure', 'par nom (Mme ignoré : Barbier < Dupont < Sans) : ' + r.nom.join(','));
       assert(r.pm14.length === 0 && r.am14.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure', 'coupure 14h : tout le matin : ' + JSON.stringify({ pm: r.pm14, am: r.am14 }));
       assert(r.pm11.join(',') === 'Mme Barbier', 'coupure 11h réglée pour Veigné : Barbier (11h15) après-midi : ' + r.pm11.join(','));
       assert(r.loupe.join(',') === 'Mme Barbier' && r.memeInput, 'loupe « barb » sans re-rendu : ' + r.loupe.join(','));
-      assert(r.apres.join(',') === 'Dupont Claire,Sans Heure' && r.enBase === 'prete', 'mis de côté → cachée, statut prete en base : ' + r.apres.join(',') + ' / ' + r.enBase);
+      assert(r.juste.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure' && r.undo && r.enBase === 'prete', 'mis de côté → statut prete en base, la ligne reste visible avec ↩️ Annuler : ' + r.juste.join(',') + ' / ' + r.enBase);
+      assert(r.annule === 'confirmee|null|null' && r.apresAnnul.join(',') === 'Dupont Claire,Mme Barbier,Sans Heure', '↩️ Annuler : à préparer, qui a préparé effacé : ' + r.annule);
+      assert(r.apres.join(',') === 'Dupont Claire,Sans Heure', 'remise de côté puis changement de période → cachée : ' + r.apres.join(','));
       assert(r.avecFaites.length === 4 && /Voir les faites \(2\)/.test(r.faitesLbl), 'voir les faites : 4 lignes, (2) : ' + r.avecFaites.join(',') + ' / ' + r.faitesLbl);
       assert(r.prepare === 'Zora|date' && /Mis de côté · 🧺 Zora \d\dh\d\d/.test(r.ligneFaite), 'mis de côté → préparée par Zora + heure, en base et à l\'écran : ' + r.prepare + ' / ' + r.ligneFaite);
       assert(r.ordre.join(',') === 'Dupont Claire,Sans Heure' && r.nbSac === 2 && r.nbClient === 0, 'tous les sacs : les 2 à faire, ordre des heures, étiquettes sac seulement : ' + JSON.stringify({ ordre: r.ordre, s: r.nbSac, c: r.nbClient }));

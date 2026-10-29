@@ -323,6 +323,9 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   demandé une fois via `ticketDemandePreparateur` si rien n'est réglé et que la boutique a sa liste) et l'heure. Écriture tolérante
   `updateAvecPrepare` (sans la migration : statut seul + toast une fois). Affiché : badge 🧺 sur les cartes (`preparedBadge`), ligne
   faite du récap (« ✓ Mis de côté · 🧺 Zora 07h12 »), prénom sous le ✓ de la feuille A4. Rien sur les tickets.
+  **↩️ Annuler** (v20.323, erreur de clic) : dans le récap la ligne qu'on vient de mettre de côté reste visible (`justDone`) avec
+  « ↩️ Annuler » (aussi sous « Voir les faites »), et sur les cartes spéciale / fête quand le statut est « Mis de côté » → retour
+  « À préparer », `prepared_by/at` effacés (`updateAvecPrepare(…, effacer)`, `recapAnnuleMisDeCote`).
 - **Coupure matin / après-midi** : `ticket_reglages.coupure_aprem` par site, **défaut 14h00**, réglable en BackOffice → Codes
   (`coupureAprem(site)`, `ticketPeriode(o)`) ; sans heure de retrait = matin.
 - **📋 Récap du jour** (`openRecapJour('special'|'fete')`, bouton sous « + Nouvelle commande » de l'onglet Special et dans la barre
