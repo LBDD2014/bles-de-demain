@@ -265,7 +265,8 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   qu'après confirmation. Message signé Philippe, 4 boutiques (portables) en fin, la sienne en premier.
 - **Case « envoyé » à la main** (v20.300, 29/10/2026) : dans « 📱 Liens pros », chaque ligne a une case à cocher
   devant le repère. Coche = `magic_sent_at` à maintenant (lien envoyé autrement : SMS, mail, de vive voix), décoche =
-  `null` (repère retiré). Ne crée ni ne touche le lien lui-même. Un seul point d'écriture : `proLinksSetSent(pro, iso)`.
+  `null` (repère retiré). Ne crée ni ne touche le lien lui-même. Un seul point d'écriture : `proLinksSetSent(pro, iso)`. **v20.301** : la même case dans la
+  fiche du pro (section Magic link, avec ou sans lien, pas sur une nouvelle fiche) ; le réglage met à jour les deux écrans.
 
 ### Quantités par caisse (viennoiserie)
 

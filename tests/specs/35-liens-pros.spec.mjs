@@ -194,4 +194,42 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Fiche pro — v20.301 : la même case « envoyé » dans la section Magic link (avec ou sans lien), coche = date du jour, décoche = retiré, la fiche se met à jour',
+    fn: async (ctx) => {
+      const page = await liensPros(ctx);
+      const r = await page.evaluate(async () => {
+        const lire = () => { const cb = document.querySelector('.pro-form-section .pl-chk-in'); return cb ? { coche: cb.checked, st: cb.parentNode.querySelector('.pl-st').textContent } : null; };
+        // Relais : lien existant, envoyé le 03/07 → la case est cochée ; on décoche
+        openProForm('relais');
+        const relaisAvant = lire();
+        let cb = document.querySelector('.pro-form-section .pl-chk-in'); cb.checked = false; cb.dispatchEvent(new Event('change'));
+        await new Promise((res) => setTimeout(res, 100));
+        const relais = window.__mockDB.pros.find((p) => p.id === 'relais');
+        const relaisApres = { ui: lire(), sent: relais.magic_sent_at, tok: relais.magic_token, ficheOuverte: adminProsEditingId };
+        // Coop : pas encore de lien → la case existe quand même ; on coche (lien envoyé autrement)
+        closeProForm(); openProForm('coop');
+        const coopAvant = lire();
+        cb = document.querySelector('.pro-form-section .pl-chk-in'); cb.checked = true; cb.dispatchEvent(new Event('change'));
+        await new Promise((res) => setTimeout(res, 100));
+        const coop = window.__mockDB.pros.find((p) => p.id === 'coop');
+        const coopApres = { ui: lire(), sent: coop.magic_sent_at, tok: coop.magic_token, cache: adminPros.find((p) => p.id === 'coop').magic_sent_at };
+        // la nouvelle fiche n'a pas la case (le pro n'existe pas encore)
+        closeProForm(); openProForm('new');
+        const nouvelle = lire();
+        closeProForm();
+        // « 📱 Liens pros » reflète les deux changements
+        openProLinksModal();
+        const rows = Array.from(document.querySelectorAll('#pro-links-modal .pl-row')).map((x) => x.querySelector('.pl-nom').textContent.trim().split(' ')[0] + ':' + x.querySelector('.pl-st').textContent);
+        return { relaisAvant, relaisApres, coopAvant, coopApres, nouvelle, rows };
+      });
+      assert(r.relaisAvant && r.relaisAvant.coche && r.relaisAvant.st === '✓ envoyé le 03/07', 'Relais : case cochée, envoyé le 03/07 : ' + JSON.stringify(r.relaisAvant));
+      assert(r.relaisApres.sent === null && r.relaisApres.tok === 'tok_relais' && r.relaisApres.ficheOuverte === 'relais' && !r.relaisApres.ui.coche && r.relaisApres.ui.st === 'jamais envoyé', 'décoche : repère retiré, lien gardé, fiche toujours ouverte et à jour : ' + JSON.stringify(r.relaisApres));
+      assert(r.coopAvant && !r.coopAvant.coche && r.coopAvant.st === 'jamais envoyé', 'Coop (sans lien) : la case existe, décochée : ' + JSON.stringify(r.coopAvant));
+      assert(r.coopApres.sent && r.coopApres.cache === r.coopApres.sent && r.coopApres.tok === null && r.coopApres.ui.coche && r.coopApres.ui.st === '✓ envoyé le 22/07', 'coche : date du jour, cache à jour, pas de lien créé : ' + JSON.stringify(r.coopApres));
+      assert(r.nouvelle === null, 'pas de case sur une nouvelle fiche');
+      assert(r.rows.join(' | ') === 'Bar:jamais envoyé | Relais:jamais envoyé | Coop:✓ envoyé le 22/07', 'Liens pros à jour : ' + r.rows.join(' | '));
+      await page.close();
+    },
+  },
 ];

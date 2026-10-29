@@ -11669,16 +11669,22 @@ async function proLinksSetSent(pro, iso) {
   if (error) {
     if (/magic_sent_at/.test(error.message || '')) showToast('Date d\'envoi non mémorisée : migration v20.272 à lancer', 'warn');
     else showToast(error.message, 'error');
-    renderProLinksModal();   // la case revient à l'état réel
+    const m = document.getElementById('pro-links-modal');
+    if (m && m.classList.contains('show')) renderProLinksModal();   // la case revient à l'état réel
+    else if (adminProsDraft && adminProsDraft.id === pro.id) renderAdminPros();
     return false;
   }
   pro.magic_sent_at = iso;
-  renderProLinksModal();
+  const pc = adminPros.find(function(p) { return p.id === pro.id; });
+  if (pc) pc.magic_sent_at = iso;
+  if (adminProsDraft && adminProsDraft.id === pro.id) { adminProsDraft.magic_sent_at = iso; renderAdminPros(); }   // v20.301 — la fiche suit
+  const modal = document.getElementById('pro-links-modal');
+  if (modal && modal.classList.contains('show')) renderProLinksModal();
   return true;
 }
 // v20.300 — case cochée à la main : coche = envoyé aujourd'hui (lien envoyé autrement : SMS, mail, de vive voix), décoche = pas encore
 async function proLinksToggleSent(proId, checked) {
-  const pro = adminPros.find(function(p) { return p.id === proId; });
+  const pro = adminPros.find(function(p) { return p.id === proId; }) || (adminProsDraft && adminProsDraft.id === proId ? adminProsDraft : null);
   if (!pro) return;
   const ok = await proLinksSetSent(pro, checked ? new Date().toISOString() : null);
   if (ok) showToast(checked ? (pro.nom || 'Ce client') + ' : marqué « envoyé » aujourd\'hui' : (pro.nom || 'Ce client') + ' : repère « envoyé » retiré', 'sync');
@@ -13796,7 +13802,11 @@ function renderProForm(mc) {
     const fullUrl = token ? proMagicUrl(token) : '';   // v20.273 — pro.html?t=…
     html += '<div class="pro-form-section">'
       + '<h3>Magic link (interface pro)</h3>'
-      + '<div class="pro-form-hint" style="margin-bottom:10px">Lien secret à partager au pro. Il pourra saisir ses commandes lui-même depuis son téléphone, sans login. Si compromis, régénère pour révoquer l\'ancien.</div>';
+      + '<div class="pro-form-hint" style="margin-bottom:10px">Lien secret à partager au pro. Il pourra saisir ses commandes lui-même depuis son téléphone, sans login. Si compromis, régénère pour révoquer l\'ancien.</div>'
+      // v20.301 — la même case que dans « 📱 Liens pros » (Phil, 29/10) : cochée à la main si le lien a été envoyé autrement
+      + '<div style="margin-bottom:10px"><label class="pl-chk"><input type="checkbox" class="pl-chk-in" ' + (d.magic_sent_at ? 'checked' : '') + ' onchange="proLinksToggleSent(\'' + escapeHtml(d.id) + '\', this.checked)"> '
+      + (d.magic_sent_at ? '<span class="pl-st ok">✓ envoyé le ' + _plDateFr(d.magic_sent_at) + '</span>' : '<span class="pl-st none">jamais envoyé</span>')
+      + ' <span style="font-size:12px;color:var(--grey-light)">— coche à la main si tu l\'as envoyé autrement</span></label></div>';
     if (token) {
       html += '<div style="background:#FAF6EE;border-radius:8px;padding:10px;margin-bottom:8px;word-break:break-all">'
         + '<div style="font-size:11px;color:var(--brown-mid);font-weight:700;text-transform:uppercase;margin-bottom:4px">URL active</div>'
