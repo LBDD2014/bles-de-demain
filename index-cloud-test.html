@@ -15764,6 +15764,14 @@ function renderProOrderForm(mc) {
     + '<textarea class="pro-input" rows="3" placeholder="Ex: 2 rouleaux de feuilletage + 6 mini burgers" oninput="handleProOrderField(\'notes\', this.value)">' + escapeHtml(d.notes || '') + '</textarea>'
   + '</div>';
 
+  // v20.304 — dupliquer depuis le détail aussi (Phil, 29/10) : même bouton que sur la carte, à partir de la commande enregistrée
+  if (!isNew && d.id) {
+    html += '<div class="pro-form-section" style="background:#FBF6EA;border-color:var(--gold)">'
+      + '<h3 style="color:var(--gold-dark)">📑 Refaire cette commande</h3>'
+      + '<div class="pro-form-hint" style="margin-bottom:8px">Ouvre une nouvelle commande identique (pro, produits, quantités, créneau) pour le prochain jour libre de ce pro. Celle-ci ne bouge pas ; ce qui n\'est pas encore enregistré ici n\'est pas repris.</div>'
+      + '<button type="button" class="pro-dup-btn" style="width:100%;margin:0" onclick="proOrderDuplicate(\'' + escapeHtml(d.id) + '\')">📑 Dupliquer</button>'
+    + '</div>';
+  }
   // Section actions secondaires (annuler la commande)
   if (!isNew && d.statut !== 'annule') {
     html += '<div class="pro-form-section" style="background:#FEF2F2;border-color:#F5C5C5">'

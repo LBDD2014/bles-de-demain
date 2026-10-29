@@ -83,4 +83,29 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Dupliquer — v20.304 : le bouton est aussi dans le détail d\'une commande (formulaire de modification), pas sur une nouvelle commande',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: db() });
+      await gotoApp(page);
+      await enterBoutique(page, 'tours');
+      const r = await page.evaluate(async () => {
+        currentVue = 'pros'; proOrderFilterPeriod = 'week'; await loadAdminPros(); await loadProOrders('tours'); renderProOrders();
+        await openProOrderForm('auj');
+        await new Promise((res) => setTimeout(res, 100));
+        const btn = document.querySelector('.pro-form .pro-dup-btn');
+        const avant = { editing: editingProOrderId, bouton: !!btn, titre: document.querySelector('.pro-form-title').textContent };
+        btn.click();
+        await new Promise((res) => setTimeout(res, 150));
+        const apres = { editing: editingProOrderId, date: proOrderDraft.date_livraison, items: proOrderDraft.items.map((i) => i.product_id + ':' + i.qty).join(','), titre: document.querySelector('.pro-form-title').textContent, boutonSurNeuve: !!document.querySelector('.pro-form .pro-dup-btn') };
+        closeProOrderForm(); await openProOrderForm('new'); await new Promise((res) => setTimeout(res, 50));
+        const neuve = { bouton: !!document.querySelector('.pro-form .pro-dup-btn') };
+        return { avant, apres, neuve };
+      });
+      assert(r.avant.editing === 'auj' && r.avant.bouton && r.avant.titre === 'Le Strapontin', 'détail de la commande du 22 avec le bouton 📑 : ' + JSON.stringify(r.avant));
+      assert(r.apres.editing === 'new' && r.apres.date === '2026-07-25' && r.apres.items === 'vt_trad:20,vp_croissant:6' && /Copie d'une commande/.test(r.apres.titre) && !r.apres.boutonSurNeuve, 'un tap → copie pour samedi 25, pas de bouton sur la copie : ' + JSON.stringify(r.apres));
+      assert(!r.neuve.bouton, 'pas de bouton sur une commande neuve : ' + JSON.stringify(r.neuve));
+      await page.close();
+    },
+  },
 ];

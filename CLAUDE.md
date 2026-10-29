@@ -278,7 +278,8 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   formulaire « Nouvelle commande » déjà rempli (pro, lignes, prix appliqués, créneau ; note pas recopiée), date = **prochain
   jour coché de la fiche sans commande du même créneau** (`proNextFreeDate`, 3 semaines ; à défaut prochain jour coché, à
   défaut demain), modifiable avant « Créer ». Boutique non forcée (la fiche décide). Brouillon partagé `proOrderDraftFrom(o)`.
-  Test : spec 48.
+  **v20.304** : le même bouton dans le détail d'une commande (formulaire de modification, bloc « 📑 Refaire cette commande »,
+  à partir de la commande enregistrée). Test : spec 48.
 
 ### Quantités par caisse (viennoiserie)
 
