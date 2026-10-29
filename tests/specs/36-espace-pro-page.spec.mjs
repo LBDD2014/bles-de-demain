@@ -78,9 +78,10 @@ export const tests = [
       assert(r.dates.some((d) => /^25:.*on.*jusqu/.test(d)), 'le 1er jour ouvert est sélectionné avec son heure limite : ' + JSON.stringify(r.dates));
       assert(r.cols.join('|') === 'Tours|Chambray-les-tours', 'deux colonnes : ' + r.cols.join('|'));
       const trad = r.rows.find((x) => x.nom === 'Tradition'), cro = r.rows.find((x) => x.nom === 'Croissant');
-      assert(trad && trad.q.join(',') === '60,150' && /Tours · dernière fois 60 \| Chambray-les-tours · dernière fois 150/.test(trad.last), 'Tradition pré-remplie 60 | 150 avec « la dernière fois » : ' + JSON.stringify(trad));
-      assert(cro && cro.q[0] === '10' && /off/.test(cro.q[1]), 'Croissant : 10 pour Tours, grisé pour Chambray (pas au catalogue) : ' + JSON.stringify(cro));
-      assert(/220 pièces/.test(r.tot), 'total 220 pièces : ' + r.tot);
+      // v20.302 — « la dernière fois » = la commande la plus proche AVANT le jour choisi (samedi 25) : jeudi 23 pour Tours (40, pas encore livrée), le 16 pour Chambray (150)
+      assert(trad && trad.q.join(',') === '40,150' && /Tours · dernière fois 40 \| Chambray-les-tours · dernière fois 150/.test(trad.last), 'Tradition pré-remplie 40 | 150 avec « la dernière fois » : ' + JSON.stringify(trad));
+      assert(cro && cro.q[0] === '0' && /off/.test(cro.q[1]), 'Croissant : 0 pour Tours (pas dans la commande du 23), grisé pour Chambray (pas au catalogue) : ' + JSON.stringify(cro));
+      assert(/190 pièces/.test(r.tot), 'total 190 pièces : ' + r.tot);
       assert(/samedi 25 juillet/.test(r.hint) && /9h30/.test(r.hint) && /demain 18h\./.test(r.hint), 'rappel livraison + heure limite : ' + r.hint);
       // + sur Tradition Tours, − sur Chambray, puis valider
       await page.evaluate(() => { bump('dk_tours', 'vt_trad', 1); bump('dk_chambray', 'vt_trad', -1); bump('dk_chambray', 'vt_trad', -1); document.querySelector('.note').value = 'merci'; draft.notes = 'merci'; });
@@ -94,7 +95,7 @@ export const tests = [
       assert(/C'est noté, merci Doline/.test(s.ok) && /samedi 25 juillet vers 9h30 par Le Local/.test(s.ok), 'écran de confirmation : ' + s.ok);
       assert(s.orders.length === 2, 'une commande par établissement : ' + JSON.stringify(s.orders));
       const ot = s.orders.find((x) => x.pro === 'dk_tours'), oc = s.orders.find((x) => x.pro === 'dk_chambray');
-      assert(ot && ot.items === 'vt_trad:61,vp_croissant:10' && ot.src === 'local' && ot.st === 'confirme' && ot.by === 'pro_self:Doline' && ot.notes === 'merci', 'Tours : 61 trad + 10 croissants, Local, confirmée, par Doline : ' + JSON.stringify(ot));
+      assert(ot && ot.items === 'vt_trad:41' && ot.src === 'local' && ot.st === 'confirme' && ot.by === 'pro_self:Doline' && ot.notes === 'merci', 'Tours : 41 trad, Local, confirmée, par Doline : ' + JSON.stringify(ot));
       assert(oc && oc.items === 'vt_trad:148', 'Chambray : 148 trad : ' + JSON.stringify(oc));
       assert(s.cards === 2, 'récap en 2 cartes (une par établissement)');
       await page.close();
@@ -108,7 +109,7 @@ export const tests = [
       await page.evaluate(() => openDetail('dk_tours|2026-07-23'));
       await page.waitForSelector('.dtl');
       const d1 = await page.evaluate(() => document.querySelector('.dtl').textContent + '|' + document.querySelectorAll('.btn2').length);
-      assert(/Tradition40/.test(d1.replace(/\s/g, '')) && /\|2$/.test(d1), 'détail avec Modifier + Annuler : ' + d1);
+      assert(/Tradition40/.test(d1.replace(/\s/g, '')) && /\|3$/.test(d1), 'détail avec Modifier + Annuler + Refaire (v20.302) : ' + d1);
       await page.evaluate(() => openOrder('2026-07-23'));
       await page.waitForSelector('.prow');
       const pre = await page.evaluate(() => ({ t: document.getElementById('q_dk_tours_vt_trad').value, c: document.getElementById('q_dk_chambray_vt_trad').value, lbl: document.querySelector('#hdr .t').textContent }));
@@ -140,6 +141,49 @@ export const tests = [
       const u4 = await p4.evaluate(() => location.pathname + location.search);
       assert(u4 === '/pro.html?t=tok_doline', 'redirigé vers la page dédiée : ' + u4);
       await p4.close();
+    },
+  },
+  {
+    name: 'Page pro — v20.302 : « 📑 Refaire » (ligne + détail) reprend une commande pour le prochain jour libre ; nouveau pro sans aucune commande = « rien à pré-remplir » ; première semaine = pré-rempli avec la commande la plus proche avant le jour',
+    fn: async (ctx) => {
+      // 1. Dakota : refaire la commande livrée du 16 (Tours 60 trad + 10 croissants) → samedi 25 (jeudi 23 déjà commandé), Chambray garde son pré-remplissage
+      let page = await ouvrir(ctx);
+      const r1 = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('.ord'));
+        const nbRedo = rows.filter((x) => x.querySelector('.redo')).length;
+        const row16 = rows.find((x) => x.textContent.indexOf('16') !== -1 && x.textContent.indexOf('60 Tradition') !== -1);
+        row16.querySelector('.redo').click();
+        const q = (e, p) => document.getElementById('q_' + e + '_' + p).value;
+        return { nbRedo, nbRows: rows.length, date: draft.date, editing: draft.editing, lbl: document.querySelector('.sec .n').textContent, tours: q('dk_tours', 'vt_trad') + '/' + q('dk_tours', 'vp_croissant'), chambray: q('dk_chambray', 'vt_trad'), tot: document.getElementById('tot').textContent, toast: document.getElementById('toast').textContent, on: document.querySelector('.dt.on b').textContent };
+      });
+      assert(r1.nbRedo === r1.nbRows && r1.nbRows === 3, 'un bouton 📑 sur chaque ligne (à venir + livrées) : ' + r1.nbRedo + ' / ' + r1.nbRows);
+      assert(r1.date === '2026-07-25' && !r1.editing && r1.on === '25', 'ouvre le prochain jour libre (samedi 25, le 23 étant déjà commandé) : ' + JSON.stringify(r1));
+      assert(r1.tours === '60/10' && r1.chambray === '150' && /220 pièces/.test(r1.tot), 'Tours = la commande reprise (60 + 10), Chambray garde « la dernière fois » (150) : ' + JSON.stringify(r1));
+      assert(/reprise de la commande du jeudi 16/.test(r1.lbl) && /Commande du jeudi 16 reprise pour samedi 25/.test(r1.toast), 'étiquette + toast : ' + r1.lbl + ' / ' + r1.toast);
+      // bouton dans le détail aussi
+      const r2 = await page.evaluate(() => { openDetail('dk_tours|2026-07-23'); const b = document.querySelector('.redo-big'); const t = b ? b.textContent : ''; b.click(); return { t, date: draft.date, tours: document.getElementById('q_dk_tours_vt_trad').value }; });
+      assert(/Refaire cette commande pour samedi 25/.test(r2.t) && r2.date === '2026-07-25' && r2.tours === '40', 'détail : « 📑 Refaire cette commande pour samedi 25 » → 40 trad : ' + JSON.stringify(r2));
+      await page.close();
+      // 2. nouveau pro : commandes posées pour jeu 23, ven 24, sam 25, mar 28 (par l'équipe), rien de livré → mer 29 pré-rempli avec mardi 28 (le plus proche avant)
+      const J = { actif: true, livraison: '09:30', butoir_decalage: -1, butoir_heure: '23:59' };
+      const db = makeDB();
+      db.pros = [{ id: 'bio', tenant_id: T, nom: 'Épicerie Bio', actif: true, boutique_principale: 'local', magic_token: 'tok_bio', contacts: [{ nom: 'Léa', tel: '0600000000' }], jours_livraison: { mardi: J, mercredi: J, jeudi: J, vendredi: J, samedi: J }, catalogue_restreint: null, sources_par_categorie: {}, template_items: [] }];
+      db.pro_orders = [['2026-07-23', 10], ['2026-07-24', 12], ['2026-07-25', 14], ['2026-07-28', 16]].map((d, i) => ({ id: 'o' + i, tenant_id: T, pro_id: 'bio', date_livraison: d[0], boutique_source: 'local', statut: 'confirme', created_by: 'local' }));
+      db.pro_order_items = db.pro_orders.map((o, i) => ({ id: 'i' + i, pro_order_id: o.id, product_id: 'vt_trad', qty: [10, 12, 14, 16][i] }));
+      page = await ouvrir(ctx, db, 'tok_bio');
+      await page.click('.cta');
+      await page.waitForSelector('.prow');
+      const r3 = await page.evaluate(() => ({ date: draft.date, lbl: document.querySelector('.sec .n').textContent, trad: document.getElementById('q_bio_vt_trad').value, small: document.getElementById('q_bio_vt_trad').closest('.prow').querySelector('.nm small').textContent }));
+      assert(r3.date === '2026-07-29' && r3.trad === '16' && /la dernière fois : 16/.test(r3.small) && r3.lbl === 'pré-rempli avec la dernière fois', 'mercredi 29 pré-rempli avec mardi 28 (16), pas encore livrée : ' + JSON.stringify(r3));
+      await page.close();
+      // 3. pro tout neuf, aucune commande, pas de commande de base → 0 et « rien à pré-remplir », pas de bouton 📑
+      db.pro_orders = []; db.pro_order_items = [];
+      page = await ouvrir(ctx, db, 'tok_bio');
+      await page.click('.cta');
+      await page.waitForSelector('.prow');
+      const r4 = await page.evaluate(() => ({ lbl: document.querySelector('.sec .n').textContent, trad: document.getElementById('q_bio_vt_trad').value, redo: document.querySelectorAll('.redo').length }));
+      assert(r4.lbl === 'première commande : rien à pré-remplir' && r4.trad === '0' && r4.redo === 0, 'pro neuf : étiquette honnête, 0, pas de 📑 : ' + JSON.stringify(r4));
+      await page.close();
     },
   },
 ];

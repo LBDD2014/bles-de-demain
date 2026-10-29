@@ -54,6 +54,8 @@ button{font-family:inherit}
 .pill.ok{background:#E3EFE6;color:var(--green)}.pill.wait{background:#FBE8D6;color:var(--orange)}.pill.done{background:#EEE;color:var(--grey-light)}
 .etab{display:inline-block;background:var(--grey-dark);color:#fff;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle}
 .chev{color:#bbb;font-size:18px;flex:0 0 auto}
+.ord .redo{flex:0 0 auto;border:1.5px solid #E0D8C8;background:#fff;border-radius:10px;padding:6px 8px;font-size:16px;line-height:1;cursor:pointer}
+.btn2.redo-big{border-color:var(--gold);color:var(--gold-dark);background:#FBF6EA}
 .tabs{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid #ECE3D2;display:flex;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
 .tabs button{flex:1;text-align:center;font-size:10.5px;color:var(--grey-light);background:none;border:none;padding:2px 0}
 .tabs button i{display:block;font-style:normal;font-size:21px;margin-bottom:2px}
@@ -276,14 +278,38 @@ function teamContacts() {
 }
 function teamEligible() { return teamContacts().filter(function(c) { return c.peut_commander !== false; }); }
 function firstName() { const c = teamEligible()[0] || teamContacts()[0]; return c ? c.nom.split(' ')[0] : ''; }
-// « la dernière fois » : dernière commande passée de cet établissement (sinon sa commande de base)
-function lastItems(etab, creneau) {
-  const t = todayISO(), cr = creneau || 'matin';
+// « la dernière fois » : la commande de cet établissement la plus proche AVANT le jour choisi, même pas encore livrée
+// (v20.302, Phil 29/10 : nouveau pro, commandes pour le 30, 31, 3, 4 et « tout à 0 » pour le 5 — avant, on ne regardait
+// que les commandes déjà livrées). Sans commande avant ce jour : la plus récente quelle que soit sa date ; sinon la commande de base.
+function lastItems(etab, creneau, beforeIso) {
+  const cr = creneau || 'matin', ref = beforeIso || todayISO();
   // v20.290 — la dernière commande du MÊME créneau (le soir ne ressemble pas au matin)
-  const past = orders.filter(function(o) { return o.pro_id === etab.id && o.date_livraison < t && o.statut !== 'annule' && (o.pro_order_items || []).length && (o.creneau || 'matin') === cr; }).sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
-  if (past.length) return itemsOf(ordersOf(etab.id, past[0].date_livraison, cr));
+  const all = orders.filter(function(o) { return o.pro_id === etab.id && o.statut !== 'annule' && (o.pro_order_items || []).length && (o.creneau || 'matin') === cr; }).sort(function(a, b) { return b.date_livraison.localeCompare(a.date_livraison); });
+  const pick = all.find(function(o) { return o.date_livraison < ref; }) || all[0];
+  if (pick) return itemsOf(ordersOf(etab.id, pick.date_livraison, cr));
   const m = {}; (etab.template_items || []).forEach(function(ti) { if (ti.product_id && Number(ti.qty) > 0) m[ti.product_id] = Number(ti.qty); });
   return m;
+}
+// v20.302 — « 📑 Refaire » : repartir d'une commande pour le prochain jour libre (Phil, 29/10 : « pouvoir dupliquer les commandes »)
+function nextFreeDate(creneau) {
+  const ds = dateStates().filter(function(x) { return x.state === 'open'; });
+  const same = creneau ? ds.find(function(x) { return creneauStates(x.iso).some(function(c) { return c.creneau === creneau && c.state === 'open'; }); }) : null;
+  return (same || ds[0] || {}).iso || null;
+}
+function redoOrder(key) {
+  const g = groupedOrders().find(function(x) { return x.key === key; });
+  if (!g) return;
+  const date = nextFreeDate(g.creneau);
+  if (!date) return toast('Aucun jour libre à la commande pour le moment');
+  const cr = creneauStates(date).some(function(c) { return c.creneau === g.creneau && c.state === 'open'; }) ? g.creneau : defaultCreneau(date);
+  openOrder(date, cr);
+  if (!draft || draft.date !== date || draft.editing) return;
+  const q = {};
+  Object.keys(g.items).forEach(function(pid) { if (g.items[pid] > 0 && inCatalogue(g.etab, pid) && etabOpen(g.etab, date, cr)) q[pid] = g.items[pid]; });
+  draft.qty[g.etab.id] = q;
+  draft.redoFrom = g;
+  render(); window.scrollTo(0, 0);
+  toast('Commande du ' + DOW_NAMES[dowOf(g.date)] + ' ' + new Date(g.date + 'T12:00').getDate() + ' reprise pour ' + DOW_NAMES[dowOf(date)] + ' ' + new Date(date + 'T12:00').getDate() + ' — vérifie et valide');
 }
 
 /* ---------- chargement ---------- */
@@ -340,7 +366,9 @@ function orderRow(g, showEtab) {
   const d = new Date(g.date + 'T12:00');
   return '<div class="ord" onclick="openDetail(\'' + escapeHtml(g.key) + '\')"><div class="dd"><b>' + d.getDate() + '</b><small>' + DOW_SHORT[d.getDay()] + '</small></div>'
     + '<div class="m"><b>' + escapeHtml(summary(g.items)) + (showEtab ? '<span class="etab">' + escapeHtml(shortLabel(g.etab)) + '</span>' : '') + '</b><span>' + escapeHtml(formatDateFr(g.date)) + creneauTag(g.etab, g.creneau) + (livraisonHeure(g.etab, g.date, g.creneau) ? ' · ' + livraisonHeure(g.etab, g.date, g.creneau) : '') + '</span></div>'
-    + '<span class="pill ' + (g.statut === 'livre' ? 'done' : (g.statut === 'confirme' ? 'ok' : 'wait')) + '">' + (STATUT_LBL[g.statut] || g.statut) + '</span><span class="chev">›</span></div>';
+    + '<span class="pill ' + (g.statut === 'livre' ? 'done' : (g.statut === 'confirme' ? 'ok' : 'wait')) + '">' + (STATUT_LBL[g.statut] || g.statut) + '</span>'
+    + (nextFreeDate(g.creneau) ? '<button type="button" class="redo" onclick="event.stopPropagation();redoOrder(\'' + escapeHtml(g.key) + '\')" title="Refaire cette commande">📑</button>' : '')   // v20.302
+    + '<span class="chev">›</span></div>';
 }
 function a2hsHtml() {
   let hide = false; try { hide = localStorage.getItem('lbdd_pro_a2hs') === '1'; } catch (e) {}
@@ -430,7 +458,7 @@ function openOrder(iso, creneau) {
   });
   const existingAny = etabs.some(function(e) { return ordersOf(e.id, date, cr).length; });
   // nouvelle date : pré-rempli avec « la dernière fois » ; date déjà commandée : seulement ce qui existe
-  if (!existingAny) etabs.forEach(function(e) { if (etabOpen(e, date, cr)) qty[e.id] = lastItems(e, cr); });
+  if (!existingAny) etabs.forEach(function(e) { if (etabOpen(e, date, cr)) qty[e.id] = lastItems(e, cr, date); });
   const notes = existingAny ? (orders.filter(function(o) { return o.date_livraison === date && (o.creneau || 'matin') === cr && o.notes; })[0] || {}).notes || '' : '';
   const whoOld = existingAny ? ((orders.filter(function(o) { return o.date_livraison === date && (o.creneau || 'matin') === cr; })[0] || {}).created_by || '') : '';
   // qui commande : la personne de la commande existante, sinon celle de la dernière commande, sinon la seule éligible
@@ -479,15 +507,18 @@ function renderOrder(b) {
   if (elig.length > 1) {
     h += '<span class="lbl">Qui passe la commande ?</span><select class="who" onchange="draft.who=this.value"><option value="">— Choisir —</option>' + elig.map(function(c) { return '<option value="' + escapeHtml(c.nom) + '"' + (draft.who === c.nom ? ' selected' : '') + '>' + escapeHtml(c.nom) + (c.role ? ' (' + escapeHtml(c.role) + ')' : '') + '</option>'; }).join('') + '</select>';
   }
-  h += '<div class="sec">2 · Quoi ? <span class="n">' + (draft.editing ? 'ta commande actuelle' : 'pré-rempli avec la dernière fois') + '</span></div><div class="card" style="padding:4px 14px 10px">';
+  // v20.302 — l'étiquette dit la vérité : reprise d'une commande (📑), pré-rempli, ou rien à pré-remplir (première commande)
+  const aLast = etabs.some(function(e) { return Object.keys(lastItems(e, draft.creneau, draft.date)).length > 0; });
+  const lbl = draft.editing ? 'ta commande actuelle' : draft.redoFrom ? '📑 reprise de la commande du ' + DOW_NAMES[dowOf(draft.redoFrom.date)] + ' ' + new Date(draft.redoFrom.date + 'T12:00').getDate() : aLast ? 'pré-rempli avec la dernière fois' : 'première commande : rien à pré-remplir';
+  h += '<div class="sec">2 · Quoi ? <span class="n">' + escapeHtml(lbl) + '</span></div><div class="card" style="padding:4px 14px 10px">';
   catalogueUnion().forEach(function(p) {
-    const lastSingle = !multi && lastItems(etabs[0], draft.creneau)[p.id];
+    const lastSingle = !multi && lastItems(etabs[0], draft.creneau, draft.date)[p.id];
     const pk = packOf(p) || 1;
     h += '<div class="prow' + (multi ? ' multi' : '') + '"><div class="nm">' + escapeHtml(p.name) + '<small>' + escapeHtml(packLabel(p)) + (lastSingle ? ' · la dernière fois : ' + escapeHtml(fmtQty(p, lastSingle)) : '') + '</small></div><div class="steps">';
     etabs.forEach(function(e) {
       const ok = inCatalogue(e, p.id) && etabOpen(e, draft.date, draft.creneau);
       const q = Number(draft.qty[e.id][p.id]) || 0;
-      const last = lastItems(e, draft.creneau)[p.id];
+      const last = lastItems(e, draft.creneau, draft.date)[p.id];
       const step = '<div class="step' + (ok ? '' : ' off') + (q > 0 ? ' has' : '') + '"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',-1)">−</button><input id="q_' + e.id + '_' + p.id + '" type="number" inputmode="numeric" min="0" value="' + (q / pk) + '" onchange="setQty(\'' + e.id + '\',\'' + p.id + '\',this.value);this.parentNode.className=\'step\'+(Number(this.value)>0?\' has\':\'\')" onfocus="this.select()"><button type="button" onclick="bump(\'' + e.id + '\',\'' + p.id + '\',1)">+</button></div>';
       // plusieurs établissements : l'étiquette (et « dernière fois ») sur chaque compteur
       h += multi ? '<div class="stp"><small><b>' + escapeHtml(shortLabel(e)) + '</b>' + (ok ? (last ? ' · dernière fois ' + escapeHtml(fmtQty(p, last)) : '') : ' · pas ce produit') + '</small>' + step + '</div>' : step;
@@ -583,6 +614,9 @@ function renderDetail(b) {
     + '<div class="tot"><span>Total' + (g.who ? ' · commandé par ' + escapeHtml(g.who) : '') + '</span><b>' + totalPieces(g.items) + ' pièces</b></div>' + (g.notes ? '<div class="hint" style="margin:8px 0 0">📝 ' + escapeHtml(g.notes) + '</div>' : '') + '</div>';
   if (can) h += '<button class="btn2" onclick="openOrder(\'' + g.date + '\', \'' + g.creneau + '\')">✏️ Modifier (jusqu\'à ' + escapeHtml(butoirTxt(g.etab, g.date, g.creneau)) + ')</button><button class="btn2 danger" onclick="cancelOrder(\'' + g.date + '\',\'' + g.etab.id + '\',\'' + g.creneau + '\')">Annuler cette commande</button>';
   else if (g.statut !== 'livre') h += '<div class="hint">Modification clôturée (heure limite dépassée). Pour un dépannage, appelle la boulangerie.</div>';
+  // v20.302 — refaire la même commande pour le prochain jour libre
+  const nf = nextFreeDate(g.creneau);
+  if (nf) h += '<button class="btn2 redo-big" onclick="redoOrder(\'' + escapeHtml(g.key) + '\')">📑 Refaire cette commande pour ' + escapeHtml(DOW_NAMES[dowOf(nf)] + ' ' + new Date(nf + 'T12:00').getDate()) + '</button>';
   h += footerHtml();
   b.innerHTML = h;
 }

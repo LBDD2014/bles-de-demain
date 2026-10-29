@@ -267,6 +267,13 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   devant le repère. Coche = `magic_sent_at` à maintenant (lien envoyé autrement : SMS, mail, de vive voix), décoche =
   `null` (repère retiré). Ne crée ni ne touche le lien lui-même. Un seul point d'écriture : `proLinksSetSent(pro, iso)`. **v20.301** : la même case dans la
   fiche du pro (section Magic link, avec ou sans lien, pas sur une nouvelle fiche) ; le réglage met à jour les deux écrans.
+- **pro.html — « la dernière fois » et « 📑 Refaire »** (v20.302, 29/10/2026, photo d'un nouveau pro « tout à 0 ») :
+  le pré-remplissage reprend la commande **la plus proche avant le jour choisi, même pas encore livrée** (même créneau) ;
+  sans commande avant ce jour : la plus récente, sinon la commande de base de la fiche, sinon 0 avec l'étiquette
+  « première commande : rien à pré-remplir ». Bouton **📑** sur chaque ligne (à venir + livrées) et « 📑 Refaire cette
+  commande pour <jour> » dans le détail : ouvre le **prochain jour libre** (`nextFreeDate`, même créneau si possible) avec
+  les quantités de cette commande (produits sortis du catalogue ignorés) ; dans un groupe, seul l'établissement de la
+  commande est rempli. Pas de bouton quand aucun jour n'est libre. Tests : specs 36 et 44.
 
 ### Quantités par caisse (viennoiserie)
 

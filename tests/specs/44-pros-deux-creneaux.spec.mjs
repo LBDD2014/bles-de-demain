@@ -86,12 +86,13 @@ export const tests = [
       assert(r2.draft === 'matin' && r2.q === '50' && /^open on:jusqu'à ce soir 23h59$/.test(r2.crens[0]) && /^open:jusqu'à demain 11h$/.test(r2.crens[1]), 'demain : matin proposé d\'office (pré-rempli 50), les deux ouverts : ' + JSON.stringify(r2));
       await page.evaluate(async () => { setQty('le_strapontin', 'vt_trad', 20); await saveOrder(); });
       await page.waitForSelector('.okbox');
-      // puis demain après-midi : « la dernière fois » = le dernier après-midi passé (7), pas le matin
+      // puis demain après-midi : « la dernière fois » = l'après-midi le plus proche avant demain = CET après-midi (10, validé juste au-dessus,
+      // pas encore livré — v20.302), pas le matin (20/50) ni l'après-midi d'avant-hier (7)
       await page.evaluate(() => openOrder('2026-07-23', 'apres_midi'));
       await page.waitForSelector('.prow');
       const r3 = await page.evaluate(() => ({ q: document.getElementById('q_le_strapontin_vt_trad').value, editing: draft.editing,
         crens: Array.from(document.querySelectorAll('.cren')).map((c) => c.className.replace('cren', '').trim() + ':' + c.querySelector('em').textContent) }));
-      assert(r3.q === '7' && r3.editing === false && /^has:déjà commandé$/.test(r3.crens[0]) && /^open on:/.test(r3.crens[1]), 'demain après-midi : pré-rempli avec le dernier après-midi (7), matin marqué déjà commandé : ' + JSON.stringify(r3));
+      assert(r3.q === '10' && r3.editing === false && /^has:déjà commandé$/.test(r3.crens[0]) && /^open on:/.test(r3.crens[1]), 'demain après-midi : pré-rempli avec l\'après-midi le plus proche (10, cet après-midi), matin marqué déjà commandé : ' + JSON.stringify(r3));
       await page.evaluate(async () => { setQty('le_strapontin', 'vt_trad', 15); await saveOrder(); });
       await page.waitForSelector('.okbox');
       rows = VIVANTES(await page.evaluate(LIRE, 'le_strapontin'));
