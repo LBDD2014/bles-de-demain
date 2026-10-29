@@ -4,7 +4,7 @@ Contexte projet pour Claude Code. À lire en premier à chaque session.
 
 ## Qui
 
-Phil, propriétaire de Les Blés de Demain. Boulangerie artisanale multi-sites en France. Communication **en français, casual et pragmatique**. Utilisateurs finaux de l'app = boulangers, vendeurs, livreurs **non-techniques**. Apprenti : Noé (BTS GPME).
+Phil, propriétaire de Les Blés de Demain. Boulangerie artisanale multi-sites en France. Communication **en français, casual et pragmatique**. Utilisateurs finaux de l'app = boulangers, vendeurs, livreurs **non-techniques**. (Noé, ancien apprenti BTS GPME, a quitté l'entreprise le 29/10/2026.)
 
 ## Sites
 
