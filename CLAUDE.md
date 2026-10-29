@@ -318,7 +318,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   que le secours. La règle A4 `body::before` (« Les Blés de Demain - »)
   est neutralisée pendant l'impression des étiquettes (v20.308). `APP_VERSION` doit être bumpé à chaque version (il était
   resté à v20.294, impossible de savoir ce que la tablette avait chargé).
-- **🧺 Qui a préparé** (v20.322, `migration-v20.322-prepare-par.sql` : `special_orders` / `fete_orders.prepared_by, prepared_at`) :
+- **🧺 Qui a préparé** (v20.322, `migration-v20.322-prepare-par.sql`, **lancée le 29/10/2026** : `special_orders` / `fete_orders.prepared_by, prepared_at`) :
   « Mis de côté ✓ » (récap du jour, carte spéciale, carte fête) enregistre **le prénom réglé sur la tablette** (`rememberedPerson()`,
   demandé une fois via `ticketDemandePreparateur` si rien n'est réglé et que la boutique a sa liste) et l'heure. Écriture tolérante
   `updateAvecPrepare` (sans la migration : statut seul + toast une fois). Affiché : badge 🧺 sur les cartes (`preparedBadge`), ligne
