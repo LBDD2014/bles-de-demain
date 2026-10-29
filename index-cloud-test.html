@@ -2781,7 +2781,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.310';
+const APP_VERSION  = 'v20.311';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20086,6 +20086,7 @@ function ticketLabelHtml(o, kind, variant) {
 }
 // Impression : un div dédié, le reste de la page masqué, @page 62 mm le temps de l'impression
 function printLabels(labelsHtml) {
+  showToast('Dans la fenêtre d\'impression : choisir la Brother (62 mm)', 'sync');
   _printModeStart(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
 }
 // v20.309 — sur la tablette Android, window.print() rend la main tout de suite et Chrome fabrique l'aperçu APRÈS :
@@ -20139,11 +20140,12 @@ function openTicketChoice(kind, oid) {
   const o = ticketOrderOf(kind, oid);
   el.innerHTML = '<div class="modal" style="max-width:420px">'
     + '<div class="modal-title">🖨 Imprimer</div>'
-    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Étiquettes 62 mm (Brother). Le ticket client part toujours.</div>'
+    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client part toujours.</div>'
+    + '<div class="info-banner" style="margin-bottom:10px">🏷️ Étiquettes : dans la fenêtre d\'impression, choisir la <strong>Brother</strong> (papier 62 mm). 📄 Ticket A4 : choisir l\'<strong>imprimante classique</strong>.</div>'
     + '<div style="display:grid;gap:8px">'
-    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🏷️ Ticket client</button>'
-    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',true)">🏷️ Client + étiquette sac</button>'
-    + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();' + (kind === 'fete' ? 'printFeteTicket' : 'printSpecialOrderTicket') + '(\'' + escapeHtml(oid) + '\')">📄 Ticket A4 (ancien format)</button>'
+    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🏷️ Ticket client <small style="font-weight:500;opacity:.85">· Brother 62 mm</small></button>'
+    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',true)">🏷️ Client + étiquette sac <small style="font-weight:500;opacity:.85">· Brother 62 mm</small></button>'
+    + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();' + (kind === 'fete' ? 'printFeteTicket' : 'printSpecialOrderTicket') + '(\'' + escapeHtml(oid) + '\')">📄 Ticket A4 <small style="font-weight:500;opacity:.85">· imprimante classique</small></button>'
     + '</div>'
     + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeTicketChoice()">Fermer</button></div>';
   el.classList.add('show');
@@ -20236,8 +20238,8 @@ function renderRecapJour() {
     h += '</div>';
   }
   h += '<div class="rj-bar" style="margin-top:12px">'
-    + '<button type="button" class="btn-gold" onclick="recapPrintSacs()"' + (list.length ? '' : ' disabled') + '>🏷️ Tous les sacs (' + list.length + ')</button>'
-    + '<button type="button" class="btn-gold" onclick="recapPrintSheet()"' + (list.length ? '' : ' disabled') + '>🖨 Feuille A4</button>'
+    + '<button type="button" class="btn-gold" onclick="recapPrintSacs()"' + (list.length ? '' : ' disabled') + '>🏷️ Tous les sacs (' + list.length + ') <small style="font-weight:500;opacity:.85">· Brother</small></button>'
+    + '<button type="button" class="btn-gold" onclick="recapPrintSheet()"' + (list.length ? '' : ' disabled') + '>🖨 Feuille A4 <small style="font-weight:500;opacity:.85">· imprimante classique</small></button>'
     + '<button type="button" class="btn-grey" style="margin-left:auto" onclick="closeRecapJour()">Fermer</button>'
     + '</div></div>';
   el.innerHTML = h;
@@ -20300,6 +20302,7 @@ function recapSheetHtml() {
 }
 function recapPrintSheet() {
   if (!recapJour) return;
+  showToast('Dans la fenêtre d\'impression : choisir l\'imprimante A4 (pas la Brother)', 'sync');
   _printModeStart(recapSheetHtml(), '@page { size: A4 portrait; margin: 12mm; }');
 }
 

@@ -97,7 +97,7 @@ export const tests = [
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 07 57 77 05 39/.test(r.client) && /à mercredi !/.test(r.client), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
       assert(/N° du jour 07/.test(r.sac) && /SAC · fait à Le Local/.test(r.sac) && !/Réglé/.test(r.sac), 'sac : n° du jour, fait ailleurs, pas de paiement : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
-      assert(r.boutons.join('|') === '🏷️ Ticket client|🏷️ Client + étiquette sac|📄 Ticket A4 (ancien format)|Fermer', 'fenêtre 🖨 : ' + r.boutons.join('|'));
+      assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket client · Brother 62 mm|🏷️ Client + étiquette sac · Brother 62 mm|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 avec le rappel de l\'imprimante : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
       assert(r.modeApres && r.modeIgnore && r.modeFini, 'mode étiquette gardé après window.print et après afterprint (Android), levé au premier geste : ' + JSON.stringify({ a: r.modeApres, i: r.modeIgnore, f: r.modeFini }));
       await page.close();
