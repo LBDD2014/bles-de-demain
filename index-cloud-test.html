@@ -1248,7 +1248,7 @@ background: var(--green); color: white; border-color: var(--green);
 @media print {
 body.printing-label > *:not(.print-only-label) { display: none !important; }
 body.printing-label .print-only-label { display: block !important; }
-.lb { width: 58mm; padding: 1mm 0 2mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }
+.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }
 .lb:last-child { page-break-after: auto; break-after: auto; }
 .lb-brand { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 13pt; text-align: center; }
 .lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }
@@ -20088,11 +20088,12 @@ function printLabels(labelsHtml) {
   div.innerHTML = labelsHtml;
   let st = document.getElementById('label-page-style');
   if (!st) { st = document.createElement('style'); st.id = 'label-page-style'; document.head.appendChild(st); }
-  st.textContent = '@page { size: 62mm auto; margin: 2mm; }';
+  st.textContent = '@page { size: 62mm auto; margin: 0; }';   // marge 0 : Chrome n'a plus de place pour imprimer le titre de la page en en-tête (vu sur le 1er ticket, 29/10)
   document.body.classList.add('printing-label');
+  const titre = document.title; document.title = ' ';
   setTimeout(function() {
     window.print();
-    setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; }, 300);
+    setTimeout(function() { document.body.classList.remove('printing-label'); st.textContent = ''; document.title = titre; }, 300);
   }, 50);
 }
 function ticketOrderOf(kind, oid) {
