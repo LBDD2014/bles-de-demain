@@ -2783,7 +2783,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.317';
+const APP_VERSION  = 'v20.318';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -19236,6 +19236,7 @@ currentSpecialWeekStart = getMondayOf(d.pickup_date);
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 renderSpecials();
 showToast(nbSerie ? '🔁 Commande enregistrée + ' + nbSerie + ' à venir' : 'Commande enregistrée', 'sync');
+if (!d.id) printOrderTickets('special', orderId, false);   // v20.318 — ticket client d'office à la création (Phil : « à la commande, que pour le client »)
 }
 
 async function deleteSpecialOrder(oid) {
@@ -20136,13 +20137,16 @@ function ticketOrderOf(kind, oid) {
   if (kind === 'fete') return (feteOrders || []).find(function(x) { return x.id === oid; }) || null;
   return (specialOrdersData || []).find(function(x) { return x.id === oid; }) || (specialFormDraft && specialFormDraft.id === oid ? specialFormDraft : null);
 }
-// Le ticket client part toujours ; le sac en plus si demandé (Phil : « demande à chaque fois mais sort le ticket client d'office »)
-async function printOrderTickets(kind, oid, avecSac) {
+// v20.318 — quoi = false : ticket client seul (à la commande) · 'sac' : étiquette sac seule (le matin du retrait,
+// une par sac) · true : les deux (Phil, 29/10 : « à la commande que pour le client, et le matin les vendeurs
+// impriment les tickets dont ils ont besoin »)
+async function printOrderTickets(kind, oid, quoi) {
   const o = ticketOrderOf(kind, oid);
   if (!o) { showToast('Commande introuvable', 'error'); return; }
   if (!o.num_jour && o.id) await assignOrderNum(kind === 'fete' ? 'fete_orders' : 'special_orders', o);
-  const labels = [ticketLabelHtml(o, kind, 'client')];
-  if (avecSac) labels.push(ticketLabelHtml(o, kind, 'sac'));
+  const labels = [];
+  if (quoi !== 'sac') labels.push(ticketLabelHtml(o, kind, 'client'));
+  if (quoi) labels.push(ticketLabelHtml(o, kind, 'sac'));
   printLabels(labels.join(''));
 }
 function openTicketChoice(kind, oid) {
@@ -20151,11 +20155,11 @@ function openTicketChoice(kind, oid) {
   const o = ticketOrderOf(kind, oid);
   el.innerHTML = '<div class="modal" style="max-width:420px">'
     + '<div class="modal-title">🖨 Imprimer</div>'
-    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client part toujours.</div>'
+    + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client est sorti à la commande. Le matin du retrait : une étiquette sac par sac.</div>'
     + '<div class="info-banner" style="margin-bottom:10px">🏷️ Étiquettes : dans la fenêtre d\'impression, choisir la <strong>Brother</strong> (papier 62 mm). 📄 Ticket A4 : choisir l\'<strong>imprimante classique</strong>.</div>'
     + '<div style="display:grid;gap:8px">'
-    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🏷️ Ticket client <small style="font-weight:500;opacity:.85">· Brother 62 mm</small></button>'
-    + '<button class="btn-gold" style="padding:14px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',true)">🏷️ Client + étiquette sac <small style="font-weight:500;opacity:.85">· Brother 62 mm</small></button>'
+    + '<button class="btn-gold" style="padding:16px;font-size:16px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',\'sac\')">🏷️ Étiquette sac <small style="font-weight:500;opacity:.85">· à coller sur la commande, une par sac</small></button>'
+    + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🎫 Ticket client <small style="font-weight:500;opacity:.85">· réimpression (il part déjà à la commande)</small></button>'
     + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();' + (kind === 'fete' ? 'printFeteTicket' : 'printSpecialOrderTicket') + '(\'' + escapeHtml(oid) + '\')">📄 Ticket A4 <small style="font-weight:500;opacity:.85">· imprimante classique</small></button>'
     + '</div>'
     + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="closeTicketChoice()">Fermer</button></div>';
@@ -20243,7 +20247,7 @@ function renderRecapJour() {
         + '<div class="rj-act">'
         + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + '</span>'
                 : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
-        + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Étiquettes">🏷️</button>'
+        + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Étiquette sac (une par sac)">🏷️ Sac</button>'
         + '</div></div>';
     });
     h += '</div>';
@@ -20287,7 +20291,7 @@ async function recapPrintOne(oid) {
   const s = recapJour; if (!s) return;
   const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
   if (!o.num_jour) await assignOrderNum(s.kind === 'fete' ? 'fete_orders' : 'special_orders', o);
-  printLabels(ticketLabelHtml(o, s.kind, 'client') + ticketLabelHtml(o, s.kind, 'sac'));
+  printLabels(ticketLabelHtml(o, s.kind, 'sac'));   // v20.318 — le matin du retrait : l'étiquette sac seule
   renderRecapJour();
 }
 // toutes les étiquettes sac de la liste affichée (filtre matin / après-midi respecté), dans l'ordre des heures

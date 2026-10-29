@@ -82,6 +82,9 @@ export const tests = [
         await printOrderTickets('special', 's2', false);
         await new Promise((res) => setTimeout(res, 150));
         const n2 = (window.__printed[1].match(/class="lb( lb-sac)?"/g) || []).length;
+        await printOrderTickets('special', 's2', 'sac');   // v20.318 — sac seul
+        await new Promise((res) => setTimeout(res, 150));
+        const sacSeul = (window.__printed[2].match(/class="lb lb-sac"/g) || []).length + '/' + (window.__printed[2].match(/Votre commande/g) || []).length;
         // v20.309 — Android : l'aperçu se fabrique après window.print() → le mode étiquette doit rester posé, puis tomber sur afterprint
         await printOrderTickets('special', 's2', false);
         await new Promise((res) => setTimeout(res, 500));
@@ -91,7 +94,7 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 1200));
         document.dispatchEvent(new Event('touchstart'));   // premier geste sur la page = retour de la fenêtre d'impression
         const modeFini = !document.body.classList.contains('printing-label') && document.title.trim() !== '' && document.getElementById('label-page-style').textContent === '';
-        return { client, sac, fete, boutons, n1, n2, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
+        return { client, sac, fete, boutons, n1, n2, sacSeul, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
       assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 02 47 26 02 82 20 Place du Maréchal Leclerc, 37250 Veigné Merci de votre confiance !/.test(r.client) && !/Place du Maréchal/.test(r.sac), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
@@ -99,8 +102,9 @@ export const tests = [
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
       const ticketTelOk = r.tels.tours === '02 47 64 14 51' && r.tels.amboise === '02 47 26 02 82' && r.tels.local === '07 50 05 22 96';
       assert(ticketTelOk, 'téléphones du ticket : Tours fixe, marchés = Veigné : ' + JSON.stringify(r.tels));
-      assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Ticket client · Brother 62 mm|🏷️ Client + étiquette sac · Brother 62 mm|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 avec le rappel de l\'imprimante : ' + r.boutons.join('|'));
+      assert(r.boutons.map((b) => b.replace(/\s+/g, ' ')).join('|') === '🏷️ Étiquette sac · à coller sur la commande, une par sac|🎫 Ticket client · réimpression (il part déjà à la commande)|📄 Ticket A4 · imprimante classique|Fermer', 'fenêtre 🖨 : sac seul en premier, client en réimpression : ' + r.boutons.join('|'));
       assert(r.n1 === 2 && r.n2 === 1, 'Client + sac = 2 étiquettes, Client = 1 : ' + r.n1 + '/' + r.n2);
+      assert(r.sacSeul === '1/0', 'Étiquette sac seule = 1 sac, 0 client : ' + r.sacSeul);
       assert(r.modeApres && r.modeIgnore && r.modeFini, 'mode étiquette gardé après window.print et après afterprint (Android), levé au premier geste : ' + JSON.stringify({ a: r.modeApres, i: r.modeIgnore, f: r.modeFini }));
       await page.close();
     },
@@ -174,10 +178,12 @@ export const tests = [
       const r = await page.evaluate(async () => {
         setVue('specials'); openNewSpecialOrder();
         Object.assign(specialFormDraft, { customer_name: 'Nouveau Client', customer_phone: '0611223344', pickup_date: '2026-07-24', pickup_time: '10:00', taken_by: 'Noé', items: [{ product_id: 'vt_trad', product_name_custom: '', qty: '2', notes: '', category: '', tranche: false }] });
+        window.__printed = [];
         await upsertSpecialOrder();
-        await new Promise((res) => setTimeout(res, 200));
+        await new Promise((res) => setTimeout(res, 300));
         const o = window.__mockDB.special_orders.find((x) => x.customer_name === 'Nouveau Client');
         const num1 = o && o.num_jour;
+        const auto = window.__printed.length === 1 ? (window.__printed[0].match(/Votre commande/g) || []).length + '/' + (window.__printed[0].match(/lb-sac/g) || []).length : 'rien';
         // déplacée au 25 → nouveau numéro (suite du 25)
         specialOrdersData = [Object.assign({ items: [] }, o)];
         specialFormMode = 'edit';
@@ -191,9 +197,10 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 200));
         const fete = Array.from(document.querySelectorAll('#recap-jour-modal .rj-row')).map((x) => x.querySelector('.rj-client').textContent.trim() + ' / ' + x.querySelector('.rj-cmd').textContent + ' / ' + x.querySelector('.rj-pay').textContent);
         closeRecapJour();
-        return { num1, date2: o2.pickup_date, num2: o2.num_jour, compteur, fete };
+        return { num1, auto, date2: o2.pickup_date, num2: o2.num_jour, compteur, fete };
       });
       assert(r.num1 === 1, 'nouvelle commande du 24 : n° 1 : ' + r.num1);
+      assert(r.auto === '1/0', 'à la création : le ticket client part d\'office, pas le sac : ' + r.auto);
       assert(r.date2 === '2026-07-25' && r.num2 === 1 && r.compteur.indexOf('veigne|2026-07-24|1') !== -1 && r.compteur.indexOf('veigne|2026-07-25|1') !== -1, 'déplacée au 25 : nouveau numéro dans la suite du 25 : ' + JSON.stringify(r));
       assert(r.fete.length === 1 && /M\. Lefèvre Fête/.test(r.fete[0]) && /1 Bûche 6 pers\. · 6 Croissant/.test(r.fete[0]) && /Reste au retrait : 22,00 €/.test(r.fete[0]), 'récap fêtes : ' + JSON.stringify(r.fete));
       await page.close();

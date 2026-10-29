@@ -300,8 +300,10 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   Changer le jour ou la boutique de retrait = nouveau numéro. Anciennes commandes : numéro à la 1re impression (`assignOrderNum`).
 - **Étiquettes 62 mm** (rouleau continu DK-22205, noir) : `ticketLabelHtml(o, kind, 'client'|'sac')`, impression par `printLabels`
   (div `#print-label`, classe `printing-label`, `@page 62mm auto` injectée le temps de l'impression). Bouton 🖨 (formulaire spéciale,
-  carte fête) → fenêtre `openTicketChoice` : « Ticket client » / « Client + étiquette sac » / « Ticket A4 (ancien) ». **Le ticket
-  client part toujours** ; à la création d'une commande de fête il sort d'office. Sac : n° du jour en gros, téléphone client,
+  carte fête) → fenêtre `openTicketChoice` (v20.318) : « 🏷️ Étiquette sac » (en premier, une par sac) / « 🎫 Ticket client »
+  (réimpression) / « 📄 Ticket A4 ». **Flux validé par Phil (29/10) : à la création d'une commande (spéciale ou fête), le ticket
+  client sort d'office, seul ; le matin du retrait, les vendeurs sortent les étiquettes sac** (récap du jour : 🏷️ Sac par ligne,
+  « Tous les sacs »). `printOrderTickets(kind, id, false | 'sac' | true)`. Sac : n° du jour en gros, téléphone client,
   « prise par », réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 02 47 26 02 82 (v20.316), St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
   marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av seulement, `SHOP_ADRESSES`), pied « Merci de votre confiance ! ». Marchés : nom du marché en haut.
