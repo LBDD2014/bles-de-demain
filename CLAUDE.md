@@ -22,7 +22,7 @@ Phil, propriétaire de Les Blés de Demain. Boulangerie artisanale multi-sites e
 | Tours | 02 47 64 14 51 (fixe) | 31 Place du Grand Marché, 37000 Tours |
 | Veigné | 02 47 26 02 82 (fixe) ; portable 07 57 77 05 39 | 20 Place du Maréchal Leclerc, 37250 Veigné |
 | Saint-Avertin | 09 80 99 96 52 | 17 Mail René Cassin, 37550 Saint-Avertin |
-| Le Local | 07 50 05 22 96 (portable) | Esvres (adresse exacte à demander) |
+| Le Local | 07 50 05 22 96 (portable) | 1 bis rue Alexandre Darracq, 37320 Esvres-sur-Indre |
 | Marchés Amboise / Beaujardin | numéro de Veigné | — |
 
 Dans l'app : `SHOP_TELS_FIXES` (tickets), `SHOP_ADRESSES`, `SHOP_TELS` (portables, message d'accès pros).
@@ -308,7 +308,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   Retrait : n° du jour en gros, **téléphone client toujours** (« 📞 pas de numéro » sinon),
   **pas de pied de page** (v20.322 : plus de « RETRAIT · Préparé par »), réglé ou non sans montant (v20.312), pas de prix, pas de « fait à X » (retiré v20.313). Client : paiement (réglé / acompte + reste / à régler), téléphone
   de la boutique (`SHOP_TELS_FIXES`, v20.315 : Tours 02 47 64 14 51, Veigné 02 47 26 02 82 (v20.316), St-Av 09 80 99 96 52, Local 07 50 05 22 96 ;
-  marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av seulement, `SHOP_ADRESSES`), pied « Merci de votre confiance, à très bientôt ! » (v20.321). Marchés : nom du marché en haut.
+  marchés = Veigné), adresse de la boutique sous le lieu de retrait (v20.317, Tours / Veigné / St-Av, Le Local depuis v20.324 ; pas les marchés ; `SHOP_ADRESSES`), pied « Merci de votre confiance, à très bientôt ! » (v20.321). Marchés : nom du marché en haut.
 - **Tablettes Logicom (Android)** : impression via la fenêtre de Chrome avec le **Brother Print Service Plugin** installé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression
