@@ -1248,6 +1248,7 @@ background: var(--green); color: white; border-color: var(--green);
 @media print {
 body.printing-label > *:not(.print-only-label) { display: none !important; }
 body.printing-label .print-only-label { display: block !important; }
+body.printing-label::before, body.printing-ticket::before { content: none !important; display: none !important; }   /* pas l'en-tête « Les Blés de Demain - » des impressions A4 (vu sur le 1er ticket Brother) */
 .lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }
 .lb:last-child { page-break-after: auto; break-after: auto; }
 .lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }
