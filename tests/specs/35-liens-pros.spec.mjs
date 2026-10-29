@@ -161,4 +161,37 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Liens pros — v20.300 : la case « envoyé » se coche à la main (date du jour) et se décoche (repère retiré) ; compteurs et filtre suivent',
+    fn: async (ctx) => {
+      const page = await liensPros(ctx);
+      const r = await page.evaluate(async () => {
+        openProLinksModal();
+        const row = (nom) => Array.from(document.querySelectorAll('#pro-links-modal .pl-row')).find((x) => x.textContent.indexOf(nom) !== -1);
+        const etat = (nom) => { const x = row(nom); return { coche: x.querySelector('.pl-chk-in').checked, st: x.querySelector('.pl-st').textContent, sent: x.getAttribute('data-sent') }; };
+        const avant = { bar: etat('Bar du'), relais: etat('Relais'), sub: document.querySelector('#pro-links-modal .modal-sub').textContent };
+        // Bar : jamais envoyé → on coche à la main (lien envoyé par SMS depuis le téléphone perso)
+        const cbBar = row('Bar du').querySelector('.pl-chk-in'); cbBar.checked = true; cbBar.dispatchEvent(new Event('change'));
+        await new Promise((res) => setTimeout(res, 100));
+        const bar = window.__mockDB.pros.find((p) => p.id === 'bar');
+        const apresCoche = { bar: etat('Bar du'), sub: document.querySelector('#pro-links-modal .modal-sub').textContent, tok: bar.magic_token, sent: bar.magic_sent_at };
+        // Relais : envoyé le 03/07 → on décoche (c'était une erreur)
+        const cbRel = row('Relais').querySelector('.pl-chk-in'); cbRel.checked = false; cbRel.dispatchEvent(new Event('change'));
+        await new Promise((res) => setTimeout(res, 100));
+        const relais = window.__mockDB.pros.find((p) => p.id === 'relais');
+        const apresDecoche = { relais: etat('Relais'), sub: document.querySelector('#pro-links-modal .modal-sub').textContent, sent: relais.magic_sent_at, tok: relais.magic_token };
+        // « Masquer ceux qui l'ont reçu » : Bar (coché) disparaît, Relais (décoché) reste
+        const hide = document.querySelector('#pro-links-modal input[type=checkbox]'); hide.checked = true; hide.dispatchEvent(new Event('change'));
+        const visibles = Array.from(document.querySelectorAll('#pro-links-modal .pl-row')).filter((x) => x.style.display !== 'none').map((x) => x.querySelector('.pl-nom').textContent.trim().split(' ')[0]);
+        return { avant, apresCoche, apresDecoche, visibles };
+      });
+      assert(!r.avant.bar.coche && r.avant.relais.coche && /1 \/ 3/.test(r.avant.sub), 'au départ : Bar décoché, Relais coché, 1 / 3 : ' + JSON.stringify(r.avant));
+      assert(r.apresCoche.bar.coche && r.apresCoche.bar.st === '✓ envoyé le 22/07' && r.apresCoche.bar.sent && /2 \/ 3/.test(r.apresCoche.sub), 'coche à la main : date du jour mémorisée, 2 / 3 : ' + JSON.stringify(r.apresCoche));
+      assert(r.apresCoche.tok === null, 'cocher à la main ne crée pas de lien (le lien a été envoyé autrement, ou sera créé au premier envoi) : ' + r.apresCoche.tok);
+      assert(!r.apresDecoche.relais.coche && r.apresDecoche.relais.st === 'jamais envoyé' && r.apresDecoche.sent === null && /1 \/ 3/.test(r.apresDecoche.sub), 'décoche : repère retiré, 1 / 3 : ' + JSON.stringify(r.apresDecoche));
+      assert(r.apresDecoche.tok === 'tok_relais', 'décocher ne touche pas au lien lui-même : ' + r.apresDecoche.tok);
+      assert(r.visibles.join(',') === 'Relais,Coop', 'masquer ceux qui l\'ont reçu : Bar caché, Relais et Coop visibles : ' + r.visibles.join(','));
+      await page.close();
+    },
+  },
 ];

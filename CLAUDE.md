@@ -263,6 +263,9 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
 - Envoi de l'accès : « 📤 Image + message » = image QR + message dans la feuille de partage (iPhone/iPad :
   WhatsApp met le texte en légende) ; partage abouti = « envoyé le … ». « 📋 Copier » ne marque « envoyé »
   qu'après confirmation. Message signé Philippe, 4 boutiques (portables) en fin, la sienne en premier.
+- **Case « envoyé » à la main** (v20.300, 29/10/2026) : dans « 📱 Liens pros », chaque ligne a une case à cocher
+  devant le repère. Coche = `magic_sent_at` à maintenant (lien envoyé autrement : SMS, mail, de vive voix), décoche =
+  `null` (repère retiré). Ne crée ni ne touche le lien lui-même. Un seul point d'écriture : `proLinksSetSent(pro, iso)`.
 
 ### Quantités par caisse (viennoiserie)
 

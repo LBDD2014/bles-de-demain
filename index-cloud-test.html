@@ -1738,6 +1738,9 @@ margin-bottom: 4px;
 .pl-st.ok { background:#E3EFE6; color:var(--green); } .pl-st.none { background:#EEE; color:var(--grey-light); } .pl-st.warn { background:#FBE8D6; color:var(--orange); }
 .pl-actions { display:flex; gap:6px; flex:0 0 auto; }
 .pl-wa { background:#25D366 !important; border-color:#25D366 !important; color:#fff !important; }
+/* v20.300 — case « il a le lien » cochée / décochée à la main */
+.pl-chk { display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; color:var(--brown-mid); white-space:nowrap; }
+.pl-chk input { width:20px; height:20px; margin:0; accent-color:var(--green); cursor:pointer; }
 /* v20.288 — ⏰ Horaires des pros (onglet Pros d'un site) */
 .pro-horaires-list { background:#fff; border:1px solid #E5DCC8; border-radius:12px; padding:4px 12px; margin:0 0 12px; }
 .pro-horaires-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #F0E8D6; }
@@ -11592,7 +11595,7 @@ function renderProLinksModal() {
   const nbSent = actifs.filter(function(p) { return !!p.magic_sent_at; }).length;
   let h = '<div class="modal" style="max-width:1100px;max-height:92vh;overflow-y:auto">'
     + '<div class="modal-title">📱 Liens pros</div>'
-    + '<div class="modal-sub">Une colonne par boutique qui prépare les commandes ; à droite de chaque nom, la boutique de secours (un tap ouvre la fiche). 📤 = l\'image QR et le message partent ensemble. 💬 = WhatsApp avec le message déjà écrit. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
+    + '<div class="modal-sub">Une colonne par boutique qui prépare les commandes ; à droite de chaque nom, la boutique de secours (un tap ouvre la fiche). 📤 = l\'image QR et le message partent ensemble. 💬 = WhatsApp avec le message déjà écrit. La case se coche ou se décoche à la main si tu as envoyé le lien autrement. <strong>' + nbSent + ' / ' + actifs.length + '</strong> ont reçu leur lien.</div>'
     + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
     + '<input type="search" class="product-filter-input" style="flex:1;min-width:160px" placeholder="🔍 Chercher un client…" value="' + escapeHtml(proLinksSearch) + '" oninput="proLinksFilter(this.value)">'
     + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" ' + (proLinksHideSent ? 'checked' : '') + ' onchange="proLinksToggleHide(this)"> Masquer ceux qui l\'ont reçu</label>'
@@ -11620,7 +11623,9 @@ function renderProLinksModal() {
         + '<span class="pl-sec' + (sec.site && !sec.defaut ? '' : ' none') + '" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\')" title="Régler la boutique de secours dans la fiche">secours : ' + escapeHtml(proSecoursLabel(p)) + '</span></div>'
         + '<div class="pl-ct">' + (ct.nom ? escapeHtml(ct.nom) : '') + (ct.tel ? (ct.nom ? ' · ' : '') + escapeHtml(ct.tel) : '')
         + (!ct.tel ? ' <a href="#" onclick="closeProLinksModal();openProForm(\'' + escapeHtml(p.id) + '\');return false">ajouter un téléphone</a>' : '')
-        + ' ' + statut + '</div></div>'
+        + '</div>'
+        // v20.300 — Phil (29/10) : « cocher à la main à qui j'ai envoyé le lien » (envoi par SMS, de vive voix…) ; décocher = pas encore
+        + '<label class="pl-chk"><input type="checkbox" class="pl-chk-in" ' + (sent ? 'checked' : '') + ' onchange="proLinksToggleSent(\'' + escapeHtml(p.id) + '\', this.checked)"> ' + statut + '</label></div>'
         + '<div class="pl-actions">'
         + '<button type="button" class="btn-gold-sm pl-share" onclick="proLinksShare(\'' + escapeHtml(p.id) + '\')">📤 Image + message</button>'
         + (ct.tel ? '<button type="button" class="btn-gold-sm pl-wa" onclick="proLinksWhatsApp(\'' + escapeHtml(p.id) + '\')">💬</button>' : '')
@@ -11657,16 +11662,26 @@ async function proLinksEnsureToken(pro) {
   pro.magic_token = tok;
   return true;
 }
-async function proLinksMarkSent(pro) {
-  const now = new Date().toISOString();
-  const { error } = await supa.from('pros').update({ magic_sent_at: now }).eq('id', pro.id);
+async function proLinksMarkSent(pro) { await proLinksSetSent(pro, new Date().toISOString()); }
+// v20.300 — un seul endroit qui écrit la date d'envoi (iso = envoyé, null = pas encore)
+async function proLinksSetSent(pro, iso) {
+  const { error } = await supa.from('pros').update({ magic_sent_at: iso }).eq('id', pro.id);
   if (error) {
     if (/magic_sent_at/.test(error.message || '')) showToast('Date d\'envoi non mémorisée : migration v20.272 à lancer', 'warn');
     else showToast(error.message, 'error');
-    return;
+    renderProLinksModal();   // la case revient à l'état réel
+    return false;
   }
-  pro.magic_sent_at = now;
+  pro.magic_sent_at = iso;
   renderProLinksModal();
+  return true;
+}
+// v20.300 — case cochée à la main : coche = envoyé aujourd'hui (lien envoyé autrement : SMS, mail, de vive voix), décoche = pas encore
+async function proLinksToggleSent(proId, checked) {
+  const pro = adminPros.find(function(p) { return p.id === proId; });
+  if (!pro) return;
+  const ok = await proLinksSetSent(pro, checked ? new Date().toISOString() : null);
+  if (ok) showToast(checked ? (pro.nom || 'Ce client') + ' : marqué « envoyé » aujourd\'hui' : (pro.nom || 'Ce client') + ' : repère « envoyé » retiré', 'sync');
 }
 // v20.284 — depuis la liste : image QR + message en un geste (pas besoin de téléphone en fiche, on choisit dans la feuille de partage)
 async function proLinksShare(proId) {
