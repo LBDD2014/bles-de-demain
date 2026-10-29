@@ -68,7 +68,10 @@ export const tests = [
       const r = await page.evaluate(async () => {
         const s2 = window.__mockDB.special_orders.find((o) => o.id === 's2'); s2.items = window.__mockDB.special_order_items.filter((i) => i.order_id === 's2'); s2.num_jour = 7;
         const txt = (h) => { const d = document.createElement('div'); d.innerHTML = h.replace(/>/g, '> '); return d.textContent.replace(/\s+/g, ' ').trim(); };
+        rememberPerson('Zora');   // v20.321 — prénom réglé sur la tablette = « Préparé par »
         const client = txt(ticketLabelHtml(s2, 'special', 'client')), sac = txt(ticketLabelHtml(s2, 'special', 'sac'));
+        rememberPerson('');
+        const sansPrep = txt(ticketLabelHtml(s2, 'special', 'sac'));
         const f = window.__mockDB.fete_orders[0]; f.num_jour = 2;
         const fete = txt(ticketLabelHtml(f, 'fete', 'client'));
         // 🖨 depuis l'écran : la fenêtre, puis « Client + sac »
@@ -95,11 +98,11 @@ export const tests = [
         await new Promise((res) => setTimeout(res, 1200));
         document.dispatchEvent(new Event('touchstart'));   // premier geste sur la page = retour de la fenêtre d'impression
         const modeFini = !document.body.classList.contains('printing-label') && document.title.trim() !== '' && document.getElementById('label-page-style').textContent === '';
-        return { client, sac, fete, boutons, n1, n2, sacSeul, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
+        return { client, sac, sansPrep, fete, boutons, n1, n2, sacSeul, modeApres, modeIgnore, modeFini, tels: { tours: ticketTel('tours'), amboise: ticketTel('amboise'), local: ticketTel('local') }, ouvert: modal.classList.contains('show'), pageStyle: document.getElementById('label-page-style').textContent, logo: /class="lb-brand"><img src="data:image\/png;base64,/.test(ticketLabelHtml(s2, 'special', 'client')) };
       });
       assert(/^Veigné/.test(r.client) && r.logo && /Votre commande 07/.test(r.client) && /09h30 mercredi 22 juil\./.test(r.client) && /Dupont Claire/.test(r.client), 'client : site, n° 07, heure, jour, nom : ' + r.client);
-      assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 02 47 26 02 82 20 Place du Maréchal Leclerc, 37250 Veigné Merci de votre confiance !/.test(r.client) && !/Place du Maréchal/.test(r.sac), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
-      assert(/N° du jour 07/.test(r.sac) && /RETRAIT/.test(r.sac) && /📞 pas de numéro/.test(r.sac) && !/SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, pas de « fait à », réglé ou non (sans montant), pas le pied client : ' + r.sac);
+      assert(/12 Croissant/.test(r.client) && /bien dorés/.test(r.client) && /Réglé ✓/.test(r.client) && /Retrait : Veigné · 02 47 26 02 82 20 Place du Maréchal Leclerc, 37250 Veigné Merci de votre confiance, à très bientôt !/.test(r.client) && !/Place du Maréchal/.test(r.sac), 'client : lignes, note, paiement, téléphone boutique : ' + r.client);
+      assert(/N° du jour 07/.test(r.sac) && /RETRAIT · Préparé par Zora/.test(r.sac) && !/prise par/.test(r.sac) && !/Préparé/.test(r.sansPrep) && /📞 pas de numéro/.test(r.sac) && !/SAC/.test(r.sac) && !/fait à/.test(r.sac) && /Réglé ✓/.test(r.sac) && !/Retrait :/.test(r.sac), 'sac : n° du jour, pas de « fait à », réglé ou non (sans montant), pas le pied client : ' + r.sac);
       assert(/Fêtes · noel/.test(r.fete) && /Votre commande 02/.test(r.fete) && /1 Bûche 6 pers\./.test(r.fete) && /6 Croissant/.test(r.fete) && /Total : 32,00 €/.test(r.fete) && /Acompte versé : 10,00 €/.test(r.fete) && /Reste au retrait : 22,00 €/.test(r.fete) && /chocolat-praliné/.test(r.fete), 'fête : cadre, lignes, total, acompte, reste, note : ' + r.fete);
       const ticketTelOk = r.tels.tours === '02 47 64 14 51' && r.tels.amboise === '02 47 26 02 82' && r.tels.local === '07 50 05 22 96';
       assert(ticketTelOk, 'téléphones du ticket : Tours fixe, marchés = Veigné : ' + JSON.stringify(r.tels));

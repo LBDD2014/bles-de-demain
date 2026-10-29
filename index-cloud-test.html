@@ -2752,7 +2752,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.320';
+const APP_VERSION  = 'v20.321';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20010,6 +20010,27 @@ async function assignOrderNum(table, o, force) {
   return n;
 }
 function ticketNum(n) { return n ? String(n).padStart(2, '0') : '—'; }
+// v20.321 — qui prépare : le prénom réglé sur la tablette (le même que « commande prise par » au début du service)
+function ticketPreparateur() { return (typeof rememberedPerson === 'function' ? rememberedPerson() : '') || ''; }
+// Si aucun prénom n'est réglé et que la boutique a sa liste : on le demande une fois, puis on le garde pour la journée
+let _prepAttente = null;
+function ticketDemandePreparateur(suite) {
+  if (ticketPreparateur() || !shopPeopleReady || !peopleOf(currentBoutique).length) { suite(); return; }
+  _prepAttente = suite;
+  let el = document.getElementById('prep-modal');
+  if (!el) { el = document.createElement('div'); el.id = 'prep-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
+  el.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-title">👤 Qui prépare ce matin ?</div>'
+    + '<div class="modal-sub">Le prénom s\'écrit sur les tickets retrait (« Préparé par … ») et reste réglé sur cette tablette pour la journée.</div>'
+    + '<div style="display:grid;gap:8px">' + peopleOf(currentBoutique).map(function(n) { return '<button class="btn-gold" style="padding:13px" onclick="ticketChoisitPreparateur(\'' + escapeHtml(n) + '\')">' + escapeHtml(n) + '</button>'; }).join('') + '</div>'
+    + '<button class="btn-grey" style="width:100%;margin-top:12px;padding:12px" onclick="ticketChoisitPreparateur(\'\')">Sans nom</button></div>';
+  el.classList.add('show');
+}
+function ticketChoisitPreparateur(nom) {
+  const el = document.getElementById('prep-modal'); if (el) el.classList.remove('show');
+  if (nom) rememberPerson(nom);
+  const suite = _prepAttente; _prepAttente = null;
+  if (suite) suite();
+}
 function ticketHeure(o) { return o.pickup_time ? String(o.pickup_time).slice(0, 5).replace(':', 'h') : '—'; }
 function ticketJourCourt(iso) { const d = new Date(iso + 'T12:00'); return DOW_NAMES[d.getDay()] + ' ' + d.getDate() + ' ' + ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][d.getMonth()]; }
 function ticketSiteNom(site) { return BOUTIQUE_NAMES[site] || site || ''; }
@@ -20055,13 +20076,14 @@ function ticketLabelHtml(o, kind, variant) {
   if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
   if (sac) {
     h += '<div class="lb-pay"><div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';   // v20.312 — réglé ou non, visible sur le sac au moment de le remettre
-    h += '<div class="lb-foot"><b>RETRAIT</b>' + (o.taken_by ? ' · prise par ' + escapeHtml(o.taken_by) : '') + '</div>';   // v20.320 — « ticket retrait » (Phil, 29/10), plus « sac »
+    const prep = ticketPreparateur();   // v20.321 — le prénom réglé sur la tablette ce matin-là (Phil, 29/10)
+    h += '<div class="lb-foot"><b>RETRAIT</b>' + (prep ? ' · Préparé par ' + escapeHtml(prep) : '') + '</div>';
   } else {
     h += '<div class="lb-pay">' + pay.lignes.map(function(l) { return '<span>' + escapeHtml(l) + '</span>'; }).join('') + '<div class="lb-big">' + escapeHtml(pay.big) + '</div></div>';
     const tel = ticketTel(site);
     // v20.317 — adresse de la boutique de retrait (pas pour les marchés ni Le Local, pas d'adresse exacte)
     const adr = (site === 'tours' || site === 'veigne' || site === 'saint-avertin') ? SHOP_ADRESSES[site] : '';
-    h += '<div class="lb-foot">Retrait : <b>' + escapeHtml(ticketSiteNom(site)) + '</b>' + (tel ? ' · ' + escapeHtml(tel) : '') + (adr ? '<br>' + escapeHtml(adr) : '') + '<br>Merci de votre confiance !</div>';   // v20.314 — phrase de Phil
+    h += '<div class="lb-foot">Retrait : <b>' + escapeHtml(ticketSiteNom(site)) + '</b>' + (tel ? ' · ' + escapeHtml(tel) : '') + (adr ? '<br>' + escapeHtml(adr) : '') + '<br>Merci de votre confiance, à très bientôt !</div>';   // v20.321 — phrase de Phil
   }
   return h + '</div>';
 }
@@ -20135,6 +20157,7 @@ function ticketOrderOf(kind, oid) {
 async function printOrderTickets(kind, oid, quoi) {
   const o = ticketOrderOf(kind, oid);
   if (!o) { showToast('Commande introuvable', 'error'); return; }
+  if (quoi && !ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { printOrderTickets(kind, oid, quoi); }); return; }
   if (!o.num_jour && o.id) await assignOrderNum(kind === 'fete' ? 'fete_orders' : 'special_orders', o);
   const labels = [];
   if (quoi !== 'sac') labels.push(ticketLabelHtml(o, kind, 'client'));
@@ -20281,6 +20304,7 @@ async function recapMisDeCote(oid) {
 }
 async function recapPrintOne(oid) {
   const s = recapJour; if (!s) return;
+  if (!ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { recapPrintOne(oid); }); return; }
   const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
   if (!o.num_jour) await assignOrderNum(s.kind === 'fete' ? 'fete_orders' : 'special_orders', o);
   printLabels(ticketLabelHtml(o, s.kind, 'sac'));   // v20.318 — le matin du retrait : l'étiquette sac seule
@@ -20289,6 +20313,7 @@ async function recapPrintOne(oid) {
 // toutes les étiquettes sac de la liste affichée (filtre matin / après-midi respecté), dans l'ordre des heures
 async function recapPrintSacs() {
   const s = recapJour; if (!s) return;
+  if (!ticketPreparateur() && shopPeopleReady && peopleOf(currentBoutique).length) { ticketDemandePreparateur(function() { recapPrintSacs(); }); return; }
   const list = recapVisibleRows().filter(function(o) { const q = (s.q || '').trim().toLowerCase(); return !q || (recapCustomerKey(o.customer_name) + ' ' + ticketNum(o.num_jour)).indexOf(q) !== -1; });
   if (!list.length) return;
   const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders';
