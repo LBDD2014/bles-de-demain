@@ -300,7 +300,7 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   **v20.304** : le même bouton dans le détail d'une commande (formulaire de modification, bloc « 📑 Refaire cette commande »,
   à partir de la commande enregistrée). Test : spec 48.
 
-**Fêtes + Spéciales = une seule commande (v20.328, 31/10/2026 — codé, migration `migration-v20.328-fetes-dans-speciales.sql` À LANCER AVANT la mise en ligne)** :
+**Fêtes + Spéciales = une seule commande (v20.328, EN LIGNE le 31/10/2026, migration `migration-v20.328-fetes-dans-speciales.sql` lancée)** :
 Phil (29/10) : « si les clients veulent du pain et des bûches, on fait comment ? ». Maquette `fetes-speciales-mockup.html`.
 - **Pendant une fête active, l'onglet Special est grisé** (barré, `bnav-ghost`) et un appui renvoie vers l'onglet de la fête
   (`feteRemplaceSpecial`), qui affiche **le même écran** (semaine, + Nouvelle commande, récap du jour, prénoms, 🔁…) avec le bandeau de
@@ -396,9 +396,8 @@ Si pause survient : dashboard Supabase → "Resume project" (30s à 2min).
 
 ## Bugs / TODOs connus
 
-0. **Fêtes + Spéciales (v20.328) codé le 31/10/2026, PAS ENCORE EN LIGNE** (voir la section « Fêtes + Spéciales = une seule commande »).
-   Ordre : (1) Phil lance `migration-v20.328-fetes-dans-speciales.sql` ; (2) push du front ; (3) activer Noël en BackOffice → Fêtes
-   (dates déjà réglées 01/12 → 01/01). Prix 2025 à revoir par Phil dans la grille 💶 Tarifs et noms quand il veut.
+0. **Fêtes + Spéciales (v20.328) EN LIGNE le 31/10/2026** (voir la section « Fêtes + Spéciales = une seule commande »).
+   Reste à faire par Phil : activer Noël en BackOffice → Fêtes (dates déjà réglées 01/12 → 01/01). Prix 2025 à revoir par Phil dans la grille 💶 Tarifs et noms quand il veut.
    Autre point du 29/10 à garder en tête : imprimantes Brother posées en boutique « dans quelques jours » (interrupteur par tablette
    v20.325 éteint par défaut) ; rouleau noir/rouge DK-22251 à commander pour le rouge des lignes « À TRANCHER » (v20.326).
 
