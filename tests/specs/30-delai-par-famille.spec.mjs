@@ -121,10 +121,10 @@ export const tests = [
       await page.waitForSelector('#spDelaiWarn');
       const lire = () => page.evaluate(() => document.getElementById('spDelaiWarn').textContent);
 
-      await page.evaluate(() => handleSpecialItemField(0, 'product_id', 'vt_trad'));
+      await page.evaluate(() => specialSearchPick('vt_trad'));   // v20.329 — un appui ajoute le produit
       assert((await lire()) === '', 'Tradition pour demain 11h (25 h) : pas d\'alerte');
 
-      await page.evaluate(() => handleSpecialItemField(0, 'product_id', 'pat_eclair'));
+      await page.evaluate(() => specialSearchPick('pat_eclair'));   // mixte pain + pâtisserie = le plus long
       const w = await lire();
       assert(w.includes('Hors délai') && w.includes('48 h') && w.includes('Éclair Chocolat'),
         `Éclair pour demain : alerte 48 h qui nomme le produit, reçu « ${w} »`);

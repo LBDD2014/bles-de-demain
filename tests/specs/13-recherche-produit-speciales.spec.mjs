@@ -35,10 +35,11 @@ async function chercher(ctx, q, db) {
   await page.waitForSelector('#main-content');
   await page.evaluate(() => openNewSpecialOrder());
   await page.waitForSelector('.sp-psearch-box input');
-  await page.evaluate((s) => handleSpecialItemSearch(0, s), q);
+  // v20.329 — une seule recherche pour toute la commande ; « ✏️ Autre » (texte libre) n'est pas un produit
+  await page.evaluate((s) => handleSpecialItemSearch(s), q);
   const hits = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('#sp-psearch-res-0 .sp-psearch-hit'))
-      .map((b) => b.childNodes[0].textContent.trim()));
+    Array.from(document.querySelectorAll('#sp-psearch-res .sp-psearch-hit:not(.sp-psearch-libre)'))
+      .map((b) => b.childNodes[0].textContent.replace(/^\+\s*/, '').trim()));
   return { page, hits };
 }
 
@@ -78,17 +79,19 @@ export const tests = [
     },
   },
   {
-    name: 'Recherche — le clic remplit la catégorie ET le produit',
+    name: 'Recherche — un appui ajoute le produit (catégorie comprise), un 2e appui fait +1, la recherche se vide',
     fn: async (ctx) => {
       const { page } = await chercher(ctx, 'ecl');
-      await page.evaluate(() => specialSearchPick(0, 'pat_eclair'));
+      await page.evaluate(() => specialSearchPick('pat_eclair'));
       const it = await page.evaluate(() => {
         const i = specialFormDraft.items[0];
-        return { cat: i.category, pid: i.product_id, q: i.recherche };
+        return { cat: i.category, pid: i.product_id, q: specialFormDraft.recherche, n: specialFormDraft.items.length };
       });
       assert(it.pid === 'pat_eclair', `product_id attendu pat_eclair, reçu ${it.pid}`);
       assert(it.cat === 'patisserie_petits', `catégorie attendue patisserie_petits, reçue ${it.cat}`);
       assert(!it.q, 'la recherche doit se vider après le choix');
+      const r = await page.evaluate(() => { specialSearchPick('pat_eclair'); specialItemQtyStep(0, 1); return { n: specialFormDraft.items.length, q: specialFormDraft.items[0].qty }; });
+      assert(r.n === 1 && r.q === '3', 'même produit = même ligne, + / − : ' + JSON.stringify(r));
       await page.close();
     },
   },
@@ -97,8 +100,8 @@ export const tests = [
     fn: async (ctx) => {
       const { page } = await chercher(ctx, 'zzzz');
       const txt = await page.evaluate(() =>
-        (document.getElementById('sp-psearch-res-0').textContent || '').trim());
-      assert(txt.indexOf('Aucun produit') !== -1, `message attendu — reçu : « ${txt} »`);
+        (document.getElementById('sp-psearch-res').textContent || '').trim());
+      assert(txt.indexOf('Aucun produit') !== -1 && txt.indexOf('Autre : « zzzz »') !== -1, `message + « ✏️ Autre » attendus — reçu : « ${txt} »`);
       await page.close();
     },
   },

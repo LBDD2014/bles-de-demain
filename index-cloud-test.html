@@ -487,6 +487,48 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-total-l { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
 .sp-total small { display: block; opacity: .75; font-size: 12px; margin-top: 3px; }
 .sp-fete-badge { background: #F7EBED; color: #7C1F2E; border-radius: 10px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+/* v20.329 — carte repliée par groupe */
+.sp-carte-grp { border-top: 1px solid #F1ECE2; }
+.sp-carte-gh { display: flex; align-items: center; gap: 8px; padding: 12px; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--grey-dark); user-select: none; -webkit-user-select: none; }
+.sp-carte-gh .chev { width: 14px; color: var(--grey-light); transition: transform .15s; }
+.sp-carte-grp.open .sp-carte-gh .chev { transform: rotate(90deg); }
+.sp-carte-gh .cnt { font-weight: 400; font-size: 12px; color: var(--grey-light); }
+.sp-carte-gh .pris { margin-left: auto; background: #7C1F2E; color: #fff; font-size: 11.5px; padding: 2px 9px; border-radius: 10px; }
+.sp-carte-gb { display: none; }
+.sp-carte-grp.open .sp-carte-gb { display: block; }
+/* v20.329 — produits : une recherche, des catégories, des lignes en + / − */
+.sp-pcats { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.sp-pcat { padding: 6px 10px; border-radius: 14px; border: 1px solid #E0D8C8; background: #fff; font-size: 12.5px; font-family: inherit; color: var(--grey); cursor: pointer; }
+.sp-pcat.on { background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 700; }
+.sp-psearch-libre { border-style: dashed !important; }
+.sp-line-top { display: flex; align-items: flex-start; gap: 8px; }
+.sp-line-nom { flex: 1; min-width: 0; font-size: 15px; padding-top: 4px; }
+.sp-line-at { color: var(--grey-light); font-size: 12px; white-space: nowrap; }
+.sp-line-ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.sp-mini { padding: 6px 9px; border-radius: 12px; border: 1px solid #D6CCB6; background: #fff; font-size: 12px; font-family: inherit; cursor: pointer; }
+.sp-mini.on { border-color: var(--gold-dark); color: var(--gold-dark); font-weight: 700; }
+.sp-px-btn { padding: 7px 10px; border-radius: 8px; border: 1px dashed var(--gold-dark); background: #FFFBEF; color: var(--gold-dark); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.sp-px-btn.set { border-style: solid; background: #fff; color: var(--grey-dark); }
+.sp-line-q { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.sp-line-q > button { width: 40px; height: 40px; border-radius: 9px; border: 1px solid #D6CCB6; background: #FAF8F4; font-size: 20px; cursor: pointer; font-family: inherit; }
+.sp-line-q .sp-qty { width: 76px; padding: 8px 4px; }
+.sp-qty-back { background: none; border: none; color: var(--brown-mid); font-size: 16px; cursor: pointer; }
+.sp-line-calc { font-size: 12px; color: var(--grey-light); margin-top: 4px; text-align: right; }
+.sp-px-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding: 8px; background: #FFFBEF; border: 1px dashed #E8D5A3; border-radius: 8px; font-size: 13.5px; }
+.sp-px-edit .sp-input { width: 96px; font-size: 17px; font-weight: 700; text-align: right; border-color: var(--gold); }
+.sp-px-edit small { width: 100%; color: var(--grey-light); font-size: 11.5px; }
+.sp-line-note { margin-top: 8px; }
+.sp-acompte { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.sp-ac-rapide { padding: 8px 10px; border-radius: 8px; border: 1px solid #D6CCB6; background: #fff; font-family: inherit; font-size: 13px; cursor: pointer; }
+.sp-reste { margin-left: auto; color: var(--orange); }
+/* v20.329 — barre fixe : total + Créer toujours visibles, au-dessus de la barre d'onglets */
+.sp-bar { position: sticky; bottom: calc(50px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center; gap: 8px; margin: 14px -4px 0; padding: 10px 12px; background: #fff; border: 1px solid #ECE3D2; border-radius: 12px; box-shadow: 0 -4px 16px rgba(61,43,31,.12); }
+.sp-bar-t { flex: 1; min-width: 0; line-height: 1.15; }
+.sp-bar-t b { display: block; font-size: 19px; color: var(--grey-dark); }
+.sp-bar-t small { font-size: 11.5px; color: var(--grey-light); }
+.sp-bar button { padding: 13px 16px; font-size: 15px; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; }
+.sp-bar .btn-gold { padding: 13px 22px; }
+.sp-bar .btn-gold[disabled] { background: #D9D3C4; cursor: default; }
 /* v20.328 — BackOffice → Fêtes : grille Tarifs et noms */
 .ft-bulk { background: #FFF6DF; padding: 10px 12px; font-size: 13.5px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #ECE3D2; }
 .ft-bulk select, .ft-bulk input { padding: 7px 8px; border: 1px solid #DDD3BE; border-radius: 8px; font-family: inherit; font-size: 14px; }
@@ -2788,7 +2830,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.328';
+const APP_VERSION  = 'v20.329';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -19146,8 +19188,9 @@ if (orderRow.taken_by) rememberPerson(orderRow.taken_by);  // mémorisé sur cet
 // v20.328 — carte de la fête : total figé et fête de rattachement. Une commande de comptoir ou, plus tard,
 // du site web (canal) passe par ici : c'est le seul chemin qui crée une commande client.
 if (speFeteReady) {
-  const tot = carteItems.reduce(function(s2, l) { return s2 + l.qty * (+l.unit_price || 0); }, 0);
-  orderRow.total = carteItems.length ? Math.round(tot * 100) / 100 : null;
+  // v20.329 — + les produits hors carte dont le prix a été tapé à la main
+  const tot = carteItems.concat(cleanItems).reduce(function(s2, l) { return s2 + (parseQty(l.qty) || 0) * (parseQty(l.unit_price) || 0); }, 0);
+  orderRow.total = tot > 0 ? Math.round(tot * 100) / 100 : null;
   orderRow.event_id = carteItems.length ? (d.event_id || (feteActive && feteActive.id) || null) : null;
   if (!d.id) orderRow.canal = 'boutique';
 }
@@ -20101,7 +20144,7 @@ function ticketPaiement(o, kind) {
   if (o.total != null && +o.total > 0) {
     const total = +o.total, ac = +o.acompte_montant || 0;
     const hors = (o.items || []).some(function(it) { return it.unit_price == null || it.unit_price === ''; });
-    const lignes = ['Total : ' + feteEUR(total) + (hors ? ' + hors carte en caisse' : '')];
+    const lignes = ['Total : ' + feteEUR(total) + (hors ? ' + produits sans prix, en caisse' : '')];
     if (o.paiement === 'regle') return { lignes: lignes, big: 'Réglé ✓' };
     if (o.paiement === 'acompte') return { lignes: lignes.concat(['Acompte versé : ' + feteEUR(ac)]), big: 'Reste au retrait : ' + feteEUR(total - ac) };
     return { lignes: lignes, big: 'À régler au retrait' };
@@ -20758,7 +20801,7 @@ return '<span class="sp-line-other">' + txt + ' <em>&rarr; ' + escapeHtml(BOUTIQ
 const editAttr = isMine ? ' onclick="openEditSpecialOrder(\'' + o.id + '\')"' : '';
 let html = '<div class="sp-card status-' + o.status + (isMine ? '' : ' sp-readonly') + '"' + editAttr + '>';
 html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
-if (o.event_id && o.total != null && +o.total > 0) html += '<span class="sp-fete-badge">' + escapeHtml(feteLabelOf(o)) + ' · ' + feteEUR(o.total) + '</span>';   // v20.328 — commande avec la carte de la fête
+if (o.total != null && +o.total > 0) html += '<span class="sp-fete-badge">' + (o.event_id ? escapeHtml(feteLabelOf(o)) + ' · ' : '💶 ') + feteEUR(o.total) + '</span>';   // v20.328 — carte de la fête ; v20.329 — ou prix tapés à la main
 if (o.serie_id) html += '<span class="sp-serie-badge">🔁 régulier</span>';
 if (!isMine) html += '<span class="sp-ro-badge">👁 lecture seule</span>';
 html += cmdDelaiBadgeHtml(o);   // v20.263 — prise hors délai
@@ -20804,8 +20847,8 @@ status: 'confirmee',
 notes: '',
 taken_by: rememberedPerson(),   // v20.237 — la personne du début de service, modifiable
 fete: {},                       // v20.328 — lignes de la carte de la fête { fete_product_id: { qty, tranche, nom, prix… } }
-// v20.328 — pendant la fête, on part de la carte : pas de ligne « hors carte » vide d'office
-items: speCarteOuverte() ? [] : [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
+// v20.329 — on part d'une commande vide : la recherche ajoute les produits (plus de ligne vide d'office)
+items: []
 };
 loadSpecialClientsIndex(); // v20.185 — mémoire clients (suggestion nom + téléphone)
 renderSpecials();
@@ -20838,13 +20881,11 @@ product_name_custom: it.product_name_custom || '',
 qty: String(it.qty || 1),
 notes: it.notes || '',
 category: p ? (p.category || '') : (it.product_name_custom ? '__custom' : ''),
-tranche: !!it.tranche
+tranche: !!it.tranche,
+unit_price: it.unit_price == null || it.unit_price === '' ? null : +it.unit_price   // v20.329 — prix tapé à la main
 };
 })
 };
-if (!specialFormDraft.items.length && !Object.keys(specialFormDraft.fete).length) {
-specialFormDraft.items = [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }];
-}
 renderSpecials();
 }
 
@@ -20854,16 +20895,10 @@ specialFormDraft = null;
 renderSpecials();
 }
 
-function addSpecialItem() {
-specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false });
-renderSpecials();
-}
 
 function removeSpecialItem(idx) {
 specialFormDraft.items.splice(idx, 1);
-if (!specialFormDraft.items.length) {
-specialFormDraft.items.push({ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false });
-}
+specialFormDraft.prixEdit = -1;
 renderSpecials();
 }
 
@@ -21028,13 +21063,32 @@ function speCarteHtml(d) {
   const ouverte = speCarteOuverte();
   const q = planNorm(d.carteQ || '');
   const cache = function(e) { return q.length >= 2 && planNorm(e.nom).indexOf(q) === -1; };
-  let rows = '', curG = null;
+  let rows = '';
   if (ouverte) {
+    // v20.329 — carte repliée par groupe (Phil, 31/10) : 6 lignes au lieu de 59. Un groupe s'ouvre d'un appui,
+    // reste ouvert s'il contient déjà un produit (« 2 pris ») ; la loupe ouvre ce qui correspond.
+    const groupes = [];
     feteProducts.filter(function(fp) { return fp.actif !== false; }).forEach(function(fp) {
-      const e = f[fp.id] || speCarteEntree(fp);
-      if (fp.groupe !== curG) { curG = fp.groupe; rows += '<div class="sp-carte-g">' + escapeHtml(curG || 'Produits') + '</div>'; }
-      rows += speCarteRowHtml(String(fp.id), e, cache(e));
+      let g = groupes.find(function(x) { return x.nom === (fp.groupe || ''); });
+      if (!g) { g = { nom: fp.groupe || '', fps: [] }; groupes.push(g); }
+      g.fps.push(fp);
     });
+    const ouverts = d.carteOuverts || (d.carteOuverts = {});
+    groupes.forEach(function(g, gi) {
+      const pris = g.fps.reduce(function(sm, fp) { return sm + ((f[fp.id] && f[fp.id].qty) || 0); }, 0);
+      const trouves = q.length >= 2 ? g.fps.filter(function(fp) { return !cache(f[fp.id] || speCarteEntree(fp)); }).length : -1;
+      const ouvert = !!ouverts[g.nom] || pris > 0;
+      rows += '<div class="sp-carte-grp' + (ouvert ? ' open' : '') + '" data-pris="' + pris + '"' + (trouves === 0 ? ' style="display:none"' : '') + '>'
+        + '<div class="sp-carte-gh" onclick="speCarteGroupe(' + gi + ')"><span class="chev">▶</span>' + escapeHtml(g.nom || 'Produits')
+        + ' <span class="cnt">(' + g.fps.length + ')</span>' + (pris ? '<span class="pris">' + pris + ' pris</span>' : '') + '</div>'
+        + '<div class="sp-carte-gb"' + (trouves > 0 ? ' style="display:block"' : '') + '>';
+      g.fps.forEach(function(fp) {
+        const e = f[fp.id] || speCarteEntree(fp);
+        rows += speCarteRowHtml(String(fp.id), e, cache(e));
+      });
+      rows += '</div></div>';
+    });
+    speCarteGroupesNoms = groupes.map(function(g) { return g.nom; });
   }
   // lignes déjà dans la commande mais plus sur la carte (fête passée, produit retiré, carte close)
   const autres = Object.keys(f).filter(function(k) { return f[k].qty > 0 && !(ouverte && feteProducts.some(function(fp) { return String(fp.id) === k && fp.actif !== false; })); });
@@ -21072,14 +21126,34 @@ function speCarteTr(key) {
   f[key].tranche = !f[key].tranche;
   renderSpecials();
 }
-// Filtre sans re-rendu : le clavier de la tablette reste ouvert
+// Filtre sans re-rendu : le clavier de la tablette reste ouvert. Un groupe qui contient un résultat s'ouvre.
 function speCarteFiltre(val) {
   if (!specialFormDraft) return;
   specialFormDraft.carteQ = val;
   const q = planNorm(val || '');
-  document.querySelectorAll('#sp-carte .sp-carte-row').forEach(function(r) {
+  document.querySelectorAll('#sp-carte .sp-carte-grp').forEach(function(g) {
+    let n = 0;
+    g.querySelectorAll('.sp-carte-row').forEach(function(r) {
+      const ok = q.length < 2 || (r.dataset.nom || '').indexOf(q) !== -1;
+      r.style.display = ok ? '' : 'none';
+      if (ok) n++;
+    });
+    g.style.display = (q.length >= 2 && !n) ? 'none' : '';
+    g.querySelector('.sp-carte-gb').style.display = (q.length >= 2 && n) ? 'block' : '';
+  });
+  document.querySelectorAll('#sp-carte > .sp-carte-row').forEach(function(r) {
     r.style.display = (q.length < 2 || (r.dataset.nom || '').indexOf(q) !== -1) ? '' : 'none';
   });
+}
+let speCarteGroupesNoms = [];
+function speCarteGroupe(gi) {
+  const d = specialFormDraft; if (!d) return;
+  const nom = speCarteGroupesNoms[gi]; if (nom == null) return;
+  const ouverts = d.carteOuverts || (d.carteOuverts = {});
+  const el = document.querySelectorAll('#sp-carte .sp-carte-grp')[gi];
+  if (el && +el.dataset.pris > 0 && !ouverts[nom]) return;   // un groupe où il y a déjà un produit reste ouvert
+  ouverts[nom] = !ouverts[nom];
+  if (el) el.classList.toggle('open', !!ouverts[nom]);   // sans re-rendu
 }
 
 function renderSpecialOrderForm() {
@@ -21128,21 +21202,29 @@ html += '<div class="sp-form-row"><label class="sp-lbl">Nom client *</label>';
 html += '<input class="sp-input" id="sp-client-nom" type="text" autocomplete="off" value="' + escapeHtml(d.customer_name) + '" placeholder="ex : M. Dupont" oninput="handleSpecialClientInput(this)">';
 html += '<div id="sp-client-sug"></div></div>';
 
-html += '<div class="sp-form-row"><label class="sp-lbl">Téléphone' + (d.id ? '' : ' *') + '</label>';
+// v20.329 — téléphone et « prise par » côte à côte : le formulaire est moins haut (Phil, 31/10)
+html += '<div class="sp-form-row-double">';
+html += '<div><label class="sp-lbl">Téléphone' + (d.id ? '' : ' *') + '</label>';
 html += '<input class="sp-input" id="sp-client-tel" type="tel" value="' + escapeHtml(d.customer_phone) + '" placeholder="' + (d.id ? '' : 'obligatoire — ') + 'ex : 06 12 34 56 78" oninput="handleSpecialFormField(\'customer_phone\', this.value)"></div>';
-
-// v20.185 — paiement à la prise de commande
-html += '<div class="sp-form-row"><label class="sp-lbl">Paiement</label><div style="display:flex;gap:6px;flex-wrap:wrap">';
-[['non_regle', 'À régler'], ['acompte', 'Acompte'], ['regle', '💰 Réglé']].forEach(function(pm) {
-  const on = (d.paiement || 'non_regle') === pm[0];
-  html += '<button type="button" onclick="setSpecialPaiement(\'' + pm[0] + '\')" style="flex:1;min-width:90px;padding:10px 6px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid ' + (on ? 'var(--gold-dark)' : '#E0D8C8') + ';background:' + (on ? '#FFF3D6' : '#FAF8F4') + ';color:' + (on ? 'var(--gold-dark)' : 'var(--grey)') + '">' + pm[1] + '</button>';
-});
-html += '</div>';
-if (d.paiement === 'acompte') {
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="sp-lbl" style="margin:0">Montant *</label>'
-    + '<input class="sp-input" type="text" inputmode="decimal" style="max-width:110px" value="' + escapeHtml(String(d.acompte_montant || '')) + '" placeholder="ex : 20" oninput="handleSpecialFormField(\'acompte_montant\', this.value)"><span style="font-weight:700">€</span></div>';
+// v20.237 — Qui prend la commande. Obligatoire, choisi dans la liste du magasin
+// (jamais au clavier : sur tablette une liste évite les fautes, cf. règle v20.71).
+// Pré-rempli avec le dernier prénom utilisé sur CETTE tablette.
+html += '<div>';
+if (shopPeopleReady) {
+  const gens = peopleOf(d.origin_shop || currentBoutique);
+  html += '<label class="sp-lbl">👤 Prise par <span style="color:var(--red)">*</span></label>';
+  if (!gens.length) {
+    html += '<div class="sp-libre-warn" style="margin:0">Aucun prénom pour ce magasin : bouton <strong>⚙️ Prénoms</strong>.</div>';
+  } else {
+    html += '<select class="sp-input" onchange="handleSpecialFormField(\'taken_by\', this.value)">';
+    html += '<option value="">-- qui ? --</option>';
+    gens.forEach(function(g) {
+      html += '<option value="' + escapeHtml(g.prenom) + '"' + (d.taken_by === g.prenom ? ' selected' : '') + '>' + escapeHtml(g.prenom) + '</option>';
+    });
+    html += '</select>';
+  }
 }
-html += '</div>';
+html += '</div></div>';
 
 // Date + Heure
 html += '<div class="sp-form-row-double">';
@@ -21163,18 +21245,35 @@ html += '<div id="spDelaiWarn">' + cmdDelaiWarnHtml(d.pickup_date, d.pickup_time
 const carteHtml = speCarteHtml(d);
 html += carteHtml;
 
-// Items
-html += '<div class="sp-items-section"><div class="sp-items-title">' + (carteHtml ? '⭐ Hors carte <small style="font-weight:400">(gâteau d\'anniversaire, autre produit… sans prix)</small>' : 'Produits commandes') + '</div>';
+// v20.329 — produits (hors carte pendant une fête) : on cherche, un appui ajoute, puis + / −
+html += '<div class="sp-items-section"><div class="sp-items-title">' + (carteHtml ? '⭐ Hors carte <small style="font-weight:400">(gâteau d\'anniversaire, autre produit…)</small>' : 'Produits commandés') + '</div>';
+html += specialPickerHtml(d);
 d.items.forEach(function(it, idx) {
 html += renderSpecialItemRow(it, idx);
 });
-html += '<button class="sp-add-item-btn" onclick="addSpecialItem()">+ Ajouter un produit' + (carteHtml ? ' hors carte' : '') + '</button>';
 html += '</div>';
-if (carteHtml) {
-  const horsCarte = d.items.some(function(it) { return it.product_id || (it.product_name_custom && it.product_name_custom.trim()); });
-  html += '<div class="sp-total"><div class="sp-total-l"><span>Total</span><span>' + feteEUR(speCarteTotal(d)) + '</span></div>'
-    + (horsCarte ? '<small>+ les produits hors carte, à régler en caisse au retrait</small>' : '') + '</div>';
+// v20.329 — total dès qu'il y a un prix (carte de la fête ou prix tapé à la main), puis le paiement
+// juste dessous : on choisit l'acompte quand on connaît le montant.
+const tot = specialDraftTotal(d);
+const sansPrix = d.items.some(function(it) { return (it.product_id || (it.product_name_custom && it.product_name_custom.trim())) && !(parseQty(it.unit_price) > 0); });
+if (carteHtml || tot > 0) {
+  html += '<div class="sp-total"><div class="sp-total-l"><span>Total</span><span>' + feteEUR(tot) + '</span></div>'
+    + (sansPrix ? '<small>+ les produits sans prix, à régler en caisse au retrait</small>' : '') + '</div>';
 }
+// v20.185 — paiement à la prise de commande
+html += '<div class="sp-form-row"><label class="sp-lbl">Paiement</label><div style="display:flex;gap:6px;flex-wrap:wrap">';
+[['non_regle', 'À régler'], ['acompte', 'Acompte'], ['regle', '💰 Réglé']].forEach(function(pm) {
+  const on = (d.paiement || 'non_regle') === pm[0];
+  html += '<button type="button" onclick="setSpecialPaiement(\'' + pm[0] + '\')" style="flex:1;min-width:90px;padding:10px 6px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid ' + (on ? 'var(--gold-dark)' : '#E0D8C8') + ';background:' + (on ? '#FFF3D6' : '#FAF8F4') + ';color:' + (on ? 'var(--gold-dark)' : 'var(--grey)') + '">' + pm[1] + '</button>';
+});
+html += '</div>';
+if (d.paiement === 'acompte') {
+  html += '<div class="sp-acompte"><label class="sp-lbl" style="margin:0">Montant *</label>'
+    + '<input class="sp-input" id="sp-acompte" type="text" inputmode="decimal" style="max-width:110px" value="' + escapeHtml(String(d.acompte_montant || '')) + '" placeholder="ex : 20" oninput="handleSpecialFormField(\'acompte_montant\', this.value); specialMajReste()"><span style="font-weight:700">€</span>'
+    + (tot > 0 ? '<button type="button" class="sp-ac-rapide" onclick="setSpecialAcompte(0.3)">30 %</button><button type="button" class="sp-ac-rapide" onclick="setSpecialAcompte(0.5)">50 %</button>' : '')
+    + '<b id="sp-reste" class="sp-reste">' + specialResteTxt(d) + '</b></div>';
+}
+html += '</div>';
 
 // Notes
 html += '<div class="sp-form-row"><label class="sp-lbl">Notes</label>';
@@ -21185,25 +21284,6 @@ html += '<button type="button" class="sp-plaque-btn" onclick="setSpecialNote(\''
 });
 html += '</div>';
 html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, décoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
-
-// v20.237 — Qui prend la commande. Obligatoire, choisi dans la liste du magasin
-// (jamais au clavier : sur tablette une liste évite les fautes, cf. règle v20.71).
-// Pré-rempli avec le dernier prénom utilisé sur CETTE tablette.
-if (shopPeopleReady) {
-  const gens = peopleOf(d.origin_shop || currentBoutique);
-  html += '<div class="sp-form-row"><label class="sp-lbl">👤 Commande prise par <span style="color:var(--red)">*</span></label>';
-  if (!gens.length) {
-    html += '<div class="sp-libre-warn">Aucun prénom pour ce magasin. Ajoute-les avec le bouton <strong>⚙️ Prénoms</strong> en haut de l\'écran.</div>';
-  } else {
-    html += '<select class="sp-input" onchange="handleSpecialFormField(\'taken_by\', this.value)">';
-    html += '<option value="">-- qui prend la commande ? --</option>';
-    gens.forEach(function(g) {
-      html += '<option value="' + escapeHtml(g.prenom) + '"' + (d.taken_by === g.prenom ? ' selected' : '') + '>' + escapeHtml(g.prenom) + '</option>';
-    });
-    html += '</select>';
-  }
-  html += '</div>';
-}
 
 // Status (si edit)
 if (isEdit) {
@@ -21258,11 +21338,6 @@ if (isEdit) {
   html += '</div>';
 }
 
-// Actions
-html += '<div class="sp-form-actions">';
-html += '<button class="btn-grey" onclick="cancelSpecialForm()">Annuler</button>';
-html += '<button class="btn-gold" onclick="upsertSpecialOrder()">' + (isEdit ? 'Enregistrer' : 'Créer commande') + '</button>';
-html += '</div>';
 
 // Hint production_shop
 // v20.235 — avant, on n'annonçait QUE l'atelier majoritaire : une commande mêlant un wrap
@@ -21283,180 +21358,227 @@ html += '<div class="sp-prod-hint">➜ Cette commande concerne <strong>' + ateli
 html += '<div class="sp-prod-hint">➜ Cette commande sera produite par <strong>' + escapeHtml(BOUTIQUE_NAMES[prev] || prev) + '</strong></div>';
 }
 
+// v20.329 — barre fixe en bas : total + Créer toujours sous le doigt, même au milieu de la carte (Phil, 31/10)
+const nbArt = tousItems.filter(function(it) { return it.product_id || it.fete_product_id || (it.product_name_custom && it.product_name_custom.trim()); })
+  .reduce(function(sm, it) { return sm + (parseQty(it.qty) || 0); }, 0);
+const barSub = !nbArt ? 'aucun produit' : (nbArt + ' article' + (nbArt > 1 ? 's' : '') + (sansPrix && tot > 0 ? ' · + sans prix en caisse' : '')
+  + (d.paiement === 'acompte' ? ' · acompte ' + feteEUR(parseQty(d.acompte_montant)) : (d.paiement === 'regle' ? ' · réglé' : '')));
+html += '<div class="sp-bar"><div class="sp-bar-t"><b>' + (tot > 0 ? feteEUR(tot) : (nbArt ? nbArt + ' article' + (nbArt > 1 ? 's' : '') : '—')) + '</b><small id="sp-bar-sub">' + escapeHtml(tot > 0 || !nbArt ? barSub : (sansPrix ? 'prix en caisse' : '')) + '</small></div>'
+  + '<button class="btn-grey" onclick="cancelSpecialForm()">Annuler</button>'
+  + '<button class="btn-gold"' + (nbArt ? '' : ' disabled') + ' onclick="upsertSpecialOrder()">' + (isEdit ? '✓ Enregistrer' : '✓ Créer' + (brotherBranchee() ? ' + 🖨' : '')) + '</button></div>';
+
 html += '</div>';
 mc.innerHTML = html;
 }
 
 // v20.245 — 🔍 chercher un produit à la saisie d'une commande (Phil, 22/09).
-// Avant : il fallait deviner la bonne catégorie, puis dérouler jusqu'à ~40 lignes sur
-// tablette. On tape maintenant 2 lettres et on choisit dans toutes les catégories d'un
-// coup ; le clic remplit catégorie ET produit. La liste déroulante reste, inchangée.
-// Même règle de doublons que le menu (v20.201/227) : on masque la version réassort
-// quand un produit vendu porte le même nom.
-function specialSearchHits(q, currentPid) {
+// v20.329 — une seule recherche pour toute la commande (Phil, 31/10 : « la prise de commande, fluide ») :
+// 2 lettres → les produits de toutes les catégories ; ou un appui sur une catégorie → ses produits.
+// Un appui sur un produit l'AJOUTE à la commande (ou +1 s'il y est déjà), puis + / − sur la ligne.
+// Plus de menus Catégorie → Produit → Quantité. « ✏️ Autre » garde le texte libre, en dernier choix.
+// Même règle de doublons que l'ancien menu (v20.201/227) : on masque la version réassort quand un
+// produit vendu porte le même nom.
+function specialSearchHits(q, currentPid, cat) {
   const n = planNorm(q);
-  if (n.length < 2) return [];
+  if (n.length < 2 && !cat) return [];
   const actifs = products.filter(function(p) { return p.actif; });
   const nomsVendus = new Set(actifs
     .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
     .map(function(p) { return planNorm(p.name); }));
   const hits = actifs.filter(function(p) {
-    if (planNorm(p.name).indexOf(n) === -1) return false;
+    if (cat && p.category !== cat) return false;
+    if (n.length >= 2 && planNorm(p.name).indexOf(n) === -1) return false;
     if (p.id === currentPid) return true;
     const u = p.usage || 'reappro';
     if (u === 'ventes' || u === 'both') return true;
     return !nomsVendus.has(planNorm(p.name));
   });
   hits.sort(function(a, b) { return specialProductName(a).localeCompare(specialProductName(b)); });
-  return hits.slice(0, 12);
+  return cat ? hits : hits.slice(0, 12);
 }
-function specialSearchResultsHtml(idx, q, currentPid) {
-  if (planNorm(q).length < 2) return '';
-  const hits = specialSearchHits(q, currentPid);
-  if (!hits.length) return '<div class="sp-psearch-none">Aucun produit. Vérifie l\'orthographe, ou passe par la catégorie ci-dessous.</div>';
-  return hits.map(function(p) {
-    return '<button type="button" class="sp-psearch-hit" onclick="specialSearchPick(' + idx + ', \'' + p.id + '\')">'
-      + escapeHtml(specialProductName(p))
-      + '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span></button>';
-  }).join('');
+function specialSearchResultsHtml(q, cat) {
+  const hits = specialSearchHits(q, null, cat);
+  let h = '';
+  if (planNorm(q).length >= 2 || cat) {
+    h = hits.map(function(p) {
+      return '<button type="button" class="sp-psearch-hit" onclick="specialSearchPick(\'' + p.id + '\')">+ '
+        + escapeHtml(specialProductName(p))
+        + (cat ? '' : '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span>') + '</button>';
+    }).join('');
+    if (!hits.length) h = '<div class="sp-psearch-none">Aucun produit. Vérifie l\'orthographe, ou choisis une catégorie.</div>';
+  }
+  if (planNorm(q).length >= 2) h += '<button type="button" class="sp-psearch-hit sp-psearch-libre" onclick="specialAddLibre()">✏️ Autre : « ' + escapeHtml(q.trim()) + ' »</button>';
+  return h;
+}
+function specialPickerCats() {
+  const cats = Array.from(new Set(products.filter(function(p) { return p.actif; }).map(function(p) { return p.category; })));
+  const catOrder = Object.keys(CAT_LABELS);
+  return cats.filter(function(c) { return c !== 'ingredients'; }).sort(function(a, b) {
+    const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+}
+function specialPickerHtml(d) {
+  const q = d.recherche || '', cat = d.rechCat || '';
+  return '<div class="sp-psearch"><div class="sp-psearch-box">'
+    + '<span class="filter-icon">🔍</span>'
+    + '<input id="sp-psearch-inp" type="text" autocomplete="off" placeholder="Tape 2 lettres : tradition, fraisier…" value="' + escapeHtml(q) + '" oninput="handleSpecialItemSearch(this.value)">'
+    + '<button type="button" class="filter-clear" id="sp-psearch-clr" title="Effacer" style="' + (q ? '' : 'display:none') + '" onclick="specialSearchClear()">✕</button>'
+    + '</div>'
+    + '<div class="sp-pcats">' + specialPickerCats().map(function(c) {
+        return '<button type="button" class="sp-pcat' + (cat === c ? ' on' : '') + '" onclick="specialPickCat(\'' + c + '\')">' + escapeHtml(CAT_LABELS[c] || c) + '</button>';
+      }).join('') + '</div>'
+    + '<div class="sp-psearch-res" id="sp-psearch-res">' + specialSearchResultsHtml(q, cat) + '</div>'
+    + '</div>';
 }
 // Pas de re-rendu complet à chaque lettre : on garde le clavier ouvert et le focus.
-function handleSpecialItemSearch(idx, val) {
-  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
-  const it = specialFormDraft.items[idx];
-  it.recherche = val;
-  const box = document.getElementById('sp-psearch-res-' + idx);
-  if (box) box.innerHTML = specialSearchResultsHtml(idx, val, it.product_id);
-  const clr = document.getElementById('sp-psearch-clr-' + idx);
+function handleSpecialItemSearch(val) {
+  if (!specialFormDraft) return;
+  specialFormDraft.recherche = val;
+  if (planNorm(val).length >= 2) specialFormDraft.rechCat = '';   // une recherche tapée passe devant la catégorie
+  const box = document.getElementById('sp-psearch-res');
+  if (box) box.innerHTML = specialSearchResultsHtml(val, specialFormDraft.rechCat || '');
+  const clr = document.getElementById('sp-psearch-clr');
   if (clr) clr.style.display = val ? '' : 'none';
+  if (planNorm(val).length >= 2) document.querySelectorAll('.sp-pcat.on').forEach(function(b) { b.classList.remove('on'); });
 }
-function specialSearchPick(idx, pid) {
-  if (!specialFormDraft || !specialFormDraft.items[idx]) return;
-  const p = products.find(function(x) { return x.id === pid; });
-  if (!p) return;
-  const it = specialFormDraft.items[idx];
-  it.category = p.category;
-  it.product_id = pid;
-  it.product_name_custom = '';
-  it.recherche = '';
+function specialPickCat(cat) {
+  if (!specialFormDraft) return;
+  specialFormDraft.rechCat = specialFormDraft.rechCat === cat ? '' : cat;
+  specialFormDraft.recherche = '';
   renderSpecials();
 }
-function specialSearchClear(idx) {
-  handleSpecialItemSearch(idx, '');
-  const inp = document.getElementById('sp-psearch-inp-' + idx);
+function specialSearchPick(pid) {
+  const d = specialFormDraft; if (!d) return;
+  const p = products.find(function(x) { return x.id === pid; });
+  if (!p) return;
+  const deja = d.items.find(function(it) { return it.product_id === pid && !(it.notes || '').trim(); });
+  if (deja) { deja.qty = String((parseQty(deja.qty) || 0) + 1); if (Number(deja.qty) > 50) deja.qty_libre = true; }
+  else d.items.push({ product_id: pid, product_name_custom: '', qty: '1', notes: '', category: p.category, tranche: false, unit_price: null });
+  d.recherche = '';   // on garde la catégorie ouverte : plusieurs gâteaux d'affilée
+  renderSpecials();
+}
+function specialAddLibre() {
+  const d = specialFormDraft; if (!d) return;
+  const txt = (d.recherche || '').trim();
+  if (!txt) return;
+  d.items.push({ product_id: null, product_name_custom: txt, qty: '1', notes: '', category: '__custom', tranche: false, unit_price: null });
+  d.recherche = ''; d.rechCat = '';
+  renderSpecials();
+}
+function specialSearchClear() {
+  handleSpecialItemSearch('');
+  const inp = document.getElementById('sp-psearch-inp');
   if (inp) { inp.value = ''; inp.focus(); }
 }
+// v20.329 — total du brouillon : carte de la fête + lignes hors carte dont le prix a été tapé
+function specialDraftTotal(d) {
+  return speCarteTotal(d) + (d.items || []).reduce(function(s, it) {
+    const pu = parseQty(it.unit_price);
+    return s + ((it.product_id || (it.product_name_custom && it.product_name_custom.trim())) && pu > 0 ? pu * (parseQty(it.qty) || 0) : 0);
+  }, 0);
+}
+function specialResteTxt(d) {
+  const tot = specialDraftTotal(d);
+  return tot > 0 ? 'reste ' + feteEUR(tot - parseQty(d.acompte_montant)) : '';
+}
+function specialMajReste() { const r = document.getElementById('sp-reste'); if (r && specialFormDraft) r.textContent = specialResteTxt(specialFormDraft); }
+function setSpecialAcompte(part) {
+  if (!specialFormDraft) return;
+  specialFormDraft.acompte_montant = String(Math.round(specialDraftTotal(specialFormDraft) * part)).replace('.', ',');
+  renderSpecials();
+}
+function specialItemQtyStep(idx, delta) {
+  const it = specialFormDraft && specialFormDraft.items[idx]; if (!it) return;
+  const q = Math.max(1, (parseQty(it.qty) || 0) + delta);
+  it.qty = String(q);
+  if (q > 50) it.qty_libre = true;
+  renderSpecials();
+}
+// v20.329 — prix tapé à la main sur un produit hors carte (Phil, 31/10), à la pièce, pour cette commande seulement
+function specialItemPrixOuvrir(idx) {
+  if (!specialFormDraft) return;
+  specialFormDraft.prixEdit = specialFormDraft.prixEdit === idx ? -1 : idx;
+  renderSpecials();
+  const inp = document.getElementById('sp-px-in');
+  if (inp) inp.focus();
+}
+function specialItemSetPrix(idx, sans) {
+  const it = specialFormDraft && specialFormDraft.items[idx]; if (!it) return;
+  if (sans) it.unit_price = null;
+  else {
+    const inp = document.getElementById('sp-px-in');
+    const v = parseFloat(String(inp ? inp.value : '').replace(',', '.').replace('€', ''));
+    if (isNaN(v) || v < 0) { showToast('Prix invalide', 'error'); return; }
+    it.unit_price = v > 0 ? Math.round(v * 100) / 100 : null;
+  }
+  specialFormDraft.prixEdit = -1;
+  renderSpecials();
+}
+function specialItemNoteOuvrir(idx) {
+  const it = specialFormDraft && specialFormDraft.items[idx]; if (!it) return;
+  it.noteOuverte = true;
+  renderSpecials();
+  const inp = document.getElementById('sp-note-in-' + idx);
+  if (inp) inp.focus();
+}
 
+// v20.329 — une ligne de produit : nom, 🔪 (pains), ✏️ note, € prix, − quantité +, ✖
 function renderSpecialItemRow(it, idx) {
-const cats = Array.from(new Set(products.filter(function(p) { return p.actif; }).map(function(p) { return p.category; })));
-const catOrder = Object.keys(CAT_LABELS);
-cats.sort(function(a, b) {
-const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
-return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-});
-
+const d = specialFormDraft || {};
+const p = it.product_id ? products.find(function(x) { return x.id === it.product_id; }) : null;
+const libre = !it.product_id;
 let html = '<div class="sp-item-row">';
-html += '<div class="sp-item-hdr"><strong>Produit ' + (idx + 1) + '</strong>';
-const qRech = it.recherche || '';
-html += '<button class="sp-item-del" onclick="removeSpecialItem(' + idx + ')">✖</button></div>';
+html += '<div class="sp-line-top"><div class="sp-line-nom">';
+if (libre) {
+  html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_name_custom || '') + '" placeholder="ex : Pièce montée 30 personnes" oninput="handleSpecialItemField(' + idx + ', \'product_name_custom\', this.value)">';
+} else {
+  html += '<strong>' + escapeHtml(specialProductName(p) || it.product_id) + '</strong>';
+  const ps = getProductionShopForProduct(it.product_id, d.origin_shop || currentBoutique, d.pickup_date);
+  if (ps && ps !== (d.origin_shop || currentBoutique)) html += ' <small class="sp-line-at">→ ' + escapeHtml(BOUTIQUE_NAMES[ps] || ps) + '</small>';
+}
+html += '</div><button class="sp-item-del" title="Retirer" onclick="removeSpecialItem(' + idx + ')">✖</button></div>';
 
-// v20.245 — 🔍 raccourci : trouver le produit sans passer par la catégorie
-html += '<div class="sp-psearch"><div class="sp-psearch-box">'
-  + '<span class="filter-icon">🔍</span>'
-  + '<input id="sp-psearch-inp-' + idx + '" type="text" autocomplete="off" placeholder="Chercher un produit…" value="' + escapeHtml(qRech) + '" oninput="handleSpecialItemSearch(' + idx + ', this.value)">'
-  + '<button type="button" class="filter-clear" id="sp-psearch-clr-' + idx + '" title="Effacer" style="' + (qRech ? '' : 'display:none') + '" onclick="specialSearchClear(' + idx + ')">✕</button>'
-  + '</div>'
-  + '<div class="sp-psearch-res" id="sp-psearch-res-' + idx + '">' + specialSearchResultsHtml(idx, qRech, it.product_id) + '</div>'
-  + '</div>';
-
-// Qty + Catégorie sur même ligne
-html += '<div class="sp-item-grid">';
-html += '<div><label class="sp-lbl-sm">Qté</label>';
-// v20.200 — la liste s'arrêtait à 50 : impossible de saisir une grosse commande
-// (100 traditions pour un buffet). Au-delà, « Autre… » ouvre la saisie au clavier.
-// La liste reste le mode normal : sur tablette, choisir 12 est plus sûr que le taper.
+html += '<div class="sp-line-ctl">';
+// v20.74 — 🔪 Trancher (pains uniquement)
+if (it.category === 'pains' || (p && p.category === 'pains')) {
+  html += '<button type="button" class="sp-carte-tr' + (it.tranche ? ' on' : '') + '" onclick="handleSpecialItemField(' + idx + ', \'tranche\', ' + (it.tranche ? 'false' : 'true') + '); renderSpecials()">🔪' + (it.tranche ? ' tranché' : '') + '</button>';
+}
+html += '<button type="button" class="sp-mini' + (it.notes ? ' on' : '') + '" onclick="specialItemNoteOuvrir(' + idx + ')">✏️ ' + (it.notes ? 'note' : 'note') + '</button>';
+const pu = parseQty(it.unit_price);
+html += '<button type="button" class="sp-px-btn' + (pu > 0 ? ' set' : '') + '" onclick="specialItemPrixOuvrir(' + idx + ')">' + (pu > 0 ? feteEUR(pu) + ' ✎' : '€ prix') + '</button>';
+// quantité : − [liste 1-50 / Autre… au clavier, v20.200] +
+html += '<div class="sp-line-q"><button type="button" onclick="specialItemQtyStep(' + idx + ', -1)">−</button>';
 const qtyLibre = !!it.qty_libre || (it.qty !== '' && it.qty != null && Number(it.qty) > 50);
 if (qtyLibre) {
-html += '<div style="display:flex;gap:5px;align-items:center">'
-  + '<input class="sp-input sp-qty" type="text" inputmode="numeric" style="flex:1" value="' + escapeHtml(String(it.qty == null ? '' : it.qty)) + '"'
-  + ' placeholder="ex : 120" oninput="handleSpecialItemField(' + idx + ', \'qty\', this.value)">'
-  + '<button type="button" class="sp-item-del" style="color:var(--brown-mid);font-size:16px" title="Revenir à la liste" onclick="specialItemQtyListe(' + idx + ')">↩</button>'
-  + '</div></div>';
+  html += '<input class="sp-input sp-qty" type="text" inputmode="numeric" value="' + escapeHtml(String(it.qty == null ? '' : it.qty)) + '"'
+    + ' placeholder="120" oninput="handleSpecialItemField(' + idx + ', \'qty\', this.value)">'
+    + '<button type="button" class="sp-qty-back" title="Revenir à la liste" onclick="specialItemQtyListe(' + idx + ')">↩</button>';
 } else {
-html += '<select class="sp-input sp-qty" onchange="handleSpecialItemField(' + idx + ', \'qty\', this.value)">';
-for (let i = 1; i <= 50; i++) {
-html += '<option value="' + i + '"' + (String(it.qty) === String(i) ? ' selected' : '') + '>' + i + '</option>';
+  html += '<select class="sp-input sp-qty" onchange="handleSpecialItemField(' + idx + ', \'qty\', this.value); renderSpecials()">';
+  for (let i = 1; i <= 50; i++) html += '<option value="' + i + '"' + (String(it.qty) === String(i) ? ' selected' : '') + '>' + i + '</option>';
+  html += '<option value="__autre">Autre… (plus de 50)</option></select>';
 }
-html += '<option value="__autre">Autre… (plus de 50)</option>';
-html += '</select></div>';
-}
-
-html += '<div><label class="sp-lbl-sm">Catégorie</label>';
-html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'category\', this.value)">';
-html += '<option value="">-- choisir --</option>';
-cats.forEach(function(c) {
-html += '<option value="' + c + '"' + (it.category === c ? ' selected' : '') + '>' + escapeHtml(CAT_LABELS[c] || c) + '</option>';
-});
-html += '<option value="__custom"' + (it.category === '__custom' ? ' selected' : '') + '>-- Libre (autre) --</option>';
-html += '</select></div>';
+html += '<button type="button" onclick="specialItemQtyStep(' + idx + ', 1)">+</button></div>';
 html += '</div>';
-
-// Produit selon catégorie
-if (it.category === '__custom') {
-html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Description</label>';
-html += '<input class="sp-input" type="text" value="' + escapeHtml(it.product_name_custom || '') + '" placeholder="ex: Pièce montée 30 personnes" oninput="handleSpecialItemField(' + idx + ', \'product_name_custom\', this.value)"></div>';
+if (pu > 0 && (parseQty(it.qty) || 0) > 1) html += '<div class="sp-line-calc">' + escapeHtml((parseQty(it.qty) || 0) + ' × ' + feteEUR(pu) + ' = ' + feteEUR(pu * (parseQty(it.qty) || 0))) + '</div>';
+if (d.prixEdit === idx) {
+  html += '<div class="sp-px-edit">Prix à la pièce <input id="sp-px-in" class="sp-input" type="text" inputmode="decimal" value="' + (pu > 0 ? escapeHtml(String(pu).replace('.', ',')) : '') + '" placeholder="0,00"> €'
+    + '<button type="button" class="btn-gold-sm" style="padding:9px 14px" onclick="specialItemSetPrix(' + idx + ')">✓</button>'
+    + (pu > 0 ? '<button type="button" class="sp-ac-rapide" onclick="specialItemSetPrix(' + idx + ', true)">Sans prix</button>' : '')
+    + '<button type="button" class="sp-ac-rapide" onclick="specialItemPrixOuvrir(' + idx + ')">Annuler</button>'
+    + '<small>Sans prix, le produit se paie en caisse au retrait. Le prix ne vaut que pour cette commande.</small></div>';
+}
+if (it.notes || it.noteOuverte) {
+  html += '<input class="sp-input sp-line-note" id="sp-note-in-' + idx + '" type="text" value="' + escapeHtml(it.notes || '') + '" placeholder="✏️ note : décoration, message…" oninput="handleSpecialItemField(' + idx + ', \'notes\', this.value)">';
+}
 // v20.235 — le 05/09, « 1/6 flan » a été tapé en libre au lieu de choisir « Flan 6 pers. » :
-// sans produit rattaché, l'app ne sait pas quel atelier doit le faire, et le Local ne l'a
-// jamais vu. Le libre reste possible (number cake, pièce montée) mais il est dit clairement.
-html += '<div class="sp-libre-warn">⚠️ <strong>Produit hors catalogue.</strong> Aucun atelier ne le recevra automatiquement : il restera sur cette commande, à '
-  + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique)
-  + '. Si le produit existe dans la liste, choisis-le plutôt — il partira tout seul au bon endroit.</div>';
-} else if (it.category) {
-// v20.201 — L'app tient DEUX catalogues parallèles (usage 'ventes' / 'reappro'),
-// avec parfois le même nom des deux côtés. Le 25/08, une vendeuse a choisi le
-// « Croissant » du catalogue réassort pour une commande client : les 18 pièces
-// sont tombées sur une ligne à part au lieu de s'ajouter aux 48 de la production.
-// On masque donc la version réassort QUAND une version vendue porte le même nom.
-// On ne filtre pas tous les réassorts : « Chausson aux Pommes Rayées » n'existe
-// que de ce côté-là et doit rester commandable.
-// v20.227 — le rapprochement des deux catalogues ignore désormais accents et
-// ponctuation (planNorm). En comparant les noms bruts, « Éclair Café » (réassort)
-// ne voyait pas « Eclair Cafe » (vendu) et restait proposé : le 30/08, 6 éclairs
-// sont partis sur la ligne réassort. Même cas « Brioche Feuilletée Garnie ».
-const prodsInCat = (function() {
-  const list = products.filter(function(p) { return p.actif && p.category === it.category; });
-  const nomsVendus = new Set(list
-    .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
-    .map(function(p) { return planNorm(p.name); }));
-  return list.filter(function(p) {
-    if (p.id === it.product_id) return true;              // ne jamais faire disparaître un choix déjà enregistré
-    const u = p.usage || 'reappro';
-    if (u === 'ventes' || u === 'both') return true;
-    return !nomsVendus.has(planNorm(p.name));
-  });
-})();
-prodsInCat.sort(function(a, b) { return a.name.localeCompare(b.name); });
-html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Produit</label>';
-html += '<select class="sp-input" onchange="handleSpecialItemField(' + idx + ', \'product_id\', this.value)">';
-html += '<option value="">-- choisir --</option>';
-// v20.228 mettait un ❄️ sur les produits de RÉASSORT ; retiré en v20.244 (Phil, 22/09 :
-// pas de flocon dans les commandes du magasin — le surgelé, c'est l'affaire de l'atelier).
-prodsInCat.forEach(function(p) {
-html += '<option value="' + p.id + '"' + (it.product_id === p.id ? ' selected' : '') + '>'
-  + escapeHtml(specialProductName(p)) + '</option>';
-});
-html += '</select></div>';
+// sans produit rattaché, l'app ne sait pas quel atelier doit le faire. Le libre reste possible.
+if (libre) {
+  html += '<div class="sp-libre-warn">⚠️ <strong>Produit hors catalogue.</strong> Aucun atelier ne le recevra automatiquement : il restera sur cette commande, à '
+    + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique)
+    + '. Si le produit existe dans la liste, choisis-le plutôt — il partira tout seul au bon endroit.</div>';
 }
-
-// v20.74 — case Trancher (pains uniquement)
-if (it.category === 'pains') {
-html += '<label class="sp-tranche"><input type="checkbox"' + (it.tranche ? ' checked' : '') + ' onchange="handleSpecialItemField(' + idx + ', \'tranche\', this.checked)"> 🔪 Trancher</label>';
-}
-
-// Notes item
-html += '<div style="margin-top:6px"><label class="sp-lbl-sm">Notes (optionnel)</label>';
-html += '<input class="sp-input" type="text" value="' + escapeHtml(it.notes || '') + '" placeholder="décoration, message..." oninput="handleSpecialItemField(' + idx + ', \'notes\', this.value)"></div>';
-
 html += '</div>';
 return html;
 }

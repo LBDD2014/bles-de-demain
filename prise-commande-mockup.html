@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Prise de commande</title>
+<!-- Maquette (pas l'app) — Phil, 31/10/2026 : « est-ce que la prise de commande est fluide ou il faudrait peaufiner ? »
+     4 retouches : barre fixe Total + Créer, paiement sous le total, carte repliée par groupe, hors carte en + / −. Données fictives. -->
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --fete: #7C1F2E; --fete-light: #F7EBED;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #8f8a80; color: var(--brown); padding: 18px 16px 50px; }
+  .page { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; color: var(--grey-dark); }
+  h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; color: var(--grey-dark); margin: 14px 0 6px; }
+  .sub { font-size: 13.5px; color: var(--grey-light); line-height: 1.45; margin: 4px 0 10px; }
+  .sub b { color: var(--brown); }
+  .side { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .pt { display: flex; gap: 10px; font-size: 13.5px; line-height: 1.45; padding: 9px 0; border-top: 1px solid #F1ECE2; }
+  .pt:first-of-type { border-top: none; }
+  .num { flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--red); color: #fff; font: 700 12px Arial, sans-serif; display: flex; align-items: center; justify-content: center; }
+  .pt small { display: block; color: var(--grey-light); font-size: 12px; margin-top: 2px; }
+  .eff { font-size: 12px; font-weight: 700; color: var(--gold-dark); }
+
+  /* Tablette */
+  .tablet { width: 100%; max-width: 620px; margin: 0 auto; height: 900px; border: 10px solid var(--grey-dark); border-radius: 24px; background: var(--cream); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .hdr { background: var(--brown); color: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 17px; }
+  .hdr .back { font-size: 20px; }
+  .hdr small { margin-left: auto; font-family: Georgia, serif; font-size: 12px; background: var(--fete); padding: 3px 9px; border-radius: 10px; }
+  .scroll { flex: 1; overflow-y: auto; padding: 12px 14px 20px; }
+  .row { margin-bottom: 10px; }
+  .lbl { display: block; font-size: 11.5px; font-weight: 700; color: var(--brown-mid); margin-bottom: 4px; letter-spacing: .03em; text-transform: uppercase; }
+  .inp { width: 100%; padding: 10px; border: 1px solid #DDD3BE; border-radius: 9px; background: #fff; font-family: inherit; font-size: 15px; }
+  .dbl { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px; }
+  .pin { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--red); color: #fff; font: 700 11px Arial, sans-serif; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+
+  /* Carte repliée */
+  .carte { border: 2px solid #E3C9CE; border-radius: 12px; background: #fff; margin: 12px 0; overflow: hidden; }
+  .carte-h { background: var(--fete-light); color: var(--fete); padding: 9px 12px; font-weight: 700; font-size: 14.5px; display: flex; justify-content: space-between; align-items: center; }
+  .search { margin: 8px 12px; width: calc(100% - 24px); padding: 9px 10px; border: 1px solid #DDD3BE; border-radius: 9px; font-size: 15px; font-family: inherit; background: #FAF8F4; }
+  .grp { border-top: 1px solid #F1ECE2; }
+  .grp-h { display: flex; align-items: center; gap: 8px; padding: 11px 12px; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--grey-dark); user-select: none; }
+  .grp-h .chev { width: 14px; color: var(--grey-light); transition: transform .15s; }
+  .grp.open .grp-h .chev { transform: rotate(90deg); }
+  .grp-h .cnt { font-weight: 400; font-size: 12px; color: var(--grey-light); }
+  .grp-h .pris { margin-left: auto; background: var(--fete); color: #fff; font-size: 11.5px; padding: 2px 8px; border-radius: 10px; }
+  .grp-body { display: none; }
+  .grp.open .grp-body { display: block; }
+  .line { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid #F6F1E7; }
+  .line.on { background: #FBF3F4; }
+  .line .nom { font-size: 14.5px; }
+  .line .px { font-size: 13px; color: var(--grey-light); min-width: 56px; text-align: right; }
+  .q { display: flex; align-items: center; gap: 4px; }
+  .q button { width: 38px; height: 38px; border-radius: 9px; border: 1px solid #D6CCB6; background: #FAF8F4; font-size: 19px; cursor: pointer; }
+  .q b { min-width: 26px; text-align: center; font-size: 16px; }
+  .line.on .q b { color: var(--fete); }
+  .tr { font-size: 12px; padding: 3px 8px; border-radius: 12px; border: 1px solid #D6CCB6; background: #fff; cursor: pointer; margin-left: 4px; }
+  .tr.on { background: #FDE8E8; border-color: var(--red); color: var(--red); font-weight: 700; }
+
+  /* Hors carte */
+  .hc { border: 2px solid #E8D5A3; border-radius: 12px; background: #fff; margin: 12px 0; overflow: hidden; }
+  .hc-h { background: #FFF6DF; color: var(--gold-dark); padding: 9px 12px; font-weight: 700; font-size: 14.5px; }
+  .hc-h small { font-weight: 400; font-size: 12px; }
+  .hits { margin: 0 12px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .hit { padding: 8px 11px; border-radius: 9px; border: 1px solid #E0D8C8; background: #FAF8F4; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .hit small { color: var(--grey-light); font-size: 11px; margin-left: 4px; }
+  .hc .line .px { font-size: 12px; }
+  .hc .line { grid-template-columns: 1fr auto auto; }
+  .note-l { font-size: 12px; color: var(--grey-light); padding: 0 12px 10px; }
+  .pxbtn { padding: 7px 10px; border-radius: 8px; border: 1px dashed var(--gold-dark); background: #FFFBEF; color: var(--gold-dark); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .pxbtn.set { border-style: solid; background: #fff; color: var(--grey-dark); }
+  .pxedit { display: flex; align-items: center; gap: 6px; padding: 6px 12px 10px; background: #FFFBEF; border-top: 1px dashed #E8D5A3; font-size: 13.5px; flex-wrap: wrap; }
+  .pxedit input { width: 90px; padding: 9px; border: 2px solid var(--gold); border-radius: 8px; font-size: 17px; font-weight: 700; text-align: right; font-family: inherit; }
+  .pxedit button { padding: 9px 12px; border-radius: 8px; border: none; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .pxedit .ok { background: var(--gold); color: #fff; } .pxedit .no { background: #E9E5DC; color: var(--grey); }
+  .pxedit small { width: 100%; color: var(--grey-light); font-size: 11.5px; }
+
+  .total { background: var(--grey-dark); color: #fff; border-radius: 12px; padding: 10px 14px; margin: 12px 0 8px; display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
+  .pay { display: flex; gap: 6px; }
+  .pay button { flex: 1; padding: 10px 6px; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; border: 2px solid #E0D8C8; background: #FAF8F4; color: var(--grey); font-family: inherit; }
+  .pay button.on { border-color: var(--gold-dark); background: #FFF3D6; color: var(--gold-dark); }
+  .acq { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 14px; }
+  .acq input { width: 90px; padding: 8px; border: 1px solid #DDD3BE; border-radius: 8px; font-size: 15px; font-family: inherit; }
+  .acq .rapide button { padding: 7px 10px; border-radius: 8px; border: 1px solid #D6CCB6; background: #fff; font-family: inherit; font-size: 13px; cursor: pointer; }
+  .acq b { margin-left: auto; color: var(--orange); }
+
+  /* Barre fixe */
+  .bar { background: #fff; border-top: 2px solid #ECE3D2; padding: 10px 14px; display: flex; align-items: center; gap: 10px; box-shadow: 0 -4px 14px rgba(0,0,0,.08); }
+  .bar .t { line-height: 1.15; }
+  .bar .t b { display: block; font-size: 20px; color: var(--grey-dark); }
+  .bar .t small { font-size: 11.5px; color: var(--grey-light); }
+  .bar .go { margin-left: auto; background: var(--gold); color: #fff; border: none; border-radius: 11px; padding: 14px 22px; font-size: 16px; font-weight: 700; font-family: inherit; }
+  .bar .go[disabled] { background: #D9D3C4; }
+  .bar .pin { position: absolute; right: 22px; bottom: 62px; }
+
+  @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .side { position: static; } .tablet { height: 760px; border-width: 6px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="card">
+  <h1>Prise de commande, en plus fluide</h1>
+  <p class="sub">Maquette, pas l'app. Données fictives, rien n'est enregistré. C'est l'écran de la v20.328 avec <b>5 retouches</b> (pastilles rouges). Essaie : ouvre un groupe, ajoute des produits, cherche « fraisier » dans Hors carte, appuie sur <b>€ prix</b>, mets un acompte. <b>Le total et « Créer » restent toujours visibles en bas.</b></p>
+  <div class="tablet">
+    <div class="hdr"><span class="back">←</span>Nouvelle commande<small>🎄 Noël</small></div>
+    <div class="scroll" id="scroll">
+      <div class="row"><label class="lbl">Nom client *</label><input class="inp" value="Mme Martin"></div>
+      <div class="dbl row">
+        <div><label class="lbl">Téléphone *</label><input class="inp" value="06 12 34 56 78"></div>
+        <div><label class="lbl">👤 Prise par *</label><select class="inp"><option>Léa</option></select></div>
+      </div>
+      <div class="dbl row">
+        <div><label class="lbl">Retrait le *</label><select class="inp"><option>jeu. 24 déc.</option></select></div>
+        <div><label class="lbl">Heure</label><select class="inp"><option>10:15</option></select></div>
+      </div>
+
+      <div class="carte">
+        <div class="carte-h"><span>🎄 Noël — la carte<span class="pin">3</span></span><span id="sousCarte">0,00 €</span></div>
+        <input class="search" id="q" placeholder="🔍 Chercher dans la carte… (ex. meule)" oninput="render()">
+        <div id="groupes"></div>
+      </div>
+
+      <div class="hc">
+        <div class="hc-h">⭐ Hors carte <small>(gâteau d'anniversaire, autre produit…)</small><span class="pin">4</span><span class="pin" style="background:var(--gold-dark)">5</span></div>
+        <input class="search" id="hq" placeholder="🔍 Tape 2 lettres : fraisier, flan, éclair…" oninput="renderHits()">
+        <div class="hits" id="hits"></div>
+        <div id="hcLines"></div>
+        <div class="note-l" id="hcNote">Un appui sur un produit l'ajoute, puis + / − comme la carte. <b>€ prix</b> : taper le prix à la main (sinon il se paie en caisse).</div>
+      </div>
+
+      <div class="total"><span>Total</span><span id="tot">0,00 €</span></div>
+      <div class="row"><label class="lbl">Paiement<span class="pin">2</span></label>
+        <div class="pay" id="pay"><button data-p="non_regle" class="on">À régler</button><button data-p="acompte">Acompte</button><button data-p="regle">💰 Réglé</button></div>
+        <div class="acq" id="acq" style="display:none">Acompte <input id="ac" value="20" inputmode="decimal" oninput="render()"> €
+          <span class="rapide"><button onclick="setAc(0.3)">30 %</button> <button onclick="setAc(0.5)">50 %</button></span><b id="reste"></b></div>
+      </div>
+      <div class="row"><label class="lbl">Notes</label><input class="inp" placeholder="Allergie, décoration, message…" value="Joyeux Noël Mamie sur la grande bûche"></div>
+      <div class="row"><button class="hit" style="width:100%;padding:11px">🔁 Commande régulière (le client revient)</button></div>
+      <div style="height:6px"></div>
+    </div>
+    <div class="bar"><div class="t"><b id="barTot">0,00 €</b><small id="barSub">rien de choisi</small></div><span class="pin" style="position:static">1</span><button class="go" id="go" disabled>✓ Créer + 🖨</button></div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="card">
+    <h2 style="margin-top:0">Les 5 retouches</h2>
+    <div class="pt"><span class="num">1</span><div><b>Barre fixe en bas</b> : total + « ✓ Créer » toujours sous le doigt, même au milieu de la carte. Le bouton reste gris tant qu'il manque un produit.<small>Fini les 2-3 défilements pour trouver le bouton.</small><span class="eff">≈ 30 min</span></div></div>
+    <div class="pt"><span class="num">2</span><div><b>Paiement sous le total</b> : on choisit l'acompte quand on connaît le montant. Boutons 30 % / 50 % et le reste affiché tout de suite.<small>Le téléphone et le prénom remontent à côté l'un de l'autre : moins de hauteur.</small><span class="eff">≈ 30 min</span></div></div>
+    <div class="pt"><span class="num">3</span><div><b>Carte repliée par groupe</b> : 5 lignes au lieu de 59. Un appui ouvre le groupe ; un groupe où il y a déjà un produit reste ouvert et affiche combien. La loupe ouvre tout ce qui correspond.<span class="eff">≈ 45 min</span></div></div>
+    <div class="pt"><span class="num">4</span><div><b>Hors carte en + / −</b> : 2 lettres, un appui sur le produit, puis + / − comme la carte. Plus de menus Catégorie → Produit → Quantité.<small>« Autre… » (texte libre) reste possible, en dernier choix. 🔪 sur les pains.</small><span class="eff">≈ ½ journée</span></div></div>
+    <div class="pt"><span class="num" style="background:var(--gold-dark)">5</span><div><b>Prix à la main sur le hors carte</b> (ta demande) : touche <b>€ prix</b> sur chaque ligne → pavé numérique, prix <b>à la pièce</b>. La ligne entre dans le total, l'acompte et le ticket client. Sans prix tapé : « en caisse », comme aujourd'hui.<small>Ex. pièce montée 30 pers. en texte libre : 1 × 120 € → dans le total. Le prix tapé n'est retenu que pour cette commande.</small><span class="eff">≈ 1 h (avec la 4)</span></div></div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Ce qui ne change pas</h2>
+    <p class="sub" style="margin:0">Suggestions de clients, heure au quart d'heure, prénom mémorisé sur la tablette, avertissement de délai, notes rapides (« Joyeux anniversaire »…), ticket qui sort tout seul, 🔁 commande régulière. Hors période de fête, l'écran Special a les mêmes retouches 1, 2 et 4 (sans carte).</p>
+  </div>
+</div>
+
+</div>
+<script>
+const CARTE = [
+  { g: 'Bûches pâtissières', items: [['Bûche Tourangelle', 'Indiv.', 6], ['Bûche Tourangelle', 'Grande', 35], ['Bûche fruits rouges', 'Indiv.', 6], ['Bûche fruits rouges', 'Grande', 35], ['Bûche choco', 'Indiv.', 6], ['Bûche choco', 'Grande', 35]] },
+  { g: 'Bûches traditionnelles', items: [['Bûche trad. praliné', 'Indiv.', 4.75], ['Bûche trad. praliné', 'Grande', 28.5], ['Bûche trad. chocolat', 'Indiv.', 4.75], ['Bûche trad. café', 'Grande', 28.5]] },
+  { g: 'Autres douceurs', items: [['Horloge chocolat', '', 36], ['Bulle de minuit', '', 36], ['Mignardises sucrées x16', '', 22.5], ['Mont-Blanc', '', 4.5]] },
+  { g: 'Pains de Noël', pain: true, items: [['Baguette de tradition', '', 1.2], ['Grande tourte de meule', '', 6.8], ['Petite tourte de meule', '', 3.3], ['Pain aux noix', '', 3.8], ['Pain aux figues', '', 3.8], ['Norvégien', 'entier', 11], ['Norvégien', 'demi', 5.5], ['Khorazan', '', 7.5]] },
+  { g: 'Viennoiseries & brioches', items: [['Croissant', '', 1.4], ['Pain au chocolat', '', 1.6], ['Brioche Grand-mère', '', 7.5]] },
+  { g: 'Salé', items: [['Mini feuilletés x25', '', 22.5], ['Bouchées à la reine', 'pièce', 2]] },
+];
+const CATALOGUE = [['Fraisier 6 pers.', 'Gros gâteaux'], ['Fraisier indiv.', 'Petits gâteaux'], ['Flan 6 pers.', 'Viennoiserie'], ['Flan 4 pers.', 'Viennoiserie'], ['Éclair chocolat', 'Petits gâteaux'], ['Tarte aux pommes 6 pers.', 'Gros gâteaux'], ['Fougasse', 'Pains'], ['Tradition', 'Pains'], ['Chouquette', 'Viennoiserie']];
+const qty = {}, tr = {}, open = {};
+const hc = [];   // [{ nom, cat, qty, tr, prix }]
+let hcEdit = -1;   // ligne hors carte dont on tape le prix
+let pay = 'non_regle';
+const eur = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const key = (gi, ii) => gi + '_' + ii;
+function total() { let t = 0; CARTE.forEach((g, gi) => g.items.forEach((it, ii) => { t += (qty[key(gi, ii)] || 0) * it[2]; })); hc.forEach(h => { if (h.prix != null) t += h.qty * h.prix; }); return t; }
+function nbArticles() { let n = 0; Object.values(qty).forEach(v => n += v); hc.forEach(h => n += h.qty); return n; }
+function render() {
+  const q = norm(document.getElementById('q').value || '');
+  let h = '';
+  CARTE.forEach((g, gi) => {
+    const pris = g.items.reduce((s, it, ii) => s + (qty[key(gi, ii)] || 0), 0);
+    const hitsQ = q.length >= 2 ? g.items.filter(it => norm(it[0]).includes(q)).length : 0;
+    if (q.length >= 2 && !hitsQ) return;
+    const isOpen = open[gi] || pris > 0 || hitsQ > 0;
+    h += '<div class="grp' + (isOpen ? ' open' : '') + '"><div class="grp-h" onclick="tog(' + gi + ')"><span class="chev">▶</span>' + g.g + ' <span class="cnt">(' + g.items.length + ')</span>' + (pris ? '<span class="pris">' + pris + ' pris</span>' : '') + '</div><div class="grp-body">';
+    g.items.forEach((it, ii) => {
+      if (q.length >= 2 && !norm(it[0]).includes(q)) return;
+      const k = key(gi, ii), n = qty[k] || 0;
+      h += '<div class="line' + (n ? ' on' : '') + '"><div class="nom">' + it[0] + (it[1] ? ' ' + it[1] : '') + (g.pain ? '<span class="tr' + (tr[k] ? ' on' : '') + '" onclick="tr[\'' + k + '\']=!tr[\'' + k + '\'];render()">🔪' + (tr[k] ? ' tranché' : '') + '</span>' : '') + '</div>'
+        + '<div class="px">' + eur(it[2]) + '</div><div class="q"><button onclick="chg(\'' + k + '\',-1)">−</button><b>' + (n || '–') + '</b><button onclick="chg(\'' + k + '\',1)">+</button></div></div>';
+    });
+    h += '</div></div>';
+  });
+  document.getElementById('groupes').innerHTML = h || '<div class="note-l" style="padding-top:8px">Rien sur la carte. Essaie « Hors carte » en dessous.</div>';
+  // hors carte
+  document.getElementById('hcLines').innerHTML = hc.map((x, i) => '<div class="line on"><div class="nom">' + x.nom + (x.cat === 'Pains' ? '<span class="tr' + (x.tr ? ' on' : '') + '" onclick="hc[' + i + '].tr=!hc[' + i + '].tr;render()">🔪</span>' : '')
+    + (x.prix != null && x.qty > 1 ? '<div style="font-size:11.5px;color:var(--grey-light)">' + x.qty + ' × ' + eur(x.prix) + ' = ' + eur(x.qty * x.prix) + '</div>' : '') + '</div>'
+    + '<button class="pxbtn' + (x.prix != null ? ' set' : '') + '" onclick="hcEdit=' + i + ';render();setTimeout(()=>document.getElementById(\'pxIn\').focus(),0)">' + (x.prix != null ? eur(x.prix) + ' ✎' : '€ prix') + '</button>'
+    + '<div class="q"><button onclick="hcChg(' + i + ',-1)">−</button><b>' + x.qty + '</b><button onclick="hcChg(' + i + ',1)">+</button></div></div>'
+    + (hcEdit === i ? '<div class="pxedit">Prix à la pièce <input id="pxIn" inputmode="decimal" value="' + (x.prix != null ? String(x.prix).replace('.', ',') : '') + '" placeholder="0,00"> €'
+      + '<button class="ok" onclick="hcSetPrix(' + i + ')">✓</button>' + (x.prix != null ? '<button class="no" onclick="hc[' + i + '].prix=null;hcEdit=-1;render()">Sans prix</button>' : '') + '<button class="no" onclick="hcEdit=-1;render()">Annuler</button>'
+      + '<small>Sans prix, le produit se paie en caisse au retrait.</small></div>' : '')).join('');
+  const t = total();
+  document.getElementById('sousCarte').textContent = eur(t);
+  document.getElementById('tot').textContent = eur(t);
+  document.getElementById('barTot').textContent = eur(t);
+  const n = nbArticles();
+  const ac = parseFloat((document.getElementById('ac').value || '0').replace(',', '.')) || 0;
+  document.getElementById('reste').textContent = pay === 'acompte' ? 'reste ' + eur(t - ac) : '';
+  document.getElementById('barSub').textContent = !n ? 'rien de choisi' : n + ' article' + (n > 1 ? 's' : '') + (hc.some(h => h.prix == null) ? ' · + hors carte en caisse' : '') + (pay === 'acompte' ? ' · acompte ' + eur(ac) : pay === 'regle' ? ' · réglé' : '');
+  document.getElementById('go').disabled = !n;
+}
+function tog(gi) { open[gi] = !open[gi]; render(); }
+function chg(k, d) { qty[k] = Math.max(0, (qty[k] || 0) + d); if (!qty[k]) delete qty[k]; render(); }
+function hcChg(i, d) { hc[i].qty += d; if (hc[i].qty <= 0) { hc.splice(i, 1); hcEdit = -1; } render(); }
+function hcSetPrix(i) {
+  const v = parseFloat((document.getElementById('pxIn').value || '').replace(',', '.'));
+  if (isNaN(v) || v < 0) { document.getElementById('pxIn').style.borderColor = 'var(--red)'; return; }
+  hc[i].prix = Math.round(v * 100) / 100; hcEdit = -1; render();
+}
+function renderHits() {
+  const q = norm(document.getElementById('hq').value || '');
+  const box = document.getElementById('hits');
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  const hits = CATALOGUE.filter(c => norm(c[0]).includes(q));
+  box.innerHTML = hits.map(c => '<button class="hit" onclick="hcAdd(\'' + c[0].replace(/'/g, "\\'") + '\',\'' + c[1] + '\')">+ ' + c[0] + '<small>' + c[1] + '</small></button>').join('')
+    + '<button class="hit" onclick="hcAdd(document.getElementById(\'hq\').value,\'libre\')">✏️ Autre : « ' + document.getElementById('hq').value + ' »</button>';
+}
+function hcAdd(nom, cat) {
+  const ex = hc.find(x => x.nom === nom);
+  if (ex) ex.qty++; else hc.push({ nom, cat, qty: 1, tr: false, prix: null });
+  document.getElementById('hq').value = ''; renderHits(); render();
+}
+function setAc(p) { document.getElementById('ac').value = (Math.round(total() * p)).toString(); render(); }
+document.querySelectorAll('#pay button').forEach(b => b.onclick = () => {
+  pay = b.dataset.p;
+  document.querySelectorAll('#pay button').forEach(x => x.classList.toggle('on', x === b));
+  document.getElementById('acq').style.display = pay === 'acompte' ? '' : 'none';
+  render();
+});
+qty[key(0, 1)] = 1; qty[key(0, 4)] = 2;   // exemple de départ : 1 Tourangelle Grande, 2 Bûches choco indiv.
+render();
+</script>
+</body>
+</html>

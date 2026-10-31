@@ -14,7 +14,7 @@ async function formulaireAvecUnProduit(ctx) {
   await enterBoutique(page, 'veigne');
   await page.evaluate(() => setVue('specials'));
   await page.waitForSelector('#main-content');
-  await page.evaluate(() => { openNewSpecialOrder(); });
+  await page.evaluate(() => { openNewSpecialOrder(); specialSearchPick('vt_trad'); });   // v20.329 — un appui ajoute la ligne
   await page.waitForSelector('.sp-item-row');
   return page;
 }

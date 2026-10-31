@@ -37,14 +37,11 @@ async function selecteurProduits(ctx, db, categorie) {
   await page.evaluate(() => setVue('specials'));
   await page.waitForSelector('#main-content');
   await page.evaluate(() => openNewSpecialOrder());
-  await page.waitForSelector('.sp-item-row');
-  await page.evaluate((c) => handleSpecialItemField(0, 'category', c), categorie);
-  await page.waitForSelector('.sp-item-row select');
-  const noms = await page.evaluate(() => {
-    const sels = Array.from(document.querySelectorAll('.sp-item-row select'));
-    const s = sels[sels.length - 1];
-    return Array.from(s.options).map((o) => o.textContent.trim());
-  });
+  // v20.329 — plus de menus Catégorie → Produit : un appui sur la catégorie liste ses produits
+  await page.evaluate((c) => specialPickCat(c), categorie);
+  await page.waitForSelector('#sp-psearch-res .sp-psearch-hit');
+  const noms = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#sp-psearch-res .sp-psearch-hit')).map((b) => b.textContent.replace(/^\+\s*/, '').trim()));
   return { page, noms };
 }
 
@@ -93,27 +90,22 @@ export const tests = [
     },
   },
   {
-    name: 'Spéciales — un produit déjà choisi ne disparaît jamais du menu',
+    name: 'Spéciales — un produit déjà choisi (même la référence réassort) reste sur sa ligne',
     fn: async (ctx) => {
       const page = await preparePage(ctx, { db: dbCatalogueDouble() });
       await gotoApp(page);
       await enterBoutique(page, 'veigne');
       await page.evaluate(() => setVue('specials'));
       await page.evaluate(() => openNewSpecialOrder());
-      await page.waitForSelector('.sp-item-row');
       // une vieille commande pointe encore sur la référence réassort
       await page.evaluate(() => {
-        specialFormDraft.items[0].category = 'viennoiserie';
-        specialFormDraft.items[0].product_id = 'cro_reappro';
+        specialFormDraft.items = [{ product_id: 'cro_reappro', product_name_custom: '', qty: '3', notes: '', category: 'viennoiserie', tranche: false }];
         renderSpecials();
       });
-      await page.waitForSelector('.sp-item-row select');
-      const ids = await page.evaluate(() => {
-        const sels = Array.from(document.querySelectorAll('.sp-item-row select'));
-        return Array.from(sels[sels.length - 1].options).map((o) => o.value);
-      });
-      assert(ids.indexOf('cro_reappro') !== -1,
-        'une référence déjà enregistrée doit rester visible, sinon la commande se vide toute seule');
+      await page.waitForSelector('.sp-item-row');
+      const r = await page.evaluate(() => ({ nom: document.querySelector('.sp-item-row .sp-line-nom strong').textContent.trim(), id: specialFormDraft.items[0].product_id }));
+      assert(r.nom === 'Croissant' && r.id === 'cro_reappro',
+        'une référence déjà enregistrée doit rester visible, sinon la commande se vide toute seule : ' + JSON.stringify(r));
       await page.close();
     },
   },

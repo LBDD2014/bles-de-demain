@@ -326,6 +326,21 @@ Phil (29/10) : « si les clients veulent du pain et des bûches, on fait comment
   `fete_events.noel` du **01/12/2026 au 01/01/2027**, `actif = false` → **à activer en BackOffice → Fêtes après la migration et la mise en ligne**.
 - Tests : `tests/specs/51-fetes-dans-speciales.spec.mjs` (+ spec 41 adaptée).
 
+**Prise de commande plus fluide (v20.329, 31/10/2026, maquette `prise-commande-mockup.html`, Phil : « Oui, les 5 »)** — même formulaire
+pour Special et l'onglet de la fête :
+1. **Barre fixe en bas** (`.sp-bar`, sticky au-dessus des onglets) : total (ou nombre d'articles) + « ✓ Créer » grisé tant qu'il n'y a aucun produit.
+2. **Paiement sous le total** (on choisit l'acompte quand on connaît le montant), boutons **30 % / 50 %**, reste affiché ;
+   téléphone et « 👤 Prise par » côte à côte.
+3. **Carte de la fête repliée par groupe** : un appui ouvre ; un groupe avec un produit reste ouvert (« 2 pris ») ; la loupe ouvre ce qui correspond.
+4. **Produits : plus de menus Catégorie → Produit → Quantité.** Une recherche (2 lettres) **ou** une catégorie (puces) liste les produits,
+   un appui ajoute la ligne (ou +1), puis **− [quantité] +** (la liste 1-50 / « Autre… » au clavier reste au milieu, v20.200).
+   « ✏️ Autre : « … » » = texte libre (avertissement v20.235 gardé). ✏️ note par produit et 🔪 (pains) sur la ligne. Commande vide au départ.
+   Fonctions : `specialPickerHtml`, `specialSearchPick(pid)`, `specialPickCat`, `specialAddLibre`, `specialItemQtyStep`.
+5. **« € prix » à la main sur un produit hors carte** (Phil) : prix **à la pièce**, pour cette commande seulement, toute vendeuse ;
+   `special_order_items.unit_price` → total de la commande (`special_orders.total`, carte + prix tapés), acompte, ticket client et A4
+   (« + produits sans prix, en caisse » s'il en reste). Badge « 💶 total » sur la carte d'une commande hors fête.
+Tests : spec 52 (+ specs 11, 12, 13, 30 adaptées au nouveau choix des produits).
+
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
   retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL
