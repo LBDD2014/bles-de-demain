@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Favoris et Refaire</title>
+<!-- Maquette (pas l'app) — Phil, 31/10/2026 : améliorer la prise de commande spéciale.
+     ⭐ « Les plus commandés ici » + 📑 « Refaire sa dernière commande ». Produits = vrais chiffres Veigné depuis le 01/09 ;
+     clients fictifs. Rien n'est enregistré. -->
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --blue: #2C5F8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #8f8a80; color: var(--brown); padding: 18px 16px 50px; }
+  .page { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; color: var(--grey-dark); }
+  h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; color: var(--grey-dark); margin-bottom: 6px; }
+  .sub { font-size: 13.5px; color: var(--grey-light); line-height: 1.45; margin: 4px 0 10px; }
+  .sub b { color: var(--brown); }
+  .side { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .pt { display: flex; gap: 10px; font-size: 13.5px; line-height: 1.45; padding: 9px 0; border-top: 1px solid #F1ECE2; }
+  .pt:first-of-type { border-top: none; }
+  .num { flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--red); color: #fff; font: 700 12px Arial, sans-serif; display: flex; align-items: center; justify-content: center; }
+  .pt small { display: block; color: var(--grey-light); font-size: 12px; margin-top: 2px; }
+  .eff { font-size: 12px; font-weight: 700; color: var(--gold-dark); }
+  .qs { list-style: none; counter-reset: q; }
+  .qs li { counter-increment: q; position: relative; padding: 8px 0 8px 32px; font-size: 13.5px; line-height: 1.45; border-top: 1px solid #F1ECE2; }
+  .qs li::before { content: counter(q); position: absolute; left: 0; top: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--orange); color: #fff; font: 700 12px Arial, sans-serif; text-align: center; line-height: 22px; }
+  .qs small { display: block; color: var(--grey-light); font-size: 12px; }
+
+  .tablet { width: 100%; max-width: 620px; margin: 0 auto; height: 900px; border: 10px solid var(--grey-dark); border-radius: 24px; background: var(--cream); overflow: hidden; display: flex; flex-direction: column; }
+  .hdr { background: var(--brown); color: #fff; padding: 12px 14px; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 17px; }
+  .hdr small { margin-left: auto; font-family: Georgia, serif; font-size: 12px; opacity: .8; }
+  .scroll { flex: 1; overflow-y: auto; padding: 12px 14px 20px; }
+  .row { margin-bottom: 10px; position: relative; }
+  .lbl { display: block; font-size: 11.5px; font-weight: 700; color: var(--brown-mid); margin-bottom: 4px; letter-spacing: .03em; text-transform: uppercase; }
+  .inp { width: 100%; padding: 10px; border: 1px solid #DDD3BE; border-radius: 9px; background: #fff; font-family: inherit; font-size: 15px; }
+  .dbl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pin { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--red); color: #fff; font: 700 11px Arial, sans-serif; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+  .sug { position: absolute; left: 0; right: 0; top: 62px; background: #fff; border: 1px solid #DDD3BE; border-radius: 9px; box-shadow: 0 6px 18px rgba(0,0,0,.12); z-index: 5; overflow: hidden; }
+  .sug button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: none; border-top: 1px solid #F1ECE2; background: #fff; font-family: inherit; font-size: 14.5px; cursor: pointer; }
+  .sug button small { color: var(--grey-light); margin-left: 6px; }
+
+  .refaire { background: #EEF4FA; border: 2px solid #BFD3E6; border-radius: 12px; padding: 10px 12px; margin: 4px 0 12px; font-size: 13.5px; line-height: 1.45; }
+  .refaire b { color: var(--blue); }
+  .refaire .det { color: var(--grey-dark); margin: 3px 0 8px; }
+  .refaire .go { background: var(--blue); color: #fff; border: none; border-radius: 9px; padding: 10px 14px; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+  .refaire .alt { background: none; border: none; color: var(--blue); text-decoration: underline; font-family: inherit; font-size: 13px; cursor: pointer; margin-left: 8px; }
+
+  .sec { background: #FAF6EE; border: 1px dashed #E5DCC8; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .sec-t { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .fav-t { font-size: 12px; font-weight: 700; color: var(--gold-dark); margin: 2px 0 6px; letter-spacing: .03em; }
+  .favs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+  .fav { position: relative; padding: 11px 6px; border-radius: 10px; border: 1.5px solid #E8D5A3; background: #FFFBEF; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--brown); cursor: pointer; line-height: 1.2; min-height: 52px; }
+  .fav:active { transform: scale(.97); }
+  .fav .n { position: absolute; top: -7px; right: -5px; background: var(--gold-dark); color: #fff; border-radius: 10px; font: 700 11px Arial, sans-serif; padding: 2px 6px; }
+  .search { display: flex; gap: 6px; align-items: center; background: #fff; border: 1px solid #DDD3BE; border-radius: 9px; padding: 9px 10px; font-size: 14.5px; color: #999; }
+  .cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+  .cats span { padding: 6px 10px; border-radius: 14px; border: 1px solid #E0D8C8; background: #fff; font-size: 12.5px; color: var(--grey); }
+  .cats span.pros { border-style: dashed; color: var(--blue); }
+  .line { background: #fff; border: 1px solid #EDE4D1; border-radius: 8px; padding: 9px 10px; margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .line .nm { flex: 1; min-width: 140px; font-weight: 700; font-size: 14.5px; }
+  .line .nm small { display: block; font-weight: 400; color: var(--gold-dark); font-size: 12px; }
+  .chip { font-size: 12px; padding: 5px 9px; border-radius: 12px; border: 1px solid #D6CCB6; background: #fff; }
+  .chip.on { background: #FDE8E8; border-color: var(--red); color: var(--red); font-weight: 700; }
+  .q { display: flex; align-items: center; gap: 4px; }
+  .q button { width: 38px; height: 38px; border-radius: 9px; border: 1px solid #D6CCB6; background: #FAF8F4; font-size: 19px; cursor: pointer; }
+  .q b { min-width: 30px; text-align: center; font-size: 16px; }
+  .del { color: var(--red); background: none; border: none; font-size: 16px; cursor: pointer; }
+  .vide { font-size: 12.5px; color: var(--grey-light); margin-top: 8px; }
+  .bar { background: #fff; border-top: 2px solid #ECE3D2; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+  .bar b { display: block; font-size: 19px; color: var(--grey-dark); }
+  .bar small { font-size: 11.5px; color: var(--grey-light); }
+  .bar .go { margin-left: auto; background: var(--gold); color: #fff; border: none; border-radius: 11px; padding: 13px 22px; font-size: 16px; font-weight: 700; font-family: inherit; }
+  .bar .go[disabled] { background: #D9D3C4; }
+  @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .side { position: static; } .tablet { height: 780px; border-width: 6px; } .favs { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="card">
+  <h1>Commande spéciale : encore plus vite</h1>
+  <p class="sub">Maquette, pas l'app. Veigné, onglet Special, un jour ordinaire. <b>Essaie</b> : touche une ficelle, une tradition ; puis tape « lec » dans le nom du client et choisis M. Lecureuil.</p>
+  <div class="tablet">
+    <div class="hdr">← Nouvelle commande<small>Veigné</small></div>
+    <div class="scroll">
+      <div class="row"><label class="lbl">Nom client *</label>
+        <input class="inp" id="nom" placeholder="ex : M. Dupont" oninput="sug(this.value)" autocomplete="off">
+        <div class="sug" id="sug" style="display:none"></div>
+      </div>
+      <div id="refaire"></div>
+      <div class="dbl row">
+        <div><label class="lbl">Téléphone *</label><input class="inp" id="tel" placeholder="06…"></div>
+        <div><label class="lbl">👤 Prise par *</label><select class="inp"><option>Zora</option></select></div>
+      </div>
+      <div class="dbl row">
+        <div><label class="lbl">Retrait le *</label><select class="inp"><option>sam. 7 nov.</option></select></div>
+        <div><label class="lbl">Heure</label><select class="inp"><option>09:00</option></select></div>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Produits commandés</div>
+        <div class="fav-t">⭐ LES PLUS COMMANDÉS À VEIGNÉ<span class="pin">1</span></div>
+        <div class="favs" id="favs"></div>
+        <div class="search">🔍 Tape 2 lettres : tradition, fraisier…</div>
+        <div class="cats"><span>Pains</span><span>Viennoiserie</span><span>Brioches</span><span>Petits gâteaux</span><span>Gros gâteaux</span><span>Traiteur</span><span class="pros">🧊 Pros (surgelé)</span></div>
+        <div id="lines"></div>
+      </div>
+      <div class="row"><label class="lbl">Notes</label><input class="inp" id="notes" placeholder="Allergie, décoration, message…"></div>
+    </div>
+    <div class="bar"><div><b id="barT">—</b><small id="barS">aucun produit</small></div><button class="go" id="go" disabled>✓ Créer</button></div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="card">
+    <h2>Les 2 ajouts</h2>
+    <div class="pt"><span class="num">1</span><div><b>⭐ Les plus commandés ici</b> : 8 grosses touches en tête, calculées toutes seules sur les commandes de la boutique des 2 derniers mois. Un appui = +1 (le chiffre s'affiche sur la touche).<small>Vrais chiffres depuis le 1er sept. : à Veigné la Ficelle de Tradition, c'est 177 lignes (1 sur 4) ; à St-Avertin l'Idéal et la Ficelle (55 chacun) ; à Tours, Ficelle / Tradition / Idéal.</small><span class="eff">≈ 1 h</span></div></div>
+    <div class="pt"><span class="num" style="background:var(--blue)">2</span><div><b>📑 Refaire sa dernière commande</b> : dès que le client est reconnu (nom ou téléphone, comme aujourd'hui), un bandeau bleu montre sa dernière commande ; un appui la recopie (produits, quantités, 🔪, notes produit, prix tapés). Date, heure et paiement restent à choisir.<small>81 clients sont revenus au moins 2 fois depuis le 1er septembre.</small><span class="eff">≈ 1 h 30</span></div></div>
+  </div>
+  <div class="card">
+    <h2>Questions</h2>
+    <ol class="qs">
+      <li><b>Favoris automatiques</b> (calculés sur 2 mois, par boutique) ou <b>choisis par toi</b> en BackOffice ?<small>Proposé : automatiques, rien à régler.</small></li>
+      <li><b>8 touches</b>, c'est le bon nombre ? (2 rangées de 4 sur la tablette)</li>
+      <li><b>Refaire</b> : on recopie aussi la <b>note de commande</b> (« Joyeux anniversaire ») ?<small>Proposé : non, une note change à chaque fois.</small></li>
+    </ol>
+  </div>
+</div>
+
+</div>
+<script>
+const FAVS = ['Ficelle de Tradition', 'Tradition', 'Pain Ordinaire', 'Croissant', 'Baguette Ordinaire', 'Pain au Chocolat', 'Ciabatta', 'Ficelle sans sel'];
+const PAINS = ['Ficelle de Tradition', 'Tradition', 'Pain Ordinaire', 'Baguette Ordinaire', 'Ciabatta', 'Ficelle sans sel'];
+const CLIENTS = [
+  { nom: 'M. Lecureuil', tel: '06 11 22 33 44', der: { date: 'mer. 28 oct.', lignes: [['Ficelle sans sel', 2, false], ['Croissant', 4, false]] } },
+  { nom: 'Mme Leclerc', tel: '06 55 44 33 22', der: { date: 'sam. 24 oct.', lignes: [['Tradition', 3, true], ['Tarte Vigneronne 6 pers.', 1, false]] } },
+];
+const lignes = [];   // [nom, qty, tranche]
+function add(nom, q, tr) { const l = lignes.find((x) => x[0] === nom); if (l) l[1] += q; else lignes.push([nom, q, !!tr]); render(); }
+function render() {
+  document.getElementById('favs').innerHTML = FAVS.map((f) => { const l = lignes.find((x) => x[0] === f);
+    return '<button class="fav" onclick="add(\'' + f + '\',1)">' + f + (l ? '<span class="n">' + l[1] + '</span>' : '') + '</button>'; }).join('');
+  document.getElementById('lines').innerHTML = lignes.length ? lignes.map((l, i) => '<div class="line"><div class="nm">' + l[0] + '</div>'
+    + (PAINS.includes(l[0]) ? '<span class="chip' + (l[2] ? ' on' : '') + '" onclick="lignes[' + i + '][2]=!lignes[' + i + '][2];render()">🔪' + (l[2] ? ' tranché' : '') + '</span>' : '')
+    + '<span class="chip">✏️ note</span><span class="chip">€ prix</span>'
+    + '<div class="q"><button onclick="lignes[' + i + '][1]=Math.max(1,lignes[' + i + '][1]-1);render()">−</button><b>' + l[1] + '</b><button onclick="lignes[' + i + '][1]++;render()">+</button></div>'
+    + '<button class="del" onclick="lignes.splice(' + i + ',1);render()">✖</button></div>').join('') : '<div class="vide">Touche un produit ⭐ ou cherche-le.</div>';
+  const n = lignes.reduce((s, l) => s + l[1], 0);
+  document.getElementById('barT').textContent = n ? n + ' article' + (n > 1 ? 's' : '') : '—';
+  document.getElementById('barS').textContent = n ? 'prix en caisse' : 'aucun produit';
+  document.getElementById('go').disabled = !n;
+}
+function sug(v) {
+  const box = document.getElementById('sug'); const q = v.toLowerCase();
+  const hits = q.length >= 2 ? CLIENTS.filter((c) => c.nom.toLowerCase().includes(q)) : [];
+  box.style.display = hits.length ? '' : 'none';
+  box.innerHTML = hits.map((c, i) => '<button onclick="choisir(' + CLIENTS.indexOf(c) + ')">' + c.nom + '<small>' + c.tel + '</small></button>').join('');
+  if (!hits.length) document.getElementById('refaire').innerHTML = '';
+}
+function choisir(i) {
+  const c = CLIENTS[i];
+  document.getElementById('nom').value = c.nom; document.getElementById('tel').value = c.tel;
+  document.getElementById('sug').style.display = 'none';
+  document.getElementById('refaire').innerHTML = '<div class="refaire">📑 <b>Dernière commande de ' + c.nom + '</b> — ' + c.der.date + '<span class="pin" style="background:var(--blue)">2</span>'
+    + '<div class="det">' + c.der.lignes.map((l) => l[1] + ' × ' + l[0] + (l[2] ? ' 🔪' : '')).join(' · ') + '</div>'
+    + '<button class="go" onclick="refaire(' + i + ')">📑 Refaire cette commande</button><button class="alt" onclick="document.getElementById(\'refaire\').innerHTML=\'\'">Non merci</button></div>';
+}
+function refaire(i) {
+  CLIENTS[i].der.lignes.forEach((l) => add(l[0], l[1], l[2]));
+  document.getElementById('refaire').innerHTML = '<div class="refaire" style="background:#EAF3EC;border-color:#BFD9C8">✓ Commande du ' + CLIENTS[i].der.date + ' recopiée. Choisis la date et l\'heure, ajuste si besoin.</div>';
+}
+render();
+</script>
+</body>
+</html>

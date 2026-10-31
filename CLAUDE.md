@@ -340,6 +340,12 @@ pour Special et l'onglet de la fête :
    `special_order_items.unit_price` → total de la commande (`special_orders.total`, carte + prix tapés), acompte, ticket client et A4
    (« + produits sans prix, en caisse » s'il en reste). Badge « 💶 total » sur la carte d'une commande hors fête.
 Tests : spec 52 (+ specs 11, 12, 13, 30 adaptées au nouveau choix des produits).
+**v20.332** (maquette `speciales-favoris-mockup.html`, Phil : « Oui, code les deux ») : **⭐ Les plus commandés ici** = 8 grosses
+touches en tête des produits, calculées toutes seules sur les commandes de la boutique des 60 derniers jours (nombre de lignes, sans
+surgelé ni annulées ; `loadSpecialFavoris`, cache 30 min, chargées en arrière-plan sans re-rendre le formulaire) ; un appui = +1.
+**📑 Refaire sa dernière commande** : client choisi dans les suggestions → bandeau bleu avec sa dernière commande non annulée
+(`specialClientsIndex[].lastId`) → un appui recopie produits, quantités, 🔪, notes produit, prix tapés, carte de la fête au tarif du
+jour ; **pas** la note de commande, ni date / heure / paiement. Nouvelles commandes seulement. Test : spec 53.
 **v20.331** (Phil, 31/10 : « le surgelé, ça pollue la vision de la vente ; ne les supprime pas, mets-les dans un onglet pros ») :
 dans le choix des produits des commandes clients, tout produit dont le nom contient **« surgelé »** sort des catégories et de la
 recherche et se range dans la catégorie **« 🧊 Pros (surgelé) »**, toujours en dernier (`specialEstPro`, `SPE_CAT_PROS`). Rien n'est

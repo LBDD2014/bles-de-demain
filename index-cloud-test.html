@@ -503,6 +503,19 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-pcat-pros { border-style: dashed; color: var(--blue); }
 .sp-pcat-pros.on { background: var(--blue); border-color: var(--blue); }
 .sp-psearch-libre { border-style: dashed !important; }
+/* v20.332 — ⭐ les plus commandés ici, 📑 refaire sa dernière commande */
+.sp-fav-t { font-size: 12px; font-weight: 700; color: var(--gold-dark); margin: 2px 0 6px; letter-spacing: .03em; text-transform: uppercase; }
+.sp-favs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.sp-fav { position: relative; padding: 10px 6px; min-height: 52px; border-radius: 10px; border: 1.5px solid #E8D5A3; background: #FFFBEF; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--brown); cursor: pointer; line-height: 1.2; }
+.sp-fav:active { transform: scale(.97); }
+.sp-fav .n { position: absolute; top: -7px; right: -5px; background: var(--gold-dark); color: #fff; border-radius: 10px; font: 700 11px Arial, sans-serif; padding: 2px 6px; }
+@media (max-width: 560px) { .sp-favs { grid-template-columns: repeat(2, 1fr); } }
+.sp-refaire { background: #EEF4FA; border: 2px solid #BFD3E6; border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; }
+.sp-refaire strong { color: var(--blue); }
+.sp-refaire-det { color: var(--grey-dark); margin: 3px 0 8px; }
+.sp-refaire-go { background: var(--blue); color: #fff; border: none; border-radius: 9px; padding: 10px 14px; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+.sp-refaire-non { background: none; border: none; color: var(--blue); text-decoration: underline; font-family: inherit; font-size: 13px; cursor: pointer; margin-left: 8px; }
+.sp-refaire-ok { background: #EAF3EC; border-color: #BFD9C8; }
 .sp-line-top { display: flex; align-items: flex-start; gap: 8px; }
 .sp-line-nom { flex: 1; min-width: 0; font-size: 15px; padding-top: 4px; }
 .sp-line-at { color: var(--grey-light); font-size: 12px; white-space: nowrap; }
@@ -2832,7 +2845,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.331';
+const APP_VERSION  = 'v20.332';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -20854,6 +20867,7 @@ items: []
 };
 loadSpecialClientsIndex(); // v20.185 — mémoire clients (suggestion nom + téléphone)
 renderSpecials();
+loadSpecialFavoris(currentBoutique).then(specialMajFavoris);   // v20.332 — ⭐ en arrière-plan
 }
 
 function openEditSpecialOrder(oid) {
@@ -20928,7 +20942,7 @@ function _normClient(s2) {
 async function loadSpecialClientsIndex() {
   if (specialClientsIndex) return;
   const { data, error } = await supa.from('special_orders')
-    .select('customer_name,customer_phone,created_at')
+    .select('id,customer_name,customer_phone,created_at,status')   // v20.332 — id/status : la dernière commande, pour 📑 Refaire
     .eq('tenant_id', TENANT_ID)
     .not('customer_name', 'is', null)
     .order('created_at', { ascending: false })
@@ -20941,9 +20955,10 @@ async function loadSpecialClientsIndex() {
     const k = _normClient(nm);
     if (seen[k]) { // déjà vu (plus récent) : complète juste le téléphone s'il manquait
       if (!seen[k].phone && r.customer_phone) seen[k].phone = String(r.customer_phone).trim();
+      if (!seen[k].lastId && r.status !== 'annulee') seen[k].lastId = r.id;
       return;
     }
-    const e = { name: nm, phone: r.customer_phone ? String(r.customer_phone).trim() : '' };
+    const e = { name: nm, phone: r.customer_phone ? String(r.customer_phone).trim() : '', lastId: r.status !== 'annulee' ? r.id : null };
     seen[k] = e; out.push(e);
   });
   specialClientsIndex = out;
@@ -20969,6 +20984,7 @@ function pickSpecialClient(i) {
   const nom = document.getElementById('sp-client-nom'); if (nom) nom.value = c.name;
   const tel = document.getElementById('sp-client-tel'); if (tel && c.phone) tel.value = c.phone;
   const box = document.getElementById('sp-client-sug'); if (box) box.innerHTML = '';
+  specialChargerDernier(c);   // v20.332 — 📑 sa dernière commande
 }
 
 // v20.74 — messages de plaque préréglés (clic = remplit Notes, éditable ensuite)
@@ -21203,6 +21219,7 @@ html += '<div class="sp-form">';
 html += '<div class="sp-form-row"><label class="sp-lbl">Nom client *</label>';
 html += '<input class="sp-input" id="sp-client-nom" type="text" autocomplete="off" value="' + escapeHtml(d.customer_name) + '" placeholder="ex : M. Dupont" oninput="handleSpecialClientInput(this)">';
 html += '<div id="sp-client-sug"></div></div>';
+html += '<div id="sp-refaire-box">' + specialRefaireHtml(d) + '</div>';   // v20.332 — 📑 Refaire sa dernière commande
 
 // v20.329 — téléphone et « prise par » côte à côte : le formulaire est moins haut (Phil, 31/10)
 html += '<div class="sp-form-row-double">';
@@ -21430,9 +21447,111 @@ function specialPickerCats() {
   if (products.some(function(p) { return p.actif && specialEstPro(p); })) out.push(SPE_CAT_PROS);   // v20.331 — toujours en dernier
   return out;
 }
+// v20.332 — ⭐ LES PLUS COMMANDÉS ICI (Phil, 31/10, maquette speciales-favoris-mockup.html) : 8 grosses touches en tête
+// des produits, calculées toutes seules sur les commandes de la boutique des 60 derniers jours (nombre de lignes),
+// sans le surgelé. Un appui = +1. Chargées en arrière-plan : seule la boîte des touches se met à jour (jamais le
+// formulaire entier, pour ne pas fermer le clavier d'une vendeuse en train de taper).
+const SPE_FAV_NB = 8, SPE_FAV_JOURS = 60;
+let specialFavoris = {};   // { boutique: { at, ids: [product_id] } }
+async function loadSpecialFavoris(shop) {
+  const c = specialFavoris[shop];
+  if (c && Date.now() - c.at < 30 * 60000) return;
+  const depuis = addDaysISO(serviceDateISO(), -SPE_FAV_JOURS);
+  const { data: os, error } = await supa.from('special_orders').select('id,status').eq('tenant_id', TENANT_ID)
+    .eq('origin_shop', shop).gte('pickup_date', depuis).limit(3000);
+  if (error) return;
+  const ids = (os || []).filter(function(o) { return o.status !== 'annulee'; }).map(function(o) { return o.id; });
+  const n = {};
+  for (let i = 0; i < ids.length; i += 150) {
+    const r = await supa.from('special_order_items').select('product_id').in('order_id', ids.slice(i, i + 150));
+    if (r.error) return;
+    (r.data || []).forEach(function(it) { if (it.product_id) n[it.product_id] = (n[it.product_id] || 0) + 1; });
+  }
+  const nomDe = function(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.name : ''; };
+  const top = Object.keys(n).filter(function(pid) {
+    const p = products.find(function(x) { return x.id === pid; });
+    return p && p.actif && !specialEstPro(p);
+  }).sort(function(a, b) { return (n[b] - n[a]) || nomDe(a).localeCompare(nomDe(b)); }).slice(0, SPE_FAV_NB);
+  specialFavoris[shop] = { at: Date.now(), ids: top };
+}
+function specialFavorisHtml(d) {
+  const shop = d.origin_shop || currentBoutique;
+  const f = specialFavoris[shop];
+  if (!f || !f.ids.length) return '';
+  return '<div class="sp-fav-t">⭐ Les plus commandés à ' + escapeHtml(BOUTIQUE_NAMES[shop] || shop) + '</div><div class="sp-favs">'
+    + f.ids.map(function(pid) {
+        const p = products.find(function(x) { return x.id === pid; });
+        const q = (d.items || []).filter(function(it) { return it.product_id === pid; }).reduce(function(sm, it) { return sm + (parseQty(it.qty) || 0); }, 0);
+        return '<button type="button" class="sp-fav" onclick="specialSearchPick(\'' + pid + '\')">' + escapeHtml(specialProductName(p)) + (q ? '<span class="n">' + q + '</span>' : '') + '</button>';
+      }).join('') + '</div>';
+}
+function specialMajFavoris() {
+  const box = document.getElementById('sp-favs-box');
+  if (box && specialFormDraft) box.innerHTML = specialFavorisHtml(specialFormDraft);
+}
+
+// v20.332 — 📑 REFAIRE SA DERNIÈRE COMMANDE : quand on choisit un client reconnu (nom ou téléphone), un bandeau montre
+// sa dernière commande ; un appui la recopie (produits, quantités, 🔪, notes produit, prix tapés ; carte de la fête au
+// tarif du jour si la fête est en cours). Date, heure, paiement et note de commande restent à choisir (Phil : la note
+// change à chaque fois). Comme pour le chargement des favoris, seul le bandeau se met à jour.
+async function specialChargerDernier(c) {
+  const d = specialFormDraft;
+  if (!d || d.id || !c || !c.lastId) return;
+  const [o, it] = await Promise.all([
+    supa.from('special_orders').select('id,pickup_date').eq('id', c.lastId),
+    supa.from('special_order_items').select('*').eq('order_id', c.lastId).order('position')
+  ]);
+  if (o.error || it.error || !(o.data || []).length || !(it.data || []).length) return;
+  if (specialFormDraft !== d) return;   // formulaire fermé entre-temps
+  d.dernier = { nom: c.name, date: o.data[0].pickup_date, items: it.data };
+  d.dernierFait = false;
+  specialMajRefaire();
+}
+function specialRefaireHtml(d) {
+  if (!d.dernier) return '';
+  if (d.dernierFait) return '<div class="sp-refaire sp-refaire-ok">✓ Commande du ' + escapeHtml(formatDateFr(d.dernier.date)) + ' recopiée. Choisis la date et l\'heure, ajuste si besoin.</div>';
+  const det = d.dernier.items.map(function(it) { return (parseQty(it.qty) || 1) + ' × ' + specialItemName(it, '?') + (it.tranche ? ' 🔪' : ''); }).join(' · ');
+  return '<div class="sp-refaire">📑 <strong>Dernière commande de ' + escapeHtml(d.dernier.nom) + '</strong> — ' + escapeHtml(formatDateFr(d.dernier.date))
+    + '<div class="sp-refaire-det">' + escapeHtml(det) + '</div>'
+    + '<button type="button" class="sp-refaire-go" onclick="specialRefaire()">📑 Refaire cette commande</button>'
+    + '<button type="button" class="sp-refaire-non" onclick="specialFormDraft.dernier=null;specialMajRefaire()">Non merci</button></div>';
+}
+function specialMajRefaire() {
+  const box = document.getElementById('sp-refaire-box');
+  if (box && specialFormDraft) box.innerHTML = specialRefaireHtml(specialFormDraft);
+}
+function specialRefaire() {
+  const d = specialFormDraft; if (!d || !d.dernier) return;
+  d.fete = d.fete || {};
+  d.dernier.items.forEach(function(it) {
+    const q = parseQty(it.qty) || 1;
+    if (it.fete_product_id) {   // carte de la fête : seulement si le produit est sur la carte en cours, au tarif du jour
+      const fp = speCarteOuverte() && feteProducts.find(function(x) { return String(x.id) === String(it.fete_product_id) && x.actif !== false; });
+      if (!fp) return;
+      const e = d.fete[fp.id] || (d.fete[fp.id] = speCarteEntree(fp));
+      e.qty += q; e.tranche = e.tranche || !!it.tranche;
+      return;
+    }
+    if (it.product_id) {
+      const p = products.find(function(x) { return x.id === it.product_id && x.actif; });
+      if (!p) return;   // produit retiré du catalogue depuis
+      const deja = d.items.find(function(x) { return x.product_id === it.product_id && !(x.notes || '').trim() && !(it.notes || '').trim(); });
+      if (deja) { deja.qty = String((parseQty(deja.qty) || 0) + q); return; }
+      d.items.push({ product_id: it.product_id, product_name_custom: '', qty: String(q), notes: it.notes || '', category: p.category, tranche: !!it.tranche,
+        unit_price: it.unit_price == null || it.unit_price === '' ? null : +it.unit_price });
+      return;
+    }
+    if (it.product_name_custom) d.items.push({ product_id: null, product_name_custom: it.product_name_custom, qty: String(q), notes: it.notes || '',
+      category: '__custom', tranche: !!it.tranche, unit_price: it.unit_price == null || it.unit_price === '' ? null : +it.unit_price });
+  });
+  d.dernierFait = true;
+  renderSpecials();
+}
+
 function specialPickerHtml(d) {
   const q = d.recherche || '', cat = d.rechCat || '';
-  return '<div class="sp-psearch"><div class="sp-psearch-box">'
+  return '<div id="sp-favs-box">' + specialFavorisHtml(d) + '</div>'   // v20.332
+    + '<div class="sp-psearch"><div class="sp-psearch-box">'
     + '<span class="filter-icon">🔍</span>'
     + '<input id="sp-psearch-inp" type="text" autocomplete="off" placeholder="Tape 2 lettres : tradition, fraisier…" value="' + escapeHtml(q) + '" oninput="handleSpecialItemSearch(this.value)">'
     + '<button type="button" class="filter-clear" id="sp-psearch-clr" title="Effacer" style="' + (q ? '' : 'display:none') + '" onclick="specialSearchClear()">✕</button>'
