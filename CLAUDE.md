@@ -352,6 +352,17 @@ recherche et se range dans la catégorie **« 🧊 Pros (surgelé) »**, toujour
 supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les commandes des pros (onglet Pros, pro.html) ne changent pas.
 **v20.330** : l'avertissement d'un produit tapé à la main nomme le **vrai atelier** (atelier principal de la commande, ex. St-Avertin + bûches → Veigné) au lieu de toujours « restera à <boutique> ».
 
+**Écrans de production (v20.333, 31/10/2026, après le tour des écrans sur les vraies données)** :
+- **Colonnes de la grille** (les boulangers du Local : « masquer certaines colonnes ») : une colonne **vide toute la journée et sans case
+  à remplir** se cache toute seule ; **« ⚙️ Colonnes »** (barre au-dessus de la grille) = chaque tablette cache ce qu'elle veut, par écran
+  (`localStorage lbdd_prod_cols_<site>_<vue>`) ; Produit, Total et ✓ jamais. **Garde-fou** : une colonne cachée à la main qui porte un
+  chiffre l'affiche sous le total (« 👁 💼 Pros 260 »). Appliqué après l'affichage (`prodColonnesAppliquer`), le calcul ne change pas.
+- **Plaquettes à Veigné** : seulement les **gâteaux** (pâtisserie, texte libre, carte de fête sans fiche ; `plaquetteLigne`). Le 31/10 le
+  bloc annonçait 5 « plaquettes » qui étaient des consignes de cuisson de pains de Tours (« Bien blanches », « Pas trop cuit »).
+- Constats du tour (31/10), non traités : à Veigné la grille commence ~2,5 écrans plus bas (blocs au-dessus) ; coche ✓ utilisée 29 j/31
+  au Local, 4 j à Veigné, 1 j à Tours ; même info « commandes spéciales à produire » en fenêtre + bandeau + bloc ; « Tradition graines »
+  (pros) et « Tradition Graines » côte à côte au Local. Tests : spec 54 (+ specs 12 et 40 : plaquettes sur des tartes).
+
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
   retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL

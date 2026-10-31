@@ -186,18 +186,23 @@ tests.push({
   name: 'Veigné À produire — bloc « Plaquettes à écrire » : une plaquette par note, notes par produit (JA, 100 ans) ET note de commande, pour des gâteaux faits au Local',
   fn: async (ctx) => {
     const db = makeDB();
-    // pat_eclair : supply St-Av = veigne → ligne produite à Veigné (déjà dans son bloc Spéciales, pas ici)
-    // vt_trad : supply St-Av = local → produit au Local → plaquette à Veigné
+    // v20.333 — une plaquette, c'est sur un GÂTEAU : deux tartes faites au Local pour St-Avertin (supply = local),
+    // et un pain avec une consigne de cuisson qui ne doit PAS devenir une plaquette (bug du 31/10).
+    const eclair = db.products.find((p) => p.id === 'pat_eclair');
+    const tarte = (id, name) => Object.assign({}, eclair, { id, name, category: 'patisserie_gros', supply_by_boutique: JSON.stringify({ veigne: 'on_site', tours: 'local', 'saint-avertin': 'local' }) });
+    db.products.push(tarte('tv6', 'Tarte Vigneronne 6 pers.'), tarte('tp6', 'Tarte aux pommes 6 pers.'));
     db.special_orders = [
       { id: 'p1', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '10:00:00', customer_name: 'Saintin', status: 'confirmee', notes: null },
       { id: 'p2', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '10:00:00', customer_name: 'Wibaut', status: 'confirmee', notes: 'Joyeux 90 ans' },
       { id: 'p3', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '11:00:00', customer_name: 'SansNote', status: 'confirmee', notes: null },
+      { id: 'p4', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '12:00:00', customer_name: 'PainBienCuit', status: 'confirmee', notes: 'Merci' },
     ];
     db.special_order_items = [
-      { id: 'pi1', order_id: 'p1', product_id: 'vt_trad', qty: 1, position: 0, notes: 'JA' },
-      { id: 'pi2', order_id: 'p1', product_id: 'vt_trad_gr', qty: 1, position: 1, notes: '100 ans' },
-      { id: 'pi3', order_id: 'p2', product_id: 'vt_trad', qty: 1, position: 0, notes: 'Sans glucose sur le dessus' },
-      { id: 'pi4', order_id: 'p3', product_id: 'vt_trad', qty: 2, position: 0, notes: null },
+      { id: 'pi1', order_id: 'p1', product_id: 'tv6', qty: 1, position: 0, notes: 'JA' },
+      { id: 'pi2', order_id: 'p1', product_id: 'tp6', qty: 1, position: 1, notes: '100 ans' },
+      { id: 'pi3', order_id: 'p2', product_id: 'tv6', qty: 1, position: 0, notes: 'Sans glucose sur le dessus' },
+      { id: 'pi4', order_id: 'p3', product_id: 'tv6', qty: 2, position: 0, notes: null },
+      { id: 'pi5', order_id: 'p4', product_id: 'vt_trad', qty: 3, position: 0, notes: 'Bien blanches' },
     ];
     const page = await preparePage(ctx, { db });
     await gotoApp(page); await enterBoutique(page, 'veigne');
@@ -210,8 +215,8 @@ tests.push({
         clients: box ? Array.from(box.querySelectorAll('.prod-special-meta')).map(t) : null };
     });
     assert(r.tete === '✏️ Plaquettes & messages à écrire — 4 plaquettes · 2 commandes', 'en-tête avec compteur : ' + r.tete);
-    assert(r.clients.join('|') === '10:00 · Saintin · 🏪 retrait St-Avertin|10:00 · Wibaut · 🏪 retrait St-Avertin', 'Saintin (notes produit seulement) est là, SansNote non : ' + r.clients.join('|'));
-    assert(r.plaquettes.join('|') === '« JA »✏️ sur Tradition ×1 (gâteau fait par Le Local)|« 100 ans »✏️ sur Tradition Graines ×1 (gâteau fait par Le Local)|« Sans glucose sur le dessus »✏️ sur Tradition ×1 (gâteau fait par Le Local)|« Joyeux 90 ans »⭐ pour la commande : Tradition ×1 (gâteau fait par Le Local)', 'une plaquette par note, texte en clair : ' + JSON.stringify(r.plaquettes));
+    assert(r.clients.join('|') === '10:00 · Saintin · 🏪 retrait St-Avertin|10:00 · Wibaut · 🏪 retrait St-Avertin', 'Saintin (notes produit seulement) est là, SansNote non, PainBienCuit (pain, pas un gâteau) non : ' + r.clients.join('|'));
+    assert(r.plaquettes.join('|') === '« JA »✏️ sur Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)|« 100 ans »✏️ sur Tarte aux pommes 6 pers. ×1 (gâteau fait par Le Local)|« Sans glucose sur le dessus »✏️ sur Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)|« Joyeux 90 ans »⭐ pour la commande : Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)', 'une plaquette par note, texte en clair : ' + JSON.stringify(r.plaquettes));
     await page.close();
   },
 });

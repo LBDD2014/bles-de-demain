@@ -487,6 +487,12 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-total-l { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
 .sp-total small { display: block; opacity: .75; font-size: 12px; margin-top: 3px; }
 .sp-fete-badge { background: #F7EBED; color: #7C1F2E; border-radius: 10px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+/* v20.333 — colonnes de la grille de production */
+.prod-cols-btn { margin-left: auto; padding: 8px 12px; border-radius: 9px; border: 1px solid #D6CCB6; background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--grey); cursor: pointer; white-space: nowrap; }
+.prod-col-cache { display: block; font-size: 10.5px; font-weight: 700; color: var(--blue); line-height: 1.1; margin-top: 2px; }
+.prod-col-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px; margin-bottom: 6px; border-radius: 10px; border: 1.5px solid #E0D8C8; background: #fff; font-family: inherit; font-size: 15px; cursor: pointer; text-align: left; }
+.prod-col-opt small { color: var(--grey-light); font-size: 12px; }
+.prod-col-opt.off { background: #F4F1EA; color: var(--grey-light); border-style: dashed; }
 /* v20.329 — carte repliée par groupe */
 .sp-carte-grp { border-top: 1px solid #F1ECE2; }
 .sp-carte-gh { display: flex; align-items: center; gap: 8px; padding: 12px; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--grey-dark); user-select: none; -webkit-user-select: none; }
@@ -2845,7 +2851,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.332';
+const APP_VERSION  = 'v20.333';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -8784,7 +8790,7 @@ async function loadPlaquettesForProduction(date) {
   // certaines apparaîtraient deux fois (bloc Spéciales + bloc Plaquettes). On ne garde ici
   // que celles qu'elle ne voit vraiment nulle part ailleurs — et qui ont quelque chose à écrire.
   }).filter(function(o) {
-    return specialHasNotes(o) && !orderConcernsShop(o, 'veigne');
+    return plaquettesDe(o).length > 0 && !orderConcernsShop(o, 'veigne');   // v20.333 — seulement s'il y a une vraie plaquette
   }).sort(function(a, b) {
     return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99'));
   });
@@ -8794,15 +8800,26 @@ async function loadPlaquettesForProduction(date) {
 // v20.280 — UNE PLAQUETTE PAR NOTE, le texte en gros (Phil, 14/10 : « pas assez explicite »).
 // Chaque note (par produit ✏️ ou de commande ⭐) devient un cadre « à écrire : « JA » » avec,
 // dessous, sur quel gâteau elle va et où ce gâteau est fait. Compteur de plaquettes en tête.
+// v20.333 — une plaquette, c'est sur un GÂTEAU. Le 31/10, le bloc annonçait 5 plaquettes qui étaient des consignes
+// de cuisson de pains commandés à Tours (« Bien blanches », « Pas trop cuit », « Demi ») : on ne garde que les lignes
+// de pâtisserie, le texte libre (pièce montée, number cake) et la carte d'une fête sans fiche (bûches).
+function plaquetteLigne(it) {
+  if (!it) return false;
+  if (!it.product_id) return !!(it.fete_product_id || (it.product_name_custom && String(it.product_name_custom).trim()));
+  const p = products.find(function(x) { return x.id === it.product_id; });
+  return !!p && (p.category === 'patisserie_gros' || p.category === 'patisserie_petits');
+}
 function plaquettesDe(o) {
   const liste = [];
-  (o.items || []).forEach(function(it) {
+  const gateaux = (o.items || []).filter(plaquetteLigne);
+  if (!gateaux.length) return liste;
+  gateaux.forEach(function(it) {
     if (!specialItemHasNote(it)) return;
     const ps = getItemProductionShop(it, o);
     liste.push({ texte: String(it.notes).trim(), sur: specialItemName(it, '?') + ' ×' + (parseQty(it.qty) || 0), fait: BOUTIQUE_NAMES[ps] || ps });
   });
   if (specialOrderHasNote(o)) {
-    const tous = (o.items || []).map(function(it) { return specialItemName(it, '?') + ' ×' + (parseQty(it.qty) || 0); }).join(' · ');
+    const tous = gateaux.map(function(it) { return specialItemName(it, '?') + ' ×' + (parseQty(it.qty) || 0); }).join(' · ');
     liste.push({ texte: String(o.notes).trim(), sur: tous, fait: BOUTIQUE_NAMES[o.production_shop] || o.production_shop, commande: true });
   }
   return liste;
@@ -9287,6 +9304,97 @@ function recomputeRowTotal(el, pid) {
   refreshShopNet(row.querySelector('.matin-sa-input'), mSARaw, mSA, showResteNetV, 'net-sa', 'St-Avertin');
 }
 
+// === v20.333 — COLONNES DE LA GRILLE DE PRODUCTION (les boulangers du Local, via Phil, 31/10 : « est-ce qu'on peut
+// masquer certaines colonnes manuellement ? ») ===
+// · une colonne VIDE toute la journée (0 / — partout, sans case à remplir) se cache toute seule et revient au
+//   premier chiffre ;
+// · « ⚙️ Colonnes » : chaque tablette cache en plus ce qui ne la concerne pas (réglage gardé sur la tablette, par
+//   écran) ;
+// · garde-fou : une colonne cachée à la main qui porte un chiffre ce jour-là le signale sur le total de la ligne
+//   (« 👁 Pros 260 »), pour ne jamais oublier une commande. Produit, Total et ✓ ne se cachent jamais.
+// Appliqué APRÈS l'affichage (le calcul des chiffres ne change pas).
+let prodGridTpl = '';
+let prodColonnesInfo = [];   // [{ lbl, auto, manuel }] — pour la fenêtre ⚙️
+function prodColonnesCle() { return 'lbdd_prod_cols_' + currentBoutique + '_' + currentVue; }
+function prodColonnesCachees() {
+  try { const v = JSON.parse(localStorage.getItem(prodColonnesCle()) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+function prodColLabel(h) { return String((h.childNodes[0] && h.childNodes[0].textContent) || h.textContent || '').replace(/\s+/g, ' ').trim(); }
+function prodCelluleSaisie(c) { return c.matches('input, select, button') || !!c.querySelector('input, select, button'); }
+function prodCelluleValeur(c) {
+  const inp = c.matches('input, select') ? c : c.querySelector('input');
+  const t = (inp ? inp.value : c.textContent || '').replace(/[✏️⭐💼]/gu, '').replace(/\s+/g, ' ').trim();
+  return (t === '' || t === '-' || t === '—' || t === '0') ? '' : t;
+}
+function prodColonnesAppliquer() {
+  prodColonnesInfo = [];
+  const table = document.querySelector('#main-content .prod-table');
+  const head = table && table.querySelector('.prod-table-header');
+  if (!head || !prodGridTpl) return;
+  const tracks = prodGridTpl.trim().split(/\s+/);
+  const heads = Array.from(head.children);
+  if (heads.length !== tracks.length) return;   // garde-fou : grille inattendue, on ne touche à rien
+  const rows = Array.from(table.querySelectorAll('.prod-row')).filter(function(r) { return r.children.length === heads.length; });
+  const manuel = prodColonnesCachees();
+  const cachees = [];
+  heads.forEach(function(h, i) {
+    const lbl = prodColLabel(h);
+    if (i === 0 || i === heads.length - 1 || h.classList.contains('col-total')) return;   // Produit, Total, ✓
+    const editable = rows.some(function(r) { return prodCelluleSaisie(r.children[i]); });
+    const vide = rows.every(function(r) { return !prodCelluleValeur(r.children[i]); });
+    const m = manuel.indexOf(lbl) !== -1, a = vide && !editable;
+    prodColonnesInfo.push({ lbl: lbl, auto: a, manuel: m, vide: vide });
+    if (m || a) cachees.push({ i: i, lbl: lbl, manuel: m });
+  });
+  if (!cachees.length) return;
+  const idx = cachees.map(function(c) { return c.i; });
+  const tpl = tracks.filter(function(t, i) { return idx.indexOf(i) === -1; }).join(' ');
+  [head].concat(rows).forEach(function(r) {
+    r.style.gridTemplateColumns = tpl;
+    idx.forEach(function(i) { r.children[i].style.display = 'none'; });
+  });
+  // garde-fou : ce qui est caché à la main mais non vide se lit sur le total de la ligne
+  const totalIdx = heads.findIndex(function(h) { return h.classList.contains('col-total'); });
+  if (totalIdx === -1) return;
+  rows.forEach(function(r) {
+    const vus = cachees.filter(function(c) { return c.manuel; }).map(function(c) {
+      const v = prodCelluleValeur(r.children[c.i]);
+      return v ? c.lbl + ' ' + v : '';
+    }).filter(Boolean);
+    if (vus.length) r.children[totalIdx].insertAdjacentHTML('beforeend', '<span class="prod-col-cache" title="Colonne cachée sur cette tablette">👁 ' + escapeHtml(vus.join(' · ')) + '</span>');
+  });
+}
+function openProdColonnes() {
+  closeProdColonnes();
+  let h = '<div class="pros-detail-overlay" id="prod-cols-host" onclick="if(event.target===this)closeProdColonnes()"><div class="pros-detail-modal">'
+    + '<div class="pros-detail-title">⚙️ Colonnes de cet écran</div>'
+    + '<div style="font-size:12.5px;color:var(--grey-light);margin:-4px 0 10px">Réglage gardé sur cette tablette. Une colonne vide aujourd\'hui se cache toute seule. Produit, Total et ✓ restent toujours.</div>';
+  if (!prodColonnesInfo.length) h += '<div class="empty-state" style="padding:10px">Pas de colonne à régler sur cet écran.</div>';
+  prodColonnesInfo.forEach(function(c, k) {
+    const etat = c.manuel ? 'cachée par toi' : (c.auto ? 'vide aujourd\'hui (cachée toute seule)' : 'visible');
+    h += '<button type="button" class="prod-col-opt' + (c.manuel ? ' off' : '') + '" onclick="toggleProdColonne(' + k + ')">'
+      + '<span>' + (c.manuel ? '🙈' : '👁') + ' <strong>' + escapeHtml(c.lbl) + '</strong></span><small>' + escapeHtml(etat) + '</small></button>';
+  });
+  h += '<button type="button" class="btn-gold" style="width:100%;margin-top:12px;padding:12px" onclick="closeProdColonnes()">OK</button>'
+    + (prodColonnesCachees().length ? '<button type="button" class="btn-grey" style="width:100%;margin-top:8px;padding:10px" onclick="prodColonnesToutVoir()">Tout réafficher</button>' : '')
+    + '</div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+}
+function closeProdColonnes() { const el = document.getElementById('prod-cols-host'); if (el) el.remove(); }
+function prodColonnesEnregistrer(liste) {
+  try { localStorage.setItem(prodColonnesCle(), JSON.stringify(liste)); } catch (e) {}
+  renderProduction();
+  openProdColonnes();
+}
+function toggleProdColonne(k) {
+  const c = prodColonnesInfo[k]; if (!c) return;
+  const liste = prodColonnesCachees();
+  const i = liste.indexOf(c.lbl);
+  if (i === -1) liste.push(c.lbl); else liste.splice(i, 1);
+  prodColonnesEnregistrer(liste);
+}
+function prodColonnesToutVoir() { prodColonnesEnregistrer([]); }
+
 function renderProduction() {
 const mc = document.getElementById('main-content');
 const isToday = (currentReapproDate === serviceDateISO());
@@ -9402,6 +9510,7 @@ const fixedColsBefore = '1.3fr'
 const marketColsTpl = activeMarketsForGrid.map(function() { return '0.6fr'; }).join(' ');
 const fixedColsAfter = '0.55fr' + (showProdStockEcart ? ' 0.7fr 0.7fr 0.7fr' : '') + ' 108px';   // v20.262 — ✓ ; v20.270 — + « partiel… »
 const gridTpl = fixedColsBefore + (marketColsTpl ? ' ' + marketColsTpl : '') + ' ' + fixedColsAfter;
+prodGridTpl = gridTpl;   // v20.333 — colonnes cachées (prodColonnesAppliquer)
 
 const rows = allProducts.map(function(p) {
 const vV = productionData['veigne'] ? productionData['veigne'][p.id] : null;
@@ -9656,6 +9765,7 @@ html += '<div class="prod-filter-bar"><label>'
   + '<span class="prod-done-count' + (faites === aFaire.length ? ' all' : '') + '">✓ ' + faites + ' / ' + aFaire.length + ' lignes faites' + (partiels ? ' · ' + partiels + ' en cours' : '') + '</span>'
   // v20.271 — « Tout valider » : coche d'un coup tout ce qui reste (partiels compris)
   + (productionRestantes.length ? '<button type="button" class="btn-gold-sm prod-valider-tout" onclick="validerToutProduction()">✓ Tout valider (' + productionRestantes.length + ')</button>' : '') : '')
++ '<button type="button" class="prod-cols-btn" onclick="openProdColonnes()">⚙️ Colonnes' + (prodColonnesCachees().length ? ' (' + prodColonnesCachees().length + ' cachée' + (prodColonnesCachees().length > 1 ? 's' : '') + ')' : '') + '</button>'   // v20.333
 + '</div>';
 
 if (!filtered.length) {
@@ -9995,6 +10105,7 @@ if (isLocalBoul || isLocalTour) {
 }
 
 mc.innerHTML = html;
+prodColonnesAppliquer();   // v20.333 — colonnes vides / cachées sur cette tablette
 }
 
 // === MARCHES ===

@@ -48,13 +48,16 @@ async function selecteurProduits(ctx, db, categorie) {
 /** Commande produite au Local, avec une note : la plaquette est pour Veigné. */
 function dbPlaquette(extra) {
   const db = makeDB();
+  // v20.333 — une plaquette va sur un gâteau : tarte faite au Local pour St-Avertin
+  const eclair = db.products.find((p) => p.id === 'pat_eclair');
+  db.products.push(Object.assign({}, eclair, { id: 'tv6', name: 'Tarte Vigneronne 6 pers.', category: 'patisserie_gros', supply_by_boutique: JSON.stringify({ veigne: 'on_site', tours: 'local', 'saint-avertin': 'local' }) }));
   db.special_orders = [Object.assign({
     id: 'cmd-vig', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local',
     customer_name: 'Me caplan', pickup_date: TEST_TODAY, pickup_time: '10:00',
     delivery_type: 'pickup', status: 'nouvelle', notes: 'Joyeux anniversaire',
   }, extra || {})];
   db.special_order_items = [
-    { id: 'it-vig', order_id: 'cmd-vig', product_id: 'vt_trad', qty: 2, tranche: false,
+    { id: 'it-vig', order_id: 'cmd-vig', product_id: 'tv6', qty: 2, tranche: false,
       notes: null, product_name_custom: null },
   ];
   return db;
