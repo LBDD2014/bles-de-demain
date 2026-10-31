@@ -487,6 +487,15 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-total-l { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
 .sp-total small { display: block; opacity: .75; font-size: 12px; margin-top: 3px; }
 .sp-fete-badge { background: #F7EBED; color: #7C1F2E; border-radius: 10px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+/* v20.334 — tiroirs au-dessus de la grille de production */
+.prod-tiroirs { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 10px; }
+.prod-tiroirs > .prod-tiroir { flex: 1 1 230px; margin: 0 !important; min-width: 0; }
+.prod-tiroirs > .prod-tiroir.open { flex-basis: 100%; order: 5; }
+.prod-tiroir .prod-specials-header { cursor: pointer; }
+.prod-tiroir.a-lire { border-color: var(--red) !important; box-shadow: 0 0 0 1px var(--red) inset; }
+.prod-tiroir-lire { display: inline-block; background: var(--red); color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+.prod-tiroir-fete { border-color: #E3C9CE; }
+.prod-tiroir-fete .prod-specials-header { background: #F7EBED; color: #7C1F2E; }
 /* v20.333 — colonnes de la grille de production */
 .prod-cols-btn { margin-left: auto; padding: 8px 12px; border-radius: 9px; border: 1px solid #D6CCB6; background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--grey); cursor: pointer; white-space: nowrap; }
 .prod-col-cache { display: block; font-size: 10.5px; font-weight: 700; color: var(--blue); line-height: 1.1; margin-top: 2px; }
@@ -2851,7 +2860,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.333';
+const APP_VERSION  = 'v20.334';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3154,8 +3163,11 @@ async function loadShopPeople() {
 let productionSpecialOrders = [];     // array de commandes (avec items inclus)
 let productionSpecialByProduct = {};  // map { product_id: total_qty }
 let productionSpecialNotesByProduct = {}; // v20.277 — { product_id: true } si une ligne faite ici porte une note (ou sa commande)
-let productionSpecialsExpanded = false; // état déplié du bloc spéciales
-let productionSpecialsTouched = false;  // v20.277 — l'équipe a replié/déplié elle-même : on respecte son choix
+// v20.334 — les blocs au-dessus de la grille deviennent des TIROIRS (Phil, 31/10, maquette production-veigne-mockup.html) :
+// une rangée de boutons (⭐ Spéciales du jour, ✏️ Plaquettes, 🍕 Ardoise, 🎄 Noël à produire), un seul ouvert à la fois,
+// pastille rouge « à lire » sur un tiroir fermé qui contient une note / un texte libre / une plaquette. La grille arrive
+// tout de suite. Remplace l'ouverture automatique des Spéciales du jour (v20.277).
+let productionTiroir = '';   // '' | 'spe' | 'plq' | 'ard' | 'noel'
 // v20.8 — bloc Réassorts magasins (consultation, replié par défaut) pour Veigné Pâtissier
 let productionReassortsExpanded = false;
 // v20.9 — Matin Veigné depuis sales (besoin saisi par la vendeuse) pour Veigné Pâtissier
@@ -4278,6 +4290,7 @@ await loadLivreurProOrders(currentDate);
 subscribeRealtimeLivreurProOrders();
 renderLivraison();
 } else if (v === 'production' || v === 'prod_boul' || v === 'prod_tour') {
+if (feteActive && feteProdSite()) await loadFeteOrders();   // v20.334 — tiroir 🎄 à produire
 // v20.15 : Le Local split en prod_boul (pains) / prod_tour (viennoiserie+brioches)
 productionSupplierMode = (currentBoutique === 'veigne') ? 'veigne' : 'local';
 await loadProduction(currentReapproDate);
@@ -4317,7 +4330,7 @@ checkTourierReassortAlert(true);
 }
 // v20.182 — commandes spéciales à produire : chaque site producteur (Local, Veigné, Tours)
 if (['local', 'veigne', 'tours'].indexOf(currentBoutique) !== -1) {
-checkSpecialsProductionAlert(true);
+checkSpecialsProductionAlert();   // v20.334 — plus de fenêtre : le bandeau suffit (Phil, 31/10)
 }
 // v21.0.4.3 — Charger les commandes pros du jour pour cette boutique
 // Aussi adminPros + adminProducts pour les noms / catégories
@@ -4675,6 +4688,47 @@ function feteProdHtml() {
     html += '</div>';
   });
   return html;
+}
+// v20.334 — 🎄 « Noël à produire » dans l'écran de production (Phil, 31/10 : plus d'aller-retour vers l'onglet de la fête).
+// Les produits de la carte SANS fiche (bûches, douceurs → Veigné ; petits pains de table, demi norvégien… → Boulangers
+// du Local) pour le jour affiché ; un appui sur un total ouvre le détail client par client (même fenêtre que l'onglet).
+function feteTiroirHtml() {
+  if (!feteActive) return '';
+  const site = feteProdSite();
+  if (!site || (site === 'local' && currentVue !== 'prod_boul')) return '';
+  const d = currentReapproDate;
+  const cmds = feteProdCommandes().filter(function(o) { return o.pickup_date === d && feteItemsPourSite(o, site).length; });
+  if (!cmds.length) return '';
+  const agg = {};
+  cmds.forEach(function(o) {
+    feteItemsPourSite(o, site).forEach(function(it) {
+      const pk = it.nom + (it.taille ? ' — ' + it.taille : '');
+      const g = agg[pk] = agg[pk] || { qty: 0, lignes: [], note: false };
+      g.qty += (+it.qty || 0); g.lignes.push({ o: o, it: it });
+      if (o.notes && String(o.notes).trim()) g.note = true;
+    });
+  });
+  const total = Object.keys(agg).reduce(function(sm, k) { return sm + agg[k].qty; }, 0);
+  const aLire = cmds.filter(function(o) { return o.notes && String(o.notes).trim(); }).length;
+  const ouvert = productionTiroir === 'noel';
+  let h = '<div class="prod-specials-box prod-tiroir prod-tiroir-fete' + (ouvert ? ' open' : '') + (aLire && !ouvert ? ' a-lire' : '') + '">'
+    + '<div class="prod-specials-header" onclick="toggleProductionTiroir(\'noel\')"><span>' + escapeHtml(feteActive.label) + ' <strong>à produire</strong> — '
+    + total + ' pièce' + (total > 1 ? 's' : '') + ' · ' + cmds.length + ' commande' + (cmds.length > 1 ? 's' : '') + prodTiroirLireHtml(aLire, ouvert) + '</span>'
+    + '<span class="prod-specials-toggle">' + (ouvert ? '▲' : '▼') + '</span></div>';
+  if (!ouvert) return h + '</div>';
+  feteProdGroups = [];
+  h += '<div class="prod-specials-body">';
+  Object.keys(agg).sort().forEach(function(pk) {
+    const idx = feteProdGroups.push({ date: d, pk: pk, lignes: agg[pk].lignes }) - 1;
+    h += '<div class="produit-row fete-prod-row" style="grid-template-columns:1fr 90px" onclick="openFeteDetailModal(' + idx + ')">'
+      + '<div class="produit-name">' + escapeHtml(pk) + '</div><div class="traiteur-total"><strong>' + agg[pk].qty + '</strong>' + (agg[pk].note ? ' ✏️' : '') + '</div></div>';
+  });
+  cmds.filter(function(o) { return o.notes && String(o.notes).trim(); }).forEach(function(o) {
+    h += '<div class="fete-prod-note-row"><div class="prod-special-meta"><strong>' + escapeHtml(o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—') + '</strong> · '
+      + escapeHtml(o.customer_name || '(sans nom)') + ' <em style="font-style:normal;color:var(--grey-light);font-size:12px">🏪 ' + escapeHtml(BOUTIQUE_NAMES[o.origin_shop] || o.origin_shop || '?') + '</em></div>'
+      + feteNoteHtml(o, 'margin:4px 0 0') + '</div>';
+  });
+  return h + '</div></div>';
 }
 // Fenêtre « qui a commandé quoi » derrière un total de production Fêtes — même rendu que ⭐ Spé.
 function openFeteDetailModal(idx) {
@@ -8754,7 +8808,7 @@ productionSpecialOrders.forEach(function(o) {
 // le bloc s'ouvre tout seul (sauf si l'équipe l'a replié elle-même sur cet écran).
 // v20.281 — …et seulement si la note concerne une ligne faite ICI (sinon Veigné voyait tout s'ouvrir
 // pour une note destinée au Local).
-if (!productionSpecialsTouched && productionSpecialOrders.some(function(o) { return specialALireIci(o, currentBoutique); })) productionSpecialsExpanded = true;
+// v20.334 — plus d'ouverture automatique (Phil, 31/10) : le tiroir reste fermé, sa pastille rouge « à lire » suffit.
 }
 
 // v20.201 — Plaquettes à faire à Veigné pour des commandes produites AILLEURS.
@@ -8827,11 +8881,14 @@ function plaquettesDe(o) {
 function plaquettesBlockHtml() {
   if (!productionPlaqueOrders.length) return '';
   const nbPlaq = productionPlaqueOrders.reduce(function(n, o) { return n + plaquettesDe(o).length; }, 0);
-  let h = '<div class="prod-specials-box" style="border-color:var(--brown-mid)">'
-    + '<div class="prod-specials-header" style="background:var(--brown-mid);color:#fff">'
+  const ouvert = productionTiroir === 'plq';   // v20.334 — tiroir
+  let h = '<div class="prod-specials-box prod-tiroir' + (ouvert ? ' open' : ' a-lire') + '" style="border-color:var(--brown-mid)">'
+    + '<div class="prod-specials-header" style="background:var(--brown-mid);color:#fff" onclick="toggleProductionTiroir(\'plq\')">'
     + '<span>✏️ <strong>Plaquettes &amp; messages à écrire</strong> — ' + nbPlaq + ' plaquette' + (nbPlaq > 1 ? 's' : '')
-    + ' · ' + productionPlaqueOrders.length + ' commande' + (productionPlaqueOrders.length > 1 ? 's' : '') + '</span></div>'
-    + '<div class="prod-specials-body">'
+    + ' · ' + productionPlaqueOrders.length + ' commande' + (productionPlaqueOrders.length > 1 ? 's' : '') + prodTiroirLireHtml(nbPlaq, ouvert) + '</span>'
+    + '<span class="prod-specials-toggle">' + (ouvert ? '▲' : '▼') + '</span></div>';
+  if (!ouvert) return h + '</div>';
+  h += '<div class="prod-specials-body">'
     + '<div style="font-size:11.5px;color:var(--grey-light);padding:2px 2px 8px">'
     + 'Le gâteau est fait dans une autre boutique — la plaquette, elle, se fait ici.</div>';
   productionPlaqueOrders.forEach(function(o) {
@@ -9157,11 +9214,12 @@ renderProduction();
 }
 
 // v20.7 — déplie/replie le bloc Spéciales en haut de "À produire"
-function toggleProductionSpecials() {
-productionSpecialsExpanded = !productionSpecialsExpanded;
-productionSpecialsTouched = true;   // v20.277
+function toggleProductionTiroir(id) {
+productionTiroir = productionTiroir === id ? '' : id;
 renderProduction();
 }
+function toggleProductionSpecials() { toggleProductionTiroir('spe'); }
+function prodTiroirLireHtml(n, open) { return (n && !open) ? '<span class="prod-tiroir-lire">✏️ ' + n + ' à lire</span>' : ''; }
 
 // v20.8 — déplie/replie le bloc Réassorts magasins (consultation)
 function toggleProductionReassorts() {
@@ -9662,7 +9720,6 @@ if (isLocalBoul || isLocalTour) {
 // (production_shop pour les spéciales, supply = le site pour les réassorts).
 html += specialsProductionBannerHtml();
 html += tourierReassortBannerHtml();
-html += ardoisePanelHtml();   // v20.251 — focaccias : garnitures du moment + restes de la veille
 
 // v20.10.1 — KPI épuré pour Veigné Pâtissier : juste le Total
 // v20.19 — Le Local Prod. Boulangers/Touriers : même règle (KPI simplifié)
@@ -9678,6 +9735,8 @@ if (isVeignePat || isLocalBoul || isLocalTour) {
     + '</div>';
 }
 
+// v20.334 — tiroirs : chaque bloc est construit à part puis rangé dans la rangée de tiroirs
+const _avantTiroirs = html; html = '';
 // v20.7 — Bloc Spéciales du jour (repliable) pour pâtissiers/boulangers
 if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   const nbCmd = productionSpecialOrders.length;
@@ -9685,14 +9744,16 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   // v20.277 / v20.281 — compteurs : ce qu'il y a à lire POUR cet atelier
   const nbNotes = productionSpecialOrders.reduce(function(n, o) { return n + specialNotesIci(o, currentBoutique); }, 0);
   const nbLibres = productionSpecialOrders.reduce(function(n, o) { return n + specialLibresIci(o, currentBoutique); }, 0);
-  html += '<div class="prod-specials-box">'
-    + '<div class="prod-specials-header" onclick="toggleProductionSpecials()">'
+  const speOuvert = productionTiroir === 'spe';
+  html += '<div class="prod-specials-box prod-tiroir' + (speOuvert ? ' open' : '') + (nbNotes + nbLibres && !speOuvert ? ' a-lire' : '') + '">'
+    + '<div class="prod-specials-header" onclick="toggleProductionTiroir(\'spe\')">'
     + '<span>⭐ <strong>Spéciales du jour</strong> — ' + nbCmd + ' commande' + (nbCmd > 1 ? 's' : '') + ' · ' + totalProducts + ' produit' + (totalProducts > 1 ? 's' : '')
     + (nbNotes ? ' · <span class="prod-specials-notes">✏️ ' + nbNotes + ' note' + (nbNotes > 1 ? 's' : '') + '</span>' : '')
-    + (nbLibres ? ' · <span class="prod-specials-notes">📝 ' + nbLibres + ' texte' + (nbLibres > 1 ? 's' : '') + ' libre' + (nbLibres > 1 ? 's' : '') + '</span>' : '') + '</span>'
-    + '<span class="prod-specials-toggle">' + (productionSpecialsExpanded ? '▲' : '▼') + '</span>'
+    + (nbLibres ? ' · <span class="prod-specials-notes">📝 ' + nbLibres + ' texte' + (nbLibres > 1 ? 's' : '') + ' libre' + (nbLibres > 1 ? 's' : '') + '</span>' : '')
+    + prodTiroirLireHtml(nbNotes + nbLibres, speOuvert) + '</span>'
+    + '<span class="prod-specials-toggle">' + (speOuvert ? '▲' : '▼') + '</span>'
     + '</div>';
-  if (productionSpecialsExpanded) {
+  if (speOuvert) {
     html += '<div class="prod-specials-body">';
     // v20.167 — groupé par magasin de retrait (couleur par boutique), heures triées dans chaque groupe
     const speGroups = {};
@@ -9740,17 +9801,10 @@ if (showSpe && productionSpecialOrders && productionSpecialOrders.length) {
   html += '</div>';
 }
 
+const tirSpe = html; html = _avantTiroirs;
 // v20.201 — Veigné fabrique les plaquettes, y compris pour des gâteaux produits ailleurs
-if (isVeignePat) html += plaquettesBlockHtml();
-
-const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
-if (hasReportable) {
-html += '<div class="copy-stock-box">'
-
-+ '<div class="copy-stock-txt">Reporter le stock de la veille pour Ingrédients, Sec & Traiteur, Gâteaux Secs.</div>'
-+ `<button class="btn-gold-sm" onclick="copyStockFromPreviousDay()">Reporter les stocks d'hier</button>`
-+ '</div>';
-  }
+const tiroirs = [tirSpe, isVeignePat ? plaquettesBlockHtml() : '', ardoiseTiroirHtml(), feteTiroirHtml()].filter(Boolean);
+if (tiroirs.length) html += '<div class="prod-tiroirs">' + tiroirs.join('') + '</div>';
 
 // v20.262 — combien de lignes sont faites et parties
 const aFaire = filtered.filter(function(r) { return !r._plansec && r.total > 0; });
@@ -10098,6 +10152,16 @@ if (isVeignePat) {
     html += '</div>';
   }
 }
+
+// v20.334 — en bas de l'écran : on s'en sert une fois par jour
+const hasReportable = allProducts.some(function(p) { return REPORTABLE_CATS.indexOf(p.category) !== -1; });
+if (hasReportable) {
+html += '<div class="copy-stock-box">'
+
++ '<div class="copy-stock-txt">Reporter le stock de la veille pour Ingrédients, Sec & Traiteur, Gâteaux Secs.</div>'
++ `<button class="btn-gold-sm" onclick="copyStockFromPreviousDay()">Reporter les stocks d'hier</button>`
++ '</div>';
+  }
 
 // v20.42 — Section "À anticiper J+1 → J+6" en bas de Prod. Boulangers / Touriers
 if (isLocalBoul || isLocalTour) {
@@ -17047,7 +17111,7 @@ function isProductionVue() {
   return currentVue === 'prod_boul' || currentVue === 'prod_tour' || currentVue === 'production';
 }
 
-async function checkSpecialsProductionAlert(showPopup) {
+async function checkSpecialsProductionAlert() {
   if (['local', 'veigne', 'tours'].indexOf(currentBoutique) === -1) return;
   const d0 = todayISO(), d1 = addDays(d0, 1);
   const { data, error } = await supa.from('special_orders')
@@ -17072,15 +17136,6 @@ async function checkSpecialsProductionAlert(showPopup) {
   });
   productionPendingSpecials = { total: total, parts: parts };
   if (isProductionVue()) renderProduction();
-  if (showPopup) {
-    const key = 'lbdd_specials_popup_' + currentBoutique + '_' + d0;
-    let seen = false;
-    try { seen = !!localStorage.getItem(key); } catch (e) {}
-    if (!seen) {
-      openSpecialsProductionPopup();
-      try { localStorage.setItem(key, '1'); } catch (e) {}
-    }
-  }
 }
 
 function specialsProductionBannerHtml() {
@@ -17092,28 +17147,6 @@ function specialsProductionBannerHtml() {
     + ' → appuie ici pour voir le détail</div></div>';
 }
 
-function closeSpecialsProductionPopup() {
-  const el = document.getElementById('specials-popup');
-  if (el) el.remove();
-}
-function openSpecialsProductionPopup() {
-  if (!productionPendingSpecials) return;
-  closeSpecialsProductionPopup();
-  const s = productionPendingSpecials;
-  const div = document.createElement('div');
-  div.id = 'specials-popup';
-  div.style.cssText = 'position:fixed;inset:0;background:rgba(46,48,68,.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
-  div.innerHTML = '<div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
-    + '<div style="font-size:40px;margin-bottom:8px">⭐</div>'
-    + '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:20px;font-weight:700;color:var(--brown);margin-bottom:10px">'
-    + s.total + ' commande' + (s.total > 1 ? 's' : '') + ' spéciale' + (s.total > 1 ? 's' : '') + ' à produire</div>'
-    + '<div style="font-size:14.5px;color:var(--grey);line-height:1.6;margin-bottom:16px">' + s.parts.map(escapeHtml).join('<br>') + '</div>'
-    + '<button onclick="closeSpecialsProductionPopup();setVue(\'specials\')" style="background:var(--gold);color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px">Voir les commandes</button>'
-    + '<button onclick="closeSpecialsProductionPopup()" style="background:none;border:none;color:var(--grey-light);font-size:14px;cursor:pointer;padding:6px">Plus tard</button>'
-    + '</div>';
-  document.body.appendChild(div);
-  playMessageBeep(false);
-}
 
 async function checkTourierReassortAlert(showPopup) {
   // v20.182 — étendu à Veigné (elle prépare pour Tours et St-Av). Cloisonnement strict :
@@ -19701,6 +19734,19 @@ function ardoiseProdSite() {
   if (currentBoutique === 'tours' && currentVue === 'production') return 'tours';
   if (currentBoutique === 'local' && currentVue === 'prod_boul') return 'local';
   return null;
+}
+// v20.334 — l'ardoise focaccia en tiroir : fermée, une ligne avec les garnitures du moment
+function ardoiseTiroirHtml() {
+  const corps = ardoisePanelHtml();
+  if (!corps) return '';
+  const site = ardoiseProdSite();
+  const noms = [];
+  ARDOISE_PIDS.forEach(function(pid) { ardoiseSlots(site, pid).forEach(function(sl) { if (sl.nom.trim()) noms.push(sl.nom.trim()); }); });
+  const ouvert = productionTiroir === 'ard';
+  return '<div class="prod-specials-box prod-tiroir' + (ouvert ? ' open' : '') + '">'
+    + '<div class="prod-specials-header" onclick="toggleProductionTiroir(\'ard\')"><span>🍕 <strong>Ardoise focaccia</strong> — ' + (noms.length ? escapeHtml(noms.join(' · ')) : 'vide') + '</span>'
+    + '<span class="prod-specials-toggle">' + (ouvert ? '▲' : '▼') + '</span></div>'
+    + (ouvert ? '<div class="prod-specials-body">' + corps + '</div>' : '') + '</div>';
 }
 function ardoisePanelHtml() {
   const site = ardoiseProdSite();

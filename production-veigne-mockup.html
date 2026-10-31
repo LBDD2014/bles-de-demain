@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Production Veigné</title>
+<!-- Maquette (pas l'app) — Phil, 31/10/2026, après le tour des écrans de production : « À produire » de Veigné.
+     Grille dès le premier écran, une seule alerte, tiroirs, bloc Noël. Chiffres inspirés du 31/10 ; rien n'est enregistré. -->
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --blue: #2C5F8A; --fete: #7C1F2E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #8f8a80; color: var(--brown); padding: 18px 16px 50px; }
+  .page { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .card { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .full { grid-column: 1 / -1; }
+  h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; color: var(--grey-dark); }
+  h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; color: var(--grey-dark); margin-bottom: 4px; }
+  .sub { font-size: 13.5px; color: var(--grey-light); line-height: 1.45; margin: 4px 0 10px; }
+  .sub b { color: var(--brown); }
+  .opts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .opts label { font-size: 13px; background: #FAF6EE; border: 1px solid #E5DCC8; border-radius: 8px; padding: 6px 10px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+  .tablet { width: 100%; height: 980px; border: 9px solid var(--grey-dark); border-radius: 22px; background: var(--cream); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .tlabel { position: absolute; top: -26px; left: 4px; font-size: 13px; font-weight: 700; color: #fff; }
+  .wrap { position: relative; margin-top: 30px; }
+  .appbar { background: var(--grey-dark); color: #fff; padding: 9px 12px; font-size: 13px; display: flex; justify-content: space-between; }
+  .appbar b { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; }
+  .scroll { flex: 1; overflow-y: auto; padding: 8px 10px 16px; }
+  .rappel { background: #EEF2F8; border-bottom: 1px solid #C9D6E6; font-size: 12px; padding: 6px 10px; }
+  .datebar { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; font-size: 14px; }
+  .datebar span.n { border: 1.5px solid var(--gold); border-radius: 8px; padding: 4px 10px; color: var(--gold-dark); }
+  .filtre { background: #fff; border: 1px solid #DDD3BE; border-radius: 9px; padding: 8px 10px; color: #999; font-size: 13.5px; margin-bottom: 8px; }
+  .blk { border-radius: 10px; margin-bottom: 8px; padding: 10px; font-size: 12.5px; line-height: 1.4; }
+  .blk.spe { background: #FFF8E7; border: 1px solid #EBD9A8; }
+  .blk.plq { background: #FFF8E7; border: 1px solid var(--brown-mid); }
+  .blk.foc { background: #fff; border: 1px solid #EBD9A8; }
+  .blk.al { background: #fff; border-left: 4px solid var(--gold-dark); }
+  .ord { border-left: 3px solid var(--gold-dark); padding: 4px 8px; margin: 5px 0; background: #fff; border-radius: 6px; }
+  .ord b { font-size: 12.5px; }
+  .pill { display: inline-block; border: 1px solid #DDD3BE; border-radius: 10px; padding: 1px 7px; margin: 2px 2px 0 0; font-size: 11.5px; background: #fff; }
+  .plaq { border: 2px solid var(--brown-mid); border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 18px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
+  .plaq small { display: block; font-family: Georgia, serif; font-size: 11.5px; font-weight: 400; }
+  .modal { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 5; }
+  .modal div { background: #fff; border-radius: 14px; padding: 16px 20px; text-align: center; font-size: 14px; width: 70%; }
+  .modal button { display: block; width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 9px; background: var(--gold); color: #fff; font-weight: 700; font-family: inherit; }
+
+  /* Proposé */
+  .alerte { display: flex; align-items: center; gap: 8px; background: #FFF3D6; border: 1.5px solid var(--gold); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
+  .alerte b { color: var(--gold-dark); }
+  .tiroirs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tir { flex: 1 1 auto; min-width: 120px; padding: 9px 10px; border-radius: 10px; border: 1.5px solid #E5DCC8; background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--brown); cursor: pointer; text-align: left; position: relative; }
+  .tir small { display: block; font-weight: 400; font-size: 11.5px; color: var(--grey-light); }
+  .tir.on { border-color: var(--gold-dark); background: #FFFBEF; }
+  .tir.lire { border-color: var(--red); }
+  .tir .lire-b { position: absolute; top: -8px; right: -4px; background: var(--red); color: #fff; font: 700 10.5px Arial, sans-serif; padding: 2px 6px; border-radius: 10px; }
+  .tir.noel { border-color: #E3C9CE; background: #F7EBED; color: var(--fete); }
+  .tir.noel.on { border-color: var(--fete); }
+  .tiroir { display: none; margin-bottom: 8px; }
+  .tiroir.open { display: block; }
+  .noelblk { background: #fff; border: 2px solid #E3C9CE; border-radius: 10px; overflow: hidden; }
+  .noelblk .h { background: #F7EBED; color: var(--fete); font-weight: 700; padding: 7px 10px; font-size: 13px; display: flex; justify-content: space-between; }
+  .noelblk .r { display: flex; justify-content: space-between; padding: 6px 10px; border-top: 1px solid #F1ECE2; font-size: 13px; }
+  .noelblk .r b { color: var(--fete); }
+
+  .bar { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 7px 10px; margin-bottom: 6px; font-size: 12px; flex-wrap: wrap; }
+  .bar .cnt { font-weight: 700; }
+  .bar .btn { margin-left: auto; background: var(--gold); color: #fff; border-radius: 8px; padding: 6px 10px; font-weight: 700; }
+  .bar .cols { border: 1px solid #D6CCB6; border-radius: 8px; padding: 5px 9px; font-weight: 700; color: var(--grey); }
+  .grid { background: #fff; border-radius: 10px; overflow: hidden; }
+  .gh, .gr { display: grid; align-items: center; gap: 4px; padding: 0 8px; }
+  .gh { font-size: 10px; font-weight: 700; color: var(--grey-light); letter-spacing: .03em; padding-top: 8px; padding-bottom: 6px; background: #F6F1E7; }
+  .gr { border-top: 1px solid #F1ECE2; min-height: 44px; font-size: 13px; }
+  .gr .nm small { display: block; font-size: 10.5px; color: var(--grey-light); }
+  .cat { background: var(--blue); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 4px 10px; margin: 4px 6px; border-radius: 6px; }
+  .inp { border: 1.5px solid var(--green); background: #EEF6F0; border-radius: 6px; text-align: center; padding: 5px 0; font-weight: 700; color: var(--green); }
+  .c { text-align: center; color: #bbb; }
+  .spe { background: #FFF3D6; border-radius: 6px; text-align: center; padding: 3px 0; color: var(--gold-dark); font-weight: 700; }
+  .tot { background: #FFF8E7; border-radius: 6px; text-align: center; padding: 5px 0; color: var(--gold-dark); font-weight: 700; }
+  .ok { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--gold); justify-self: center; }
+  .part { border: 1px solid var(--gold); border-radius: 6px; font-size: 10.5px; padding: 3px 4px; color: var(--gold-dark); text-align: center; }
+  .fold { text-align: center; font-size: 11.5px; color: var(--grey-light); padding: 8px; }
+  .mesure { font-size: 12px; font-weight: 700; color: var(--red); margin-top: 6px; }
+  .mesure.ok2 { color: var(--green); }
+
+  .qs { list-style: none; counter-reset: q; }
+  .qs li { counter-increment: q; position: relative; padding: 8px 0 8px 32px; font-size: 13.5px; line-height: 1.45; border-top: 1px solid #F1ECE2; }
+  .qs li::before { content: counter(q); position: absolute; left: 0; top: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--orange); color: #fff; font: 700 12px Arial, sans-serif; text-align: center; line-height: 22px; }
+  .qs small { display: block; color: var(--grey-light); font-size: 12px; }
+  .pts { list-style: none; }
+  .pts li { font-size: 13.5px; line-height: 1.45; padding: 7px 0; border-top: 1px solid #F1ECE2; }
+  .pts li:first-child { border-top: none; }
+  .eff { font-size: 12px; font-weight: 700; color: var(--gold-dark); }
+  @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .tablet { height: 860px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="card full">
+  <h1>« À produire » à Veigné : la grille dès le premier écran</h1>
+  <p class="sub">Maquette, pas l'app. À gauche, l'écran d'aujourd'hui (31/10) ; à droite, la proposition. <b>Essaie à droite</b> : appuie sur les tiroirs (⭐ Spéciales, ✏️ Plaquettes, 🍕 Ardoise, 🎄 Noël). Les cases ci-dessous changent les deux écrans.</p>
+  <div class="opts">
+    <label><input type="checkbox" id="optNoel" checked onchange="render()"> 🎄 Période de Noël (24 décembre)</label>
+    <label><input type="checkbox" id="optCoche" checked onchange="render()"> Colonne ✓ « fait » à Veigné</label>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tlabel">❌ Aujourd'hui</div>
+  <div class="tablet">
+    <div class="appbar"><b>Les Blés de Demain</b><span>Veigné</span></div>
+    <div class="rappel">📋 Rappel du jour · inventaire des farines…</div>
+    <div class="scroll" id="avant"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tlabel">✅ Proposé</div>
+  <div class="tablet">
+    <div class="appbar"><b>Les Blés de Demain</b><span>Veigné</span></div>
+    <div class="rappel">📋 Rappel du jour · inventaire des farines…</div>
+    <div class="scroll" id="apres"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Ce qui change</h2>
+  <ul class="pts">
+    <li><b>1. Une seule alerte, sans fenêtre</b> : « ⭐ 10 commandes spéciales — 1 aujourd'hui, 9 demain » en une ligne. Plus de fenêtre à fermer à l'ouverture (elle disait la même chose que le bandeau et le bloc). <span class="eff">≈ 15 min</span></li>
+    <li><b>2. Les blocs deviennent des tiroirs</b> : une rangée de boutons avec leur compteur. Un appui ouvre le tiroir juste en dessous, un 2ᵉ le referme. Un tiroir qui a quelque chose <b>à lire</b> (note, message, texte libre) a une pastille rouge « à lire ». <span class="eff">≈ 1 h</span></li>
+    <li><b>3. La grille commence tout de suite</b> : sur la tablette, les premières lignes (Tradition, Ficelle…) sont visibles sans descendre. <span class="eff">(conséquence de 1 et 2)</span></li>
+    <li><b>4. 🎄 Noël à produire</b> (pendant la fête) : un tiroir de plus, avec les totaux des bûches et douceurs du jour et les messages. Fini l'aller-retour vers l'onglet Noël. Même chose au Local pour les pains de la carte sans fiche. <span class="eff">≈ 1 h</span></li>
+    <li><b>5. « Reporter les stocks d'hier »</b> descend en bas de l'écran (on s'en sert une fois par jour). <span class="eff">≈ 10 min</span></li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Questions</h2>
+  <ol class="qs">
+    <li><b>Spéciales du jour</b> : aujourd'hui le bloc s'ouvre <b>tout seul</b> quand il y a une note à lire (règle du 14/10). Avec les tiroirs, je propose : il reste fermé mais sa pastille rouge « ✏️ 3 à lire » se voit tout de suite. D'accord, ou on garde l'ouverture automatique ?</li>
+    <li><b>La fenêtre « 10 commandes à produire »</b> à l'ouverture : on la retire (le bandeau suffit) ? <small>Elle avait été demandée le 19/08 parce que l'alerte de l'époque disparaissait.</small></li>
+    <li><b>La coche ✓ « fait »</b> : utilisée 4 jours en octobre à Veigné (29 au Local). On la cache à Veigné et à Tours, ou les équipes doivent s'y mettre ? <small>Décoche la case en haut pour voir la grille sans.</small></li>
+    <li>Le même rangement pour <b>Tours</b> et les <b>Boulangers du Local</b> ? <small>Proposé : oui, même écran partout.</small></li>
+  </ol>
+</div>
+
+</div>
+<script>
+const SPE = [
+  ['10:00', 'Menard', ['Pain Burger 90g ×4'], '✏️ Pain Burger 90g — Pain burger noir'],
+  ['11:00', 'Riguidel', ['Tarte Citron Meringuée (gros) ×2'], ''],
+  ['11:30', 'Allegert', ['Pièce montée 40 personnes ×1'], '✏️ Pièce montée — Parfum myrtilles vanille · ⭐ Joyeux anniversaire Thomas 35 ans'],
+  ['12:00', 'Perochain', ['Pâton de pizza ×6'], ''],
+  ['—', 'Lecureuil', ['Ficelle de Tradition ×1'], '⭐ Sans sel'],
+];
+const LIGNES = [
+  ['PAINS'], ['Tradition', 360, 0, 360], ['Ficelle de Tradition', 20, 1, 21], ['Pâton de pizza', 0, 6, 6], ['Ciabatta', 20, 0, 20],
+  ['Tradition Graines', 80, 0, 80], ['Fruité', 3, 0, 3], ['Pain au Maïs', 10, 0, 10], ['Pain aux Noix', 6, 0, 6], ['Pain au 3 chocolat', 15, 0, 15],
+  ['SPÉCIAUX'], ['Châtaigne', 12, 0, 12], ['Baguette Épeautre', 40, 0, 40], ['Petit Automne', 10, 0, 10],
+];
+const NOEL = [['Bûche Tourangelle — Grande', 14, true], ['Bûche Tout choco — Indiv.', 38, false], ['Bûche trad. praliné — Grande', 9, false], ['Horloge chocolat', 4, true], ['Mignardises sucrées x16', 6, false]];
+let ouvert = '';
+const coche = () => document.getElementById('optCoche').checked;
+const noel = () => document.getElementById('optNoel').checked;
+function grille() {
+  const cols = '1.5fr 0.7fr 0.55fr 0.6fr' + (coche() ? ' 0.7fr 34px' : '');
+  let h = '<div class="bar"><span>☑ Cacher les produits sans activité</span>' + (coche() ? '<span class="cnt">✓ 0 / 87 lignes faites</span><span class="btn">✓ Tout valider</span>' : '') + '<span class="cols">⚙️ Colonnes</span></div>';
+  h += '<div class="grid"><div class="gh" style="grid-template-columns:' + cols + '"><span>PRODUIT</span><span style="text-align:center">MATIN V</span><span style="text-align:center">⭐ SPÉ</span><span style="text-align:center">TOTAL</span>' + (coche() ? '<span></span><span style="text-align:center">✓</span>' : '') + '</div>';
+  LIGNES.forEach((l) => {
+    if (l.length === 1) { h += '<div class="cat">' + l[0] + '</div>'; return; }
+    h += '<div class="gr" style="grid-template-columns:' + cols + '"><span class="nm">' + l[0] + '<small>pièce</small></span><span class="inp">' + (l[1] || '–') + '</span>'
+      + (l[2] ? '<span class="spe">⭐' + l[2] + '</span>' : '<span class="c">0</span>') + '<span class="tot">' + l[3] + '</span>'
+      + (coche() ? '<span class="part">partiel…</span><span class="ok"></span>' : '') + '</div>';
+  });
+  return h + '<div class="fold">… 73 autres lignes (viennoiserie, pâtisserie, traiteur…)</div></div>';
+}
+function speHtml() {
+  return SPE.map((s) => '<div class="ord"><b>' + s[0] + ' · ' + s[1] + '</b> 🏪 retrait<br>' + s[2].map((p) => '<span class="pill">' + p + '</span>').join('') + (s[3] ? '<div style="margin-top:3px">' + s[3] + '</div>' : '') + '</div>').join('');
+}
+function noelHtml() {
+  return '<div class="noelblk"><div class="h"><span>🎄 Noël — à produire ici · retrait jeu. 24 déc.</span><span>71 pièces</span></div>'
+    + NOEL.map((n) => '<div class="r"><span>' + n[0] + (n[2] ? ' ✏️' : '') + '</span><b>' + n[1] + '</b></div>').join('')
+    + '<div class="r" style="color:var(--grey-light)"><span>✏️ = un message à écrire · appuie sur un total pour voir client par client</span></div></div>';
+}
+function render() {
+  // AVANT
+  let a = '<div class="datebar"><span class="n">←</span><b>Prod. Veigné du samedi 31 oct.</b><span class="n">→</span></div><div class="filtre">🔍 Filtrer un produit…</div>'
+    + '<div class="blk al">⭐ <b>10 commandes spéciales à produire</b> — aujourd\'hui : 1 · demain : 9 → appuie ici</div>'
+    + '<div class="blk foc">🍕 <b>Foccacia</b> — garnitures du moment · 3 Fromages · Vegan<br>Veigné (vendredi 30) · St-Avertin (vendredi 30)</div>'
+    + (noel() ? '<div class="blk al" style="border-left-color:var(--fete)">🎄 Les bûches ? → onglet 🎄 Noël → 🍰 Production</div>' : '')
+    + '<div class="blk spe">⭐ <b>Spéciales du jour</b> — 5 commandes · 11 produits ▲' + speHtml() + '</div>'
+    + '<div class="blk plq">✏️ <b>Plaquettes &amp; messages à écrire</b> — 1 plaquette<div class="plaq">« Joyeux anniversaire Louise »<small>⭐ pour la commande : Royal 6 pers ×1 (gâteau fait par Tours)</small></div></div>'
+    + '<div class="blk foc" style="text-align:center">Reporter le stock de la veille… <b>Reporter les stocks d\'hier</b></div>'
+    + grille();
+  const av = document.getElementById('avant');
+  av.innerHTML = a + '<div class="modal" id="mod"><div>⭐<br><b>10 commandes spéciales à produire</b><br>aujourd\'hui : 1 · demain : 9<button onclick="this.closest(\'.modal\').remove()">Voir les commandes</button><button style="background:none;color:#888;font-weight:400" onclick="this.closest(\'.modal\').remove()">Plus tard</button></div></div>';
+  // APRÈS
+  const tir = (id, ico, lbl, sub, lire, cls) => '<button class="tir' + (ouvert === id ? ' on' : '') + (lire ? ' lire' : '') + (cls ? ' ' + cls : '') + '" onclick="ouvert=ouvert===\'' + id + '\'?\'\':\'' + id + '\';render()">' + ico + ' ' + lbl + '<small>' + sub + '</small>' + (lire ? '<span class="lire-b">✏️ ' + lire + ' à lire</span>' : '') + '</button>';
+  let b = '<div class="datebar"><span class="n">←</span><b>Prod. Veigné du samedi 31 oct.</b><span class="n">→</span></div>'
+    + '<div class="alerte">⭐ <span><b>10 commandes spéciales</b> — 1 aujourd\'hui · 9 demain</span></div>'
+    + '<div class="tiroirs">'
+    + tir('spe', '⭐', 'Spéciales du jour', '5 commandes · 11 produits', 3)
+    + tir('plq', '✏️', 'Plaquettes', '1 à écrire', 0)
+    + tir('foc', '🍕', 'Ardoise', '3 Fromages · Vegan', 0)
+    + (noel() ? tir('noel', '🎄', 'Noël à produire', '71 pièces · 24 déc.', 2, 'noel') : '')
+    + '</div>'
+    + '<div class="tiroir' + (ouvert === 'spe' ? ' open' : '') + '"><div class="blk spe">' + speHtml() + '</div></div>'
+    + '<div class="tiroir' + (ouvert === 'plq' ? ' open' : '') + '"><div class="blk plq"><div class="plaq">« Joyeux anniversaire Louise »<small>⭐ pour la commande : Royal 6 pers ×1 (gâteau fait par Tours)</small></div></div></div>'
+    + '<div class="tiroir' + (ouvert === 'foc' ? ' open' : '') + '"><div class="blk foc">🍕 <b>Foccacia</b> — garnitures du moment · 3 Fromages · Vegan<br>Veigné (vendredi 30) · St-Avertin (vendredi 30) <span class="pill">✏️ Ardoise</span></div></div>'
+    + '<div class="tiroir' + (ouvert === 'noel' ? ' open' : '') + '">' + noelHtml() + '</div>'
+    + '<div class="filtre">🔍 Filtrer un produit…</div>'
+    + grille()
+    + '<div class="blk foc" style="text-align:center;margin-top:10px">Reporter le stock de la veille pour Ingrédients, Sec &amp; Traiteur, Gâteaux secs · <b>Reporter les stocks d\'hier</b></div>';
+  document.getElementById('apres').innerHTML = b;
+}
+render();
+</script>
+</body>
+</html>

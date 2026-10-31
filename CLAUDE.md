@@ -359,9 +359,17 @@ supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les
   chiffre l'affiche sous le total (« 👁 💼 Pros 260 »). Appliqué après l'affichage (`prodColonnesAppliquer`), le calcul ne change pas.
 - **Plaquettes à Veigné** : seulement les **gâteaux** (pâtisserie, texte libre, carte de fête sans fiche ; `plaquetteLigne`). Le 31/10 le
   bloc annonçait 5 « plaquettes » qui étaient des consignes de cuisson de pains de Tours (« Bien blanches », « Pas trop cuit »).
-- Constats du tour (31/10), non traités : à Veigné la grille commence ~2,5 écrans plus bas (blocs au-dessus) ; coche ✓ utilisée 29 j/31
-  au Local, 4 j à Veigné, 1 j à Tours ; même info « commandes spéciales à produire » en fenêtre + bandeau + bloc ; « Tradition graines »
-  (pros) et « Tradition Graines » côte à côte au Local. Tests : spec 54 (+ specs 12 et 40 : plaquettes sur des tartes).
+- **v20.334 — tiroirs** (maquette `production-veigne-mockup.html`, Phil : 1 ok, 2 ok, 4 oui) : sur tous les écrans de production
+  (Veigné, Tours, Boulangers, Touriers), **plus de fenêtre** « X commandes spéciales à produire » à l'ouverture (le bandeau suffit) ;
+  ⭐ Spéciales du jour, ✏️ Plaquettes, 🍕 Ardoise focaccia et **🎄 <fête> à produire** deviennent des **tiroirs** (`productionTiroir`,
+  `toggleProductionTiroir`, un seul ouvert) ; **plus d'ouverture automatique** des Spéciales (règle v20.277 remplacée) : un tiroir fermé
+  qui a quelque chose à lire est bordé de rouge avec la pastille « ✏️ N à lire » ; « Reporter les stocks d'hier » en bas de l'écran.
+  Tiroir fête (`feteTiroirHtml`) : produits de la carte **sans fiche** du jour affiché pour ce site (Veigné ; Boulangers du Local), un appui
+  sur un total = détail client. Résultat mesuré à Veigné (31/10) : la grille commence à ~660 px au lieu de ~3 000.
+- **Coche ✓ « fait »** gardée partout (Phil, 31/10 : « je vais leur demander de s'y mettre, mais c'est juste pour les aider, pas de mal
+  s'ils ne le font pas »). Utilisée 29 j/31 au Local, 4 j à Veigné, 1 j à Tours en octobre.
+- Reste noté : « Tradition graines » (pros) et « Tradition Graines » côte à côte au Local.
+  Tests : specs 54, 55 (+ specs 12 et 40 : plaquettes sur des tartes, tiroirs).
 
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de

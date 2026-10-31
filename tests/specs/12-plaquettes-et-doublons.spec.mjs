@@ -116,6 +116,8 @@ export const tests = [
     name: 'Veigné — voit la plaquette d\'une commande produite au Local',
     fn: async (ctx) => {
       const page = await prodVeigne(ctx, dbPlaquette());
+      assert((await texte(page)).includes('✏️ 1 à lire'), 'tiroir fermé avec sa pastille « à lire » (v20.334)');
+      await page.evaluate(() => toggleProductionTiroir('plq'));   // v20.334 — on ouvre le tiroir
       const t = await texte(page);
       assert(t.includes('Plaquettes'), 'le bloc « Plaquettes & messages » doit apparaître');
       assert(t.includes('Joyeux anniversaire'), 'le message à écrire doit être lisible');

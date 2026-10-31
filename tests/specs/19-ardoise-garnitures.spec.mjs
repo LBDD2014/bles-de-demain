@@ -138,6 +138,9 @@ export const tests = [
       await enterBoutique(page, 'veigne');
       await page.evaluate(() => setVue('production'));
       await page.waitForTimeout(700);
+      const ferme = await page.evaluate(() => { const t = Array.from(document.querySelectorAll('.prod-tiroir')).find((x) => /Ardoise focaccia/.test(x.textContent)); return t ? t.textContent : ''; });
+      assert(/Tomate-olive/.test(ferme) && /Chèvre-miel/.test(ferme), 'tiroir fermé : les garnitures sur une ligne (v20.334) : ' + ferme);
+      await page.evaluate(() => toggleProductionTiroir('ard'));   // v20.334 — l'ardoise est un tiroir
       const txt = await page.evaluate(() => {
         const el = document.querySelector('.ard-panel');
         return el ? el.innerText : '';

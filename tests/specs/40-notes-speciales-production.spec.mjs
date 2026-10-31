@@ -60,34 +60,35 @@ export const tests = [
     },
   },
   {
-    name: 'Prod. Boulangers — bloc « Spéciales du jour » ouvert tout seul s\'il y a une note (compteur ✏️), fermé sinon ; replié à la main → reste replié',
+    name: 'Prod. Boulangers — tiroir « Spéciales du jour » fermé avec pastille rouge « à lire » s\'il y a une note (compteur ✏️) ; un appui l\'ouvre (v20.334, plus d\'ouverture automatique)',
     fn: async (ctx) => {
       const page = await ouvrir(ctx, true, 'prod_boul');
       const r = await page.evaluate((txtSrc) => {
         const txt = eval(txtSrc);
         const avant = { ouvert: !!document.querySelector('.prod-specials-body'), tete: txt(document.querySelector('.prod-specials-header')),
-          notes: Array.from(document.querySelectorAll('.prod-specials-body .sp-note')).map(txt) };
+          rouge: document.querySelector('.prod-specials-box').classList.contains('a-lire') };
         toggleProductionSpecials();
-        const replie = !!document.querySelector('.prod-specials-body');
-        return { avant, replie };
+        const apres = { ouvert: !!document.querySelector('.prod-specials-body'), notes: Array.from(document.querySelectorAll('.prod-specials-body .sp-note')).map(txt) };
+        toggleProductionSpecials();
+        return { avant, apres, replie: !!document.querySelector('.prod-specials-body') };
       }, txt.toString());
-      assert(r.avant.ouvert === true, 'bloc ouvert tout seul avec une note');
-      assert(/2 commandes · 6 produits · ✏️ 2 notes/.test(r.avant.tete), 'en-tête avec compteur de notes : ' + r.avant.tete);
-      assert(r.avant.notes.join('|') === '✏️ Tradition — Tradition 2kgrs|⭐ Joyeux 90 ans', 'les notes sont dans le bloc : ' + r.avant.notes.join('|'));
-      assert(r.replie === false, 'replié à la main : fermé');
+      assert(r.avant.ouvert === false && r.avant.rouge === true, 'tiroir fermé mais marqué en rouge : ' + JSON.stringify(r.avant));
+      assert(/2 commandes · 6 produits · ✏️ 2 notes/.test(r.avant.tete) && /✏️ 2 à lire/.test(r.avant.tete), 'en-tête avec compteur et pastille : ' + r.avant.tete);
+      assert(r.apres.ouvert && r.apres.notes.join('|') === '✏️ Tradition — Tradition 2kgrs|⭐ Joyeux 90 ans', 'un appui : les notes sont dans le tiroir : ' + r.apres.notes.join('|'));
+      assert(r.replie === false, 'un 2e appui : refermé');
       // changement de jour puis retour : le choix de l'équipe est respecté
       await page.evaluate(() => changeReapproDate(1));
       await page.waitForTimeout(400);
       await page.evaluate(() => changeReapproDate(-1));
       await page.waitForTimeout(400);
       const encore = await page.evaluate(() => !!document.querySelector('.prod-specials-body'));
-      assert(encore === false, 'après un aller-retour de date, toujours replié (choix de l\'équipe)');
+      assert(encore === false, 'après un aller-retour de date, toujours fermé');
       await page.close();
 
       const page2 = await ouvrir(ctx, false, 'prod_boul');
       const r2 = await page2.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'), tete: (document.querySelector('.prod-specials-header') || {}).textContent || '' }));
-      assert(r2.ouvert === false, 'sans note : bloc fermé comme avant');
-      assert(r2.tete.indexOf('✏️') === -1, 'sans note : pas de compteur');
+      assert(r2.ouvert === false, 'sans note : tiroir fermé');
+      assert(r2.tete.indexOf('✏️') === -1, 'sans note : pas de compteur ni de pastille');
       await page2.close();
     },
   },
@@ -128,7 +129,7 @@ export const tests = [
 // bloc, et l'écran de production se recharge en direct quand une note arrive.
 tests.push(
   {
-    name: 'Prod. Boulangers — un produit tapé en texte libre (sans note) ouvre aussi le bloc Spéciales, avec compteur 📝 texte libre, et la ligne est lisible',
+    name: 'Prod. Boulangers — un produit tapé en texte libre (sans note) met aussi la pastille « à lire » sur le tiroir Spéciales, compteur 📝 texte libre, ligne lisible une fois ouvert',
     fn: async (ctx) => {
       const db = makeDB();
       db.special_orders = [{ id: 'so9', tenant_id: T, origin_shop: 'saint-avertin', production_shop: 'local', pickup_date: TEST_TODAY, pickup_time: '09:00:00', customer_name: 'Saintin', status: 'confirmee', notes: null }];
@@ -136,9 +137,9 @@ tests.push(
       const page = await preparePage(ctx, { db });
       await gotoApp(page); await enterBoutique(page, 'local');
       await page.evaluate(() => setVue('prod_boul')); await page.waitForTimeout(600);
-      const r = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'), tete: document.querySelector('.prod-specials-header').textContent,
-        items: Array.from(document.querySelectorAll('.prod-special-item')).map((x) => x.textContent.trim()) }));
-      assert(r.ouvert === true, 'bloc ouvert pour un texte libre');
+      const r = await page.evaluate(() => { const tete = document.querySelector('.prod-specials-header').textContent; toggleProductionSpecials();
+        return { tete, items: Array.from(document.querySelectorAll('.prod-special-item')).map((x) => x.textContent.trim()) }; });
+      assert(r.tete.indexOf('✏️ 1 à lire') !== -1, 'pastille « à lire » pour un texte libre : ' + r.tete);
       assert(r.tete.indexOf('📝 1 texte libre') !== -1, 'compteur texte libre : ' + r.tete);
       assert(r.items.join('|') === 'Number cake 2 chiffres ×1', 'la ligne libre est lisible : ' + r.items.join('|'));
       await page.close();
@@ -148,8 +149,9 @@ tests.push(
     name: 'Prod. Boulangers — la vendeuse ajoute une note pendant que l\'écran est ouvert : l\'écran se recharge tout seul (pas pendant une saisie)',
     fn: async (ctx) => {
       const page = await ouvrir(ctx, false, 'prod_boul');
+      await page.evaluate(() => toggleProductionSpecials());   // v20.334 — l'équipe a ouvert le tiroir
       const avant = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'), notes: document.querySelectorAll('.sp-note').length }));
-      assert(avant.ouvert === false && avant.notes === 0, 'au départ : pas de note, bloc fermé');
+      assert(avant.ouvert === true && avant.notes === 0, 'au départ : tiroir ouvert, pas de note');
       // la vendeuse écrit une note sur la ligne de Cathelin, le signal temps réel arrive
       await page.evaluate(() => {
         window.__mockDB.special_order_items.find((i) => i.id === 'si1').notes = 'Tradition 2kgrs';
@@ -159,7 +161,7 @@ tests.push(
       const apres = await page.evaluate(() => ({ ouvert: !!document.querySelector('.prod-specials-body'),
         notes: Array.from(document.querySelectorAll('.prod-specials-body .sp-note')).map((x) => x.textContent.replace(/\s+/g, ' ').trim()),
         cell: Array.from(document.querySelectorAll('.cell-spe')).map((x) => x.textContent.trim()) }));
-      assert(apres.ouvert === true, 'bloc ouvert tout seul après l\'arrivée de la note');
+      assert(apres.ouvert === true, 'le tiroir reste ouvert après le rechargement en direct');
       assert(apres.notes.join('|') === '✏️ Tradition — Tradition 2kgrs', 'la note est là sans rien toucher : ' + apres.notes.join('|'));
       assert(apres.cell[0] === '⭐3 ✏️', 'la cellule ⭐ Spé signale la note : ' + apres.cell[0]);
       // saisie en cours : on ne rerend pas sous les doigts du boulanger
@@ -207,6 +209,7 @@ tests.push({
     const page = await preparePage(ctx, { db });
     await gotoApp(page); await enterBoutique(page, 'veigne');
     await page.evaluate(() => setVue('production')); await page.waitForTimeout(800);
+    await page.evaluate(() => toggleProductionTiroir('plq'));   // v20.334 — tiroir
     const r = await page.evaluate(() => {
       const t = (el) => el.textContent.replace(/\s+/g, ' ').trim();
       const box = Array.from(document.querySelectorAll('.prod-specials-box')).find((b) => b.textContent.indexOf('Plaquettes') !== -1);
@@ -214,7 +217,7 @@ tests.push({
         plaquettes: box ? Array.from(box.querySelectorAll('.plaquette')).map(t) : null,
         clients: box ? Array.from(box.querySelectorAll('.prod-special-meta')).map(t) : null };
     });
-    assert(r.tete === '✏️ Plaquettes & messages à écrire — 4 plaquettes · 2 commandes', 'en-tête avec compteur : ' + r.tete);
+    assert(r.tete.replace(/[▲▼]$/, '') === '✏️ Plaquettes & messages à écrire — 4 plaquettes · 2 commandes', 'en-tête avec compteur (tiroir ouvert, v20.334) : ' + r.tete);
     assert(r.clients.join('|') === '10:00 · Saintin · 🏪 retrait St-Avertin|10:00 · Wibaut · 🏪 retrait St-Avertin', 'Saintin (notes produit seulement) est là, SansNote non, PainBienCuit (pain, pas un gâteau) non : ' + r.clients.join('|'));
     assert(r.plaquettes.join('|') === '« JA »✏️ sur Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)|« 100 ans »✏️ sur Tarte aux pommes 6 pers. ×1 (gâteau fait par Le Local)|« Sans glucose sur le dessus »✏️ sur Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)|« Joyeux 90 ans »⭐ pour la commande : Tarte Vigneronne 6 pers. ×1 (gâteau fait par Le Local)', 'une plaquette par note, texte en clair : ' + JSON.stringify(r.plaquettes));
     await page.close();
@@ -250,17 +253,21 @@ tests.push({
     const v1b = await page.evaluate(lire);
     assert(v1b.notes.length === 0, 'Veigné, bloc ouvert à la main : la note du Local n\'est pas affichée : ' + JSON.stringify(v1b.notes));
     await page.close();
-    // Veigné, note de commande en plus → ouvert, seule la note de commande
+    // Veigné, note de commande en plus → pastille, et une fois ouvert seule la note de commande
     page = await preparePage(ctx, { db: mk('Joyeux 90 ans') });
     await gotoApp(page); await enterBoutique(page, 'veigne');
     await page.evaluate(() => setVue('production')); await page.waitForTimeout(800);
+    const v2a = await page.evaluate(lire);
+    assert(v2a.ouvert === false && v2a.tete.indexOf('✏️ 1 à lire') !== -1, 'Veigné : pastille « 1 à lire » (v20.334) : ' + JSON.stringify(v2a));
+    await page.evaluate(() => toggleProductionSpecials());
     const v2 = await page.evaluate(lire);
-    assert(v2.ouvert === true && v2.tete.indexOf('✏️ 1 note') !== -1 && v2.notes.join('|') === '⭐ Joyeux 90 ans', 'Veigné : ouvert sur la note de commande seulement : ' + JSON.stringify(v2));
+    assert(v2.ouvert === true && v2.tete.indexOf('✏️ 1 note') !== -1 && v2.notes.join('|') === '⭐ Joyeux 90 ans', 'Veigné : la note de commande seulement : ' + JSON.stringify(v2));
     await page.close();
     // Le Local, même commande : ouvert, note produit + note commande
     page = await preparePage(ctx, { db: mk('Joyeux 90 ans') });
     await gotoApp(page); await enterBoutique(page, 'local');
     await page.evaluate(() => setVue('prod_boul')); await page.waitForTimeout(800);
+    await page.evaluate(() => toggleProductionSpecials());
     const l1 = await page.evaluate(lire);
     assert(l1.ouvert === true && l1.tete.indexOf('✏️ 2 notes') !== -1 && l1.notes.join('|') === '✏️ Tradition — Tradition 2kgrs|⭐ Joyeux 90 ans', 'Local : ses deux notes : ' + JSON.stringify(l1));
     await page.close();
