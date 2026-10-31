@@ -139,4 +139,29 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'v20.331 — le surgelé (pros) sort des catégories et de la recherche, rangé dans « 🧊 Pros » en dernier ; une catégorie 100 % surgelée disparaît',
+    fn: async (ctx) => {
+      const d = makeDB();
+      const base = d.products.find((p) => p.id === 'vt_trad');
+      d.products.push(Object.assign({}, base, { id: 'trad_surg', name: 'Tradition précuite surgelée', usage: 'reappro' }));
+      d.products.push(Object.assign({}, base, { id: 'tarte_surg', name: 'Tarte aux pommes 6 pers. crue surgelée', category: 'traiteur', usage: 'reappro' }));
+      const page = await formulaire(ctx, 'veigne', d);
+      const r = await page.evaluate(() => {
+        const hits = () => Array.from(document.querySelectorAll('#sp-psearch-res .sp-psearch-hit:not(.sp-psearch-libre)')).map((b) => b.childNodes[0].textContent.replace(/^\+\s*/, '').trim());
+        const chips = Array.from(document.querySelectorAll('.sp-pcat')).map((b) => b.textContent.trim());
+        specialPickCat('pains'); const pains = hits();
+        handleSpecialItemSearch('tradition'); const recherche = hits();
+        specialPickCat('__pros'); const pros = hits();
+        specialSearchPick('trad_surg');
+        return { chips, pains, recherche, pros, ligne: specialFormDraft.items.map((i) => i.product_id).join(',') };
+      });
+      assert(r.chips[r.chips.length - 1] === '🧊 Pros (surgelé)' && r.chips.indexOf('Traiteur') === -1, 'puces : « Pros » en dernier, Traiteur (100 % surgelé ici) caché : ' + r.chips.join('|'));
+      assert(r.pains.indexOf('Tradition') !== -1 && !r.pains.some((x) => /surgel/i.test(x)), 'Pains sans surgelé : ' + r.pains.join('|'));
+      assert(!r.recherche.some((x) => /surgel/i.test(x)), 'recherche sans surgelé : ' + r.recherche.join('|'));
+      assert(r.pros.join('|') === 'Tarte aux pommes 6 pers. crue surgelée|Tradition précuite surgelée', '« Pros » = tout le surgelé : ' + r.pros.join('|'));
+      assert(r.ligne === 'trad_surg', 'toujours commandable depuis « Pros » : ' + r.ligne);
+      await page.close();
+    },
+  },
 ];

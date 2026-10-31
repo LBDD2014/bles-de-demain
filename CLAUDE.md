@@ -340,6 +340,10 @@ pour Special et l'onglet de la fête :
    `special_order_items.unit_price` → total de la commande (`special_orders.total`, carte + prix tapés), acompte, ticket client et A4
    (« + produits sans prix, en caisse » s'il en reste). Badge « 💶 total » sur la carte d'une commande hors fête.
 Tests : spec 52 (+ specs 11, 12, 13, 30 adaptées au nouveau choix des produits).
+**v20.331** (Phil, 31/10 : « le surgelé, ça pollue la vision de la vente ; ne les supprime pas, mets-les dans un onglet pros ») :
+dans le choix des produits des commandes clients, tout produit dont le nom contient **« surgelé »** sort des catégories et de la
+recherche et se range dans la catégorie **« 🧊 Pros (surgelé) »**, toujours en dernier (`specialEstPro`, `SPE_CAT_PROS`). Rien n'est
+supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les commandes des pros (onglet Pros, pro.html) ne changent pas.
 **v20.330** : l'avertissement d'un produit tapé à la main nomme le **vrai atelier** (atelier principal de la commande, ex. St-Avertin + bûches → Veigné) au lieu de toujours « restera à <boutique> ».
 
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :

@@ -500,6 +500,8 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-pcats { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
 .sp-pcat { padding: 6px 10px; border-radius: 14px; border: 1px solid #E0D8C8; background: #fff; font-size: 12.5px; font-family: inherit; color: var(--grey); cursor: pointer; }
 .sp-pcat.on { background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 700; }
+.sp-pcat-pros { border-style: dashed; color: var(--blue); }
+.sp-pcat-pros.on { background: var(--blue); border-color: var(--blue); }
 .sp-psearch-libre { border-style: dashed !important; }
 .sp-line-top { display: flex; align-items: flex-start; gap: 8px; }
 .sp-line-nom { flex: 1; min-width: 0; font-size: 15px; padding-top: 4px; }
@@ -2830,7 +2832,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.330';
+const APP_VERSION  = 'v20.331';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -21378,15 +21380,20 @@ mc.innerHTML = html;
 // Plus de menus Catégorie → Produit → Quantité. « ✏️ Autre » garde le texte libre, en dernier choix.
 // Même règle de doublons que l'ancien menu (v20.201/227) : on masque la version réassort quand un
 // produit vendu porte le même nom.
+// v20.331 — le surgelé sert aux pros (Phil, 31/10 : « ça pollue la vision de la vente », « je ne veux pas que tu
+// les supprimes, je veux les mettre dans un onglet pros ») : hors des catégories et de la recherche, rangé à part
+// dans « 🧊 Pros ». Règle de Phil : tout ce qui a « surgelé » dans son nom.
+const SPE_CAT_PROS = '__pros';
+function specialEstPro(p) { return !!(p && /surgel/i.test(p.name || '')); }
 function specialSearchHits(q, currentPid, cat) {
   const n = planNorm(q);
   if (n.length < 2 && !cat) return [];
-  const actifs = products.filter(function(p) { return p.actif; });
+  const actifs = products.filter(function(p) { return p.actif && (cat === SPE_CAT_PROS ? specialEstPro(p) : !specialEstPro(p)); });
   const nomsVendus = new Set(actifs
     .filter(function(p) { const u = p.usage || 'reappro'; return u === 'ventes' || u === 'both'; })
     .map(function(p) { return planNorm(p.name); }));
   const hits = actifs.filter(function(p) {
-    if (cat && p.category !== cat) return false;
+    if (cat && cat !== SPE_CAT_PROS && p.category !== cat) return false;
     if (n.length >= 2 && planNorm(p.name).indexOf(n) === -1) return false;
     if (p.id === currentPid) return true;
     const u = p.usage || 'reappro';
@@ -21403,7 +21410,7 @@ function specialSearchResultsHtml(q, cat) {
     h = hits.map(function(p) {
       return '<button type="button" class="sp-psearch-hit" onclick="specialSearchPick(\'' + p.id + '\')">+ '
         + escapeHtml(specialProductName(p))
-        + (cat ? '' : '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span>') + '</button>';
+        + (cat && cat !== SPE_CAT_PROS ? '' : '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span>') + '</button>';
     }).join('');
     if (!hits.length) h = '<div class="sp-psearch-none">Aucun produit. Vérifie l\'orthographe, ou choisis une catégorie.</div>';
   }
@@ -21413,10 +21420,15 @@ function specialSearchResultsHtml(q, cat) {
 function specialPickerCats() {
   const cats = Array.from(new Set(products.filter(function(p) { return p.actif; }).map(function(p) { return p.category; })));
   const catOrder = Object.keys(CAT_LABELS);
-  return cats.filter(function(c) { return c !== 'ingredients'; }).sort(function(a, b) {
+  const out = cats.filter(function(c) {
+    // une catégorie qui n'a QUE du surgelé (ou des ingrédients) ne s'affiche pas : son contenu est dans « 🧊 Pros »
+    return c !== 'ingredients' && products.some(function(p) { return p.actif && p.category === c && !specialEstPro(p); });
+  }).sort(function(a, b) {
     const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
+  if (products.some(function(p) { return p.actif && specialEstPro(p); })) out.push(SPE_CAT_PROS);   // v20.331 — toujours en dernier
+  return out;
 }
 function specialPickerHtml(d) {
   const q = d.recherche || '', cat = d.rechCat || '';
@@ -21426,7 +21438,7 @@ function specialPickerHtml(d) {
     + '<button type="button" class="filter-clear" id="sp-psearch-clr" title="Effacer" style="' + (q ? '' : 'display:none') + '" onclick="specialSearchClear()">✕</button>'
     + '</div>'
     + '<div class="sp-pcats">' + specialPickerCats().map(function(c) {
-        return '<button type="button" class="sp-pcat' + (cat === c ? ' on' : '') + '" onclick="specialPickCat(\'' + c + '\')">' + escapeHtml(CAT_LABELS[c] || c) + '</button>';
+        return '<button type="button" class="sp-pcat' + (cat === c ? ' on' : '') + (c === SPE_CAT_PROS ? ' sp-pcat-pros' : '') + '" onclick="specialPickCat(\'' + c + '\')">' + escapeHtml(c === SPE_CAT_PROS ? '🧊 Pros (surgelé)' : (CAT_LABELS[c] || c)) + '</button>';
       }).join('') + '</div>'
     + '<div class="sp-psearch-res" id="sp-psearch-res">' + specialSearchResultsHtml(q, cat) + '</div>'
     + '</div>';
