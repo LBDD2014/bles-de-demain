@@ -123,4 +123,20 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'v20.330 — texte libre : le message nomme le vrai atelier (St-Avertin + bûche → Veigné ; sinon reste à la boutique)',
+    fn: async (ctx) => {
+      const page = await formulaire(ctx, 'saint-avertin', dbFete(), 'fetes');
+      const r = await page.evaluate(() => {
+        const warn = () => document.querySelector('.sp-item-row .sp-libre-warn').textContent.replace(/\s+/g, ' ').trim();
+        specialFormDraft.recherche = 'Pièce montée 30 pers.'; specialAddLibre();
+        const seul = warn();
+        speCarteChg('101', 1);
+        return { seul, avecBuche: warn() };
+      });
+      assert(/restera sur cette commande, à St-Avertin/.test(r.seul), 'seul : ' + r.seul);
+      assert(/partira à Veigné, l'atelier principal/.test(r.avecBuche), 'avec une bûche : ' + r.avecBuche);
+      await page.close();
+    },
+  },
 ];

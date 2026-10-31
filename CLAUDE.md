@@ -340,6 +340,7 @@ pour Special et l'onglet de la fête :
    `special_order_items.unit_price` → total de la commande (`special_orders.total`, carte + prix tapés), acompte, ticket client et A4
    (« + produits sans prix, en caisse » s'il en reste). Badge « 💶 total » sur la carte d'une commande hors fête.
 Tests : spec 52 (+ specs 11, 12, 13, 30 adaptées au nouveau choix des produits).
+**v20.330** : l'avertissement d'un produit tapé à la main nomme le **vrai atelier** (atelier principal de la commande, ex. St-Avertin + bûches → Veigné) au lieu de toujours « restera à <boutique> ».
 
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de

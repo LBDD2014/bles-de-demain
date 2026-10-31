@@ -2830,7 +2830,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.329';
+const APP_VERSION  = 'v20.330';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -21574,10 +21574,16 @@ if (it.notes || it.noteOuverte) {
 }
 // v20.235 — le 05/09, « 1/6 flan » a été tapé en libre au lieu de choisir « Flan 6 pers. » :
 // sans produit rattaché, l'app ne sait pas quel atelier doit le faire. Le libre reste possible.
+// v20.330 — le message annonçait toujours « restera à <boutique> », alors que la ligne part à l'atelier
+// principal de la commande (ex. St-Avertin + bûches = Veigné) : on nomme le vrai atelier.
 if (libre) {
-  html += '<div class="sp-libre-warn">⚠️ <strong>Produit hors catalogue.</strong> Aucun atelier ne le recevra automatiquement : il restera sur cette commande, à '
-    + escapeHtml(BOUTIQUE_NAMES[currentBoutique] || currentBoutique)
-    + '. Si le produit existe dans la liste, choisis-le plutôt — il partira tout seul au bon endroit.</div>';
+  const orig = d.origin_shop || currentBoutique;
+  const at = computeOrderProductionShop({ origin_shop: orig, items: (d.items || []).concat(speCarteLignes(d)), pickup_date: d.pickup_date });
+  html += '<div class="sp-libre-warn">⚠️ <strong>Produit hors catalogue.</strong> '
+    + (at === orig
+      ? 'Il restera sur cette commande, à <strong>' + escapeHtml(BOUTIQUE_NAMES[orig] || orig) + '</strong>.'
+      : 'Il partira à <strong>' + escapeHtml(BOUTIQUE_NAMES[at] || at) + '</strong>, l\'atelier principal de cette commande.')
+    + ' Si le produit existe dans la liste, choisis-le plutôt : il partira tout seul au bon atelier.</div>';
 }
 html += '</div>';
 return html;
