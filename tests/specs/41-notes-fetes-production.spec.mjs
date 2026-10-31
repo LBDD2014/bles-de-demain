@@ -97,17 +97,17 @@ export const tests = [
       await page.waitForTimeout(400);
       const r1 = await page.evaluate(() => Array.from(document.querySelectorAll('.fete-prod-note-row')).map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
       assert(r1.length === 2 && r1[1].indexOf('Blondel') !== -1 && r1[1].indexOf('Bien cuit') !== -1, 'la note de Blondel arrive en direct : ' + r1.join('|'));
-      // formulaire ouvert : pas de re-rendu sous les doigts
-      await page.evaluate(() => feteSetView('new')); await page.waitForTimeout(200);
+      // formulaire ouvert (v20.328 : le formulaire des Spéciales) : pas de re-rendu sous les doigts
+      await page.evaluate(() => { feteSetView('list'); openNewSpecialOrder(); }); await page.waitForTimeout(200);
       await page.evaluate(() => {
-        document.getElementById('feteCust').value = 'En cours de saisie';
+        document.getElementById('sp-client-nom').value = 'En cours de saisie';
         window.__mockDB.fete_orders.find((o) => o.id === 'f1').notes = 'Joyeux 90 ans Mamie';
         window.__mockChannels.filter((c) => c.name === 'fetes_local').forEach((c) => c._emit({ new: {} }));
       });
       await page.waitForTimeout(400);
-      const r2 = await page.evaluate(() => ({ saisie: document.getElementById('feteCust').value, dirty: feteOrdersDirty }));
+      const r2 = await page.evaluate(() => ({ saisie: document.getElementById('sp-client-nom').value, dirty: feteOrdersDirty }));
       assert(r2.saisie === 'En cours de saisie' && r2.dirty === true, 'la saisie n\'a pas été écrasée, le changement est mémorisé : ' + JSON.stringify(r2));
-      await page.evaluate(() => feteSetView('prod')); await page.waitForTimeout(400);
+      await page.evaluate(() => { cancelSpecialForm(); feteSetView('prod'); }); await page.waitForTimeout(400);
       const r3 = await page.evaluate(() => ({ dirty: feteOrdersDirty, notes: Array.from(document.querySelectorAll('.fete-prod-note-row')).map((x) => x.textContent.replace(/\s+/g, ' ').trim()) }));
       assert(r3.dirty === false && r3.notes[0].indexOf('Joyeux 90 ans Mamie') !== -1, 'retour sur Production : rattrapé : ' + JSON.stringify(r3));
       await page.close();

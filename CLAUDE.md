@@ -300,6 +300,32 @@ imputé sur Tradition Bio) + les pesées à la main. Le tableau colle ainsi au B
   **v20.304** : le même bouton dans le détail d'une commande (formulaire de modification, bloc « 📑 Refaire cette commande »,
   à partir de la commande enregistrée). Test : spec 48.
 
+**Fêtes + Spéciales = une seule commande (v20.328, 31/10/2026 — codé, migration `migration-v20.328-fetes-dans-speciales.sql` À LANCER AVANT la mise en ligne)** :
+Phil (29/10) : « si les clients veulent du pain et des bûches, on fait comment ? ». Maquette `fetes-speciales-mockup.html`.
+- **Pendant une fête active, l'onglet Special est grisé** (barré, `bnav-ghost`) et un appui renvoie vers l'onglet de la fête
+  (`feteRemplaceSpecial`), qui affiche **le même écran** (semaine, + Nouvelle commande, récap du jour, prénoms, 🔁…) avec le bandeau de
+  la fête ; Veigné et Le Local ont en plus « 🍰 Production ». Le lendemain de la fête, Special revient tout seul avec toutes les commandes.
+- **Formulaire** : la **carte de la fête** en tête (prix fixes, + / −, 🔪 sur les pains, 🔍 dans la carte, produits en pause masqués),
+  puis « ⭐ Hors carte » (gâteau d'anniversaire… sans prix), puis le **Total**. Une commande = un numéro, un ticket, un total, un acompte.
+  Pendant la fête, le menu des dates va jusqu'au dernier jour de retrait. Butoir de la fête passé = carte close (commandes hors carte toujours possibles).
+- **Base** : tout dans `special_orders` / `special_order_items`. Ligne de la carte = `fete_product_id` + `unit_price` (**prix figé** :
+  une commande prise garde son prix si le tarif change) + `product_name_custom` (nom de carte) + `product_id` si le produit de la carte est
+  **relié à sa fiche** (`fete_products.product_id` : pains et viennoiseries → production habituelle, ⭐ SPÉ, règle de chaque boutique)
+  sinon `prod_site` (bûches, douceurs, salé → Veigné). Commande : `total`, `event_id`, `canal` (`boutique`). Les anciennes `fete_orders`
+  restent lues (vue Production, tickets) ; plus rien ne s'y écrit.
+- **Vue 🍰 Production de la fête** : anciennes fete_orders + lignes de la carte **sans fiche** (`feteProdCommandes`). Les lignes reliées
+  sont dans la production habituelle, pas ici.
+- **Tickets** : bandeau de la fête, prix par ligne et total / acompte / reste sur le ticket client (et l'A4) ; ticket retrait sans prix.
+- **BackOffice → Fêtes → 💶 Tarifs et noms** (Phil : « facile de changer les tarifs », pareil pour les noms des bûches) : grille nom /
+  taille / prix, enregistrée en quittant la case (`feteAdminSet`) ; « Tous les prix de [carte | groupe] + / − X % » avec aperçu jaune
+  avant « Appliquer », arrondi aux 5 centimes. ✎ = groupe et atelier.
+- **Prêt pour une boutique en ligne** (Phil, 31/10 : « pas encore, mais fais comme si ») : `canal`, prix et total enregistrés, lignes avec
+  identifiants stables, un seul chemin de création (`upsertSpecialOrder`) à recopier un jour dans une fonction `SECURITY DEFINER` (comme `pro_page_*`).
+  Pas encore : page web, paiement en ligne, délais bloquants, plafond par créneau.
+- Carte de Noël en base (31/10) : 59 produits, prix 2025 (Excel feuille « Données »), 32 reliés à leur fiche par la migration ;
+  `fete_events.noel` du **01/12/2026 au 01/01/2027**, `actif = false` → **à activer en BackOffice → Fêtes après la migration et la mise en ligne**.
+- Tests : `tests/specs/51-fetes-dans-speciales.spec.mjs` (+ spec 41 adaptée).
+
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
   retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL
@@ -370,17 +396,9 @@ Si pause survient : dashboard Supabase → "Resume project" (30s à 2min).
 
 ## Bugs / TODOs connus
 
-0. **PROCHAINE SESSION (demandé par Phil le 29/10/2026 au soir) — Onglet Fêtes fusionné avec les Spéciales.**
-   Question de Phil : « pourquoi Noël et Spéciales ne font pas qu'un ? si les clients veulent du pain et des bûches, on fait comment ? »
-   Aujourd'hui = deux commandes, deux numéros, deux tickets, deux récaps. Réponse validée dans l'idée : **un seul onglet Fêtes,
-   éphémère comme maintenant** (apparaît pendant la période de la fête), qui est **le même formulaire que les spéciales avec en plus
-   une section « Produits de Noël »** (bûches, tailles, prix) → une commande mêlée pain + bûches = un numéro, un ticket, un paiement,
-   un acompte. L'onglet garde catalogue, affiche, vue Production (qui doit lire les bûches dans les commandes mêlées) et le récap du
-   jour unique ; la fenêtre de commande (dates de retrait, butoir) reste réglée par la fête. À faire : lignes `special_order_items`
-   pouvant pointer un produit de fête (prix + taille), vue Production des fêtes lisant ces lignes, section Noël dans le formulaire
-   Special quand une fête est active, anciennes `fete_orders` toujours lisibles. Effort estimé : une demi-journée + migration SQL.
-   **Commencer par une maquette** (règle des tickets Brother). Question ouverte à poser : à partir de quand les commandes de Noël
-   démarrent-elles ?
+0. **Fêtes + Spéciales (v20.328) codé le 31/10/2026, PAS ENCORE EN LIGNE** (voir la section « Fêtes + Spéciales = une seule commande »).
+   Ordre : (1) Phil lance `migration-v20.328-fetes-dans-speciales.sql` ; (2) push du front ; (3) activer Noël en BackOffice → Fêtes
+   (dates déjà réglées 01/12 → 01/01). Prix 2025 à revoir par Phil dans la grille 💶 Tarifs et noms quand il veut.
    Autre point du 29/10 à garder en tête : imprimantes Brother posées en boutique « dans quelques jours » (interrupteur par tablette
    v20.325 éteint par défaut) ; rouleau noir/rouge DK-22251 à commander pour le rouge des lignes « À TRANCHER » (v20.326).
 

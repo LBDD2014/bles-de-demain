@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Fêtes + Spéciales</title>
+<!-- Maquette (pas l'app) — demande Phil 29/10/2026 au soir : « pourquoi Noël et Spéciales ne font pas qu'un ?
+     si les clients veulent du pain et des bûches, on fait comment ? ». Données fictives. Rien n'est enregistré. -->
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --blue: #2C5F8A;
+    --noel: #1F5B3A; --noel-light: #E6F1EA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #8f8a80; color: var(--brown); padding: 18px 16px 50px; }
+  .page { max-width: 1100px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); margin-bottom: 18px; }
+  h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; color: var(--grey-dark); }
+  h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; color: var(--grey-dark); margin-bottom: 4px; }
+  .sub { font-size: 13.5px; color: var(--grey-light); line-height: 1.45; margin: 4px 0 12px; }
+  .sub b { color: var(--brown); }
+  .step { display: inline-block; background: var(--gold); color: #fff; font-weight: 700; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 13px; margin-right: 6px; }
+
+  /* Avant / après */
+  .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ba > div { border-radius: 10px; padding: 12px; font-size: 13.5px; line-height: 1.5; }
+  .ba .avant { background: #FBEDEA; border: 1px solid #F0CFC8; }
+  .ba .apres { background: var(--noel-light); border: 1px solid #BFD9C8; }
+  .ba h3 { font-size: 14px; margin-bottom: 6px; }
+  .ba ul { padding-left: 18px; }
+
+  /* Tablette */
+  .tablet { max-width: 640px; margin: 0 auto; border: 10px solid var(--grey-dark); border-radius: 24px; background: var(--cream); overflow: hidden; }
+  .appbar { background: var(--grey-dark); color: #fff; padding: 8px 12px; display: flex; gap: 6px; overflow-x: auto; font-size: 12px; }
+  .appbar span { padding: 6px 9px; border-radius: 8px; white-space: nowrap; color: #ccc; }
+  .appbar span.on { background: var(--noel); color: #fff; font-weight: 700; }
+  .fete-banner { background: linear-gradient(90deg, var(--noel), #2E7A50); color: #fff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+  .fete-banner small { opacity: .85; font-size: 12px; }
+  .tabs { display: flex; gap: 6px; padding: 8px 10px; flex-wrap: wrap; }
+  .tabs button { flex: 1; min-width: 110px; padding: 9px 6px; border-radius: 9px; border: 2px solid #E0D8C8; background: #FAF8F4; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--grey); cursor: pointer; }
+  .tabs button.on { border-color: var(--noel); background: var(--noel-light); color: var(--noel); }
+  .form { padding: 4px 12px 14px; }
+  .row { margin-bottom: 10px; }
+  .lbl { display: block; font-size: 12px; font-weight: 700; color: var(--brown-mid); margin-bottom: 4px; }
+  .inp { width: 100%; padding: 10px; border: 1px solid #DDD3BE; border-radius: 9px; background: #fff; font-family: inherit; font-size: 15px; }
+  .dbl { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+  .delai { background: #FFF1E0; border-left: 4px solid var(--orange); padding: 7px 10px; font-size: 12.5px; border-radius: 6px; margin: -4px 0 10px; }
+  .bloc { border-radius: 12px; margin: 12px 0; overflow: hidden; border: 2px solid; }
+  .bloc-h { padding: 9px 12px; font-weight: 700; font-size: 14.5px; display: flex; justify-content: space-between; align-items: center; }
+  .bloc-noel { border-color: #BFD9C8; background: #fff; }
+  .bloc-noel .bloc-h { background: var(--noel-light); color: var(--noel); }
+  .bloc-std { border-color: #E8D5A3; background: #fff; }
+  .bloc-std .bloc-h { background: #FFF6DF; color: var(--gold-dark); }
+  .grp { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--grey-light); padding: 8px 12px 2px; text-transform: uppercase; }
+  .np { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 7px 12px; border-top: 1px solid #F1ECE2; }
+  .np .nom { font-size: 14.5px; }
+  .np .taille { font-size: 11px; background: #F1ECE2; border-radius: 6px; padding: 1px 6px; margin-left: 4px; color: var(--grey-light); }
+  .np .prix { font-size: 13.5px; color: var(--grey-light); min-width: 58px; text-align: right; }
+  .step-q { display: flex; align-items: center; gap: 4px; }
+  .step-q button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #D6CCB6; background: #FAF8F4; font-size: 18px; cursor: pointer; }
+  .step-q b { min-width: 24px; text-align: center; font-size: 16px; }
+  .np.has { background: #F6FBF7; }
+  .np.has .step-q b { color: var(--noel); }
+  .std-line { padding: 9px 12px; border-top: 1px solid #F1ECE2; display: grid; grid-template-columns: 60px 1fr auto; gap: 8px; align-items: center; }
+  .std-line select { padding: 7px; border: 1px solid #DDD3BE; border-radius: 8px; font-family: inherit; font-size: 14px; }
+  .std-line .pn { font-size: 14.5px; }
+  .std-line .pn small { display: block; color: var(--grey-light); font-size: 11.5px; }
+  .chip { font-size: 11.5px; padding: 3px 8px; border-radius: 12px; border: 1px solid #D6CCB6; background: #fff; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: #FDE8E8; border-color: var(--red); color: var(--red); font-weight: 700; }
+  .add { margin: 8px 12px 12px; padding: 9px; width: calc(100% - 24px); border: 2px dashed #D6CCB6; background: transparent; border-radius: 9px; font-family: inherit; font-size: 14px; color: var(--gold-dark); cursor: pointer; }
+  .search { margin: 8px 12px 0; display: flex; gap: 6px; align-items: center; background: #FAF8F4; border: 1px solid #DDD3BE; border-radius: 9px; padding: 7px 10px; font-size: 14px; color: #999; }
+  .total { margin: 12px 0; background: var(--grey-dark); color: #fff; border-radius: 12px; padding: 10px 14px; }
+  .total .l { display: flex; justify-content: space-between; font-size: 13.5px; padding: 2px 0; }
+  .total .l.big { font-size: 18px; font-weight: 700; border-top: 1px solid rgba(255,255,255,.25); margin-top: 6px; padding-top: 7px; }
+  .total .l small { opacity: .75; }
+  .pay { display: flex; gap: 6px; }
+  .pay button { flex: 1; padding: 10px 6px; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; border: 2px solid #E0D8C8; background: #FAF8F4; color: var(--grey); font-family: inherit; }
+  .pay button.on { border-color: var(--gold-dark); background: #FFF3D6; color: var(--gold-dark); }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-gold { flex: 2; background: var(--gold); color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 700; font-family: inherit; }
+  .btn-grey { flex: 1; background: #E9E5DC; color: var(--grey); border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-family: inherit; }
+  .hint { font-size: 12.5px; background: #EEF4FA; border-left: 4px solid var(--blue); padding: 8px 10px; border-radius: 6px; margin-top: 10px; line-height: 1.45; }
+  .note { position: relative; }
+  .pin { position: absolute; right: -6px; top: -10px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 7px; font-family: Arial, sans-serif; }
+
+  /* Tickets 62 mm (copie du style de l'app) */
+  .tickets { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .tk-wrap { text-align: center; }
+  .tk-wrap > small { display: block; font-size: 12px; color: var(--grey-light); margin-bottom: 6px; }
+  .lb { width: 62mm; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; text-align: left; border: 1px dashed #bbb; box-shadow: 0 3px 10px rgba(0,0,0,.15); }
+  .lb-logo { text-align: center; font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 12pt; }
+  .lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }
+  .lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }
+  .lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; margin-bottom: 1mm; }
+  .lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }
+  .lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; }
+  .lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; }
+  .lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { font-size: 9pt; font-weight: 700; }
+  .lb-client { font-size: 20pt; font-weight: 800; margin: 2mm 0 1mm; }
+  .lb-tel { font-size: 11pt; font-weight: 700; }
+  .lb-items { list-style: none; margin: 1.5mm 0 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }
+  .lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10pt; align-items: baseline; }
+  .lb-items li:last-child { border-bottom: none; }
+  .lb-items b { font-size: 13pt; min-width: 7mm; text-align: right; }
+  .lb-items .px { margin-left: auto; white-space: nowrap; font-size: 9.5pt; }
+  .lb-items .grp-t { display: block; border: none; font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; padding: 1.2mm 0 0; text-transform: uppercase; }
+  .lb-tranche span:first-of-type { color: #e00000; text-decoration: underline; font-weight: 800; }
+  .lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }
+  .lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }
+  .lb-big { font-size: 11pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }
+  .lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; }
+
+  /* Production */
+  .prods { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .prod { border: 1px solid #ECE3D2; border-radius: 12px; overflow: hidden; background: var(--cream); }
+  .prod-h { background: var(--grey-dark); color: #fff; padding: 9px 12px; font-weight: 700; font-size: 14px; }
+  .prod-h small { color: var(--gold-light); font-weight: 400; display: block; font-size: 11.5px; }
+  .prod-sec { padding: 6px 12px 2px; font-size: 12px; font-weight: 700; color: var(--grey-light); }
+  .prow { display: flex; justify-content: space-between; padding: 7px 12px; background: #fff; border-top: 1px solid #F1ECE2; font-size: 14px; }
+  .prow b { color: var(--gold-dark); font-size: 16px; }
+  .pcard { margin: 8px 10px; background: #fff; border-radius: 10px; padding: 8px 10px; border: 1px solid #F0E8D6; font-size: 13px; line-height: 1.5; }
+  .pcard .dim { opacity: .4; }
+  .pcard .num { background: var(--grey-dark); color: #fff; border-radius: 6px; padding: 0 6px; font-weight: 700; margin-right: 4px; }
+  .badge-noel { background: var(--noel-light); color: var(--noel); border-radius: 8px; padding: 1px 7px; font-size: 11.5px; font-weight: 700; }
+
+  /* Approches */
+  .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .app { border: 2px solid #ECE3D2; border-radius: 12px; padding: 12px; font-size: 13px; line-height: 1.45; }
+  .app.reco { border-color: var(--noel); background: #F6FBF7; }
+  .app h3 { font-size: 15px; margin-bottom: 6px; color: var(--grey-dark); }
+  .app .tag { display: inline-block; background: var(--noel); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
+  .app .p { color: var(--green); } .app .c { color: var(--red); }
+  .app ul { padding-left: 16px; margin: 4px 0; }
+  .app .eff { margin-top: 6px; font-weight: 700; }
+
+  .qs { counter-reset: q; list-style: none; }
+  .qs li { counter-increment: q; position: relative; padding: 10px 12px 10px 42px; border-top: 1px solid #F1ECE2; font-size: 14px; line-height: 1.5; }
+  .qs li::before { content: counter(q); position: absolute; left: 10px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
+  .qs li small { display: block; color: var(--grey-light); font-size: 12.5px; }
+  .qs li em { font-style: normal; background: #FFF6DF; padding: 0 5px; border-radius: 4px; color: var(--gold-dark); font-weight: 700; }
+
+  @media (max-width: 760px) {
+    .ba, .prods, .apps { grid-template-columns: 1fr; }
+    .tablet { border-width: 6px; }
+  }
+
+  /* v2 — Special transparent, écran Noël = écran Special */
+  .appbar span.ghost { opacity: .3; text-decoration: line-through; }
+  .weekbar { display: flex; gap: 4px; padding: 8px 10px; align-items: center; }
+  .weekbar .nav { width: 30px; text-align: center; font-size: 18px; color: var(--grey-light); }
+  .weekbar .d { flex: 1; text-align: center; border-radius: 9px; padding: 5px 0; background: #fff; border: 1px solid #ECE3D2; font-size: 11px; color: var(--grey-light); }
+  .weekbar .d b { display: block; font-size: 16px; color: var(--brown); }
+  .weekbar .d i { display: block; font-style: normal; font-size: 11px; color: var(--noel); font-weight: 700; min-height: 13px; }
+  .weekbar .d.on { background: var(--noel); border-color: var(--noel); color: #fff; } .weekbar .d.on b, .weekbar .d.on i { color: #fff; }
+  .bigbtn { display: block; width: calc(100% - 24px); margin: 6px 12px; padding: 12px; border-radius: 10px; border: none; font-family: inherit; font-size: 14.5px; font-weight: 700; }
+  .bigbtn.gold { background: var(--gold); color: #fff; } .bigbtn.grey { background: #E9E5DC; color: var(--grey); } .bigbtn.green { background: var(--noel-light); color: var(--noel); border: 2px solid #BFD9C8; }
+  .sec-t { padding: 10px 12px 2px; font-weight: 700; font-size: 14px; color: var(--grey-dark); }
+  .toast { margin: 10px 12px; background: var(--grey-dark); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .answered li::before { background: var(--green); content: '✓'; }
+  .open li::before { background: var(--orange); }
+
+  /* v3 — grille de tarifs BackOffice */
+  .tarifs { max-width: 760px; margin: 0 auto; border: 1px solid #ECE3D2; border-radius: 12px; overflow: hidden; background: var(--cream); }
+  .tar-h { background: var(--grey-dark); color: #fff; padding: 10px 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tar-h b { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; margin-right: auto; }
+  .tar-h button { background: var(--gold); color: #fff; border: none; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; font-weight: 700; }
+  .tar-bulk { background: #FFF6DF; border-bottom: 1px solid #ECE3D2; padding: 10px 12px; font-size: 13.5px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tar-bulk select, .tar-bulk input { padding: 6px 8px; border: 1px solid #DDD3BE; border-radius: 8px; font-family: inherit; font-size: 14px; }
+  .tar-bulk input { width: 64px; }
+  .tar-bulk .go { background: var(--gold-dark); color: #fff; border: none; border-radius: 8px; padding: 7px 12px; font-family: inherit; font-weight: 700; font-size: 13px; }
+  .tar-g { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--grey-light); }
+  .tar-r { display: grid; grid-template-columns: 1fr 96px 92px 26px; gap: 6px; align-items: center; padding: 5px 12px; background: #fff; border-top: 1px solid #F1ECE2; }
+  .tar-r input { width: 100%; padding: 7px 8px; border: 1px solid #E5DCC8; border-radius: 7px; font-family: inherit; font-size: 14px; background: #FDFCF9; }
+  .tar-r input.px { text-align: right; font-weight: 700; }
+  .tar-r input:focus { outline: 2px solid var(--gold); background: #fff; }
+  .tar-r .ok { color: var(--green); font-weight: 700; opacity: 0; transition: opacity .3s; }
+  .tar-r .ok.on { opacity: 1; }
+  .tar-r .old { font-size: 11px; color: var(--grey-light); text-decoration: line-through; display: block; text-align: right; }
+  .tar-head { display: grid; grid-template-columns: 1fr 96px 92px 26px; gap: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: var(--brown-mid); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="card">
+  <h1>🎄 Noël prend la place de Special</h1>
+  <p class="sub">Maquette, pas l'app. Version 2, avec tes réponses du 31/10. Données fictives, rien n'est enregistré. Tu peux appuyer sur les <b>+ / −</b>, les <b>🔪</b> et le paiement pour voir le total et le ticket bouger.</p>
+  <div class="ba">
+    <div class="avant"><h3>❌ Aujourd'hui</h3><ul>
+      <li>2 bûches → onglet <b>Fêtes</b> (n° 7, ticket, acompte)</li>
+      <li>3 Traditions → onglet <b>Special</b> (n° 8, autre ticket, autre paiement)</li>
+      <li>2 numéros, 2 tickets, 2 sacs, 2 récaps du jour</li>
+      <li>Le client paie un acompte… sur quelle commande ?</li></ul></div>
+    <div class="apres"><h3>✅ Du 1er décembre au 1er janvier</h3><ul>
+      <li>L'onglet <b>Special devient transparent</b> : <b>🎄 Noël prend le relais</b> pour toutes les commandes clients, Noël ou pas</li>
+      <li>Même écran que Special (semaine, récap du jour, prénoms…), <b>+ la carte de Noël à prix fixe</b></li>
+      <li><b>1 commande, 1 numéro, 1 ticket, 1 total, 1 acompte</b></li>
+      <li>Le 2 janvier, Special revient tout seul, avec toutes les commandes dedans</li></ul></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step">1</span>L'écran 🎄 Noël (à la place de Special)</h2>
+  <p class="sub">C'est l'écran Special d'aujourd'hui, en vert : les jours de la semaine, « + Nouvelle commande », le récap du jour, puis <b>toutes</b> les commandes du jour. Celles qui contiennent un produit de la carte ont le badge 🎄. Dans la barre, Special est barré et grisé.</p>
+  <div class="tablet">
+    <div class="appbar"><span>Reap.Pain</span><span>Reap.Vienn</span><span>Prev.Trait</span><span>Ventes</span><span class="ghost">Special</span><span class="on">🎄 Noël</span><span>Recap</span></div>
+    <div class="fete-banner"><strong>🎄 Noël — toutes les commandes clients</strong><small>du 1er décembre au 1er janvier</small></div>
+    <div class="weekbar"><span class="nav">←</span>
+      <div class="d">lun<b>21</b><i>4</i></div><div class="d">mar<b>22</b><i>7</i></div><div class="d">mer<b>23</b><i>12</i></div>
+      <div class="d on">jeu<b>24</b><i>31</i></div><div class="d">ven<b>25</b><i>9</i></div><div class="d">sam<b>26</b><i></i></div><div class="d">dim<b>27</b><i></i></div>
+      <span class="nav">→</span></div>
+    <button class="bigbtn gold">+ Nouvelle commande</button>
+    <button class="bigbtn grey">📋 Récap du jour · tickets retrait</button>
+    <div class="sec-t">📅 jeudi 24 décembre — Saint-Avertin (31)</div>
+    <div class="pcard"><span class="num">11</span><b>09:30 · M. Bernard</b><br>1× Fraisier 8 parts · ⭐ Joyeux anniversaire Léo<br><span style="color:var(--grey-light)">À régler · 👤 Léa</span></div>
+    <div class="pcard"><span class="num">12</span><b>10:15 · Mme Martin</b> <span class="badge-noel">🎄 67,40 €</span><br>1× Bûche Tourangelle Grande · 2× Bûche Tout choco indiv. · 3× Baguette de tradition 🔪 · 12× Croissant<br><span style="color:var(--orange)">Acompte 20 € · reste 47,40 €</span> · 👤 Léa</div>
+    <div class="pcard"><span class="num">13</span><b>10:30 · M. Petit</b> <span class="badge-noel">🎄 13,60 €</span><br>2× Grande tourte de meule 🔪<br><span style="color:var(--green)">Réglé ✓</span> · 👤 Sami</div>
+    <div class="toast">Si une vendeuse appuie quand même sur <b>Special</b> (grisé) : « Pendant Noël, toutes les commandes se prennent dans 🎄 Noël » et l'app l'y emmène.</div>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step">2</span>La vendeuse prend la commande (Saint-Avertin, 6 décembre)</h2>
+  <p class="sub">Le formulaire des Spéciales (client avec suggestions, téléphone, heure au quart d'heure, prénom de qui prend), <b>avec la carte de Noël en tête</b>. Les pains de la carte ont un prix fixe et le 🔪. En dessous, le bloc habituel pour ce qui n'est pas sur la carte (gâteau d'anniversaire, etc.).</p>
+  <div class="tablet">
+    <div class="appbar"><span>Reap.Pain</span><span>Reap.Vienn</span><span>Prev.Trait</span><span>Ventes</span><span class="ghost">Special</span><span class="on">🎄 Noël</span><span>Recap</span></div>
+    <div class="fete-banner"><strong>← Nouvelle commande</strong><small>🎄 Noël</small></div>
+    <div class="form" style="padding-top:12px">
+      <div class="row"><label class="lbl">Nom client *</label><input class="inp" value="Mme Martin"></div>
+      <div class="row"><label class="lbl">Téléphone *</label><input class="inp" value="06 12 34 56 78"></div>
+      <div class="dbl row">
+        <div><label class="lbl">Date retrait *</label><select class="inp"><option>jeu. 24 déc.</option></select></div>
+        <div><label class="lbl">Heure</label><select class="inp"><option>10:15</option></select></div>
+      </div>
+      <div class="delai">⚠️ Jour de fête : 72 h avant le retrait. Ici il reste 18 jours, tout va bien. <i>(même avertissement qu'aujourd'hui)</i></div>
+
+      <div class="bloc bloc-noel note"><span class="pin">nouveau</span>
+        <div class="bloc-h"><span>🎄 Carte de Noël <small style="font-weight:400">· 59 produits</small></span><span id="sousNoel">0,00 €</span></div>
+        <div class="search">🔍 Chercher dans la carte… (ex. « meule »)</div>
+        <div id="noelList"></div>
+        <div class="grp" style="padding-bottom:8px">… et les autres groupes : Autres douceurs (Horloge, Bulle de minuit…), Salé</div>
+      </div>
+
+      <div class="bloc bloc-std">
+        <div class="bloc-h"><span>⭐ Hors carte</span><span style="font-size:12px;font-weight:400">comme les Spéciales, sans prix</span></div>
+        <div class="grp" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:12.5px;padding-bottom:4px">Gâteau d'anniversaire, produit qui n'est pas sur la carte… Rien pour Mme Martin.</div>
+        <button class="add">+ Ajouter un produit hors carte</button>
+      </div>
+
+      <div class="total">
+        <div class="l big" style="border:none;margin:0;padding:0"><span>Total</span><span id="totBig">0,00 €</span></div>
+        <div class="l"><small>Un produit hors carte se paie en caisse au retrait</small></div>
+      </div>
+
+      <div class="row"><label class="lbl">Paiement</label>
+        <div class="pay" id="pay">
+          <button data-p="non_regle" class="on">À régler</button><button data-p="acompte">Acompte</button><button data-p="regle">💰 Réglé</button>
+        </div>
+        <div id="acRow" style="display:none;margin-top:8px"><label class="lbl">Montant de l'acompte *</label><input class="inp" id="acompte" value="20" style="max-width:120px" oninput="majTicket()"> €</div>
+      </div>
+      <div class="row"><label class="lbl">Notes</label><input class="inp" value="Joyeux Noël Mamie sur la grande bûche"></div>
+      <div class="row"><label class="lbl">👤 Commande prise par *</label><select class="inp"><option>Léa</option></select></div>
+
+      <div class="actions"><button class="btn-grey">Annuler</button><button class="btn-gold">✓ Créer + 🖨 ticket</button></div>
+      <div class="hint">➜ Cette commande concerne <b>2 ateliers</b> :<br>• <b>Veigné</b> : les bûches<br>• <b>Le Local</b> : Baguette de tradition, Croissant<br><span style="opacity:.8">Chacun verra sa ligne dans son écran. Le suivi de la commande reste à Saint-Avertin.</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step">3</span>Un seul ticket (Brother 62 mm)</h2>
+  <p class="sub">Un seul numéro du jour. Le ticket client montre les prix, l'acompte et le reste à payer. Le ticket retrait (le matin du 24) garde son format : n° en gros, téléphone, pas de prix.</p>
+  <div class="tickets">
+    <div class="tk-wrap"><small>🎫 Ticket client (à la commande)</small><div class="lb" id="tkClient"></div></div>
+    <div class="tk-wrap"><small>🏷️ Ticket retrait (le 24 au matin)</small><div class="lb" id="tkRetrait"></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step">4</span>En production, chacun voit sa part</h2>
+  <p class="sub">La même commande n°12 apparaît aux deux endroits. Les lignes des autres sont estompées, comme aujourd'hui dans les Spéciales. Un pain de la carte suit la même règle qu'un pain normal : commandé à Veigné ou à Tours, il est fait sur place ; à Saint-Avertin, il vient du Local.</p>
+  <div class="prods">
+    <div class="prod">
+      <div class="prod-h">🍰 Veigné — 🎄 Noël → 🍰 Production<small>Retrait jeudi 24 décembre</small></div>
+      <div class="prod-sec">TOTAUX</div>
+      <div class="prow"><span>Bûche Tourangelle — Grande</span><b>14 ✏️</b></div>
+      <div class="prow"><span>Bûche Tout choco — Indiv.</span><b>38</b></div>
+      <div class="prow"><span>Bûche trad. praliné — Grande</span><b>9</b></div>
+      <div class="prod-sec">✏️ NOTES DES CLIENTS</div>
+      <div class="pcard"><span class="num">12</span><b>10:15 · Mme Martin</b> 🏪 St-Avertin<br>
+        1× Bûche Tourangelle Grande · 2× Bûche Tout choco indiv.<br>
+        <span class="dim">3× Baguette de tradition 🔪 · 12× Croissant → Le Local</span><br>
+        ⭐ Joyeux Noël Mamie sur la grande bûche</div>
+    </div>
+    <div class="prod">
+      <div class="prod-h">🥖 Le Local — Prod. du jour, « Spéciales du jour »<small>Retrait jeudi 24 décembre</small></div>
+      <div class="prod-sec">⭐ SPÉ (colonne habituelle)</div>
+      <div class="prow"><span>Tradition</span><b>+3 🔪</b></div>
+      <div class="prow"><span>Croissant</span><b>+12</b></div>
+      <div class="pcard"><span class="num">12</span><b>10:15 · Mme Martin</b> 🏪 St-Avertin <span class="badge-noel">🎄 Noël</span><br>
+        3× Baguette de tradition 🔪 · 12× Croissant<br>
+        <span class="dim">1× Bûche Tourangelle · 2× Bûche Tout choco → Veigné</span></div>
+      <p class="sub" style="padding:0 12px">Les pains de la carte tombent dans les colonnes habituelles (⭐ SPÉ, Prod. St-Av, livreur), comme une commande spéciale.</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step">5</span>BackOffice → Fêtes → 💶 Tarifs et noms</h2>
+  <p class="sub">Tu as demandé que ce soit <b>facile de changer les prix et les noms</b>. Aujourd'hui, chaque produit s'ouvre en 5 fenêtres l'une après l'autre. Proposé : <b>une grille</b>, nom / taille / prix dans des cases. Tu tapes, tu passes à la case suivante, c'est enregistré (✓ vert). <b>Les commandes déjà prises gardent leur prix</b> (c'est déjà le cas aujourd'hui). Essaie : change un prix ou un nom, ou applique +3 %.</p>
+  <div class="tarifs">
+    <div class="tar-h"><b>🎄 Noël — carte (59)</b><button>＋ Ajouter un produit</button></div>
+    <div class="tar-bulk">Tous les prix de
+      <select id="bkG"><option value="">toute la carte</option><option>Bûches pâtissières</option><option>Pains de Noël</option></select>
+      <select id="bkS"><option value="1">+</option><option value="-1">−</option></select><input id="bkP" value="3" inputmode="decimal"> %
+      <span style="color:var(--grey-light);font-size:12px">arrondi aux 5 centimes</span>
+      <button class="go" onclick="bulk()">Voir avant d'appliquer</button>
+      <span id="bkMsg" style="font-size:12.5px;color:var(--gold-dark);font-weight:700"></span>
+    </div>
+    <div class="tar-head"><span>Nom</span><span>Taille</span><span style="text-align:right">Prix €</span><span></span></div>
+    <div id="tarList"></div>
+  </div>
+  <p class="sub" style="max-width:760px;margin:10px auto 0">L'ordre (↑↓), la pause ⏸️, la corbeille et « produit où » restent accessibles par ✎ comme aujourd'hui. Ce qui change : prix et noms se modifient directement dans la grille.</p>
+</div>
+
+<div class="card">
+  <h2>Tes réponses (31/10)</h2>
+  <ol class="qs answered">
+    <li><b>Prix du pain : prix fixe.</b> Les pains de Noël sont dans la carte avec leur prix et entrent dans le total.</li>
+    <li><b>Ouverture : 1er décembre.</b> Réglé en base (onglet toujours éteint, il s'allumera avec la nouvelle version).</li>
+    <li><b>Special transparent, Noël prend le relais.</b> C'est possible : c'est la maquette ci-dessus.</li>
+    <li><b>Carte complétée</b> : 45 produits ajoutés depuis ton Excel 2025 (28 pains, 9 viennoiseries et brioches, Horloge, Bulle de minuit, mignardises, plateau, diamants, pain d'épices, mini feuilletés, bouchées à la reine). Total : 59. Les « TR » ne sont pas en double : c'est le 🔪.</li>
+    <li><b>Galettes, Pâques : pareil.</b> Même écran pour toutes les fêtes.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>Dernières réponses (31/10)</h2>
+  <ol class="qs answered">
+    <li><b>Prix 2025 repris</b>, à changer facilement → grille de tarifs (étape 5), avec « +X % » sur toute la carte ou un groupe.</li>
+    <li><b>Noms des bûches</b> : modifiables dans la même grille, tu les renommes toi-même quand tu veux.</li>
+    <li><b>Qui fait quoi</b> : validé (bûches, douceurs, salé → Veigné ; pains et viennoiseries → règle habituelle).</li>
+    <li><b>Special pendant la fête</b> : grisé, avec renvoi vers l'onglet de la fête.</li>
+  </ol>
+</div>
+
+</div>
+<script>
+const CARTE = [
+  { g: 'Bûches pâtissières', items: [
+    { id: 1, nom: 'Bûche Tourangelle', t: 'Indiv.', p: 6 }, { id: 2, nom: 'Bûche Tourangelle', t: 'Grande', p: 35 },
+    { id: 5, nom: 'Bûche Tout choco', t: 'Indiv.', p: 6 }, { id: 6, nom: 'Bûche Tout choco', t: 'Grande', p: 35 } ] },
+  { g: 'Pains de Noël', items: [
+    { id: 20, nom: 'Baguette de tradition', t: '', p: 1.2, pain: true }, { id: 21, nom: 'Grande tourte de meule', t: '', p: 6.8, pain: true },
+    { id: 22, nom: 'Pain aux noix', t: '', p: 3.8, pain: true }, { id: 23, nom: 'Norvégien', t: 'demi', p: 5.5, pain: true } ] },
+  { g: 'Viennoiseries & brioches', items: [
+    { id: 30, nom: 'Croissant', t: '', p: 1.4 }, { id: 31, nom: 'Pain au chocolat', t: '', p: 1.6 }, { id: 32, nom: 'Brioche Grand-mère', t: '', p: 7.5 } ] }
+];
+const qty = { 2: 1, 5: 2, 20: 3, 30: 12 };
+const tr = { 20: true };
+let pay = 'non_regle';
+const eur = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+const all = () => CARTE.flatMap(g => g.items);
+function totalNoel() { return all().reduce((s, it) => s + (qty[it.id] || 0) * it.p, 0); }
+function renderNoel() {
+  let h = '';
+  CARTE.forEach(g => {
+    h += '<div class="grp">' + g.g + '</div>';
+    g.items.forEach(it => {
+      const q = qty[it.id] || 0;
+      h += '<div class="np' + (q ? ' has' : '') + '"><div class="nom">' + it.nom + (it.t ? '<span class="taille">' + it.t + '</span>' : '')
+        + (it.pain ? ' <span class="chip' + (tr[it.id] ? ' on' : '') + '" onclick="tr[' + it.id + ']=!tr[' + it.id + '];renderNoel()">🔪</span>' : '') + '</div>'
+        + '<div class="prix">' + eur(it.p) + '</div>'
+        + '<div class="step-q"><button onclick="chg(' + it.id + ',-1)">−</button><b>' + (q || '–') + '</b><button onclick="chg(' + it.id + ',1)">+</button></div></div>';
+    });
+  });
+  document.getElementById('noelList').innerHTML = h;
+  const t = totalNoel();
+  ['sousNoel', 'totBig'].forEach(id => document.getElementById(id).textContent = eur(t));
+  majTicket();
+}
+function chg(id, d) { qty[id] = Math.max(0, (qty[id] || 0) + d); if (!qty[id]) delete qty[id]; renderNoel(); }
+document.querySelectorAll('#pay button').forEach(b => b.onclick = () => {
+  pay = b.dataset.p;
+  document.querySelectorAll('#pay button').forEach(x => x.classList.toggle('on', x === b));
+  document.getElementById('acRow').style.display = pay === 'acompte' ? '' : 'none';
+  majTicket();
+});
+function lignes(avecPrix) {
+  let h = '';
+  all().filter(it => qty[it.id]).forEach(it => {
+    const t = it.pain && tr[it.id];
+    h += '<li' + (t ? ' class="lb-tranche"' : '') + '><b>' + qty[it.id] + '</b><span>' + it.nom + (it.t ? ' ' + it.t : '') + (t ? ' — À TRANCHER' : '') + '</span>'
+      + (avecPrix ? '<span class="px">' + eur(qty[it.id] * it.p) + '</span>' : '') + '</li>';
+  });
+  return h;
+}
+function majTicket() {
+  const t = totalNoel();
+  const ac = parseFloat((document.getElementById('acompte').value || '0').replace(',', '.')) || 0;
+  let payL = '<span>Total : ' + eur(t) + '</span>', big;
+  if (pay === 'regle') big = 'Réglé ✓';
+  else if (pay === 'acompte') { payL += '<span>Acompte versé : ' + eur(ac) + '</span>'; big = 'Reste au retrait : ' + eur(t - ac); }
+  else big = 'À régler au retrait';
+  const head = '<div class="lb-logo">Les Blés de Demain</div><div class="lb-site">Saint-Avertin</div><div class="lb-cut"></div><div class="lb-flag">🎄 Noël</div>';
+  document.getElementById('tkClient').innerHTML = head
+    + '<div class="lb-num"><div><small>Votre commande</small><b>12</b></div><div class="lb-when"><b>10:15</b><span>jeu. 24 déc.</span></div></div>'
+    + '<div class="lb-client">Mme Martin</div><ul class="lb-items">' + lignes(true) + '</ul>'
+    + '<div class="lb-notes">📝 Joyeux Noël Mamie sur la grande bûche</div>'
+    + '<div class="lb-pay">' + payL + '<div class="lb-big">' + big + '</div></div>'
+    + '<div class="lb-foot">17 Mail René Cassin, Saint-Avertin · 09 80 99 96 52<br>Merci de votre confiance, à très bientôt !</div>';
+  document.getElementById('tkRetrait').innerHTML = head
+    + '<div class="lb-num"><div><small>N° du jour</small><b>12</b></div><div class="lb-when"><b>10:15</b><span>jeu. 24 déc.</span></div></div>'
+    + '<div class="lb-client" style="font-size:24pt">Mme Martin</div><div class="lb-tel">📞 06 12 34 56 78</div>'
+    + '<ul class="lb-items">' + lignes(false) + '</ul>'
+    + '<div class="lb-notes">📝 Joyeux Noël Mamie sur la grande bûche</div>'
+    + '<div class="lb-pay"><div class="lb-big">' + (pay === 'regle' ? 'Réglé ✓' : 'À régler') + '</div></div>';
+}
+renderNoel();
+const TAR = [
+  { g: 'Bûches pâtissières', items: [['Bûche Tourangelle','Indiv.',6],['Bûche Tourangelle','Grande',35],['Bûche fruits rouges','Indiv.',6],['Bûche fruits rouges','Grande',35],['Bûche choco','Indiv.',6],['Bûche choco','Grande',35]] },
+  { g: 'Pains de Noël', items: [['Baguette de tradition','',1.2],['Grande tourte de meule','',6.8],['Pain aux noix','',3.8],['Norvégien','entier',11],['Norvégien','demi',5.5]] }
+];
+const eur2 = n => n.toFixed(2).replace('.', ',');
+function renderTar(prev) {
+  let h = '';
+  TAR.forEach((g, gi) => {
+    h += '<div class="tar-g">' + g.g.toUpperCase() + '</div>';
+    g.items.forEach((it, ii) => {
+      const k = gi + '_' + ii, nv = prev && prev[k];
+      h += '<div class="tar-r"><input value="' + it[0].replace(/"/g, '&quot;') + '" onchange="saved(this)"><input value="' + it[1] + '" placeholder="—" onchange="saved(this)">'
+        + '<div><input class="px" value="' + eur2(nv != null ? nv : it[2]) + '" onchange="saved(this)"' + (nv != null && nv !== it[2] ? ' style="background:#FFF3D6"' : '') + '>'
+        + (nv != null && nv !== it[2] ? '<span class="old">' + eur2(it[2]) + '</span>' : '') + '</div><span class="ok">✓</span></div>';
+    });
+  });
+  h += '<div class="tar-g" style="padding-bottom:10px">… + Bûches traditionnelles, Autres douceurs, Viennoiseries & brioches, Salé</div>';
+  document.getElementById('tarList').innerHTML = h;
+}
+function saved(inp) { const ok = inp.closest('.tar-r').querySelector('.ok'); ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1500); }
+let bulkPending = null;
+function bulk() {
+  const btn = document.querySelector('.tar-bulk .go'), msg = document.getElementById('bkMsg');
+  if (bulkPending) { TAR.forEach((g, gi) => g.items.forEach((it, ii) => { const v = bulkPending[gi + '_' + ii]; if (v != null) it[2] = v; })); bulkPending = null; renderTar(); btn.textContent = "Voir avant d'appliquer"; msg.textContent = '✓ Nouveaux prix enregistrés'; return; }
+  const g = document.getElementById('bkG').value, sg = +document.getElementById('bkS').value, pc = parseFloat(document.getElementById('bkP').value.replace(',', '.')) || 0;
+  const prev = {}; let n = 0;
+  TAR.forEach((gr, gi) => { if (g && gr.g !== g) return; gr.items.forEach((it, ii) => { prev[gi + '_' + ii] = Math.round(it[2] * (1 + sg * pc / 100) * 20) / 20; n++; }); });
+  bulkPending = prev; renderTar(prev); btn.textContent = '✓ Appliquer à ' + n + ' produits'; msg.textContent = 'En jaune : le nouveau prix, barré : l\'ancien.';
+}
+renderTar();
+</script>
+</body>
+</html>

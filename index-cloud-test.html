@@ -466,6 +466,40 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .fete-banner small { opacity: .85; font-size: 12px; }
 .fete-sec { background: #7C1F2E; color: #fff; font-weight: 700; font-size: 11px; letter-spacing: .6px; padding: 5px 12px; border-radius: 6px; margin: 10px 0 4px; }
 .fete-taille { font-size: 11px; background: #F0E7D2; color: var(--gold-dark); border-radius: 10px; padding: 1px 8px; font-weight: 600; }
+/* v20.328 — Special grisé pendant la fête ; carte de la fête dans le formulaire des Spéciales */
+.bnav-item.bnav-ghost .lbl { opacity: .35; text-decoration: line-through; }
+.sp-carte { border: 2px solid #E3C9CE; border-radius: 12px; background: #fff; margin: 12px 0; overflow: hidden; }
+.sp-carte-h { background: #F7EBED; color: #7C1F2E; padding: 9px 12px; font-weight: 700; font-size: 14.5px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sp-carte-search { margin: 8px 12px 2px; width: calc(100% - 24px); padding: 9px 10px; border: 1px solid #DDD3BE; border-radius: 9px; font-size: 15px; font-family: inherit; background: #FAF8F4; }
+.sp-carte-g { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--grey-light); padding: 9px 12px 3px; text-transform: uppercase; }
+.sp-carte-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid #F1ECE2; }
+.sp-carte-row.on { background: #FBF3F4; }
+.sp-carte-row .nom { font-size: 14.5px; }
+.sp-carte-row .px { font-size: 13.5px; color: var(--grey-light); min-width: 58px; text-align: right; }
+.sp-carte-q { display: flex; align-items: center; gap: 4px; }
+.sp-carte-q button { width: 38px; height: 38px; border-radius: 9px; border: 1px solid #D6CCB6; background: #FAF8F4; font-size: 19px; cursor: pointer; }
+.sp-carte-q b { min-width: 26px; text-align: center; font-size: 16px; }
+.sp-carte-row.on .sp-carte-q b { color: #7C1F2E; }
+.sp-carte-tr { font-size: 12px; padding: 3px 8px; border-radius: 12px; border: 1px solid #D6CCB6; background: #fff; cursor: pointer; margin-left: 4px; white-space: nowrap; }
+.sp-carte-tr.on { background: #FDE8E8; border-color: var(--red); color: var(--red); font-weight: 700; }
+.sp-carte-old { font-size: 11px; color: var(--grey-light); }
+.sp-total { background: var(--grey-dark); color: #fff; border-radius: 12px; padding: 10px 14px; margin: 12px 0; }
+.sp-total-l { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
+.sp-total small { display: block; opacity: .75; font-size: 12px; margin-top: 3px; }
+.sp-fete-badge { background: #F7EBED; color: #7C1F2E; border-radius: 10px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+/* v20.328 — BackOffice → Fêtes : grille Tarifs et noms */
+.ft-bulk { background: #FFF6DF; padding: 10px 12px; font-size: 13.5px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #ECE3D2; }
+.ft-bulk select, .ft-bulk input { padding: 7px 8px; border: 1px solid #DDD3BE; border-radius: 8px; font-family: inherit; font-size: 14px; }
+.ft-g { padding: 9px 12px 3px; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--grey-light); }
+.ft-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 84px auto; gap: 6px; align-items: center; padding: 5px 12px; border-top: 1px solid #F1ECE2; background: #fff; }
+.ft-row.off { opacity: .45; }
+.ft-row input { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid #E5DCC8; border-radius: 7px; font-family: inherit; font-size: 14px; background: #FDFCF9; }
+.ft-row input.ft-px { text-align: right; font-weight: 700; }
+.ft-row input.ft-new { background: #FFF3D6; }
+.ft-row .ft-sub { grid-column: 1 / -1; font-size: 11.5px; color: var(--grey-light); margin-top: -2px; }
+.ft-row .ft-old { font-size: 11px; color: var(--grey-light); text-decoration: line-through; display: block; text-align: right; }
+.ft-ok { color: var(--green); font-weight: 700; }
+@media (max-width: 560px) { .ft-row { grid-template-columns: minmax(0, 1fr) 70px 76px; } .ft-row .btn-row { grid-column: 1 / -1; } }
 .fete-prix { font-weight: 700; color: var(--gold-dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fete-qty { padding: 8px; border: 1px solid var(--gold-light); border-radius: 8px; background: #fff; font-size: 15px; min-width: 64px; }
 .fete-total { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--gold); margin-top: 10px; padding: 8px 2px; font-size: 15px; }
@@ -2754,7 +2788,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.326';
+const APP_VERSION  = 'v20.328';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -4021,7 +4055,7 @@ renderOublisBar();   // v20.264 — la barre d'oublis n'a rien à faire sur l'ac
 marketEntriesData = {}; marketDayNote = ''; currentMarketId = null; marketUpcomingData = {};
 messagesData = []; messageDraft = freshMessageDraft();
 specialOrdersData = []; specialFormMode = null; specialFormDraft = null; selectedSpecialDay = null; currentSpecialWeekStart = null;
-feteOrders = []; feteEditingId = null; feteDraftQty = {}; feteView = 'new'; // v20.222
+feteOrders = []; feteSpecialOrders = []; feteView = 'list'; // v20.222 / v20.328
 previsData = {}; previsTraiteurDataV = {}; previsTraiteurDataSA = {};
 isLivreurMode = false; isLocalMode = false;
 document.getElementById('splash').style.display = 'flex';
@@ -4036,7 +4070,8 @@ let badge = '';
 if (it.id === 'messages' && unread > 0) {
 badge = '<span class="bnav-badge">' + (unread > 9 ? '9+' : unread) + '</span>';
 }
-return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + '" data-vue="' + it.id + '"><span class="lbl">' + escapeHtml(it.lbl) + '</span>' + badge + '</button>';
+const ghost = it.id === 'specials' && feteRemplaceSpecial(currentBoutique);   // v20.328 — Special grisé pendant la fête
+return '<button class="bnav-item ' + (it.id === currentVue ? 'active' : '') + (ghost ? ' bnav-ghost' : '') + '" data-vue="' + it.id + '"><span class="lbl">' + escapeHtml(it.lbl) + '</span>' + badge + '</button>';
 }).join('');
 initNavDragOnce();
 }
@@ -4052,7 +4087,7 @@ return messagesData.filter(function(m) { return m.recipient_boutique === box && 
 function orderedNavItems(boutique) {
 let base = NAV_ITEMS[boutique] || [];
 // v20.222 — onglet éphémère Fêtes : n'existe que quand une fête est active (BackOffice)
-if (typeof feteActive !== 'undefined' && feteActive && ['veigne', 'tours', 'saint-avertin', 'local'].indexOf(boutique) !== -1) {
+if (feteRemplaceSpecial(boutique)) {
   base = base.concat([{ id: 'fetes', lbl: feteActive.label }]);
 }
 let saved = [];
@@ -4133,6 +4168,11 @@ const master = (typeof boutiqueCodes !== 'undefined' && boutiqueCodes['master'])
 const ok = await askCodeModal('Stock Pâtissier — code d\'accès', ['0811', String(master).trim()]);
 if (!ok) return; // annulé → on reste sur l'onglet actuel
 stockPatUnlocked = true;
+}
+// v20.328 — pendant une fête, Special est grisé : toutes les commandes clients passent par l'onglet de la fête
+if (v === 'specials' && feteRemplaceSpecial(currentBoutique)) {
+  showToast('Pendant ' + feteActive.label + ', toutes les commandes se prennent dans l\'onglet ' + feteActive.label, 'sync');
+  v = 'fetes';
 }
 currentVue = v;
 productFilterQuery = '';  // v20.2 : reset filtre produit au changement d'onglet
@@ -4351,8 +4391,14 @@ if (currentBoutique === 'local') livreurDayData = await loadLivreurDayRow(todayI
 renderMetro();
 } else if (v === 'fetes') {
 // v20.222 — onglet éphémère Fêtes (commandes clients à prix)
+// v20.328 — pendant la fête, il REMPLACE l'onglet Special (grisé) : même écran, avec la carte à prix
+if (!currentSpecialWeekStart) currentSpecialWeekStart = getMondayOf(currentDate);
+if (!selectedSpecialDay) selectedSpecialDay = currentDate;
+specialFormMode = null; specialFormDraft = null;
 await loadShopPeople();   // v20.238 — mêmes prénoms que les Spéciales
+await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 await loadFeteOrders();
+subscribeRealtimeSpecialOrders();
 subscribeRealtimeFetes();   // v20.279 — notes et commandes en direct sur la vue Production
 renderFetes();
 } else if (v === 'fetes_admin') {
@@ -4366,21 +4412,31 @@ renderAdminFetes();
 // Décisions Phil 25/08 : pains de fête à prix fixe · bûches produites à Veigné · pas de ❄️ sur le ticket.
 // Si la migration migration-v20.222-fetes.sql n'a pas tourné, feteActive reste null → aucun onglet.
 let feteEvents = [], feteActive = null, feteProducts = [], feteOrders = [];
-let feteView = 'new';       // new | list | prod
-let feteEditingId = null;   // commande en cours de modification
-let feteDraftQty = {};      // { fete_product_id: qty } pendant la saisie
+let feteView = 'list';      // list (= écran des commandes, celui de Special) | prod
 let feteAdminEvent = null;  // fête sélectionnée en BackOffice
 // v20.279 — Production Fêtes : détail client par client derrière chaque total (fenêtre),
 // et rechargement en direct quand une boutique ajoute/modifie une commande ou une note.
 let feteProdGroups = [];        // [{ date, pk, lignes: [{ o, it }] }] — index = cible du clic
 let feteOrdersDirty = false;    // un changement est arrivé pendant la saisie d'une commande
 let realtimeChannelFetes = null;
+// v20.328 — FÊTES + SPÉCIALES = UNE SEULE COMMANDE (Phil, 29-31/10/2026 : « si les clients veulent du pain
+// et des bûches, on fait comment ? »). Pendant la fête, l'onglet Special est grisé et l'onglet de la fête
+// affiche le même écran, avec en plus la CARTE de la fête (prix fixes) dans le formulaire. Une commande =
+// un numéro, un ticket, un total, un acompte ; tout est dans special_orders / special_order_items :
+//   ligne de la carte = fete_product_id + unit_price (figé) + product_name_custom (nom affiché)
+//                       + product_id si le produit de la carte est relié à sa fiche (pains, viennoiseries :
+//                       production habituelle) sinon prod_site (bûches → Veigné…).
+// Les anciennes fete_orders restent lues par la vue Production et les tickets.
+// Prêt pour une commande en ligne plus tard (Phil, 31/10) : special_orders.canal, total et prix enregistrés.
+let feteSpecialOrders = [];     // commandes de la fête en cours (toutes boutiques), pour la vue Production
+let speFeteReady = false;       // migration-v20.328 lancée (colonnes fete_product_id, total, event_id, canal)
+function feteRemplaceSpecial(b) { return !!feteActive && ['veigne', 'tours', 'saint-avertin', 'local'].indexOf(b) !== -1; }
 function subscribeRealtimeFetes() {
   if (realtimeChannelFetes) { supa.removeChannel(realtimeChannelFetes); realtimeChannelFetes = null; }
   realtimeChannelFetes = supa.channel('fetes_' + currentBoutique)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fete_orders' }, async function() {
       if (currentVue !== 'fetes') return;
-      if (feteView === 'new') { feteOrdersDirty = true; return; }   // jamais sous les doigts de la vendeuse
+      if (specialFormMode) { feteOrdersDirty = true; return; }   // jamais sous les doigts de la vendeuse
       await loadFeteOrders(); feteOrdersDirty = false; renderFetes();
     })
     .subscribe();
@@ -4409,216 +4465,75 @@ async function loadFetes() {
       const pr = await supa.from('fete_products').select('*').eq('event_id', feteActive.id).order('ordre').order('id');
       feteProducts = pr.error ? [] : (pr.data || []);
     }
+    // v20.328 — la carte dans les Spéciales n'apparaît que si la migration a tourné
+    const chk = await supa.from('special_order_items').select('fete_product_id').limit(1);
+    speFeteReady = !chk.error;
   } catch (e) { feteActive = null; }
 }
 async function loadFeteOrders() {
-  if (!feteActive) { feteOrders = []; return; }
+  if (!feteActive) { feteOrders = []; feteSpecialOrders = []; return; }
   const q = await supa.from('fete_orders').select('*').eq('tenant_id', TENANT_ID).eq('event_id', feteActive.id)
     .order('pickup_date').order('pickup_time');
   feteOrders = q.error ? [] : (q.data || []);
+  // v20.328 — les commandes de la fête prises dans le formulaire des Spéciales
+  feteSpecialOrders = [];
+  if (!speFeteReady) return;
+  const s = await supa.from('special_orders').select('*').eq('tenant_id', TENANT_ID).eq('event_id', feteActive.id)
+    .order('pickup_date').order('pickup_time');
+  const so = s.error ? [] : (s.data || []);
+  if (!so.length) return;
+  const its = await supa.from('special_order_items').select('*').in('order_id', so.map(function(o) { return o.id; })).order('position');
+  const items = its.error ? [] : (its.data || []);
+  feteSpecialOrders = so.map(function(o) { o.items = items.filter(function(i) { return i.order_id === o.id; }); return o; });
 }
 function feteEUR(n) { return (Math.round((+n || 0) * 100) / 100).toFixed(2).replace('.', ',') + ' €'; }
-function feteMajDelai() {
-  const w = document.getElementById('feteDelaiWarn');
-  if (!w) return;
-  const dd = document.getElementById('feteDate'), tt = document.getElementById('feteTime');
-  w.innerHTML = cmdDelaiWarnHtml(dd ? dd.value : '', tt ? tt.value : '');
-}
 function feteButoirPasse() { return !!(feteActive && feteActive.butoir && new Date() > new Date(feteActive.butoir)); }
 function feteOrderTotal(items) { return (items || []).reduce(function(s, it) { return s + (+it.prix || 0) * (+it.qty || 0); }, 0); }
+// v20.328 — commandes vues par la vue Production : anciennes fete_orders + lignes de la carte des
+// commandes spéciales qui n'ont PAS de fiche produit (bûches, douceurs…). Les produits de la carte reliés
+// à une fiche (Tradition, Croissant…) partent dans la production habituelle (⭐ SPÉ), pas ici.
+function feteProdCommandes() {
+  const out = feteOrders.filter(function(o) { return o.status !== 'annulee'; });
+  feteSpecialOrders.forEach(function(o) {
+    if (o.status === 'annulee') return;
+    const lignes = (o.items || []).filter(function(it) { return it.fete_product_id && !it.product_id; }).map(function(it) {
+      return { nom: it.product_name_custom || '?', taille: '', qty: +it.qty || 0, prod_site: getItemProductionShop(it, o) };
+    });
+    if (lignes.length) out.push(Object.assign({}, o, { items: lignes }));
+  });
+  return out;
+}
 
+function feteBandeauHtml() {
+  const showProd = (currentBoutique === 'local' || currentBoutique === 'veigne');
+  // v20.279 — combien de commandes à fabriquer ici portent une note (visible sans ouvrir Production)
+  const nNotesProd = showProd ? feteProdCommandes().filter(function(o) {
+    return o.notes && String(o.notes).trim() && feteItemsPourSite(o, feteProdSite()).length;
+  }).length : 0;
+  let html = '<div class="fete-banner"><span><strong>' + escapeHtml(feteActive.label) + '</strong> — toutes les commandes clients</span>'
+    + '<small>Retraits du ' + escapeHtml(formatDateFr(feteActive.date_debut)) + ' au ' + escapeHtml(formatDateFr(feteActive.date_fin))
+    + (feteActive.butoir ? ' · carte jusqu\'au ' + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '') + '</small></div>';
+  if (showProd) {
+    html += '<div class="recap-toggle">'
+      + '<button class="recap-toggle-btn ' + (feteView !== 'prod' ? 'active' : '') + '" onclick="feteSetView(\'list\')">📋 Commandes</button>'
+      + '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production' + (nNotesProd ? ' <span class="prod-specials-notes">✏️ ' + nNotesProd + '</span>' : '') + '</button>'
+      + '</div>';
+  }
+  return html;
+}
 function renderFetes() {
   const mc = document.getElementById('main-content');
   if (!feteActive) { mc.innerHTML = '<div class="empty-state">Aucune fête active en ce moment.</div>'; return; }
-  const showProd = (currentBoutique === 'local' || currentBoutique === 'veigne');
-  const nOrders = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique && o.status !== 'annulee' && o.status !== 'recuperee'; }).length;
-  // v20.279 — combien de commandes à fabriquer ici portent une note (visible sans ouvrir Production)
-  const nNotesProd = showProd ? feteOrders.filter(function(o) {
-    return o.status !== 'annulee' && o.notes && String(o.notes).trim() && feteItemsPourSite(o, feteProdSite()).length;
-  }).length : 0;
-  let html = '<div class="fete-banner"><span><strong>' + escapeHtml(feteActive.label) + '</strong> — commandes clients</span>'
-    + '<small>Retraits du ' + escapeHtml(formatDateFr(feteActive.date_debut)) + ' au ' + escapeHtml(formatDateFr(feteActive.date_fin))
-    + (feteActive.butoir ? ' · commandes jusqu\'au ' + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '') + '</small></div>';
-  html += '<div class="recap-toggle">'
-    + '<button class="recap-toggle-btn ' + (feteView === 'new' ? 'active' : '') + '" onclick="feteSetView(\'new\')">📝 Nouvelle</button>'
-    + '<button class="recap-toggle-btn ' + (feteView === 'list' ? 'active' : '') + '" onclick="feteSetView(\'list\')">📋 Commandes (' + nOrders + ')</button>'
-    + '<button class="recap-toggle-btn" onclick="openRecapJour(\'fete\')">🏷️ Récap du jour</button>'   // v20.305
-    + (showProd ? '<button class="recap-toggle-btn ' + (feteView === 'prod' ? 'active' : '') + '" onclick="feteSetView(\'prod\')">🍰 Production' + (nNotesProd ? ' <span class="prod-specials-notes">✏️ ' + nNotesProd + '</span>' : '') + '</button>' : '')
-    + '</div>';
-  html += '<div style="padding:0 10px 6px">' + brotherSwitchHtml() + '</div>';   // v20.325
-  if (feteView === 'new') html += feteFormHtml();
-  else if (feteView === 'list') html += feteListHtml();
-  else html += feteProdHtml();
-  mc.innerHTML = html;
+  if (feteView !== 'prod') { renderSpecials(); return; }   // v20.328 — l'écran des Spéciales, bandeau de la fête en tête
+  mc.innerHTML = feteBandeauHtml() + feteProdHtml();
 }
 async function feteSetView(v) {
-  feteView = v; if (v !== 'new') feteEditingId = null;
-  if (v !== 'new' && feteOrdersDirty) { await loadFeteOrders(); feteOrdersDirty = false; }   // v20.279 — rattrape ce qui est arrivé pendant la saisie
+  feteView = v;
+  if (v === 'prod') { await loadFeteOrders(); feteOrdersDirty = false; }   // toujours à jour en arrivant sur Production
+  else if (feteOrdersDirty) { await loadFeteOrders(); feteOrdersDirty = false; }
   renderFetes();
 }
 
-function feteQtySelect(fpId, val) {
-  let o = '<option value="">–</option>';
-  for (let i = 1; i <= 30; i++) o += '<option value="' + i + '"' + (String(val) === String(i) ? ' selected' : '') + '>' + i + '</option>';
-  return '<select class="fete-qty" data-fpid="' + fpId + '" onchange="feteQtyChange(this)">' + o + '</select>';
-}
-function feteFormHtml() {
-  if (feteButoirPasse() && !feteEditingId) {
-    return '<div class="info-banner" style="border-left:4px solid var(--red)"><strong>Commandes closes</strong><br>La prise de commandes '
-      + escapeHtml(feteActive.label) + ' est terminée depuis le '
-      + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))
-      + '. (Le butoir se change en BackOffice → Fêtes.)</div>';
-  }
-  const ed = feteEditingId ? feteOrders.find(function(o) { return o.id === feteEditingId; }) : null;
-  const d = ed || {};
-  feteDraftQty = {};
-  ((ed && ed.items) || []).forEach(function(it) { if (it.fp_id != null) feteDraftQty[it.fp_id] = it.qty; });
-  let html = '<div class="section reappro-section"><div class="section-header section-header-reappro"><span>' + (ed ? '✏️ Modifier la commande' : '📝 Nouvelle commande') + '</span></div><div style="padding:10px 12px">';
-  html += '<div class="fete-frow"><label>Client *</label><input type="text" id="feteCust" value="' + escapeHtml(d.customer_name || '') + '" placeholder="Nom du client"></div>';
-  html += '<div class="fete-frow"><label>Téléphone *</label><input type="tel" id="fetePhone" value="' + escapeHtml(d.customer_phone || '') + '" placeholder="06…"></div>';
-  // v20.233 — l'avertissement de délai se recalcule à chaque changement de date/heure
-  // (le formulaire Fêtes n'est pas re-rendu tout seul, contrairement aux Spéciales)
-  html += '<div class="fete-frow"><label>Retrait le *</label><input type="date" id="feteDate" min="' + feteActive.date_debut + '" max="' + feteActive.date_fin + '" value="' + (d.pickup_date || feteActive.date_fin) + '" oninput="feteMajDelai()"> à <input type="time" id="feteTime" value="' + escapeHtml(d.pickup_time || '') + '" oninput="feteMajDelai()"></div>';
-  html += '<div id="feteDelaiWarn">' + cmdDelaiWarnHtml(d.pickup_date || feteActive.date_fin, d.pickup_time) + '</div>';
-  let curG = null;
-  feteProducts.filter(function(fp) { return fp.actif !== false; }).forEach(function(fp) {
-    if (fp.groupe !== curG) { curG = fp.groupe; html += '<div class="fete-sec">' + escapeHtml(curG || 'PRODUITS') + '</div>'; }
-    html += '<div class="produit-row" style="grid-template-columns:1fr auto auto;gap:8px">'
-      + '<div><div class="produit-name">' + escapeHtml(fp.nom) + (fp.taille ? ' <span class="fete-taille">' + escapeHtml(fp.taille) + '</span>' : '') + '</div></div>'
-      + '<div class="fete-prix">' + feteEUR(fp.prix) + '</div>'
-      + feteQtySelect(fp.id, feteDraftQty[fp.id] || '')
-      + '</div>';
-  });
-  html += '<div class="fete-total"><span>Total commande</span><b id="feteTotal">' + feteEUR(ed ? ed.total : 0) + '</b></div>';
-  html += '<div class="fete-frow"><label>Paiement</label><select id="fetePay">'
-    + '<option value="non_regle"' + (!d.paiement || d.paiement === 'non_regle' ? ' selected' : '') + '>À régler au retrait</option>'
-    + '<option value="acompte"' + (d.paiement === 'acompte' ? ' selected' : '') + '>Acompte versé</option>'
-    + '<option value="regle"' + (d.paiement === 'regle' ? ' selected' : '') + '>Réglé ✓</option></select>'
-    + '<input type="text" inputmode="decimal" id="feteAcompte" placeholder="Acompte €" value="' + (d.acompte != null ? escapeHtml(String(d.acompte).replace('.', ',')) : '') + '" style="width:110px;flex:0 1 auto;min-width:0"></div>';
-  html += '<div class="fete-frow"><label>Notes</label><input type="text" id="feteNotes" value="' + escapeHtml(d.notes || '') + '" placeholder="Précisions, message…"></div>';
-  // v20.238 — qui prend la commande, comme sur les Spéciales (v20.237) : liste du
-  // magasin, obligatoire, pré-remplie avec le prénom du service sur cette tablette.
-  if (shopPeopleReady) {
-    const gens = peopleOf(currentBoutique);
-    html += '<div class="fete-frow"><label>👤 Prise par *</label>';
-    if (!gens.length) {
-      html += '<span style="font-size:12px;color:var(--orange)">Aucun prénom pour ce magasin (⚙️ Prénoms dans l\'onglet Spéciales).</span>';
-    } else {
-      const sel = d.taken_by || rememberedPerson();
-      html += '<select id="feteTakenBy"><option value="">-- qui prend la commande ? --</option>'
-        + gens.map(function(g) { return '<option value="' + escapeHtml(g.prenom) + '"' + (sel === g.prenom ? ' selected' : '') + '>' + escapeHtml(g.prenom) + '</option>'; }).join('')
-        + '</select>';
-    }
-    html += '</div>';
-  }
-  html += '<div class="btn-row" style="padding:8px 0 4px">'
-    + '<button class="btn-gold" onclick="feteSave()">' + (ed ? '✓ Enregistrer les modifications' : '✓ Enregistrer + 🖨 ticket') + '</button>'
-    + (ed ? '<button class="btn-grey" onclick="feteEditingId=null;renderFetes()">Annuler</button>' : '')
-    + '</div>';
-  html += '<div class="npf-hint">💶 L\'encaissement (acompte ou total) se fait en caisse Menlog — ici on note le montant, le ticket rappelle le reste à payer.</div>';
-  html += '</div></div>';
-  return html;
-}
-function feteQtyChange(sel) {
-  const id = sel.dataset.fpid;
-  const v = parseInt(sel.value || '0', 10);
-  if (v > 0) feteDraftQty[id] = v; else delete feteDraftQty[id];
-  let t = 0;
-  Object.keys(feteDraftQty).forEach(function(k) {
-    const fp = feteProducts.find(function(p) { return String(p.id) === String(k); });
-    if (fp) t += (+fp.prix || 0) * feteDraftQty[k];
-  });
-  const el = document.getElementById('feteTotal');
-  if (el) el.textContent = feteEUR(t);
-}
-async function feteSave() {
-  const name = (document.getElementById('feteCust').value || '').trim();
-  const phone = (document.getElementById('fetePhone').value || '').trim();
-  const pdate = document.getElementById('feteDate').value;
-  const ptime = document.getElementById('feteTime').value;
-  if (!name) { showToast('Nom du client obligatoire', 'error'); return; }
-  if (!phone && !feteEditingId) { showToast('Téléphone obligatoire', 'error'); return; }
-  if (!pdate) { showToast('Date de retrait obligatoire', 'error'); return; }
-  const items = [];
-  feteProducts.forEach(function(fp) {
-    const q = feteDraftQty[fp.id];
-    if (q > 0) items.push({ fp_id: fp.id, nom: fp.nom, taille: fp.taille || '', prix: +fp.prix || 0, qty: q, prod_site: fp.prod_site || 'veigne' });
-  });
-  if (!items.length) { showToast('Aucun produit choisi', 'error'); return; }
-  // v20.238 — qui prend la commande : obligatoire dès qu'il y a une liste
-  const takenSel = document.getElementById('feteTakenBy');
-  const takenBy = takenSel ? (takenSel.value || '').trim() : '';
-  if (shopPeopleReady && peopleOf(currentBoutique).length && !takenBy) {
-    showToast('Choisis qui prend la commande (👤)', 'error'); return;
-  }
-  const pay = document.getElementById('fetePay').value;
-  const acompte = parseFloat((document.getElementById('feteAcompte').value || '').replace(',', '.'));
-  const row = {
-    tenant_id: TENANT_ID, event_id: feteActive.id, origin_shop: currentBoutique,
-    customer_name: name, customer_phone: phone || null,
-    pickup_date: pdate, pickup_time: ptime || null,
-    items: items, total: feteOrderTotal(items),
-    paiement: pay, acompte: (pay === 'acompte' && !isNaN(acompte)) ? acompte : null,
-    notes: (document.getElementById('feteNotes').value || '').trim() || null
-  };
-  if (shopPeopleReady) row.taken_by = takenBy || null;   // v20.238
-  if (takenBy) rememberPerson(takenBy);
-  setSyncStatus('syncing');
-  let saved = null;
-  if (feteEditingId) {
-    row.updated_at = new Date().toISOString();
-    const avant = feteOrders.find(function(x) { return x.id === feteEditingId; });
-    const r = await supa.from('fete_orders').update(row).eq('id', feteEditingId).select();
-    if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
-    saved = r.data && r.data[0];
-    if (saved && avant && (avant.pickup_date !== saved.pickup_date || avant.origin_shop !== saved.origin_shop)) await assignOrderNum('fete_orders', saved, true);   // v20.305
-  } else {
-    const r = await supa.from('fete_orders').insert(row).select();
-    if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
-    saved = r.data && r.data[0];
-    if (saved) await assignOrderNum('fete_orders', saved);   // v20.305 — numéro du jour
-  }
-  setSyncStatus('ok'); showToast('Commande enregistrée ✓', 'success');
-  const wasEdit = !!feteEditingId;
-  feteEditingId = null; feteDraftQty = {};
-  await loadFeteOrders();
-  feteView = 'list'; renderFetes();
-  if (saved && !wasEdit && brotherBranchee()) printOrderTickets('fete', saved.id, false); // ticket client direct à la création (v20.305 : étiquette 62 mm ; v20.325 : si la Brother est branchée sur cette tablette)
-}
-function feteListHtml() {
-  const mine = feteOrders.filter(function(o) { return o.origin_shop === currentBoutique; });
-  if (!mine.length) return '<div class="empty-state">Aucune commande ' + escapeHtml(feteActive.label) + ' pour cette boutique.</div>';
-  // v20.229b — mêmes mots que les commandes clients (Phil, 27/08 : « aligne les deux
-  // écrans pour Noël »). Les valeurs en base ne bougent pas : a_faire / prete /
-  // recuperee / annulee restent, seuls les libellés et les couleurs changent.
-  const ST = { a_faire: ['À préparer', 'var(--orange)'], prete: ['Mis de côté', '#2B7C3F'], recuperee: ['Venu chercher', 'var(--green)'], annulee: ['Annulée', 'var(--red)'] };
-  let html = '', curD = null;
-  mine.forEach(function(o) {
-    if (o.pickup_date !== curD) { curD = o.pickup_date; html += '<div class="fete-sec" style="margin:12px 10px 4px">Retrait ' + escapeHtml(formatDateFr(curD)) + '</div>'; }
-    const st = ST[o.status] || ST.a_faire;
-    const payTxt = o.paiement === 'regle' ? 'Réglé ✓'
-      : (o.paiement === 'acompte' ? 'Acompte ' + feteEUR(o.acompte || 0) + ' — reste ' + feteEUR((o.total || 0) - (o.acompte || 0))
-      : 'À régler ' + feteEUR(o.total || 0));
-    html += '<div class="fete-card' + (o.status === 'annulee' ? ' annulee' : '') + (o.status === 'recuperee' ? ' recuperee' : '') + '">'
-      + '<div class="fete-card-top"><strong>' + (o.pickup_time ? escapeHtml(String(o.pickup_time).slice(0, 5)) + ' · ' : '') + escapeHtml(o.customer_name) + cmdDelaiBadgeHtml(o) + '</strong><span class="fete-st" style="color:' + st[1] + '">' + st[0] + '</span></div>'
-      + (o.customer_phone ? '<div class="fete-card-sub">📞 ' + escapeHtml(o.customer_phone) + '</div>' : '')
-      + '<div class="fete-card-items">' + (o.items || []).map(function(it) { return escapeHtml(it.qty + '× ' + it.nom + (it.taille ? ' ' + it.taille : '')); }).join(' · ') + '</div>'
-      + '<div class="fete-card-sub"><b>' + feteEUR(o.total || 0) + '</b> · ' + escapeHtml(payTxt) + (o.notes ? ' · ✏️ ' + escapeHtml(o.notes) : '') + '</div>'
-      + ((o.taken_by || o.given_by || o.prepared_by) ? '<div class="fete-card-sub" style="margin-top:3px">'
-          + (o.taken_by ? '<span class="sp-who">👤 ' + escapeHtml(o.taken_by) + '</span> ' : '')
-          + preparedBadge(o) + ' '   // v20.322
-          + (o.given_by ? '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + '</span>' : '') + '</div>' : '')
-      + '<div class="btn-row" style="margin-top:6px">'
-      + (o.status === 'a_faire' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'prete\')">Mis de côté ✓</button>' : '')
-      + (o.status === 'prete' ? '<button class="btn-gold-sm" onclick="feteStatus(\'' + o.id + '\',\'recuperee\')">Venu chercher ✓</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'a_faire\')" title="Annuler la mise de côté">↩️ Annuler</button>' : '')
-      + '<button class="btn-grey" onclick="openTicketChoice(\'fete\',\'' + o.id + '\')">🖨 Ticket</button>'   // v20.305 — étiquettes Brother (ou A4)
-      + (o.status !== 'recuperee' && o.status !== 'annulee'
-        ? '<button class="btn-grey" onclick="feteEdit(\'' + o.id + '\')">✏️ Modifier</button><button class="btn-grey" onclick="feteStatus(\'' + o.id + '\',\'annulee\')">✖ Annuler</button>'
-        : '')
-      + '</div></div>';
-  });
-  return html;
-}
 async function feteStatus(id, st, givenBy) {
   if (st === 'annulee' && !confirm('Annuler cette commande ?')) return;
   // v20.238 — « Venu chercher » : la commande part avec le client, on demande qui la remet
@@ -4642,7 +4557,6 @@ async function feteStatus(id, st, givenBy) {
   if (retour) showToast('Mise de côté annulée — commande à préparer', 'sync');
   await loadFeteOrders(); renderFetes();
 }
-function feteEdit(id) { feteEditingId = id; feteView = 'new'; renderFetes(); }
 
 // Production : totaux toutes boutiques, filtrés sur ce que CE site fabrique
 // (bûches & douceurs → Veigné · pains de fête → Le Local), groupés par jour de retrait.
@@ -4654,7 +4568,7 @@ function feteProdHtml() {
   const mySite = feteProdSite();
   const byDate = {};        // { date: { pk: { qty, lignes: [{o,it}], note } } }
   const notesByDate = {};   // { date: [o] } — commandes avec note qui concernent ce site
-  feteOrders.filter(function(o) { return o.status !== 'annulee'; }).forEach(function(o) {
+  feteProdCommandes().forEach(function(o) {   // v20.328 — anciennes fete_orders + carte des Spéciales
     const k = o.pickup_date;
     const miennes = feteItemsPourSite(o, mySite);
     if (!miennes.length) return;
@@ -4670,8 +4584,8 @@ function feteProdHtml() {
   });
   const dates = Object.keys(byDate).sort();
   feteProdGroups = [];
-  if (!dates.length) return '<div class="empty-state">Rien à produire pour l\'instant' + (mySite === 'local' ? ' (les pains de fête apparaîtront ici)' : '') + '.</div>';
-  let html = '<div class="info-banner"><strong>Production ' + escapeHtml(feteActive.label) + '</strong><br>Totaux des commandes de toutes les boutiques — produits fabriqués ' + (mySite === 'local' ? 'au Local' : 'à Veigné') + '. Appuie sur un total pour voir qui a commandé quoi. Imprimante en haut pour l\'A4.</div>';
+  if (!dates.length) return '<div class="empty-state">Rien à produire pour l\'instant.</div>';
+  let html = '<div class="info-banner"><strong>Production ' + escapeHtml(feteActive.label) + '</strong><br>Totaux des commandes de toutes les boutiques — produits de la carte fabriqués ' + (mySite === 'local' ? 'au Local' : 'à Veigné') + '. Appuie sur un total pour voir qui a commandé quoi. Imprimante en haut pour l\'A4.<br><small>Pains et viennoiseries de la carte : dans la production habituelle (⭐ SPÉ, Spéciales du jour).</small></div>';
   const heure = function(o) { return o.pickup_time ? String(o.pickup_time).slice(0, 5) : '—'; };
   dates.forEach(function(d) {
     let tot = 0;
@@ -4798,22 +4712,91 @@ async function renderAdminFetes() {
   html += '<div class="fete-frow"><label>Visible du → au</label><input type="date" id="fevD1" value="' + (ev.date_debut || '') + '" onchange="feteAdminDates(\'' + ev.id + '\')"> <input type="date" id="fevD2" value="' + (ev.date_fin || '') + '" onchange="feteAdminDates(\'' + ev.id + '\')"></div>';
   html += '<div class="fete-frow"><label>Butoir commandes</label><input type="datetime-local" id="fevBut" value="' + (ev.butoir ? feteIsoLocal(ev.butoir) : '') + '" onchange="feteAdminDates(\'' + ev.id + '\')"> <span class="npf-hint" style="margin:0">vide = pas de butoir</span></div>';
   html += '</div></div>';
-  html += '<div class="section reappro-section"><div class="section-header section-header-reappro"><span>Catalogue (' + prods.length + ')</span></div>';
+  // v20.328 — 💶 TARIFS ET NOMS (Phil, 31/10 : « code pour que ce soit facile de changer les tarifs », pareil
+  // pour le nom des bûches). Nom, taille et prix dans des cases : on tape, on quitte la case, c'est enregistré.
+  // « +X % » sur toute la carte ou un groupe, avec aperçu avant d'appliquer. Les commandes déjà prises gardent
+  // leur prix (il est enregistré sur chaque ligne de commande).
+  const groupes = [];
+  prods.forEach(function(p) { if (groupes.indexOf(p.groupe || '') === -1) groupes.push(p.groupe || ''); });
+  const apercu = (feteAdminBulk && feteAdminBulk.event === ev.id) ? feteAdminBulk : null;
+  html += '<div class="section reappro-section"><div class="section-header section-header-reappro"><span>💶 Tarifs et noms — carte (' + prods.length + ')</span></div>';
+  html += '<div class="ft-bulk">Tous les prix de <select id="ftBkG">' + '<option value="">toute la carte</option>'
+    + groupes.map(function(g) { return '<option value="' + escapeHtml(g) + '"' + (apercu && apercu.groupe === g ? ' selected' : '') + '>' + escapeHtml(g || '(sans groupe)') + '</option>'; }).join('') + '</select>'
+    + '<select id="ftBkS"><option value="1">+</option><option value="-1"' + (apercu && apercu.signe < 0 ? ' selected' : '') + '>−</option></select>'
+    + '<input id="ftBkP" inputmode="decimal" style="width:64px" value="' + escapeHtml(apercu ? String(apercu.pct).replace('.', ',') : '') + '" placeholder="3"> %'
+    + '<span style="color:var(--grey-light);font-size:12px">arrondi aux 5 centimes</span>'
+    + (apercu
+      ? '<button class="btn-gold-sm" onclick="feteAdminBulkApply()">✓ Appliquer à ' + Object.keys(apercu.prix).length + ' produits</button><button class="btn-grey" onclick="feteAdminBulk=null;renderAdminFetes()">Annuler</button>'
+      : '<button class="btn-gold-sm" onclick="feteAdminBulkPreview()">Voir avant d\'appliquer</button>')
+    + '</div>';
+  if (apercu) html += '<div class="npf-hint" style="padding:6px 12px">En jaune : le nouveau prix. Barré : l\'ancien. Rien n\'est changé tant que tu n\'as pas appuyé sur « Appliquer ».</div>';
+  let curG = null;
   prods.forEach(function(p) {
-    html += '<div class="produit-row" style="grid-template-columns:1fr auto;gap:6px' + (p.actif === false ? ';opacity:.45' : '') + '">'
-      + '<div><div class="produit-name">' + escapeHtml(p.nom) + (p.taille ? ' <span class="fete-taille">' + escapeHtml(p.taille) + '</span>' : '') + '</div>'
-      + '<div class="produit-unit">' + escapeHtml((p.groupe || '—') + ' · ' + feteEUR(p.prix) + ' · produit à ' + (p.prod_site === 'local' ? 'Le Local' : 'Veigné')) + '</div></div>'
-      + '<div class="btn-row" style="gap:4px;margin:0">'
+    if ((p.groupe || '') !== curG) { curG = p.groupe || ''; html += '<div class="ft-g">' + escapeHtml(curG || '(sans groupe)') + '</div>'; }
+    const nv = apercu ? apercu.prix[p.id] : undefined;
+    const lie = p.product_id ? products.find(function(x) { return x.id === p.product_id; }) : null;
+    html += '<div class="ft-row' + (p.actif === false ? ' off' : '') + '">'
+      + '<input value="' + escapeHtml(p.nom || '') + '" aria-label="Nom" onchange="feteAdminSet(' + p.id + ',\'nom\',this)">'
+      + '<input value="' + escapeHtml(p.taille || '') + '" placeholder="taille" aria-label="Taille" onchange="feteAdminSet(' + p.id + ',\'taille\',this)">'
+      + '<div><input class="ft-px' + (nv !== undefined ? ' ft-new' : '') + '" inputmode="decimal" aria-label="Prix" value="' + escapeHtml((nv !== undefined ? nv : (+p.prix || 0)).toFixed(2).replace('.', ',')) + '" onchange="feteAdminSet(' + p.id + ',\'prix\',this)">'
+      + (nv !== undefined ? '<span class="ft-old">' + feteEUR(p.prix) + '</span>' : '') + '</div>'
+      + '<div class="btn-row" style="gap:4px;margin:0;flex-wrap:nowrap">'
       + '<button class="iconbtn-pat" onclick="feteAdminMove(' + p.id + ',-1)">↑</button><button class="iconbtn-pat" onclick="feteAdminMove(' + p.id + ',1)">↓</button>'
-      + '<button class="iconbtn-pat" onclick="feteAdminEditProd(' + p.id + ')">✎</button>'
+      + '<button class="iconbtn-pat" title="Groupe et atelier" onclick="feteAdminEditProd(' + p.id + ')">✎</button>'
       + '<button class="iconbtn-pat" onclick="feteAdminToggleProd(' + p.id + ',' + (p.actif === false ? 'true' : 'false') + ')">' + (p.actif === false ? '▶️' : '⏸️') + '</button>'
       + '<button class="iconbtn-pat" onclick="feteAdminDelProd(' + p.id + ')">🗑</button>'
-      + '</div></div>';
+      + '</div>'
+      + '<div class="ft-sub">' + (lie ? '🔗 production comme « ' + escapeHtml(lie.name) + ' » (règle habituelle de chaque boutique)' : 'fait à ' + (p.prod_site === 'local' ? 'Le Local' : 'Veigné')) + ' <span class="ft-ok" id="ftOk' + p.id + '"></span></div>'
+      + '</div>';
   });
   html += '<div class="btn-row" style="padding:10px 12px"><button class="btn-gold-sm" onclick="feteAdminAddProd()">＋ Ajouter un produit</button></div>';
-  html += '<div class="npf-hint" style="padding:0 12px 10px">Pains de fête à la pièce : ajoute-les ici avec leur prix fixe et « produit à : Le Local » — ils arriveront dans la vue Production du fournil.</div>';
+  html += '<div class="npf-hint" style="padding:0 12px 10px">Les commandes déjà prises gardent leur prix. ✎ = groupe et atelier. ⏸️ = retirer de la carte sans supprimer.</div>';
   html += '</div>';
   mc.innerHTML = html;
+}
+// v20.328 — une case de la grille Tarifs et noms : enregistrée en quittant la case
+async function feteAdminSet(id, champ, el) {
+  const p = (window._feteAdminProds || []).find(function(x) { return x.id === id; }); if (!p) return;
+  let val = (el.value || '').trim();
+  if (champ === 'prix') {
+    const n = parseFloat(val.replace(',', '.').replace('€', ''));
+    if (isNaN(n) || n < 0) { showToast('Prix invalide', 'error'); el.value = (+p.prix || 0).toFixed(2).replace('.', ','); return; }
+    val = Math.round(n * 100) / 100;
+  } else if (champ === 'nom' && !val) { showToast('Le nom ne peut pas être vide', 'error'); el.value = p.nom; return; }
+  const patch = {}; patch[champ] = val;
+  const r = await supa.from('fete_products').update(patch).eq('id', id);
+  if (r.error) { showToast(r.error.message, 'error'); return; }
+  p[champ] = val;
+  if (champ === 'prix') el.value = val.toFixed(2).replace('.', ',');
+  const ok = document.getElementById('ftOk' + id);
+  if (ok) { ok.textContent = '✓ enregistré'; setTimeout(function() { if (ok) ok.textContent = ''; }, 1800); }
+  if (feteActive && feteActive.id === p.event_id) { const fp = feteProducts.find(function(x) { return x.id === id; }); if (fp) fp[champ] = val; }
+}
+let feteAdminBulk = null;   // { event, groupe, signe, pct, prix: { id: nouveau prix } } — aperçu avant d'appliquer
+function feteAdminBulkPreview() {
+  const pct = parseFloat((document.getElementById('ftBkP').value || '').replace(',', '.'));
+  if (isNaN(pct) || pct <= 0) { showToast('Combien de % ?', 'error'); return; }
+  const g = document.getElementById('ftBkG').value, signe = +document.getElementById('ftBkS').value;
+  const prix = {};
+  (window._feteAdminProds || []).forEach(function(p) {
+    if (g && (p.groupe || '') !== g) return;
+    prix[p.id] = Math.round((+p.prix || 0) * (1 + signe * pct / 100) * 20) / 20;   // arrondi aux 5 centimes
+  });
+  if (!Object.keys(prix).length) { showToast('Aucun produit dans ce groupe', 'error'); return; }
+  feteAdminBulk = { event: feteAdminEvent, groupe: g, signe: signe, pct: pct, prix: prix };
+  renderAdminFetes();
+}
+async function feteAdminBulkApply() {
+  const b = feteAdminBulk; if (!b) return;
+  setSyncStatus('syncing');
+  const ids = Object.keys(b.prix);
+  for (let k = 0; k < ids.length; k++) {
+    const r = await supa.from('fete_products').update({ prix: b.prix[ids[k]] }).eq('id', +ids[k]);
+    if (r.error) { setSyncStatus('error'); showToast(r.error.message, 'error'); return; }
+  }
+  setSyncStatus('ok'); feteAdminBulk = null;
+  showToast(ids.length + ' prix changés ✓', 'success');
+  await loadFetes(); renderAdminFetes();
 }
 async function feteAdminToggle(id, on) {
   const r = await supa.from('fete_events').update({ actif: on }).eq('id', id);
@@ -4842,14 +4825,11 @@ async function feteAdminAddProd() {
   renderAdminFetes();
 }
 async function feteAdminEditProd(id) {
+  // v20.328 — nom, taille et prix se changent dans la grille ; ici : groupe et atelier
   const p = (window._feteAdminProds || []).find(function(x) { return x.id === id; }); if (!p) return;
-  const nom = prompt('Nom :', p.nom); if (nom === null) return;
-  const taille = prompt('Taille :', p.taille || ''); if (taille === null) return;
-  const prixTxt = prompt('Prix € :', p.prix != null ? String(p.prix).replace('.', ',') : ''); if (prixTxt === null) return;
-  const prix = parseFloat(prixTxt.replace(',', '.'));
-  const groupe = prompt('Groupe :', p.groupe || ''); if (groupe === null) return;
-  const site = ((prompt('Produit où ? V = Veigné, L = Le Local :', p.prod_site === 'local' ? 'L' : 'V') || 'V').trim().toUpperCase() === 'L') ? 'local' : 'veigne';
-  const r = await supa.from('fete_products').update({ nom: nom.trim(), taille: taille.trim(), prix: isNaN(prix) ? p.prix : prix, groupe: groupe.toUpperCase(), prod_site: site }).eq('id', id);
+  const groupe = prompt('Groupe d\'affichage (ex : BÛCHES PÂTISSIÈRES, PAINS DE NOËL…) :', p.groupe || ''); if (groupe === null) return;
+  const site = ((prompt('Fait où ? V = Veigné, L = Le Local' + (p.product_id ? ' (produit relié à sa fiche : la règle habituelle passe en premier)' : '') + ' :', p.prod_site === 'local' ? 'L' : 'V') || 'V').trim().toUpperCase() === 'L') ? 'local' : 'veigne';
+  const r = await supa.from('fete_products').update({ groupe: groupe.toUpperCase(), prod_site: site }).eq('id', id);
   if (r.error) { showToast(r.error.message, 'error'); return; }
   renderAdminFetes();
 }
@@ -19014,6 +18994,8 @@ function specialProductName(p) {
   return p.category === 'patisserie_petits' ? p.name + ' indiv.' : p.name;
 }
 function specialItemName(it, fallback) {
+  // v20.328 — produit de la carte d'une fête : son nom de carte (« Baguette de tradition », « Bûche Tourangelle Grande »)
+  if (it && it.fete_product_id && it.product_name_custom) return it.product_name_custom;
   if (it && it.product_id) {
     const p = products.find(function(x) { return x.id === it.product_id; });
     return specialProductName(p) || fallback || it.product_id;
@@ -19029,7 +19011,7 @@ function specialOrderHasNote(o) { return !!(o && o.notes && String(o.notes).trim
 function specialHasNotes(o) { return specialOrderHasNote(o) || (o && (o.items || []).some(specialItemHasNote)); }
 // v20.277 — ligne « texte libre » (produit tapé à la main, sans fiche) : elle n'est dans
 // aucune colonne de la grille, donc elle compte comme « à lire » au même titre qu'une note.
-function specialItemIsLibre(it) { return !!(it && !it.product_id && it.product_name_custom && String(it.product_name_custom).trim()); }
+function specialItemIsLibre(it) { return !!(it && !it.product_id && !it.fete_product_id && it.product_name_custom && String(it.product_name_custom).trim()); }   // v20.328 : la carte d'une fête n'est pas du texte libre
 function specialHasLibre(o) { return !!(o && (o.items || []).some(specialItemIsLibre)); }
 function specialNeedsReading(o) { return specialHasNotes(o) || specialHasLibre(o); }
 // v20.281 — « je vois toutes les commandes à Veigné » (Phil, 14/10) : ce qui est à lire POUR CET
@@ -19058,6 +19040,7 @@ function specialNotesHtml(o, extraStyle, shop) {
   return h;
 }
 function getItemProductionShop(it, o) {
+  if (it && !it.product_id && it.prod_site) return it.prod_site;   // v20.328 — produit de la carte sans fiche : son atelier (bûches → Veigné)
   if (!it || !it.product_id) return o.production_shop || o.origin_shop;
   return getProductionShopForProduct(it.product_id, o.origin_shop, o.pickup_date);
 }
@@ -19073,7 +19056,7 @@ function orderShopsBreakdown(o) {
   const par = {};
   (o.items || []).forEach(function(it) {
     const ps = getItemProductionShop(it, o);
-    const nom = it.product_id ? specialItemName(it, '?') : (it.product_name_custom || 'ligne libre');
+    const nom = (it.product_id || it.fete_product_id) ? specialItemName(it, '?') : (it.product_name_custom || 'ligne libre');
     (par[ps] = par[ps] || []).push(nom);
   });
   return par;
@@ -19084,8 +19067,8 @@ function computeOrderProductionShop(draft) {
 // Si plusieurs productions dans une même commande (cas rare), on prend la plus frequente.
 const counts = {};
 (draft.items || []).forEach(function(it) {
-if (!it.product_id) return;
-const ps = getProductionShopForProduct(it.product_id, draft.origin_shop, draft.pickup_date);
+if (!it.product_id && !it.prod_site) return;
+const ps = it.product_id ? getProductionShopForProduct(it.product_id, draft.origin_shop, draft.pickup_date) : it.prod_site;   // v20.328 — carte : atelier de la ligne
 counts[ps] = (counts[ps] || 0) + 1;
 });
 const keys = Object.keys(counts);
@@ -19133,7 +19116,8 @@ if (!d.pickup_date) { showToast('Date de retrait obligatoire', 'error'); return;
 const cleanItems = (d.items || []).filter(function(it) {
 return (it.product_id || (it.product_name_custom && it.product_name_custom.trim()));
 });
-if (!cleanItems.length) { showToast('Au moins 1 produit', 'error'); return; }
+const carteItems = speCarteLignes(d);   // v20.328 — la carte de la fête, en tête de commande
+if (!cleanItems.length && !carteItems.length) { showToast('Au moins 1 produit', 'error'); return; }
 // v20.237 — qui prend la commande : obligatoire, comme le téléphone depuis la v20.185.
 // On ne bloque que si la liste du magasin existe (sinon on empêcherait de travailler).
 if (shopPeopleReady && peopleOf(d.origin_shop || currentBoutique).length && !(d.taken_by || '').trim()) {
@@ -19141,7 +19125,7 @@ if (shopPeopleReady && peopleOf(d.origin_shop || currentBoutique).length && !(d.
 }
 
 setSyncStatus('syncing');
-const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: cleanItems, pickup_date: d.pickup_date });
+const productionShop = computeOrderProductionShop({ origin_shop: d.origin_shop, items: carteItems.concat(cleanItems), pickup_date: d.pickup_date });
 const nowISO = new Date().toISOString();
 const orderRow = {
 tenant_id: TENANT_ID,
@@ -19159,6 +19143,14 @@ updated_at: nowISO
 };
 if (shopPeopleReady) orderRow.taken_by = (d.taken_by || '').trim() || null;   // v20.237
 if (orderRow.taken_by) rememberPerson(orderRow.taken_by);  // mémorisé sur cette tablette
+// v20.328 — carte de la fête : total figé et fête de rattachement. Une commande de comptoir ou, plus tard,
+// du site web (canal) passe par ici : c'est le seul chemin qui crée une commande client.
+if (speFeteReady) {
+  const tot = carteItems.reduce(function(s2, l) { return s2 + l.qty * (+l.unit_price || 0); }, 0);
+  orderRow.total = carteItems.length ? Math.round(tot * 100) / 100 : null;
+  orderRow.event_id = carteItems.length ? (d.event_id || (feteActive && feteActive.id) || null) : null;
+  if (!d.id) orderRow.canal = 'boutique';
+}
 
 let orderId = d.id;
 if (orderId) {
@@ -19179,8 +19171,8 @@ orderId = data.id;
 await assignOrderNum('special_orders', { id: orderId, origin_shop: orderRow.origin_shop, pickup_date: orderRow.pickup_date });   // v20.305 — numéro du jour
 }
 
-const itemRows = cleanItems.map(function(it, idx) {
-return {
+const itemRows = carteItems.concat(cleanItems).map(function(it, idx) {
+const r = {
 order_id: orderId,
 product_id: it.product_id || null,
 product_name_custom: it.product_name_custom ? it.product_name_custom.trim() : null,
@@ -19190,6 +19182,8 @@ notes: it.notes ? it.notes.trim() : null,
 tranche: !!it.tranche,
 position: idx
 };
+if (it.fete_product_id) { r.fete_product_id = it.fete_product_id; r.prod_site = it.prod_site || null; }   // v20.328
+return r;
 });
 if (itemRows.length) {
 const { error } = await supa.from('special_order_items').insert(itemRows);
@@ -19757,7 +19751,7 @@ async function insertSerieCopies(o, dates) {
   }
   const items = o.items || [];
   const orderRows = dates.map(function(iso) {
-    return {
+    const row = {
       tenant_id: TENANT_ID,
       origin_shop: o.origin_shop,
       production_shop: computeOrderProductionShop({ origin_shop: o.origin_shop, items: items, pickup_date: iso }),
@@ -19775,6 +19769,8 @@ async function insertSerieCopies(o, dates) {
       created_at: nowISO,
       updated_at: nowISO
     };
+    if (speFeteReady && (o.event_id || o.total != null)) { row.event_id = o.event_id || null; row.total = o.total == null ? null : o.total; }   // v20.328 — carte de la fête
+    return row;
   });
   const { data: created, error: e1 } = await supa.from('special_orders').insert(orderRows).select('id,pickup_date');
   if (e1) return e1.message;
@@ -19792,6 +19788,7 @@ async function insertSerieCopies(o, dates) {
         tranche: !!it.tranche,
         position: idx
       });
+      if (it.fete_product_id) { itemRows[itemRows.length - 1].fete_product_id = it.fete_product_id; itemRows[itemRows.length - 1].prod_site = it.prod_site || null; }   // v20.328
     });
   });
   if (itemRows.length) {
@@ -20090,7 +20087,8 @@ function ticketSiteNom(site) { return BOUTIQUE_NAMES[site] || site || ''; }
 // lignes normalisées : [{ name, qty, note, tranche }]
 function ticketLignes(o, kind) {
   if (kind === 'fete') return (o.items || []).map(function(it) { return { name: (it.nom || '?') + (it.taille ? ' ' + it.taille : ''), qty: it.qty, note: '', tranche: false }; });
-  return (o.items || []).map(function(it) { return { name: specialItemName(it, '?'), qty: it.qty, note: it.notes || '', tranche: !!it.tranche }; });
+  // v20.328 — prix de la ligne (carte de la fête) : affiché sur le ticket client seulement
+  return (o.items || []).map(function(it) { return { name: specialItemName(it, '?'), qty: it.qty, note: it.notes || '', tranche: !!it.tranche, prix: it.unit_price != null && it.unit_price !== '' ? (parseQty(it.qty) || 0) * (+it.unit_price || 0) : null }; });
 }
 function ticketPaiement(o, kind) {
   if (kind === 'fete') {
@@ -20098,6 +20096,15 @@ function ticketPaiement(o, kind) {
     if (o.paiement === 'regle') return { lignes: ['Total : ' + feteEUR(total)], big: 'Réglé ✓' };
     if (o.paiement === 'acompte') return { lignes: ['Total : ' + feteEUR(total), 'Acompte versé : ' + feteEUR(ac)], big: 'Reste au retrait : ' + feteEUR(total - ac) };
     return { lignes: total ? ['Total : ' + feteEUR(total)] : [], big: 'À régler au retrait' };
+  }
+  // v20.328 — commande avec la carte d'une fête : total (lignes à prix), acompte et reste, comme l'ancien onglet Fêtes
+  if (o.total != null && +o.total > 0) {
+    const total = +o.total, ac = +o.acompte_montant || 0;
+    const hors = (o.items || []).some(function(it) { return it.unit_price == null || it.unit_price === ''; });
+    const lignes = ['Total : ' + feteEUR(total) + (hors ? ' + hors carte en caisse' : '')];
+    if (o.paiement === 'regle') return { lignes: lignes, big: 'Réglé ✓' };
+    if (o.paiement === 'acompte') return { lignes: lignes.concat(['Acompte versé : ' + feteEUR(ac)]), big: 'Reste au retrait : ' + feteEUR(total - ac) };
+    return { lignes: lignes, big: 'À régler au retrait' };
   }
   if (o.paiement === 'regle') return { lignes: [], big: 'Réglé ✓' };
   if (o.paiement === 'acompte') return { lignes: ['Acompte versé : ' + formatQty(o.acompte_montant || 0) + ' €'], big: 'Reste à régler au retrait' };
@@ -20116,7 +20123,7 @@ function ticketLabelHtml(o, kind, variant) {
     + '<div class="lb-brand"><img src="' + TICKET_LOGO + '" alt="Les Blés de Demain"></div>'
     + '<div class="lb-site">' + escapeHtml(ticketSiteNom(site)) + '</div>'
     + '<div class="lb-cut"></div>'
-    + (kind === 'fete' ? '<div class="lb-flag">Fêtes · ' + escapeHtml(feteLabelOf(o)) + '</div>' : '')
+    + (kind === 'fete' ? '<div class="lb-flag">Fêtes · ' + escapeHtml(feteLabelOf(o)) + '</div>' : (o.event_id ? '<div class="lb-flag">' + escapeHtml(feteLabelOf(o)) + '</div>' : ''))   // v20.328
     + '<div class="lb-num"><div><small>' + (sac ? 'N° du jour' : 'Votre commande') + '</small><b>' + ticketNum(o.num_jour) + '</b></div>'
     + '<div class="lb-when"><b>' + escapeHtml(ticketHeure(o)) + '</b><span>' + escapeHtml(ticketJourCourt(o.pickup_date)) + '</span></div></div>'
     + '<div class="lb-client">' + escapeHtml(o.customer_name || '') + '</div>'
@@ -20124,7 +20131,7 @@ function ticketLabelHtml(o, kind, variant) {
     + '<ul class="lb-items">';
   ticketLignes(o, kind).forEach(function(l) {
     // v20.326 — à trancher : rouge souligné (sort rouge avec le rouleau noir/rouge DK-22251, noir sinon)
-    h += '<li' + (l.tranche ? ' class="lb-tranche"' : '') + '><b>' + escapeHtml(String(l.qty || '')) + '</b><span>' + escapeHtml(l.name) + (l.tranche ? ' — À TRANCHER' : '') + (l.note ? '<small>' + escapeHtml(l.note) + '</small>' : '') + '</span></li>';
+    h += '<li' + (l.tranche ? ' class="lb-tranche"' : '') + '><b>' + escapeHtml(String(l.qty || '')) + '</b><span>' + escapeHtml(l.name) + (l.tranche ? ' — À TRANCHER' : '') + (l.note ? '<small>' + escapeHtml(l.note) + '</small>' : '') + '</span>' + (!sac && l.prix != null ? '<i>' + escapeHtml(feteEUR(l.prix)) + '</i>' : '') + '</li>';   // v20.328 — prix sur le ticket client
   });
   h += '</ul>';
   if (o.notes) h += '<div class="lb-notes">📝 ' + escapeHtml(o.notes) + '</div>';
@@ -20146,7 +20153,7 @@ function printLabels(labelsHtml) {
   _printDocument(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
 }
 // Styles des étiquettes et de la feuille récap (document d'impression à part)
-const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 11pt; font-weight: 700; margin-top: 0.5mm; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-tranche b, .lb-tranche span { color: #e00000; } .lb-tranche span { text-decoration: underline; text-decoration-thickness: 0.5mm; text-underline-offset: 0.6mm; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
+const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 11pt; font-weight: 700; margin-top: 0.5mm; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-items i { margin-left: auto; font-style: normal; white-space: nowrap; font-size: 9.5pt; font-weight: 700; }\n.lb-tranche b, .lb-tranche span { color: #e00000; } .lb-tranche span { text-decoration: underline; text-decoration-thickness: 0.5mm; text-underline-offset: 0.6mm; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
 // v20.319 — l'impression passe par un DOCUMENT À PART (iframe invisible) qui ne contient que les étiquettes :
 // Chrome Android fabrique son aperçu quand il veut, il ne peut plus attraper l'écran de l'app
 // (récap du jour parti à l'imprimante malgré v20.309/310, 29/10 21h). _printModeStart reste en secours.
@@ -20444,12 +20451,16 @@ if (o.status) html += '<div class="ticket-row"><span>Statut :</span>' + escapeHt
 // v20.237 — la personne qui a pris la commande, pour pouvoir revenir vers elle
 if (o.taken_by) html += '<div class="ticket-row"><span>Prise par :</span><strong>' + escapeHtml(o.taken_by) + '</strong></div>';
 // v20.185 — paiement sur le ticket
-const payTxt = o.paiement === 'regle' ? 'Réglé ✓' : (o.paiement === 'acompte' ? 'Acompte ' + formatQty(o.acompte_montant || 0) + ' € — reste à encaisser' : 'À régler au retrait');
+// v20.328 — commande avec la carte d'une fête : total, acompte, reste (mêmes mots que l'étiquette)
+const aPrix = o.total != null && +o.total > 0;
+const payTxt = aPrix ? ticketPaiement(o, 'special').lignes.concat([ticketPaiement(o, 'special').big]).join(' · ')
+  : (o.paiement === 'regle' ? 'Réglé ✓' : (o.paiement === 'acompte' ? 'Acompte ' + formatQty(o.acompte_montant || 0) + ' € — reste à encaisser' : 'À régler au retrait'));
 html += '<div class="ticket-row"><span>Paiement :</span><strong>' + escapeHtml(payTxt) + '</strong></div>';
-html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qté</th></tr></thead><tbody>';
+html += '<table class="ticket-items"><thead><tr><th>Produit</th><th class="ticket-qty">Qté</th>' + (aPrix ? '<th class="ticket-qty">€</th>' : '') + '</tr></thead><tbody>';
 (o.items || []).forEach(function(it) {
 const name = specialItemName(it, '?');
-html += '<tr><td>' + escapeHtml(name) + (it.tranche ? ' 🔪 tranché' : '') + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td></tr>';
+html += '<tr><td>' + escapeHtml(name) + (it.tranche ? ' 🔪 tranché' : '') + (it.notes ? '<br><span class="ticket-subnote">' + escapeHtml(it.notes) + '</span>' : '') + '</td><td class="ticket-qty"><strong>' + escapeHtml(String(it.qty)) + '</strong></td>'
+  + (aPrix ? '<td class="ticket-qty">' + (it.unit_price != null && it.unit_price !== '' ? escapeHtml(feteEUR((parseQty(it.qty) || 0) * (+it.unit_price || 0))) : 'caisse') + '</td>' : '') + '</tr>';
 });
 html += '</tbody></table>';
 if (o.notes) html += '<div class="ticket-notes"><strong>Notes :</strong> ' + escapeHtml(o.notes) + '</div>';
@@ -20472,11 +20483,13 @@ realtimeChannelSpecials = supa.channel('specials_' + currentBoutique)
 if (specialFormMode) return; // ne pas rerender pendant edition
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 if (currentVue === 'specials') renderSpecials(); // v20.167 — ne pas écraser un autre onglet
+else if (currentVue === 'fetes') { if (feteView === 'prod') await loadFeteOrders(); renderFetes(); }   // v20.328
 })
 .on('postgres_changes', { event: '*', schema: 'public', table: 'special_order_items' }, async function() {
 if (specialFormMode) return;
 await loadSpecialOrders(currentBoutique, currentSpecialWeekStart);
 if (currentVue === 'specials') renderSpecials(); // v20.167
+else if (currentVue === 'fetes') { if (feteView === 'prod') await loadFeteOrders(); renderFetes(); }   // v20.328
 })
 .subscribe();
 }
@@ -20612,7 +20625,7 @@ function cmdDelaiBadgeHtml(o) {
 // Formulaire Spéciales : l'alerte suit le choix des produits sans tout re-rendre
 function specialMajDelai() {
   const w = document.getElementById('spDelaiWarn');
-  if (w && specialFormDraft) w.innerHTML = cmdDelaiWarnHtml(specialFormDraft.pickup_date, specialFormDraft.pickup_time, specialFormDraft.items);
+  if (w && specialFormDraft) w.innerHTML = cmdDelaiWarnHtml(specialFormDraft.pickup_date, specialFormDraft.pickup_time, specialFormDraft.items.concat(speCarteLignes(specialFormDraft)));   // v20.328 — carte comprise
 }
 
 function renderSpecials() {
@@ -20622,6 +20635,8 @@ return;
 }
 const mc = document.getElementById('main-content');
 let html = '';
+// v20.328 — dans l'onglet de la fête (qui remplace Special), son bandeau en tête
+if (currentVue === 'fetes' && feteActive) html += feteBandeauHtml();
 
 // Bandeau semaine
 html += '<div class="sp-week-bar">';
@@ -20743,6 +20758,7 @@ return '<span class="sp-line-other">' + txt + ' <em>&rarr; ' + escapeHtml(BOUTIQ
 const editAttr = isMine ? ' onclick="openEditSpecialOrder(\'' + o.id + '\')"' : '';
 let html = '<div class="sp-card status-' + o.status + (isMine ? '' : ' sp-readonly') + '"' + editAttr + '>';
 html += '<div class="sp-card-hdr"><strong>' + escapeHtml(o.customer_name) + '</strong>';
+if (o.event_id && o.total != null && +o.total > 0) html += '<span class="sp-fete-badge">' + escapeHtml(feteLabelOf(o)) + ' · ' + feteEUR(o.total) + '</span>';   // v20.328 — commande avec la carte de la fête
 if (o.serie_id) html += '<span class="sp-serie-badge">🔁 régulier</span>';
 if (!isMine) html += '<span class="sp-ro-badge">👁 lecture seule</span>';
 html += cmdDelaiBadgeHtml(o);   // v20.263 — prise hors délai
@@ -20760,7 +20776,7 @@ if (o.given_by) html += '<span class="sp-who">🤝 ' + escapeHtml(o.given_by) + 
 html += preparedBadge(o);   // v20.322 — 🧺 qui a mis de côté, et quand
 // v20.185 — pastille paiement (visible d'un coup d'œil au retrait)
 if (o.paiement === 'regle') html += '<span style="background:#EAF3EC;color:var(--green);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Réglé</span>';
-else if (o.paiement === 'acompte') html += '<span style="background:#FDEEDC;color:var(--orange);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Acompte ' + formatQty(o.acompte_montant || 0) + ' €</span>';
+else if (o.paiement === 'acompte') html += '<span style="background:#FDEEDC;color:var(--orange);border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">💰 Acompte ' + formatQty(o.acompte_montant || 0) + ' €' + (o.total != null && +o.total > 0 ? ' · reste ' + feteEUR(+o.total - (+o.acompte_montant || 0)) : '') + '</span>';
 if (o.origin_shop !== o.production_shop) {
 html += '<span class="sp-prod-tag">➜ ' + escapeHtml(BOUTIQUE_NAMES[o.production_shop] || o.production_shop) + '</span>';
 }
@@ -20787,7 +20803,9 @@ pickup_time: '',
 status: 'confirmee',
 notes: '',
 taken_by: rememberedPerson(),   // v20.237 — la personne du début de service, modifiable
-items: [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
+fete: {},                       // v20.328 — lignes de la carte de la fête { fete_product_id: { qty, tranche, nom, prix… } }
+// v20.328 — pendant la fête, on part de la carte : pas de ligne « hors carte » vide d'office
+items: speCarteOuverte() ? [] : [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }]
 };
 loadSpecialClientsIndex(); // v20.185 — mémoire clients (suggestion nom + téléphone)
 renderSpecials();
@@ -20809,7 +20827,9 @@ pickup_time: o.pickup_time || '',
 status: o.status || 'confirmee',
 notes: o.notes || '',
 taken_by: o.taken_by || '',   // v20.237
-items: (o.items || []).map(function(it) {
+event_id: o.event_id || null,   // v20.328
+fete: speCarteDepuisCommande(o),   // v20.328 — lignes de la carte, prix figés à la commande
+items: (o.items || []).filter(function(it) { return !it.fete_product_id; }).map(function(it) {
 const p = it.product_id ? products.find(function(x) { return x.id === it.product_id; }) : null;
 return {
 id: it.id,
@@ -20822,7 +20842,7 @@ tranche: !!it.tranche
 };
 })
 };
-if (!specialFormDraft.items.length) {
+if (!specialFormDraft.items.length && !Object.keys(specialFormDraft.fete).length) {
 specialFormDraft.items = [{ product_id: null, product_name_custom: '', qty: '1', notes: '', category: '', tranche: false }];
 }
 renderSpecials();
@@ -20960,6 +20980,108 @@ if (val) it.product_name_custom = '';
 if (field === 'product_id' || field === 'product_name_custom') specialMajDelai();
 }
 
+// === v20.328 — CARTE DE LA FÊTE dans le formulaire des Spéciales ===
+// Une ligne de la carte garde dans le brouillon son nom, son prix et son atelier tels qu'au moment où on
+// l'a choisie : une commande déjà prise garde son prix même si le tarif change ensuite en BackOffice.
+function speCarteOuverte() { return !!(feteActive && speFeteReady && feteProducts.some(function(fp) { return fp.actif !== false; }) && !feteButoirPasse()); }
+function speCarteEntree(fp) {
+  return { qty: 0, tranche: false, nom: fp.nom + (fp.taille ? ' ' + fp.taille : ''), prix: +fp.prix || 0,
+    prod_site: fp.prod_site || 'veigne', product_id: fp.product_id || null, groupe: fp.groupe || '', event_id: fp.event_id };
+}
+function speCarteDepuisCommande(o) {
+  const out = {};
+  (o.items || []).forEach(function(it) {
+    if (!it.fete_product_id) return;
+    const fp = feteProducts.find(function(x) { return String(x.id) === String(it.fete_product_id); });
+    out[it.fete_product_id] = { qty: parseQty(it.qty) || 0, tranche: !!it.tranche, nom: it.product_name_custom || '?', prix: +it.unit_price || 0,
+      prod_site: it.prod_site || null, product_id: it.product_id || null, groupe: fp ? (fp.groupe || '') : '', event_id: o.event_id || null, notes: it.notes || '' };
+  });
+  return out;
+}
+// Lignes prêtes à enregistrer (même forme que special_order_items)
+function speCarteLignes(d) {
+  const f = (d && d.fete) || {};
+  const rang = function(k) { const i = feteProducts.findIndex(function(fp) { return String(fp.id) === k; }); return i === -1 ? 1e6 : i; };   // ordre de la carte
+  return Object.keys(f).filter(function(k) { return f[k].qty > 0; }).sort(function(a, b) { return rang(a) - rang(b); }).map(function(k) {
+    const e = f[k];
+    return { fete_product_id: isNaN(+k) ? k : +k, product_id: e.product_id || null, product_name_custom: e.nom, qty: e.qty, unit_price: e.prix,
+      prod_site: e.product_id ? null : (e.prod_site || 'veigne'), tranche: !!e.tranche, notes: e.notes || '' };
+  });
+}
+function speCarteTotal(d) { return speCarteLignes(d).reduce(function(s, l) { return s + l.qty * (+l.unit_price || 0); }, 0); }
+function speCarteTranchable(e) {
+  if (e.product_id) { const p = products.find(function(x) { return x.id === e.product_id; }); if (p) return p.category === 'pains'; }
+  return /PAIN/i.test(e.groupe || '');
+}
+function speCarteRowHtml(key, e, cachee) {
+  const on = e.qty > 0;
+  return '<div class="sp-carte-row' + (on ? ' on' : '') + '" data-nom="' + escapeHtml(planNorm(e.nom)) + '"' + (cachee ? ' style="display:none"' : '') + '>'
+    + '<div class="nom">' + escapeHtml(e.nom)
+    + (speCarteTranchable(e) ? '<span class="sp-carte-tr' + (e.tranche ? ' on' : '') + '" onclick="speCarteTr(\'' + key + '\')">🔪' + (e.tranche ? ' tranché' : '') + '</span>' : '')
+    + '</div>'
+    + '<div class="px">' + feteEUR(e.prix) + '</div>'
+    + '<div class="sp-carte-q"><button type="button" onclick="speCarteChg(\'' + key + '\',-1)">−</button><b>' + (on ? e.qty : '–') + '</b><button type="button" onclick="speCarteChg(\'' + key + '\',1)">+</button></div>'
+    + '</div>';
+}
+function speCarteHtml(d) {
+  const f = d.fete || (d.fete = {});
+  const ouverte = speCarteOuverte();
+  const q = planNorm(d.carteQ || '');
+  const cache = function(e) { return q.length >= 2 && planNorm(e.nom).indexOf(q) === -1; };
+  let rows = '', curG = null;
+  if (ouverte) {
+    feteProducts.filter(function(fp) { return fp.actif !== false; }).forEach(function(fp) {
+      const e = f[fp.id] || speCarteEntree(fp);
+      if (fp.groupe !== curG) { curG = fp.groupe; rows += '<div class="sp-carte-g">' + escapeHtml(curG || 'Produits') + '</div>'; }
+      rows += speCarteRowHtml(String(fp.id), e, cache(e));
+    });
+  }
+  // lignes déjà dans la commande mais plus sur la carte (fête passée, produit retiré, carte close)
+  const autres = Object.keys(f).filter(function(k) { return f[k].qty > 0 && !(ouverte && feteProducts.some(function(fp) { return String(fp.id) === k && fp.actif !== false; })); });
+  if (autres.length) {
+    rows += '<div class="sp-carte-g">' + (ouverte ? 'Déjà dans la commande' : 'Produits de fête de cette commande') + '</div>';
+    autres.forEach(function(k) { rows += speCarteRowHtml(k, f[k], false); });
+  }
+  if (!rows) return '';
+  const nb = feteProducts.filter(function(fp) { return fp.actif !== false; }).length;
+  let html = '<div class="sp-carte" id="sp-carte"><div class="sp-carte-h"><span>' + escapeHtml(feteActive ? feteActive.label : 'Fête') + ' — la carte'
+    + (ouverte ? ' <small style="font-weight:400">· ' + nb + ' produits</small>' : '') + '</span><span>' + feteEUR(speCarteTotal(d)) + '</span></div>';
+  if (!ouverte && feteActive && feteButoirPasse()) html += '<div class="sp-carte-g" style="text-transform:none;letter-spacing:0;color:var(--red)">Carte close depuis le ' + escapeHtml(new Date(feteActive.butoir).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })) + '</div>';
+  if (ouverte) html += '<input class="sp-carte-search" type="text" autocomplete="off" placeholder="🔍 Chercher dans la carte… (ex. meule)" value="' + escapeHtml(d.carteQ || '') + '" oninput="speCarteFiltre(this.value)">';
+  return html + rows + '</div>';
+}
+function speCarteChg(key, delta) {
+  const d = specialFormDraft; if (!d) return;
+  const f = d.fete || (d.fete = {});
+  if (!f[key]) {
+    const fp = feteProducts.find(function(x) { return String(x.id) === String(key); });
+    if (!fp) return;
+    f[key] = speCarteEntree(fp);
+  }
+  f[key].qty = Math.max(0, (f[key].qty || 0) + delta);
+  renderSpecials();
+}
+function speCarteTr(key) {
+  const d = specialFormDraft; if (!d) return;
+  const f = d.fete || (d.fete = {});
+  if (!f[key]) {
+    const fp = feteProducts.find(function(x) { return String(x.id) === String(key); });
+    if (!fp) return;
+    f[key] = speCarteEntree(fp);
+  }
+  f[key].tranche = !f[key].tranche;
+  renderSpecials();
+}
+// Filtre sans re-rendu : le clavier de la tablette reste ouvert
+function speCarteFiltre(val) {
+  if (!specialFormDraft) return;
+  specialFormDraft.carteQ = val;
+  const q = planNorm(val || '');
+  document.querySelectorAll('#sp-carte .sp-carte-row').forEach(function(r) {
+    r.style.display = (q.length < 2 || (r.dataset.nom || '').indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+
 function renderSpecialOrderForm() {
 const mc = document.getElementById('main-content');
 const d = specialFormDraft;
@@ -20969,7 +21091,10 @@ const isEdit = specialFormMode === 'edit';
 const dateOpts = [];
 const today = serviceDateISO();
 // Permettre aussi les 7 derniers jours (rattrapage)
-for (let i = -7; i <= 30; i++) {
+// v20.328 — pendant une fête, jusqu'au dernier jour de retrait de la fête (ex. 1er janvier depuis le 1er décembre)
+let jMax = 30;
+if (feteActive && feteActive.date_fin) jMax = Math.max(30, Math.round((new Date(feteActive.date_fin + 'T12:00') - new Date(today + 'T12:00')) / 86400000));
+for (let i = -7; i <= jMax; i++) {
 const iso = addDaysISO(today, i);
 const dd = new Date(iso + 'T12:00');
 const lbl = DOW_ABBR[dd.getDay()] + '. ' + dd.getDate() + ' ' + ['jan', 'fev', 'mar', 'avr', 'mai', 'juin', 'juil', 'aou', 'sep', 'oct', 'nov', 'dec'][dd.getMonth()] + '.';
@@ -21032,15 +21157,24 @@ html += '<option value="' + o.v + '"' + (d.pickup_time === o.v ? ' selected' : '
 });
 html += '</select></div>';
 html += '</div>';
-html += '<div id="spDelaiWarn">' + cmdDelaiWarnHtml(d.pickup_date, d.pickup_time, d.items) + '</div>'; // v20.263 — 24h / 48h selon la famille, 72h les jours de fête
+html += '<div id="spDelaiWarn">' + cmdDelaiWarnHtml(d.pickup_date, d.pickup_time, d.items.concat(speCarteLignes(d))) + '</div>'; // v20.263 — 24h / 48h selon la famille, 72h les jours de fête
+
+// v20.328 — la carte de la fête (prix fixes) en tête, le reste « hors carte » en dessous
+const carteHtml = speCarteHtml(d);
+html += carteHtml;
 
 // Items
-html += '<div class="sp-items-section"><div class="sp-items-title">Produits commandes</div>';
+html += '<div class="sp-items-section"><div class="sp-items-title">' + (carteHtml ? '⭐ Hors carte <small style="font-weight:400">(gâteau d\'anniversaire, autre produit… sans prix)</small>' : 'Produits commandes') + '</div>';
 d.items.forEach(function(it, idx) {
 html += renderSpecialItemRow(it, idx);
 });
-html += '<button class="sp-add-item-btn" onclick="addSpecialItem()">+ Ajouter un produit</button>';
+html += '<button class="sp-add-item-btn" onclick="addSpecialItem()">+ Ajouter un produit' + (carteHtml ? ' hors carte' : '') + '</button>';
 html += '</div>';
+if (carteHtml) {
+  const horsCarte = d.items.some(function(it) { return it.product_id || (it.product_name_custom && it.product_name_custom.trim()); });
+  html += '<div class="sp-total"><div class="sp-total-l"><span>Total</span><span>' + feteEUR(speCarteTotal(d)) + '</span></div>'
+    + (horsCarte ? '<small>+ les produits hors carte, à régler en caisse au retrait</small>' : '') + '</div>';
+}
 
 // Notes
 html += '<div class="sp-form-row"><label class="sp-lbl">Notes</label>';
@@ -21134,8 +21268,9 @@ html += '</div>';
 // v20.235 — avant, on n'annonçait QUE l'atelier majoritaire : une commande mêlant un wrap
 // (Veigné) et un flan (Local) affichait « produite par Veigné » sans dire un mot du flan.
 // On détaille maintenant chaque atelier et les lignes qui lui reviennent.
-const prev = computeOrderProductionShop(d);
-const repart = orderShopsBreakdown({ items: d.items, origin_shop: d.origin_shop, pickup_date: d.pickup_date, production_shop: prev });
+const tousItems = d.items.concat(speCarteLignes(d));   // v20.328 — la carte de la fête comprise
+const prev = computeOrderProductionShop({ origin_shop: d.origin_shop, items: tousItems, pickup_date: d.pickup_date });
+const repart = orderShopsBreakdown({ items: tousItems.filter(function(it) { return it.product_id || it.fete_product_id || (it.product_name_custom && it.product_name_custom.trim()); }), origin_shop: d.origin_shop, pickup_date: d.pickup_date, production_shop: prev });
 const ateliers = Object.keys(repart);
 if (ateliers.length > 1) {
 html += '<div class="sp-prod-hint">➜ Cette commande concerne <strong>' + ateliers.length + ' ateliers</strong> :'
