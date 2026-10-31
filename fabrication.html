@@ -228,6 +228,14 @@
   .plan-tbl tr.plan-valid td{background:#F3F7F2}
   .plan-tbl tr.plan-valid td.pname{color:var(--green);font-size:12px}
   .plan-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  /* v20.327 — dépannages de farine reçus + alerte farine bio sous zéro (Prod. du jour) */
+  .bio-alerte{background:#FBEAEA;border-left:4px solid var(--red);border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:6px}
+  .bio-alerte ul{margin:5px 0 4px;padding-left:18px}.bio-alerte li{margin:2px 0}
+  .bio-alerte .why{font-size:12px;color:var(--grey-light)}
+  .bio-recu{background:var(--cream);border-radius:10px;padding:8px 10px;font-size:13px}
+  .bio-recu .row{display:flex;gap:8px;flex-wrap:wrap}.bio-recu .row>div{flex:1;min-width:130px}
+  .bio-recu .liste{font-size:12px;margin-top:6px;color:var(--grey-light)}
+  .bio-recu .liste div{display:flex;align-items:center;gap:6px;padding:2px 0}
   /* v20.267 — Planning plein écran : toute la largeur, lignes d'un seul étage, 2 moitiés côte à côte */
   #plan.page{max-width:none;padding:10px 12px}
   #plan .card{padding:10px 12px}
@@ -268,7 +276,7 @@
   <div id="pinpad"></div>
 </div>
 <header>
-  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.269</b></div></div>
+  <div><div class="logo">Les Bl<span class="e">é</span>s de Demain</div><div class="sub">Fabrication & suivi bio · <b>v20.327</b></div></div>
   <div id="sync">connexion…</div>
 </header>
 <nav class="tabs" id="fabNav"></nav>
@@ -298,6 +306,7 @@
     </div>
     <p class="hint" id="pdDayLabel" style="font-weight:bold;color:var(--gold-dark);margin-top:2px"></p>
     <div id="pdValMois" style="margin:6px 0 2px"></div>
+    <div id="pdBio" style="margin:6px 0 2px"></div><!-- v20.327 — dépannages de farine reçus + alerte farine bio sous zéro -->
     <button class="btn ghost" style="margin:4px 0 8px;padding:8px 14px;font-size:13px" onclick="pdFillFromPlan()">⇩ Remplir depuis le planning</button>
     <label>Affichage des pesées</label>
     <div class="seg" id="fabUnit">
@@ -1221,6 +1230,7 @@ async function pdLoadDay(){
   fabChecked={};pdRenderAll();
   if(pdDayValide&&!bilProd.length){bilLoadRaw().then(pdRenderValidBar);}else{pdRenderValidBar();}
   valLoadMois().then(pdRenderValMois);   // v20.229 — compteur du mois
+  pdBioLoad();                           // v20.327 — alerte farine bio + dépannages reçus
 }
 function pdAutoSave(){clearTimeout(_pdSaveTimer);_pdSaveTimer=setTimeout(pdDoSave,700);}
 async function pdDoSave(){
@@ -1324,7 +1334,7 @@ async function pdValiderJour(){
   await bilLoadRaw();
   await pdSaveFleurage();   // fleurage 5% en Tradition Bio
   await bilLoadRaw();
-  pdRenderValidBar();
+  pdRenderValidBar();pdRenderBio();   // v20.327 — la production validée peut faire passer une farine sous zéro
   toast('Journée validée — farines décomptées (fleurage inclus) ✓');
 }
 function pdDayFarineRecap(){
@@ -1856,7 +1866,7 @@ async function livSave(){
     setSync('enregistrement…');
     const q=await supa.from('fab_livraisons').insert(row);
     if(q.error){setSync('⚠️');toast(q.error.message);return;}
-    setSync('🟢 connecté');toast('Livraison enregistrée ✓');
+    setSync('🟢 connecté');toast('Livraison enregistrée ✓');_bioRawAt=0;
     document.getElementById('livQte').value='';document.getElementById('livLot').value='';document.getElementById('livBon').value='';document.getElementById('livNote').value='';
     ['livPhoto','livFacture'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     livRenderList();
@@ -2054,7 +2064,7 @@ async function perSave(){
   setSync('enregistrement…');
   const q=await supa.from('fab_pertes').insert(row);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast('Perte enregistrée ✓');
+  setSync('🟢 connecté');toast('Perte enregistrée ✓');_bioRawAt=0;
   document.getElementById('perQte').value='';document.getElementById('perMotif').value='';document.getElementById('perNote').value='';
   if(fi)fi.value='';
   perRenderList();
@@ -2085,7 +2095,7 @@ async function movSave(){
   setSync('enregistrement…');
   const q=await supa.from('fab_mouvements').insert(row);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast('Dispatch enregistré ✓');
+  setSync('🟢 connecté');toast('Dispatch enregistré ✓');_bioRawAt=0;
   setMovQty();movRenderList();
 }
 async function movRenderList(){
@@ -2099,7 +2109,106 @@ async function movDel(id){
   if(!confirm('Supprimer ce dispatch ?'))return;
   const q=await supa.from('fab_mouvements').delete().eq('id',id);
   if(q.error){toast(q.error.message);return;}
-  toast('Dispatch supprimé');movRenderList();
+  toast('Dispatch supprimé');_bioRawAt=0;movRenderList();
+}
+
+/* ---------- v20.327 — DÉPANNAGES DE FARINE REÇUS + ALERTE FARINE BIO SOUS ZÉRO ----------
+   Contrôle Bureau Veritas de Tours (22/10/2026) : avis favorable, mais 3 kg de farine bio entrés
+   sans trace — un dépannage venu d'un autre site, jamais saisi. Les dispatchs étaient notés après
+   coup, de mémoire, par une seule personne (onglet 🚚 Dispatch), et rien ne signalait un oubli.
+   Deux garde-fous, sur l'écran que les boulangers ouvrent chaque jour :
+   · 📥 « J'ai reçu des sacs d'un autre site » : CELUI QUI REÇOIT note le dépannage au moment où il
+     range les sacs. Sacs entiers + kg d'un sac entamé, au menu (pas de clavier, cf. réappros v20.71).
+     Doublon (même farine, même trajet, même jour déjà noté) → on demande avant d'ajouter.
+   · ⚠️ bandeau rouge : une farine bio dont le stock calculé (dernier comptage + entrées − production
+     − envois − pertes) passe sous zéro de plus de BIO_ALERTE_KG → il manque une entrée (dépannage
+     ou bon de livraison). Recalculé à partir du dernier comptage : un inventaire remet tout à plat. */
+const BIO_ALERTE_KG=10;   // tolérance : arrondis des recettes / fleurage ; un oubli de sac (25 kg) passe toujours au-dessus
+let _bioRawAt=0,pdBioOpen=false;
+async function pdBioLoad(force){
+  if(force||!_bioRawAt||Date.now()-_bioRawAt>10*60*1000){await bilLoadRaw();_bioRawAt=Date.now();}
+  pdRenderBio();
+}
+function pdBioManques(site){
+  const today=pdISO(new Date());
+  return ingredients.filter(i=>i.bio&&i.categorie==='farine').map(i=>{
+    const v=lastInv(i.id,site,today);
+    return {ing:i.id,nom:i.nom,kg:-theoAt(i.id,site,today),depuis:v?v.date_inv:null};
+  }).filter(x=>x.kg>=BIO_ALERTE_KG).sort((a,b)=>b.kg-a.kg);
+}
+const pdBioSn=c=>(SITES.find(s=>s[0]===c)||['',c])[1];
+// « 5 sacs + 1,3 kg (126,3 kg) » ; moins d'un sac → « 11,3 kg » (pas « 0 sac + 11,3 kg »)
+function pdBioQteTxt(kg,ing){const sac=bilSacKg(ing);return (sac&&Math.abs(kg)>=sac-0.005)?bilSacsTxt(kg,ing)+' ('+fk(kg)+' kg)':fk(kg)+' kg';}
+function pdBioQtyOpts(){
+  const ing=(document.getElementById('pdbIng')||{}).value;const sac=bilSacKg(ing)||25;
+  const sel=document.getElementById('pdbSacs'),plus=document.getElementById('pdbPlus');if(!sel||!plus)return;
+  let o='';for(let n=0;n<=10;n++)o+='<option value="'+n+'"'+(n===1?' selected':'')+'>'+n+' sac'+(n>1?'s':'')+(n?' ('+n*sac+' kg)':'')+'</option>';
+  sel.innerHTML=o;
+  let p='<option value="0">—</option>';for(let k=1;k<sac;k++)p+='<option value="'+k+'">+ '+k+' kg</option>';
+  plus.innerHTML=p;
+  const t=document.getElementById('pdbSacLbl');if(t)t.textContent='Sacs de '+sac+' kg';
+}
+function pdRenderBio(){
+  const box=document.getElementById('pdBio');if(!box)return;
+  if(!ingredients.length){box.innerHTML='';return;}
+  const site=fabSite,today=pdISO(new Date());
+  let h='';
+  const man=pdBioManques(site);
+  if(man.length){
+    h+='<div class="bio-alerte"><b>⚠️ Farine bio : il manque sans doute une entrée à '+pdBioSn(site)+'</b><ul>'
+      +man.map(m=>'<li><b>'+m.nom+'</b> : il manque '+pdBioQteTxt(m.kg,m.ing)+(m.depuis?' depuis le comptage du '+bilFr(m.depuis):'')+'</li>').join('')
+      +'</ul><div class="why">Des sacs reçus d\'un autre site ? Note-les avec le bouton 📥 ci-dessous. Sinon : un bon de livraison pas enregistré (📦 Livraisons), ou une journée de production saisie en trop.</div></div>';
+  }
+  h+='<div class="bio-recu">';
+  if(!pdBioOpen){
+    h+='<button class="btn ghost" style="width:100%;padding:9px 12px;font-size:13.5px" onclick="pdBioToggle(true)">📥 J\'ai reçu des sacs d\'un autre site</button>';
+  }else{
+    const autres=SITES.filter(s=>s[0]!==site);const defFrom=site==='local'?'veigne':'local';
+    const farines=ingredients.filter(x=>x.categorie==='farine').slice().sort((a,b)=>(b.bio?1:0)-(a.bio?1:0)||a.nom.localeCompare(b.nom,'fr'));
+    h+='<b>📥 Sacs reçus à '+pdBioSn(site)+'</b>'
+      +'<div class="hint" style="margin:2px 0 6px">À noter dès que tu ranges les sacs. Le contrôleur bio vérifie chaque sac.</div>'
+      +'<label>Farine</label><select id="pdbIng" onchange="pdBioQtyOpts()" style="width:100%">'+farines.map(x=>'<option value="'+x.id+'">'+x.nom+(x.bio?' (bio)':' (non bio)')+'</option>').join('')+'</select>'
+      +'<div class="row"><div><label id="pdbSacLbl">Sacs</label><select id="pdbSacs" style="width:100%"></select></div>'
+      +'<div><label>Sac entamé</label><select id="pdbPlus" style="width:100%"></select></div></div>'
+      +'<div class="row"><div><label>Venu de</label><select id="pdbFrom" style="width:100%">'+autres.map(s=>'<option value="'+s[0]+'"'+(s[0]===defFrom?' selected':'')+'>'+s[1]+'</option>').join('')+'</select></div>'
+      +'<div><label>Reçu le</label><input type="date" id="pdbDate" value="'+today+'" max="'+today+'" style="width:100%"></div></div>'
+      +'<div class="btn-row"><button class="btn" style="flex:1" onclick="pdBioSave()">✓ Noter les sacs reçus</button><button class="btn ghost" onclick="pdBioToggle(false)">Annuler</button></div>';
+  }
+  // les dépannages reçus ces 14 derniers jours : on voit que c'est noté, on corrige une erreur
+  const d14=pdAddDays(today,-14);
+  const recus=bilMouv.filter(m=>m.site_arrivee===site&&m.date_mouvement>=d14).sort((a,b)=>b.date_mouvement.localeCompare(a.date_mouvement)).slice(0,6);
+  if(recus.length)h+='<div class="liste">Reçus ces 2 dernières semaines :'+recus.map(m=>'<div>• '+bilFr(m.date_mouvement)+' — '+ingNom(m.ingredient_id)+' : '+pdBioQteTxt(+m.quantite_kg,m.ingredient_id)+', venu de '+pdBioSn(m.site_depart)
+    +(m.id!=null?' <button class="ico-btn" style="padding:0 6px;font-size:13px" title="Annuler cette saisie" onclick="pdBioDel(\''+m.id+'\')">🗑</button>':'')+'</div>').join('')+'</div>';
+  box.innerHTML=h+'</div>';
+  if(pdBioOpen)pdBioQtyOpts();
+}
+function pdBioToggle(on){pdBioOpen=!!on;pdRenderBio();}
+async function pdBioSave(){
+  const v=id=>(document.getElementById(id)||{}).value;
+  const ing=v('pdbIng'),from=v('pdbFrom'),to=fabSite,date=v('pdbDate'),today=pdISO(new Date());
+  const sac=bilSacKg(ing)||25;const kg=(parseInt(v('pdbSacs'),10)||0)*sac+(parseInt(v('pdbPlus'),10)||0);
+  if(!ing){toast('Choisis la farine');return;}
+  if(!kg){toast('Choisis le nombre de sacs');return;}
+  if(!from||from===to){toast('Choisis d\'où viennent les sacs');return;}
+  if(!date||date>today){toast('La date ne peut pas être dans le futur');return;}
+  const deja=bilMouv.filter(m=>m.ingredient_id===ing&&m.site_depart===from&&m.site_arrivee===to&&m.date_mouvement===date);
+  if(deja.length){const tot=deja.reduce((a,m)=>a+(+m.quantite_kg||0),0);
+    if(!confirm('Déjà noté : '+fk(tot)+' kg de '+ingNom(ing)+' venus de '+pdBioSn(from)+' le '+bilFr(date)+'.\n\nC\'est un AUTRE envoi, en plus ? (Annuler si c\'est le même)'))return;}
+  const row={ingredient_id:ing,site_depart:from,site_arrivee:to,date_mouvement:date,quantite_kg:kg};
+  setSync('enregistrement…');
+  const q=await supa.from('fab_mouvements').insert(row).select('id').single();
+  if(q.error){setSync('⚠️');toast(q.error.message);return;}
+  setSync('🟢 connecté');
+  bilMouv.push(Object.assign({id:q.data?q.data.id:null},row));
+  pdBioOpen=false;pdRenderBio();
+  toast('Noté ✓ '+pdBioQteTxt(kg,ing)+' de '+ingNom(ing));
+}
+async function pdBioDel(id){
+  const m=bilMouv.find(x=>String(x.id)===String(id));if(!m)return;
+  if(!confirm('Annuler cette saisie ?\n'+ingNom(m.ingredient_id)+' : '+fk(m.quantite_kg)+' kg venus de '+pdBioSn(m.site_depart)+' le '+bilFr(m.date_mouvement)))return;
+  const q=await supa.from('fab_mouvements').delete().eq('id',m.id);
+  if(q.error){toast(q.error.message);return;}
+  bilMouv=bilMouv.filter(x=>x!==m);pdRenderBio();toast('Saisie annulée');
 }
 
 /* ---------- BILAN PÉRIODE + INVENTAIRE (calcul côté front) ---------- */
@@ -2117,13 +2226,14 @@ async function bilLoadRaw(){
     // → plus de la moitié des journées manquaient au Bilan/Inventaire (conso sous-comptée, stocks gonflés en orange)
     fabFetchAll((a,b)=>supa.from('fab_production').select('site,date_prod,quantite,valide,produit_id,fab_recettes(rendement_base,fab_recette_lignes(ingredient_id,quantite))').order('id').range(a,b)),
     supa.from('fab_pertes').select('ingredient_id,site,date_perte,quantite_kg'),
-    supa.from('fab_mouvements').select('ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),
+    supa.from('fab_mouvements').select('id,ingredient_id,site_depart,site_arrivee,date_mouvement,quantite_kg'),   // v20.327 — id : annuler un dépannage depuis Prod. du jour
     supa.from('fab_inventaires').select('id,ingredient_id,site,date_inv,qte_reelle_kg').order('date_inv',{ascending:false}),
     supa.from('fab_sorties').select('ingredient_id,site,date_sortie,quantite_kg,valide')
   ]);
   if(lv.error||pr.error||pe.error||mv.error||inv.error||so.error){setSync('⚠️');toast('Erreur de chargement (Supabase en pause ?)');}
   bilLivr=lv.data||[];bilProd=pr.data||[];bilPertes=pe.data||[];bilMouv=mv.data||[];bilInv=inv.data||[];bilSorties=so.data||[];
   _ingById={};ingredients.forEach(i=>_ingById[i.id]=i);
+  _bioRawAt=Date.now();   // v20.327 — données fraîches pour l'alerte farine bio
 }
 // mouvements (from exclusif, to inclusif ; null = pas de borne)
 function movWin(ing,site,from,to){
@@ -2452,7 +2562,7 @@ async function invSave(){
   setSync('enregistrement…');
   const q=await supa.from('fab_inventaires').insert(rows);
   if(q.error){setSync('⚠️');toast(q.error.message);return;}
-  setSync('🟢 connecté');toast(rows.length+' comptage(s) enregistré(s) ✓ — nouvelle base');
+  setSync('🟢 connecté');toast(rows.length+' comptage(s) enregistré(s) ✓ — nouvelle base');_bioRawAt=0;
   await bilLoadRaw();invRender();invHist();
 }
 function invHist(){

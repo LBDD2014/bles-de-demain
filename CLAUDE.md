@@ -162,6 +162,13 @@ Logo : `logo-splash.png.png` (fond noir, accent or sur "é").
 - Alerte rouge si réel <30% du seuil, orange 30-50%, vert sinon
 - Écart en rouge si gap absolu >10%
 
+**Dépannages de farine entre sites (v20.327, suite contrôle BV Tours 22/10/2026)** :
+- C'est **celui qui reçoit** les sacs qui note le dépannage, au moment où il les range :
+  Fabrication → Prod. du jour → 📥 « J'ai reçu des sacs d'un autre site » (sacs entiers + kg du sac entamé, au menu)
+- Bandeau rouge sur Prod. du jour si une farine bio passe **sous zéro de plus de 10 kg** depuis le dernier
+  comptage → il manque une entrée (dépannage ou bon de livraison)
+- Même farine + même trajet + même jour déjà noté → l'app demande confirmation (évite le double comptage avec 🚚 Dispatch)
+
 **Tournée livreur** :
 - Réappros groupés par boutique
 - Validation ligne par ligne OU "Tout valider [Boutique]" (PAS de bouton global)
