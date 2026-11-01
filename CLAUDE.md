@@ -391,6 +391,11 @@ Phil : « rentrer la prod du jour qui va au congélateur dans le stock et la dé
   Le décompte ❄️ de Prod. Touriers ne divise plus quand la ligne est déjà dans l'unité du congélo (`unit` de la fiche = unité du stock) :
   St-Av 3 grilles = −3 grilles (avant : −0,06). Chouquettes du Local = **St-Avertin seulement** ; Tours les reçoit toujours **de Veigné**
   (supply inchangé), Veigné les fait sur place.
+  **v20.338 — stock reporté** (Phil, 01/11 : « s'il me reste du stock en fin de mois, tu le reportes d'office le mois suivant ») :
+  reste à faire du mois = prévision − **stock au 1er** − mis au congélo depuis ; « 25 reportés d'oct. », « ✓ couvert par le stock ».
+  Photo du stock des 3 écrans chaque 1er à minuit (Paris) par pg_cron : `snapshot_stock_mois()` → `stock_report_mois`
+  (`migration-v20.338-stock-report-mois.sql`, jobs `lbdd-stock-report-mois` 22h05/23h05 UTC + rattrapage 0h10 UTC le 1er ;
+  une photo prise n'est jamais remplacée). Stock négatif reporté comme 0. Novembre 2026 : photo prise le 01/11 par la migration.
 - **📋 Compter le congélo** (tout le monde) : seule façon de changer le stock à la main ; écart gardé dans `stock_comptages` (prénom de la tablette).
 - **Réglages sans code** : appui long sur le nom (0,55 s) ou ⚙️ → prévision du mois, pièces par caisse/sac (`products.conditioning_qty` ;
   Pât. : `veigne_pat_stock.unit_pieces`), Mini, tenue au congélo. ⚠️ les pièces par caisse valent partout (réassorts, pros) : averti en orange.

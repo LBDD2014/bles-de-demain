@@ -78,6 +78,25 @@ export const tests = [
     },
   },
   {
+    name: 'v20.338 — stock du 1er reporté : prévision 60 − 25 reportées de juin = 35 à faire ; reporté ≥ prévision = « ✓ couvert par le stock »',
+    fn: async (ctx) => {
+      const d = dbStock();
+      d.stock_report_mois = [{ tenant_id: T, mois: '2026-07-01', screen: 'tourier', product_id: 'cro_reap', qty: 25 },
+        { tenant_id: T, mois: '2026-06-01', screen: 'tourier', product_id: 'cro_reap', qty: 99 }];
+      const page = await ecran(ctx, 'local', 'stock_tour', d);
+      let row = (await txt(page, '.sg-row'))[0];
+      assert(/35 à faire/.test(row) && /0 \/ 60 ce mois · 25 reportés de juin/.test(row), 'report : ' + row);
+      await page.evaluate(async () => { await stockPadAdd('cro_reap', 5); });
+      row = (await txt(page, '.sg-row'))[0];
+      assert(/30 à faire/.test(row) && /5 \/ 60 ce mois/.test(row), 'après ＋5 : ' + row);
+      await page.evaluate(() => setStockPeriodMode('semaine'));
+      assert(/30 d'ici fin juil/.test((await txt(page, '.sg-row'))[0]), 'semaine : le mois tient compte du report');
+      await page.evaluate(() => { setStockPeriodMode('mois'); stockReportMois['tourier|cro_reap'] = 70; stockEntriesPeriod.cro_reap.mois = 0; renderStock(); });
+      assert(/✓ couvert par le stock/.test((await txt(page, '.sg-row'))[0]), 'couvert : ' + (await txt(page, '.sg-row'))[0]);
+      await page.close();
+    },
+  },
+  {
     name: 'Réglages sans code — prévision +1, pièces par caisse 78, Mini +1 : enregistrés pour tout le monde',
     fn: async (ctx) => {
       const page = await ecran(ctx, 'local', 'stock_tour');

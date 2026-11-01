@@ -2936,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.337';
+const APP_VERSION  = 'v20.338';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -17959,7 +17959,23 @@ async function loadStockEntries() {
       if (r.entered_at >= wISO) f.sem += q;
     } else if (r.entered_at >= dISO) e.auj += q;   // « +40 aujourd'hui » sous le ＋
   });
+  await loadStockReportMois();
 }
+
+// v20.338 — Phil (01/11) : « s'il me reste du stock en fin de mois, tu le reportes d'office le mois suivant ».
+// La base prend une photo du stock chaque 1er du mois à minuit (pg_cron, migration v20.338, table stock_report_mois) ;
+// reste à faire du mois = prévision − stock reporté − mis au congélo depuis. Sans la migration : pas de report (comme avant).
+let stockReportMois = {};   // { 'tourier|pid': qty }
+async function loadStockReportMois() {
+  const now = new Date();
+  const mois = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+  stockReportMois = {};
+  const { data, error } = await supa.from('stock_report_mois').select('screen,product_id,qty')
+    .eq('tenant_id', TENANT_ID).eq('mois', mois);
+  if (error) return;
+  (data || []).forEach(function(r) { stockReportMois[r.screen + '|' + r.product_id] = Number(r.qty) || 0; });
+}
+function sgReport(screen, pid) { return Math.max(0, stockReportMois[screen + '|' + pid] || 0); }
 
 // Trace une Entrée de production (appelé par les 3 écrans stock)
 async function logStockEntry(pid, qty, screen) {
@@ -18068,7 +18084,8 @@ async function editConsoMois(pid) {
    Stock Boul. Pro : Produit | Stock (lecture seule) | ＋ mettre au congélo | Reste à faire.
    · ＋ : ajoute au stock ET à la production de la période (stock_entries), ↩️ Annuler pendant 6 s.
    · Le stock ne se tape plus : 📋 Compter le congélo (tout le monde ; écart gardé dans stock_comptages).
-   · Reste à faire = prévision du mois (products.conso_mois_manuel, « ma prévision ») − production.
+   · Reste à faire = prévision du mois (products.conso_mois_manuel, « ma prévision ») − production
+     (v20.338 : − stock reporté du 1er du mois, table stock_report_mois).
    · Réglages par appui long sur le nom (ou ⚙️), SANS code : prévision, pièces par caisse/sac,
      Mini, tenue au congélo. Les pièces par caisse servent partout (réassorts, pros) : averti en orange.
    · Retirés : Entrée / Stock / Mini en menus, « À partir », la légende de 6 lignes.
@@ -18163,9 +18180,11 @@ function sgResteHtml(p, stock, mini) {
   const frTxt = fr > 0 ? ' · <span class="sg-fr">dont 🥐 ' + sgFq(fr) + ' frais</span>' : '';
   const prev = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0) ? Number(p.conso_mois_manuel) : null;
   if (prev == null) return '<div class="sg-raf"><span class="sg-big sg-muted">—</span><small>' + sgFq(fait) + ' fait' + (fait > 1 ? 's' : '') + ' ' + per + ' · pas d\'objectif' + frTxt + '</small></div>';
+  const report = sgReport(sgScreen(), p.id);
+  const moisAvant = FINSTOCK_MOIS[(new Date().getMonth() + 11) % 12];
   if (sem) {
     const besoin = sgBesoinSemaine(p, stock, mini);
-    const resteMois = Math.max(0, prev - e.mois);
+    const resteMois = Math.max(0, prev - report - e.mois);
     const moisTxt = resteMois > 0 ? sgFq(resteMois) + ' d\'ici fin ' + FINSTOCK_MOIS[new Date().getMonth()] : 'mois fait ✓';
     const faitTxt = fait > 0 ? sgFq(fait) + ' fait' + (fait > 1 ? 's' : '') + ' cette semaine · ' : '';
     if (besoin === 0) return '<div class="sg-raf ok"><span class="sg-big">✓ rien d\'urgent</span><small>' + faitTxt + moisTxt + frTxt + '</small></div>';
@@ -18174,9 +18193,11 @@ function sgResteHtml(p, stock, mini) {
       + '<div class="sg-barre"><i style="width:' + pctS + '%"></i></div><small>' + faitTxt + 'pour tenir 7 jours' + (mini ? ' + Mini' : '') + ' · ' + moisTxt + frTxt + '</small></div>';
   }
   const obj = prev;
-  const reste = Math.max(0, obj - fait), pct = obj > 0 ? Math.min(100, Math.round(fait / obj * 100)) : 100;
-  return '<div class="sg-raf' + (reste === 0 ? ' ok' : '') + '"><span class="sg-big">' + (reste === 0 ? '✓ fait' : sgFq(reste) + ' à faire') + '</span>'
-    + '<div class="sg-barre"><i style="width:' + pct + '%"></i></div><small>' + sgFq(fait) + ' / ' + sgFq(obj) + ' ' + per + frTxt + '</small></div>';
+  const reste = Math.max(0, obj - report - fait), pct = obj > 0 ? Math.min(100, Math.round((report + fait) / obj * 100)) : 100;
+  const repTxt = report > 0 ? ' · ' + sgFq(report) + ' reporté' + (report > 1 ? 's' : '') + ' de ' + moisAvant : '';
+  const big = reste > 0 ? sgFq(reste) + ' à faire' : (fait > 0 || !report ? '✓ fait' : '✓ couvert par le stock');
+  return '<div class="sg-raf' + (reste === 0 ? ' ok' : '') + '"><span class="sg-big">' + big + '</span>'
+    + '<div class="sg-barre"><i style="width:' + pct + '%"></i></div><small>' + sgFq(fait) + ' / ' + sgFq(obj) + ' ' + per + repTxt + frTxt + '</small></div>';
 }
 // La barre du haut (Semaine / Mois + 📋) et le résumé, puis la grille.
 // items = [{ p, stock, mini, consoF, joursF, ctrl, inactif, cat }] déjà triés par catégorie
