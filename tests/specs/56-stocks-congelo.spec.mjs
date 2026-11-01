@@ -128,6 +128,26 @@ export const tests = [
     },
   },
   {
+    name: 'v20.337 — Chouquette (une fiche, en grilles de 50) : la ligne St-Av de 3 grilles retire 3 grilles du congélo, pas 0,06',
+    fn: async (ctx) => {
+      const d = dbStock();
+      d.products.push({ id: 'chouquette', tenant_id: T, name: 'Chouquette', category: 'viennoiserie', actif: true, usage: 'both', unit: 'grille',
+        conditioning_unit: 'grille', conditioning_qty: 50, conso_mois_manuel: 120, supply_by_boutique: { 'saint-avertin': 'local', veigne: 'on_site', tours: 'veigne' } });
+      d.tourier_stock.push({ tenant_id: T, product_id: 'chouquette', stock: 20, mini: null });
+      const page = await ecran(ctx, 'local', 'prod_tour', d);
+      const stock = async () => (await mock(page, 'tourier_stock')).find((x) => x.product_id === 'chouquette').stock;
+      assert(/❄️ du congélo/.test(await page.evaluate(() => congeloModeHtml('chouquette', 3))), 'bouton ❄️ sur la chouquette');
+      await page.evaluate(async () => { await toggleProductionDone('chouquette', 3); });
+      assert((await stock()) === 17, '−3 grilles : ' + (await stock()));
+      await page.evaluate(async () => { await toggleProductionDone('chouquette', 3); });   // décoche
+      assert((await stock()) === 20, 'décoché : ' + (await stock()));
+      // les croissants (fiche vente en pièces) se divisent toujours par 77
+      await page.evaluate(async () => { await toggleProductionDone('vp_croissant', 154); });
+      assert((await mock(page, 'tourier_stock')).find((x) => x.product_id === 'cro_reap').stock === 8, 'croissants : 154 pièces = 2 caisses');
+      await page.close();
+    },
+  },
+  {
     name: 'Boul. Pro — le livreur coche la livraison : −30 Tradition au stock pro ; il décoche : +30',
     fn: async (ctx) => {
       const d = dbStock();

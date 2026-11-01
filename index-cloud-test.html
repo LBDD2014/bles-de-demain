@@ -2936,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.336';
+const APP_VERSION  = 'v20.337';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3326,7 +3326,11 @@ async function congeloAppliquer(pid, row, prev) {
   }
   const spid = tourierStockPidFor(pid); if (!spid) return row;
   const u = sgUnit('tourier', sgProduct(spid));
-  const par = (!u.piecesComptees && u.par > 0) ? u.par : 1;
+  // v20.337 — Chouquette (Phil, 01/11) : une seule fiche, vendue ET stockée « à la grille de 50 » → la ligne de Prod. Touriers
+  // est déjà en grilles (St-Av : 3). Diviser par 50 retirait 0,06 grille. On ne divise que si la ligne est en pièces.
+  const pp = sgProduct(pid);
+  const dejaEnUnite = !!(pp && pp.unit && sgNormNom(pp.unit) === sgNormNom(u.nom));
+  const par = (!dejaEnUnite && !u.piecesComptees && u.par > 0) ? u.par : 1;
   const pieces = parseQty(row.qty_envoyee) > 0 ? parseQty(row.qty_envoyee) : (row.done_at ? (parseQty(row.qty_total) || 0) : 0);
   const qty = Math.round(pieces / par * 100) / 100;
   const cible = qty > 0 ? (row.congelo_mode === 'frais' ? 'frais' : 'congelo') : null;
