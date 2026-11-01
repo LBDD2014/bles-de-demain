@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Stocks congélo</title>
+<!-- Maquette (pas l'app) — Phil, 01/11/2026 : « il me faut rentrer la prod du jour qui va au congélateur, pour rentrer
+     dans le stock et décompter de la production totale du mois ou de la semaine ; je ne sais pas si À partir nous sert ».
+     Piste A, même gabarit pour Stock Boul. Pro, Stock Tourier et Stock Pât. Chiffres inventés ; rien n'est enregistré. -->
+<style>
+  :root {
+    --gold: #CEAB52; --gold-light: #E8D5A3; --gold-dark: #8B6914;
+    --grey: #474950; --grey-dark: #2E3044; --grey-light: #5A5C66;
+    --cream: #FAF6EE; --brown: #3D2B1F; --brown-mid: #6B4226;
+    --green: #4A7C59; --red: #B83232; --orange: #D4701A; --blue: #2C5F8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #8f8a80; color: var(--brown); padding: 18px 16px 50px; }
+  .page { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+  .card { background: #fff; border-radius: 14px; padding: 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .full { grid-column: 1 / -1; }
+  h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; color: var(--grey-dark); }
+  h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; color: var(--grey-dark); margin-bottom: 4px; }
+  .sub { font-size: 13.5px; color: var(--grey-light); line-height: 1.5; margin: 4px 0 8px; }
+  .sub b { color: var(--brown); }
+  .side { display: flex; flex-direction: column; gap: 18px; }
+  .q { font-size: 13px; margin-top: 10px; }
+  .q > b { display: block; margin-bottom: 4px; }
+  .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .opts label { font-size: 12.5px; background: var(--cream); border: 1px solid #E5DCC8; border-radius: 8px; padding: 6px 9px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  ul.lst { font-size: 13px; line-height: 1.5; padding-left: 18px; margin-top: 4px; }
+  ul.lst s { color: #999; }
+
+  .wrap { position: relative; margin-top: 30px; }
+  .tlabel { position: absolute; top: -26px; left: 4px; font-size: 13px; font-weight: 700; color: #fff; }
+  .tablet { width: 100%; height: 960px; border: 9px solid var(--grey-dark); border-radius: 22px; background: var(--cream); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .appbar { background: var(--grey-dark); color: #fff; padding: 9px 12px; font-size: 13px; display: flex; justify-content: space-between; }
+  .appbar b { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; }
+  .scroll { flex: 1; overflow-y: auto; padding: 8px 10px 70px; }
+
+  .prep { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; font-size: 12.5px; color: var(--grey-light); border-left: 4px solid var(--blue); }
+  .prep b { color: var(--brown); }
+  .top { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .seg { display: flex; background: #fff; border: 1.5px solid var(--gold); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; background: none; font: 700 13px Georgia, serif; padding: 8px 12px; color: var(--gold-dark); cursor: pointer; }
+  .seg button.on { background: var(--gold); color: #fff; }
+  .cpt { margin-left: auto; border: 1.5px solid var(--blue); color: var(--blue); background: #fff; border-radius: 10px; padding: 8px 10px; font: 700 13px Georgia, serif; cursor: pointer; }
+  .resume { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .resume span b { font-size: 15px; }
+  .r1 { color: var(--red); } .r2 { color: var(--green); } .r3 { color: var(--orange); }
+
+  .grid { background: #fff; border-radius: 10px; overflow: hidden; }
+  .gh, .gr { display: grid; grid-template-columns: minmax(0, 1.5fr) 62px 96px minmax(0, 1.25fr); gap: 8px; align-items: center; padding: 0 10px; }
+  .gh { font-size: 10px; font-weight: 700; color: var(--grey-light); letter-spacing: .04em; text-transform: uppercase; padding-top: 8px; padding-bottom: 6px; background: #F6F1E7; }
+  .gr { border-top: 1px solid #F1ECE2; min-height: 62px; font-size: 14px; padding-top: 6px; padding-bottom: 6px; }
+  .cat { background: #F6F1E7; font-family: 'Playfair Display', Georgia, serif; font-weight: 700; padding: 6px 10px; font-size: 14px; border-top: 1px solid #EDE5D3; }
+  .nm b { display: block; font-size: 14px; }
+  .nm small { display: block; font-size: 11.5px; margin-top: 2px; }
+  .nm small.u { color: var(--grey-light); }
+  .stk { text-align: center; font-size: 20px; font-weight: 700; }
+  .stk small { display: block; font-size: 10.5px; font-weight: 400; color: var(--grey-light); }
+  .plus { width: 100%; border: 2px solid var(--green); background: #EEF6F0; color: var(--green); border-radius: 10px; padding: 8px 0; font: 700 15px Georgia, serif; cursor: pointer; }
+  .plus small { display: block; font-size: 10.5px; font-weight: 400; }
+  .plus.fait { background: var(--green); color: #fff; }
+  .raf { font-size: 12.5px; }
+  .raf .big { font-size: 15px; font-weight: 700; }
+  .barre { height: 8px; background: #EDE5D3; border-radius: 5px; overflow: hidden; margin: 4px 0 2px; }
+  .barre i { display: block; height: 100%; background: var(--gold); }
+  .raf.ok .barre i { background: var(--green); }
+  .raf small { color: var(--grey-light); font-size: 11px; }
+  .regl { border: 0; background: none; font-size: 15px; cursor: pointer; padding: 0 2px; }
+
+  .toast { position: absolute; left: 10px; right: 10px; bottom: 10px; background: var(--grey-dark); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; display: none; align-items: center; gap: 10px; z-index: 6; }
+  .toast.on { display: flex; }
+  .toast button { margin-left: auto; background: none; border: 1.5px solid #fff; color: #fff; border-radius: 8px; padding: 5px 9px; font: 700 12.5px Georgia, serif; cursor: pointer; }
+
+  .modal { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: flex-end; justify-content: center; z-index: 5; }
+  .modal.on { display: flex; }
+  .sheet { background: #fff; width: 100%; border-radius: 16px 16px 0 0; padding: 14px 14px 18px; }
+  .sheet h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; }
+  .sheet p { font-size: 12.5px; color: var(--grey-light); margin: 2px 0 10px; }
+  .pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .pad button { border: 1.5px solid #DDD3BE; background: var(--cream); border-radius: 10px; padding: 12px 0; font: 700 17px Georgia, serif; color: var(--brown); cursor: pointer; }
+  .pad button small { display: block; font-size: 10.5px; font-weight: 400; color: var(--grey-light); }
+  .pad button.cond { border-color: var(--gold); background: #FFFBEF; }
+  .sheet .annul { margin-top: 10px; width: 100%; border: 0; background: none; font: 13px Georgia, serif; color: var(--grey-light); cursor: pointer; }
+
+  /* comptage */
+  .crow { display: grid; grid-template-columns: minmax(0, 1.4fr) 58px 76px 64px; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid #F1ECE2; font-size: 13.5px; }
+  .crow.h { font-size: 10px; font-weight: 700; color: var(--grey-light); text-transform: uppercase; letter-spacing: .04em; background: #F6F1E7; border-top: 0; }
+  .crow input { width: 100%; border: 1.5px solid var(--blue); border-radius: 8px; padding: 7px 0; text-align: center; font: 700 15px Georgia, serif; }
+  .ec { text-align: center; font-weight: 700; }
+  .lock { background: #EEF2F8; border: 1px solid #C9D6E6; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; margin-bottom: 8px; }
+  .valid { width: 100%; margin-top: 10px; border: 0; background: var(--blue); color: #fff; border-radius: 10px; padding: 11px; font: 700 14px Georgia, serif; cursor: pointer; }
+  .fiche { font-size: 13px; }
+  .fiche .l { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #F1ECE2; gap: 10px; }
+  .fiche .l span.v { border: 1.5px solid #DDD3BE; border-radius: 8px; padding: 5px 10px; font-weight: 700; white-space: nowrap; }
+  .fiche .l small { display: block; color: var(--grey-light); font-size: 11.5px; }
+  .fiche .stp { display: flex; align-items: center; gap: 4px; }
+  .fiche .stp button { width: 34px; height: 34px; border: 1.5px solid var(--gold); background: #FFFBEF; border-radius: 8px; font: 700 17px Georgia, serif; color: var(--gold-dark); cursor: pointer; }
+  .fiche .stp .v { cursor: pointer; min-width: 92px; text-align: center; }
+  .fiche .warn { background: #FFF3E6; border: 1px solid #F0C9A0; border-radius: 8px; padding: 6px 8px; font-size: 11.5px; color: var(--brown); margin-top: 4px; }
+  .fiche .who { font-size: 11.5px; color: var(--green); margin-top: 8px; min-height: 15px; }
+  .nm { cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .nm.press { background: #FFF6DE; border-radius: 6px; }
+  .astuce { font-size: 11.5px; color: var(--grey-light); margin: -2px 0 8px 2px; }
+
+  /* mockup : choix de l'écran */
+  .ecr { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 13px; flex-wrap: wrap; }
+  .ecr button { border: 1.5px solid var(--grey-dark); background: #fff; border-radius: 10px; padding: 7px 12px; font: 700 13px Georgia, serif; cursor: pointer; color: var(--grey-dark); }
+  .ecr button.on { background: var(--grey-dark); color: #fff; }
+
+  /* tourier : à préparer St-Avertin */
+  .apr { background: #fff; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid var(--blue); overflow: hidden; }
+  .apr .h { padding: 8px 10px 4px; font-size: 13px; }
+  .apr .h small { display: block; color: var(--grey-light); font-size: 11.5px; margin-top: 2px; }
+  .apr .l { display: grid; grid-template-columns: minmax(0, 1fr) auto 128px; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid #F1ECE2; font-size: 13.5px; }
+  .apr .l .q { text-align: right; font-weight: 700; margin: 0; white-space: nowrap; }
+  .tg { border: 1.5px solid var(--blue); background: #EEF2F8; color: var(--blue); border-radius: 8px; padding: 7px 4px; font: 700 12.5px Georgia, serif; cursor: pointer; }
+  .tg.fr { border-color: var(--orange); background: #FFF3E6; color: var(--orange); }
+  .apr .go { display: block; width: calc(100% - 20px); margin: 6px 10px 10px; border: 0; background: var(--blue); color: #fff; border-radius: 10px; padding: 10px; font: 700 13.5px Georgia, serif; cursor: pointer; }
+  .apr .done { padding: 8px 10px 10px; font-size: 13px; color: var(--green); border-top: 1px solid #F1ECE2; }
+  .apr .done a { color: var(--grey-light); margin-left: 6px; cursor: pointer; text-decoration: underline; }
+  .apr .ok { color: var(--green); font-weight: 700; font-size: 12.5px; text-align: center; }
+  .raf .fr { color: var(--orange); }
+  .frj { margin-top: 4px; text-align: center; font-size: 11px; font-weight: 700; color: var(--orange); background: #FFF3E6; border-radius: 6px; padding: 3px 2px; }
+
+  @media (max-width: 900px) {
+    .page { grid-template-columns: 1fr; }
+    .tablet { height: 820px; }
+  }
+  @media (max-width: 520px) {
+    body { padding: 12px 8px 40px; }
+    .gh, .gr { grid-template-columns: minmax(0, 1fr) 46px 74px; }
+    .gh > :nth-child(4), .gr > .raf { grid-column: 1 / -1; }
+    .gh > :nth-child(4) { display: none; }
+    .crow { grid-template-columns: minmax(0, 1fr) 46px 64px 50px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="card full">
+    <h1>🧊 Stocks congélo — maquette (rien n'est codé)</h1>
+    <p class="sub">Même écran pour <b>Stock Boul. Pro</b>, <b>Stock Tourier</b> et <b>Stock Pât.</b> Une ligne = un produit, et un seul geste
+      au quotidien : <b>« + Aujourd'hui »</b> quand on met au congélo. Ça <b>ajoute au stock</b> et ça <b>retire du « reste à faire »</b>
+      de la semaine ou du mois. Le stock ne se tape plus à la main : on le <b>compte</b> une fois de temps en temps (📋), et l'écart est gardé.
+      Chiffres inventés. Essaie : appuie sur un <b>+</b>, change Semaine / Mois, ouvre 📋 et ⚙️.</p>
+    <div class="q"><b>1. Le « reste à faire » part de…</b>
+      <div class="opts">
+        <label><input type="radio" name="q1" value="prev" checked> la prévision du mois (✏️ sur le produit)</label>
+        <label><input type="radio" name="q1" value="sorti"> ce qui est sorti du congélo le mois dernier (auto)</label>
+      </div></div>
+    <div class="q"><b>2. Boulangers pros : le stock baisse…</b>
+      <div class="opts">
+        <label><input type="radio" name="q2" value="livr" checked> tout seul quand le livreur coche la livraison</label>
+        <label><input type="radio" name="q2" value="prep"> quand on coche « préparé » (comme aujourd'hui, jamais fait)</label>
+      </div></div>
+    <div class="q"><b>3. « 📋 Compter le congélo »…</b>
+      <div class="opts">
+        <label><input type="radio" name="q3" value="tous" checked> tout le monde</label>
+        <label><input type="radio" name="q3" value="chef"> avec le code chef seulement</label>
+      </div></div>
+    <div class="ecr"><b>Écran montré :</b>
+      <button id="eB" class="on" onclick="ecran('boul')">🥖 Stock Boul. Pro</button>
+      <button id="eT" onclick="ecran('tour')">🥐 Stock Tourier (St-Avertin plaqué frais)</button>
+    </div>
+  </div>
+
+  <!-- ÉCRAN PRINCIPAL -->
+  <div class="wrap">
+    <div class="tlabel" id="tlabel">📱 Tablette du Local — Stock Boul. Pro (proposé)</div>
+    <div class="tablet">
+      <div class="appbar"><b>Les Blés de Demain</b><span>Le Local · samedi 21 nov.</span></div>
+      <div class="scroll">
+        <div class="prep" id="prepTxt"></div>
+        <div class="top">
+          <div class="seg"><button id="bS" onclick="periode('semaine')">Semaine</button><button id="bM" class="on" onclick="periode('mois')">Mois</button></div>
+          <button class="cpt" onclick="ouvrir('mCompter')">📋 Compter le congélo</button>
+        </div>
+        <div class="resume" id="resume"></div>
+        <div class="astuce">👆 Appui long sur un produit (ou ⚙️) = ses réglages : prévision du mois, taille du sac ou de la caisse… sans code.</div>
+        <div class="grid">
+          <div class="gh"><span>Produit</span><span style="text-align:center">Stock</span><span style="text-align:center">Mis au congélo</span><span id="hRaf">Reste à faire ce mois</span></div>
+          <div id="rows"></div>
+        </div>
+      </div>
+
+      <div class="modal" id="mPad" onclick="if(event.target===this)fermer('mPad')">
+        <div class="sheet">
+          <h3 id="padT"></h3>
+          <p id="padS"></p>
+          <div class="pad" id="pad"></div>
+          <button class="annul" onclick="fermer('mPad')">Fermer</button>
+        </div>
+      </div>
+
+      <div class="modal" id="mFiche" onclick="if(event.target===this)fermer('mFiche')">
+        <div class="sheet fiche">
+          <h3 id="ficheT"></h3>
+          <p>Les gars de la production règlent eux-mêmes, <b>sans code</b>. − / + ou un appui sur le chiffre pour le taper. Enregistré tout de suite.</p>
+          <div class="l"><div>Prévision du mois<small>sert au « reste à faire »</small></div><div class="stp"><button onclick="regle('prev',-1)">−</button><span class="v" id="fPrev" onclick="regleTape('prev')"></span><button onclick="regle('prev',1)">+</button></div></div>
+          <div class="l"><div><span id="fCondLbl">Pièces par sac</span><small>les touches du + proposent des <span id="fCondU">sacs entiers</span></small></div><div class="stp"><button onclick="regle('cond',-1)">−</button><span class="v" id="fCond" onclick="regleTape('cond')"></span><button onclick="regle('cond',1)">+</button></div></div>
+          <div class="warn" id="fWarn"></div>
+          <div class="l"><div>Mini<small>en dessous = rouge, même si le mois est fait</small></div><div class="stp"><button onclick="regle('mini',-1)">−</button><span class="v" id="fMini" onclick="regleTape('mini')"></span><button onclick="regle('mini',1)">+</button></div></div>
+          <div class="l"><div>Tient au congélo<small>au-delà = orange « trop d'avance »</small></div><div class="stp"><button onclick="regle('tol',-1)">−</button><span class="v" id="fTol" onclick="regleTape('tol')"></span><button onclick="regle('tol',1)">+</button></div></div>
+          <div class="who" id="fWho"></div>
+          <button class="annul" onclick="fermer('mFiche')">Fermer</button>
+        </div>
+      </div>
+
+      <div class="modal" id="mCompter" onclick="if(event.target===this)fermer('mCompter')">
+        <div class="sheet" style="max-height:88%;overflow-y:auto">
+          <h3>📋 Compter le congélo</h3>
+          <p>On tape ce qu'on voit. Les cases vides ne changent rien. L'écart est enregistré (on saura s'il y a de la casse ou un oubli de « + »).</p>
+          <div class="lock" id="lockTxt"></div>
+          <div class="crow h"><span>Produit</span><span style="text-align:center">L'app</span><span style="text-align:center">Compté</span><span style="text-align:center">Écart</span></div>
+          <div id="crows"></div>
+          <button class="valid" onclick="validerComptage()">✓ Valider le comptage</button>
+          <button class="annul" onclick="fermer('mCompter')">Annuler</button>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"><span id="toastT"></span><button onclick="annulerDernier()">↩️ Annuler</button></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Ce qui change par rapport à aujourd'hui</h2>
+      <ul class="lst">
+        <li><b>Un seul geste par jour : « + »</b>, en gros, avec ce qui est déjà mis aujourd'hui écrit dessous (« +40 aujourd'hui »). Un appui = une fenêtre de touches (sacs entiers en premier).</li>
+        <li><b>Le stock n'est plus un menu.</b> Aujourd'hui l'équipe retape le chiffre du stock (36 produits chez les touriers en octobre) et la case Entrée n'a servi que 2 jours depuis l'été : on ne sait plus ce qui a été produit.</li>
+        <li><b>« Reste à faire »</b> remplace « Prod. mois » : 1 500 faites → <b>500 à faire</b>, avec une barre. Bascule Semaine / Mois.</li>
+        <li><b>La couleur</b> passe sur le nom, avec la phrase qui dit pourquoi (« fini vers le 23 nov. », « 5 semaines d'avance »).</li>
+        <li><s>À partir</s> : retiré. Chez les touriers c'est la liste « À préparer » du haut ; chez les boulangers il ne baissait jamais (aucune commande pro cochée « préparé » en octobre).</li>
+        <li><s>Mini</s>, <s>✏️ prévision</s>, <s>❄️ tolérance</s> : rangés dans ⚙️ / <b>appui long sur le produit</b>, avec la prévision du mois
+          et la taille du sac ou de la caisse, <b>réglables par les gars de la production sans code</b> (le nom de la tablette et l'heure sont gardés).</li>
+        <li><s>La légende de 6 lignes</s> : remplacée par le résumé « 2 à produire · 5 ok · 1 trop d'avance ».</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Stock Tourier et Stock Pât.</h2>
+      <p class="sub">Même grille. Le bandeau bleu du haut garde la liste <b>« À préparer »</b> des boutiques avec son <b>✓ préparé</b>
+        (déjà coché 232 fois sur 235 chez les touriers en octobre, c'est lui qui fait baisser le stock). En pâtisserie, « préparé » n'est
+        coché qu'une fois sur 4 : le comptage 📋 rattrapera l'écart, ou on fait baisser le stock à l'envoi de la boutique (à décider).</p>
+      <p class="sub"><b>🥐 St-Avertin plaqué frais</b> (Phil, 01/11) : pas de jour fixe. Sur chaque ligne de St-Avertin, un appui
+        passe de <b>❄️ du congélo</b> à <b>🥐 plaqué frais</b> ; « Valider St-Avertin » fait le reste : le congélo baisse
+        pour les ❄️, et les 🥐 ne touchent pas au stock mais <b>comptent dans la production du mois</b> (« dont 🥐 … frais »).
+        Veigné et Tours : toujours du congélo, pas de choix.</p>
+    </div>
+    <div class="card">
+      <h2>Ce que je ne fais pas</h2>
+      <p class="sub">Pas de lien automatique avec les écrans de production (✓ fait) : ce qui est cuit pour le jour ne part pas au congélo,
+        on mélangerait tout. Pas de saisie au clavier pour le + (touches seulement, « Autre… » en dernier, comme les réappros).</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Données inventées — Stock Boul. Pro du Local
+const PB = [
+  { cat: 'Pains', nom: 'Baguette Épeautre', unit: 'pièce', cond: null, stock: 140, prev: 2000, faitM: 1500, faitS: 310, auj: 0, sortJ: 60, tol: 21, mini: 100 },
+  { cat: 'Pains', nom: 'Tradition graines précuite surgelée', unit: 'sac de 20', cond: 20, stock: 100, prev: 200, faitM: 160, faitS: 40, auj: 0, sortJ: 7, tol: 21, mini: null },
+  { cat: 'Pains', nom: 'Petits pains graines précuit surgelé', unit: 'pièce', cond: null, stock: 620, prev: 1000, faitM: 1000, faitS: 200, auj: 0, sortJ: 15, tol: 21, mini: null },
+  { cat: 'Pains', nom: 'Demi trad graines précuit surgelé', unit: 'pièce', cond: null, stock: 12, prev: 20, faitM: 20, faitS: 0, auj: 0, sortJ: 0.7, tol: 21, mini: null },
+  { cat: 'Pains', nom: 'Ciabatta', unit: 'pièce', cond: null, stock: 0, prev: null, faitM: 0, faitS: 0, auj: 0, sortJ: 0, tol: 21, mini: null },
+  { cat: 'Burgers & hot-dogs', nom: 'Pain Burger 90g', unit: 'sac de 30', cond: 30, stock: 90, prev: 600, faitM: 420, faitS: 90, auj: 0, sortJ: 22, tol: 21, mini: 60 },
+  { cat: 'Burgers & hot-dogs', nom: 'Pain hot-dog 90g', unit: 'pièce', cond: null, stock: 120, prev: 300, faitM: 260, faitS: 120, auj: 0, sortJ: 6, tol: 21, mini: null },
+];
+PB.forEach(function(p) { p.condNom = 'sac'; p.frM = 0; p.frS = 0; });
+// Données inventées — Stock Tourier du Local (caisses = fiche produit). frM / frS = plaqués frais (comptés dans faitM / faitS)
+const PT = [
+  { cat: 'Viennoiserie', nom: 'Croissant', unit: 'caisse de 77', cond: 77, stock: 616, prev: 6000, faitM: 4400, faitS: 900, frM: 900, frS: 240, auj: 0, sortJ: 220, tol: 21, mini: 300 },
+  { cat: 'Viennoiserie', nom: 'Pain au chocolat', unit: 'caisse de 130', cond: 130, stock: 1560, prev: 4000, faitM: 3100, faitS: 650, frM: 400, frS: 120, auj: 0, sortJ: 140, tol: 21, mini: 260 },
+  { cat: 'Viennoiserie', nom: 'Pain aux raisins', unit: 'caisse de 80', cond: 80, stock: 960, prev: 1500, faitM: 1500, faitS: 160, frM: 0, frS: 0, auj: 0, sortJ: 30, tol: 21, mini: null },
+  { cat: 'Viennoiserie', nom: 'Chausson aux pommes', unit: 'caisse de 80', cond: 80, stock: 400, prev: 1200, faitM: 900, faitS: 240, frM: 0, frS: 0, auj: 0, sortJ: 35, tol: 21, mini: null },
+  { cat: 'Viennoiserie', nom: 'Suisse', unit: 'caisse de 60', cond: 60, stock: 300, prev: 900, faitM: 700, faitS: 120, frM: 0, frS: 0, auj: 0, sortJ: 28, tol: 21, mini: null },
+];
+PT.forEach(function(p) { p.condNom = 'caisse'; });
+// À préparer pour demain : St-Avertin en pièces (choix ❄️ / 🥐), Veigné en caisses (toujours du congélo)
+const STAV = [ { i: 0, q: 80, fr: false }, { i: 1, q: 60, fr: false }, { i: 2, q: 30, fr: false }, { i: 3, q: 20, fr: false } ];
+const VEIG = [ { i: 0, q: 154, l: '2 caisses' }, { i: 1, q: 130, l: '1 caisse' } ];
+let stavFait = null, veigFait = false;
+let P = PB, ecr = 'boul';
+const JOUR = 21, JOURS_MOIS = 30, RESTE_JOURS_MOIS = JOURS_MOIS - JOUR + 1, RESTE_JOURS_SEM = 2; // samedi 21 nov.
+let mode = 'mois', dernier = null;
+
+function prevPeriode(p) {
+  const q1 = document.querySelector('input[name=q1]:checked').value;
+  const base = q1 === 'prev' ? p.prev : (p.sortJ ? Math.round(p.sortJ * 30.4 / 10) * 10 : null);
+  if (base == null) return null;
+  return mode === 'mois' ? base : Math.round(base * 7 / 30.4);
+}
+function etat(p) {
+  const fin = mode === 'mois' ? RESTE_JOURS_MOIS : RESTE_JOURS_SEM;
+  if (p.mini != null && p.stock < p.mini) return { c: 'r1', t: '🔴 sous le Mini (' + p.mini + ')' };
+  if (!p.sortJ) return { c: '', t: p.prev == null ? 'pas de prévision · ⚙️' : 'pas encore de sorties' };
+  const j = Math.floor(p.stock / p.sortJ);
+  if (j > p.tol) return { c: 'r3', t: '🟠 ' + Math.round(j / 7) + ' semaines d\'avance — lever le pied' };
+  if (j < fin) { const d = JOUR + j; return { c: 'r1', t: '🔴 fini vers le ' + d + ' nov. — à produire' }; }
+  return { c: 'r2', t: '🟢 tient jusqu\'à fin de ' + (mode === 'mois' ? 'mois' : 'semaine') };
+}
+function rafHtml(p) {
+  const obj = prevPeriode(p), fait = mode === 'mois' ? p.faitM : p.faitS;
+  if (obj == null) return '<div class="raf"><span class="big" style="color:#bbb">—</span><br><small>' + fait + ' faits · pas d\'objectif</small></div>';
+  const reste = Math.max(0, obj - fait), pct = Math.min(100, Math.round(fait / obj * 100));
+  const fr = mode === 'mois' ? p.frM : p.frS;
+  return '<div class="raf' + (reste === 0 ? ' ok' : '') + '"><span class="big">' + (reste === 0 ? '✓ fait' : reste + ' à faire') + '</span>'
+    + '<div class="barre"><i style="width:' + pct + '%"></i></div><small>' + fait + ' / ' + obj + ' ' + (mode === 'mois' ? 'ce mois' : 'cette semaine')
+    + (fr ? ' · <span class="fr">dont 🥐 ' + fr + ' frais</span>' : '') + '</small></div>';
+}
+function render() {
+  let h = '', cat = null, n = { r1: 0, r2: 0, r3: 0 };
+  P.forEach(function(p, i) {
+    if (p.cat !== cat) { cat = p.cat; h += '<div class="cat">' + cat + '</div>'; }
+    const e = etat(p); if (n[e.c] != null) n[e.c]++;
+    h += '<div class="gr"><div class="nm" data-i="' + i + '"><b>' + p.nom + ' <button class="regl" title="réglages" onclick="fiche(' + i + ')">⚙️</button></b>'
+      + '<small class="u">' + (p.cond ? p.condNom + ' de ' + p.cond : 'pièce') + '</small><small class="' + e.c + '">' + e.t + '</small></div>'
+      + '<div class="stk">' + p.stock + '<small>au congélo</small></div>'
+      + '<div><button class="plus' + (p.auj ? ' fait' : '') + '" onclick="pad(' + i + ')">＋<small>' + (p.auj ? '+' + p.auj + ' aujourd\'hui' : 'mettre au congélo') + '</small></button>'
+      + (p.frAuj ? '<div class="frj">🥐 +' + p.frAuj + ' plaqués frais</div>' : '') + '</div>'
+      + rafHtml(p) + '</div>';
+  });
+  document.getElementById('rows').innerHTML = h;
+  document.getElementById('resume').innerHTML = '<span class="r1"><b>' + n.r1 + '</b> à produire</span><span class="r2"><b>' + n.r2 + '</b> ok</span><span class="r3"><b>' + n.r3 + '</b> trop d\'avance</span>';
+  document.getElementById('hRaf').textContent = 'Reste à faire ' + (mode === 'mois' ? 'ce mois' : 'cette semaine');
+  document.getElementById('bS').classList.toggle('on', mode === 'semaine');
+  document.getElementById('bM').classList.toggle('on', mode === 'mois');
+  document.getElementById('eB').classList.toggle('on', ecr === 'boul');
+  document.getElementById('eT').classList.toggle('on', ecr === 'tour');
+  document.getElementById('tlabel').textContent = '📱 Tablette du Local — ' + (ecr === 'boul' ? 'Stock Boul. Pro' : 'Stock Tourier') + ' (proposé)';
+  const q2 = document.querySelector('input[name=q2]:checked').value;
+  const prep = document.getElementById('prepTxt');
+  prep.className = ecr === 'boul' ? 'prep' : 'apr';
+  if (ecr === 'tour') prep.innerHTML = aprTourier();
+  else prep.innerHTML = q2 === 'livr'
+    ? '💼 <b>Pros à livrer demain : 3 commandes</b> (Burger 90g ×60, Petits pains graines ×40…). Le stock baissera <b>tout seul quand le livreur coche la livraison</b>, rien à cocher ici.'
+    : '💼 <b>À préparer pour les pros demain : 3 commandes</b> — appuie sur <b>✓ préparé</b> pour faire baisser le stock (Burger 90g ×60 <u>✓ préparé</u> · Petits pains graines ×40 <u>✓ préparé</u>…).';
+  document.getElementById('lockTxt').innerHTML = document.querySelector('input[name=q3]:checked').value === 'chef'
+    ? '🔒 Code chef demandé avant d\'ouvrir le comptage.' : 'Tout le monde peut compter. Le prénom de la tablette est enregistré avec le comptage.';
+}
+function periode(m) { mode = m; render(); }
+function ecran(e) { ecr = e; P = e === 'boul' ? PB : PT; dernier = null; document.getElementById('toast').classList.remove('on'); render(); }
+
+// ----- Stock Tourier : À préparer (St-Avertin : ❄️ du congélo / 🥐 plaqué frais, ligne par ligne) -----
+function aprTourier() {
+  let h = '<div class="h">🏪 <b>À préparer pour St-Avertin</b> — dimanche 22 nov. (en pièces)'
+    + '<small>Ce que vous plaquez frais sans passer par le congélo : un appui sur ❄️ → 🥐. À la validation, les 🥐 <b>comptent dans la production du mois</b> et le stock du congélo ne bouge pas.</small></div>';
+  STAV.forEach(function(l, k) {
+    const p = PT[l.i];
+    h += '<div class="l"><span>' + p.nom + '</span><span class="q">' + l.q + '</span>'
+      + (stavFait ? '<span class="ok">' + (l.fr ? '🥐 plaqué frais' : '❄️ du congélo') + '</span>'
+        : '<button class="tg' + (l.fr ? ' fr' : '') + '" onclick="basc(' + k + ')">' + (l.fr ? '🥐 plaqué frais' : '❄️ du congélo') + '</button>')
+      + '</div>';
+  });
+  if (stavFait) {
+    h += '<div class="done">✓ Préparé · ❄️ ' + stavFait.cong + ' sortis du congélo · 🥐 ' + stavFait.fr + ' plaqués frais comptés dans la production'
+      + '<a onclick="annulerStav()">↩️ Annuler</a></div>';
+  } else {
+    const nf = STAV.filter(function(l) { return l.fr; }).length;
+    h += '<button class="go" onclick="validerStav()">✓ Valider St-Avertin'
+      + (nf ? ' (' + nf + ' 🥐 frais · ' + (STAV.length - nf) + ' ❄️ du congélo)' : ' (tout du congélo)') + '</button>';
+  }
+  h += '<div class="h" style="border-top:6px solid #F6F1E7">🏪 <b>Veigné</b> — caisses surgelées<small>Veigné et Tours : toujours du congélo, pas de choix.</small></div>';
+  VEIG.forEach(function(l) {
+    h += '<div class="l"><span>' + PT[l.i].nom + '</span><span class="q">' + l.l + '</span>'
+      + (veigFait ? '<span class="ok">✓ préparé</span>' : '<span></span>') + '</div>';
+  });
+  if (!veigFait) h += '<button class="go" onclick="validerVeig()">✓ Préparé Veigné</button>';
+  return h;
+}
+function basc(k) { STAV[k].fr = !STAV[k].fr; render(); }
+function validerStav() {
+  let cong = 0, fr = 0;
+  STAV.forEach(function(l) {
+    const p = PT[l.i];
+    if (l.fr) { p.faitM += l.q; p.faitS += l.q; p.frM += l.q; p.frS += l.q; p.frAuj = (p.frAuj || 0) + l.q; fr += l.q; }
+    else { p.stock -= l.q; cong += l.q; }
+  });
+  stavFait = { cong: cong, fr: fr }; render();
+}
+function annulerStav() {
+  STAV.forEach(function(l) {
+    const p = PT[l.i];
+    if (l.fr) { p.faitM -= l.q; p.faitS -= l.q; p.frM -= l.q; p.frS -= l.q; p.frAuj -= l.q; } else p.stock += l.q;
+  });
+  stavFait = null; render();
+}
+function validerVeig() { VEIG.forEach(function(l) { PT[l.i].stock -= l.q; }); veigFait = true; render(); }
+
+// ----- Appui long sur un produit = réglages -----
+(function() {
+  let t = null, el = null;
+  function stop() { clearTimeout(t); t = null; if (el) el.classList.remove('press'); el = null; }
+  document.addEventListener('pointerdown', function(e) {
+    const nm = e.target.closest('.nm'); if (!nm || e.target.closest('.regl')) return;
+    el = nm; nm.classList.add('press');
+    t = setTimeout(function() { const i = +nm.dataset.i; stop(); fiche(i); }, 550);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel', 'scroll'].forEach(function(ev) { document.addEventListener(ev, stop, true); });
+  document.addEventListener('contextmenu', function(e) { if (e.target.closest('.nm')) e.preventDefault(); });
+})();
+
+function pad(i) {
+  const p = P[i]; let h = '';
+  const pl = p.condNom === 'caisse' ? 'caisses' : 'sacs';
+  const vals = p.cond ? [1, 2, 3, 5, 10].map(function(k) { return { q: k * p.cond, l: k + ' ' + (k > 1 ? pl : p.condNom) }; }) : [];
+  [10, 20, 30, 40, 50, 60, 100].forEach(function(q) { if (vals.length < 7) vals.push({ q: q, l: 'pièces' }); });
+  vals.forEach(function(v) { h += '<button class="' + (v.l !== 'pièces' ? 'cond' : '') + '" onclick="ajoute(' + i + ',' + v.q + ')">' + v.q + '<small>' + v.l + '</small></button>'; });
+  h += '<button onclick="var v=prompt(\'Combien ?\');if(v)ajoute(' + i + ',parseInt(v,10)||0)">…<small>Autre</small></button>';
+  document.getElementById('pad').innerHTML = h;
+  document.getElementById('padT').textContent = '＋ ' + p.nom;
+  document.getElementById('padS').textContent = 'Combien vient d\'aller au congélo ?' + (p.auj ? ' (déjà +' + p.auj + ' aujourd\'hui)' : '');
+  ouvrir('mPad');
+}
+function ajoute(i, q) {
+  if (!q) return;
+  const p = P[i]; p.stock += q; p.faitM += q; p.faitS += q; p.auj += q; dernier = { i: i, q: q };
+  fermer('mPad'); render();
+  document.getElementById('toastT').textContent = '✓ +' + q + ' ' + p.nom + ' au congélo';
+  const t = document.getElementById('toast'); t.classList.add('on');
+  clearTimeout(window._tt); window._tt = setTimeout(function() { t.classList.remove('on'); }, 6000);
+}
+function annulerDernier() {
+  if (!dernier) return; const p = P[dernier.i], q = dernier.q;
+  p.stock -= q; p.faitM -= q; p.faitS -= q; p.auj -= q; dernier = null;
+  document.getElementById('toast').classList.remove('on'); render();
+}
+let ficheI = null;
+const PAS = { prev: 100, cond: 1, mini: 10, tol: 7 };
+function fiche(i) { ficheI = i; document.getElementById('fWho').textContent = ''; ficheAff(); ouvrir('mFiche'); }
+function ficheAff() {
+  const p = P[ficheI];
+  document.getElementById('ficheT').textContent = '⚙️ ' + p.nom;
+  document.getElementById('fPrev').textContent = p.prev != null ? p.prev + ' / mois' : '— (auto)';
+  document.getElementById('fMini').textContent = p.mini != null ? p.mini : '—';
+  document.getElementById('fTol').textContent = p.tol + ' jours';
+  document.getElementById('fCondLbl').textContent = 'Pièces par ' + p.condNom;
+  document.getElementById('fCondU').textContent = p.condNom === 'caisse' ? 'caisses entières' : 'sacs entiers';
+  document.getElementById('fCond').textContent = p.cond ? p.condNom + ' de ' + p.cond : 'à la pièce';
+  document.getElementById('fWarn').innerHTML = '⚠️ Les ' + (p.condNom === 'caisse' ? 'caisses' : 'sacs')
+    + ' servent aussi aux commandes des boutiques et des pros : un changement vaut <b>partout</b>, tout de suite.';
+}
+function regleSet(k, v) {
+  const p = P[ficheI];
+  p[k] = v == null ? null : Math.max(k === 'tol' ? 7 : 0, v);
+  if (k === 'cond' && !p.cond) p.cond = null;
+  document.getElementById('fWho').textContent = '✓ Enregistré · modifié par la tablette ' + (ecr === 'boul' ? 'Boulangers' : 'Touriers') + ' du Local, à l\'instant';
+  ficheAff(); render();
+}
+function regle(k, s) {
+  const p = P[ficheI], cur = p[k];
+  if (cur == null) { regleSet(k, s > 0 ? (k === 'cond' ? 10 : PAS[k]) : null); return; }
+  const nv = cur + s * PAS[k];
+  regleSet(k, (k === 'mini' || k === 'prev') && nv <= 0 ? null : nv);
+}
+function regleTape(k) {
+  const v = prompt('Nouvelle valeur ?', P[ficheI][k] != null ? P[ficheI][k] : '');
+  if (v === null) return;
+  regleSet(k, v.trim() === '' ? null : (parseInt(v, 10) || null));
+}
+function comptageRows() {
+  let h = '';
+  P.forEach(function(p, i) {
+    h += '<div class="crow"><span>' + p.nom + '</span><span style="text-align:center">' + p.stock + '</span>'
+      + '<input inputmode="numeric" placeholder="—" oninput="ecart(' + i + ',this)"><span class="ec" id="ec' + i + '"></span></div>';
+  });
+  document.getElementById('crows').innerHTML = h;
+}
+function ecart(i, el) {
+  const v = el.value.trim(), c = document.getElementById('ec' + i);
+  if (v === '') { c.textContent = ''; return; }
+  const d = (parseInt(v, 10) || 0) - P[i].stock;
+  c.textContent = d === 0 ? '✓' : (d > 0 ? '+' : '') + d;
+  c.style.color = d === 0 ? 'var(--green)' : (Math.abs(d) > P[i].stock * 0.1 ? 'var(--red)' : 'var(--orange)');
+}
+function validerComptage() {
+  document.querySelectorAll('#crows .crow').forEach(function(r, i) {
+    const v = r.querySelector('input').value.trim(); if (v !== '') P[i].stock = parseInt(v, 10) || 0;
+  });
+  fermer('mCompter'); render();
+}
+function ouvrir(id) { if (id === 'mCompter') comptageRows(); document.getElementById(id).classList.add('on'); }
+function fermer(id) { document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('input[type=radio]').forEach(function(r) { r.addEventListener('change', render); });
+render();
+</script>
+</body>
+</html>

@@ -1276,6 +1276,82 @@ font-family: Georgia, serif;
 .stock-cell.stock-green { color: var(--green); font-weight: 600; }
 .stock-row.stock-red { background: rgba(193,49,29,0.05); }
 .stock-row.stock-orange { background: rgba(233,127,31,0.05); }
+/* v20.335 — écrans Stock refaits : Produit | Stock | ＋ | Reste à faire */
+.sg-top { display: flex; align-items: center; gap: 8px; margin: 8px 14px 6px; flex-wrap: wrap; }
+.sg-top .stock-period-bar { margin: 0; }
+.sg-cpt { margin-left: auto; border: 1.5px solid var(--blue); color: var(--blue); background: #fff; border-radius: 10px; padding: 8px 12px; font: 700 13px Georgia, serif; cursor: pointer; }
+.sg-resume { background: #fff; border-radius: 10px; padding: 8px 12px; margin: 0 14px 6px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; }
+.sg-resume b { font-size: 15px; }
+.sg-resume .r1, .sg-etat.r1 { color: var(--red); } .sg-resume .r2, .sg-etat.r2 { color: var(--green); } .sg-resume .r3, .sg-etat.r3 { color: var(--orange); }
+.sg-astuce { font-size: 11.5px; color: var(--brown-mid); margin: 0 16px 6px; }
+.sg-grid { background: #fff; border-radius: 12px; overflow: hidden; margin: 0 14px 12px; box-shadow: 0 2px 8px rgba(61,43,31,0.05); }
+.sg-head, .sg-row { display: grid; grid-template-columns: minmax(0,1.5fr) 70px 104px minmax(0,1.2fr); gap: 8px; align-items: center; padding: 0 10px; }
+.sg-head { font-size: 10px; font-weight: 700; color: var(--brown-mid); letter-spacing: .04em; text-transform: uppercase; padding-top: 8px; padding-bottom: 6px; background: #F6F1E7; }
+.sg-head > span:nth-child(2), .sg-head > span:nth-child(3) { text-align: center; }
+.sg-row { border-top: 1px solid #F1ECE2; min-height: 64px; padding-top: 6px; padding-bottom: 6px; }
+.sg-grid .prod-cat-title { margin: 0; border-top: 1px solid #EDE5D3; }
+.sg-nm { cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; border-radius: 6px; }
+.sg-nm.press { background: #FFF6DE; }
+.sg-nm b { display: block; font-size: 14px; font-family: Georgia, serif; color: var(--brown); }
+.sg-nm small { display: block; font-size: 11.5px; margin-top: 2px; }
+.sg-nm .sg-u { color: var(--brown-mid); }
+.sg-regl { border: 0; background: none; font-size: 14px; cursor: pointer; padding: 0 2px; opacity: .7; }
+.sg-stk { text-align: center; font: 700 20px Georgia, serif; color: var(--brown); }
+.sg-stk.neg { color: var(--red); }
+.sg-stk small { display: block; font-size: 10.5px; font-weight: 400; color: var(--brown-mid); }
+.sg-plus { width: 100%; border: 2px solid var(--green); background: #EEF6F0; color: var(--green); border-radius: 10px; padding: 7px 0; font: 700 16px Georgia, serif; cursor: pointer; }
+.sg-plus small { display: block; font-size: 10.5px; font-weight: 400; }
+.sg-plus.fait { background: var(--green); color: #fff; }
+.sg-raf { font-size: 12.5px; }
+.sg-raf small { display: block; color: var(--brown-mid); font-size: 11px; }
+.sg-big { font: 700 15px Georgia, serif; }
+.sg-muted { color: #bbb; }
+.sg-barre { height: 8px; background: #EDE5D3; border-radius: 5px; overflow: hidden; margin: 4px 0 2px; }
+.sg-barre i { display: block; height: 100%; background: var(--gold); }
+.sg-raf.ok .sg-barre i { background: var(--green); }
+.sg-raf.ok .sg-big { color: var(--green); }
+.sg-fr { color: var(--orange); font-weight: 700; }
+.sg-sheet-ov { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: flex-end; justify-content: center; z-index: 1200; }
+.sg-sheet-ov.show { display: flex; }
+.sg-sheet { background: #fff; width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 14px 14px 18px; }
+.sg-sh-t { font: 700 17px 'Playfair Display', Georgia, serif; color: var(--grey-dark); }
+.sg-sh-s { font-size: 12.5px; color: var(--brown-mid); margin: 2px 0 10px; }
+.sg-sh-x { margin-top: 10px; width: 100%; border: 0; background: none; font: 13px Georgia, serif; color: var(--brown-mid); cursor: pointer; padding: 8px; }
+.sg-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sg-pad button { border: 1.5px solid #DDD3BE; background: var(--cream); border-radius: 10px; padding: 12px 0; font: 700 17px Georgia, serif; color: var(--brown); cursor: pointer; }
+.sg-pad button small { display: block; font-size: 10.5px; font-weight: 400; color: var(--brown-mid); }
+.sg-pad button.cond { border-color: var(--gold); background: #FFFBEF; }
+.sg-reg-l { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #F1ECE2; gap: 10px; font-size: 13.5px; }
+.sg-reg-l small { display: block; color: var(--brown-mid); font-size: 11.5px; }
+.sg-stp { display: flex; align-items: center; gap: 4px; }
+.sg-stp button { width: 36px; height: 36px; border: 1.5px solid var(--gold); background: #FFFBEF; border-radius: 8px; font: 700 18px Georgia, serif; color: var(--gold-dark); cursor: pointer; }
+.sg-stp .v { border: 1.5px solid #DDD3BE; border-radius: 8px; padding: 6px 8px; font-weight: 700; white-space: nowrap; min-width: 92px; text-align: center; cursor: pointer; }
+.sg-warn { background: #FFF3E6; border: 1px solid #F0C9A0; border-radius: 8px; padding: 6px 8px; font-size: 11.5px; margin: 0 0 6px; }
+.sg-who { font-size: 12px; color: var(--green); margin-top: 8px; min-height: 16px; }
+.sg-crow { display: grid; grid-template-columns: minmax(0,1.4fr) 58px 80px 62px; gap: 8px; align-items: center; padding: 7px 4px; border-top: 1px solid #F1ECE2; font-size: 13.5px; }
+.sg-crow small { display: block; font-size: 10.5px; color: var(--brown-mid); }
+.sg-crow.h { font-size: 10px; font-weight: 700; color: var(--brown-mid); text-transform: uppercase; letter-spacing: .04em; background: #F6F1E7; border-top: 0; }
+.sg-crow .c { text-align: center; font-weight: 700; }
+.sg-crow input { width: 100%; border: 1.5px solid var(--blue); border-radius: 8px; padding: 7px 0; text-align: center; font: 700 15px Georgia, serif; }
+.sg-valid { width: 100%; margin-top: 10px; border: 0; background: var(--blue); color: #fff; border-radius: 10px; padding: 12px; font: 700 14px Georgia, serif; cursor: pointer; }
+.sg-toast { position: fixed; left: 12px; right: 12px; bottom: 84px; max-width: 560px; margin: 0 auto; background: var(--grey-dark); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 14px; display: none; align-items: center; gap: 10px; z-index: 1300; }
+.sg-toast.show { display: flex; }
+.sg-toast button { margin-left: auto; background: none; border: 1.5px solid #fff; color: #fff; border-radius: 8px; padding: 6px 10px; font: 700 13px Georgia, serif; cursor: pointer; white-space: nowrap; }
+.sg-pros { background: #fff; border-radius: 12px; margin: 8px 14px; border-left: 4px solid var(--blue); overflow: hidden; }
+.sg-pros .h { padding: 8px 12px 6px; font-size: 13.5px; }
+.sg-pros .h small { display: block; color: var(--brown-mid); font-size: 11.5px; margin-top: 2px; }
+.sg-pros .l { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid #F1ECE2; font-size: 13.5px; }
+.sg-pros .l small { display: block; color: var(--brown-mid); font-size: 12px; }
+.sg-pros .ok { color: var(--green); font-weight: 700; font-size: 13px; white-space: nowrap; }
+.sg-pros .att { color: var(--blue); font-size: 12.5px; white-space: nowrap; }
+.prod-cong { display: table; margin: 3px 0 0; border: 1.5px solid var(--blue); background: #EEF2F8; color: var(--blue); border-radius: 8px; padding: 3px 8px; font: 700 11.5px Georgia, serif; cursor: pointer; }
+.prod-cong.fr { border-color: var(--orange); background: #FFF3E6; color: var(--orange); }
+@media (max-width: 560px) {
+  .sg-head, .sg-row { grid-template-columns: minmax(0,1fr) 54px 84px; }
+  .sg-head > span:nth-child(4) { display: none; }
+  .sg-row > .sg-raf { grid-column: 1 / -1; }
+  .sg-crow { grid-template-columns: minmax(0,1fr) 48px 66px 52px; }
+}
 .stock-real-inp {
 width: 100%; text-align: center; padding: 6px 4px;
 font-size: 13px;
@@ -2860,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.334';
+const APP_VERSION  = 'v20.335';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3191,13 +3267,17 @@ let productionHideDone = false;
 // lancée) → on retombe sur l'ancienne lecture, l'écran marche comme avant.
 async function loadProductionDone(sites, date) {
   productionDoneData = {};
-  let q = await supa.from('production_done').select('site,product_id,done_at,qty_envoyee,qty_total,nb_envois,reste_heure')
+  // v20.335 — + ❄️ / 🥐 des touriers (colonnes congelo_*) ; sans la migration on retombe sur la lecture d'avant
+  let q = await supa.from('production_done').select('site,product_id,done_at,qty_envoyee,qty_total,nb_envois,reste_heure,congelo_mode,congelo_applique,congelo_qty')
+    .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
+  productionCongeloOk = !q.error;
+  if (q.error) q = await supa.from('production_done').select('site,product_id,done_at,qty_envoyee,qty_total,nb_envois,reste_heure')
     .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
   if (q.error) q = await supa.from('production_done').select('site,product_id,done_at')
     .eq('tenant_id', TENANT_ID).eq('service_date', date).in('site', sites);
   if (q.error) return;   // table absente ou hors ligne : l'écran marche comme avant
   (q.data || []).forEach(function(r) {
-    if (!r.done_at && !(parseQty(r.qty_envoyee) > 0)) return;
+    if (!r.done_at && !(parseQty(r.qty_envoyee) > 0) && !r.congelo_mode && !r.congelo_applique) return;
     (productionDoneData[r.site] = productionDoneData[r.site] || {})[r.product_id] = r;
   });
 }
@@ -3206,6 +3286,64 @@ function productionDoneAt(site, pid) {
   return (r && r.done_at) || null;
 }
 function productionEnvoi(site, pid) { return (productionDoneData[site] || {})[pid] || null; }   // v20.270
+/* v20.335 — Prod. Touriers : ❄️ sorti du congélo / 🥐 plaqué frais (Phil, 01/11/2026 : « ils produisent des
+   croissants du mardi au jeudi et les mettent directement sur plaque pour St-Avertin, sans passer par le congélo »).
+   Pas de jour fixe : par ligne, ❄️ par défaut, un appui = 🥐. Quand la ligne part (✓, partiel, Tout valider) :
+   ❄️ → le stock du congélo tourier baisse (pièces ÷ pièces par caisse, caisses à virgule) ;
+   🥐 → le stock ne bouge pas, la quantité compte dans la production du mois (stock_entries 'tourier_frais').
+   On garde sur la ligne ce qui a été fait (congelo_applique / congelo_qty) : décocher ou changer d'avis défait. */
+let productionCongeloOk = false;   // colonnes congelo_* présentes (migration v20.335)
+function sgNormNom(n) { return String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+// Le produit du congélo qui correspond à une ligne de Prod. Touriers (fiche vente ≠ fiche réassort : même nom)
+function tourierStockPidFor(pid) {
+  if (tourierStockData[pid]) return pid;
+  const p = sgProduct(pid); if (!p) return null;
+  const n = sgNormNom(p.name);
+  const hit = Object.keys(tourierStockData).find(function(k) { const q = sgProduct(k); return q && sgNormNom(q.name) === n; });
+  return hit || null;
+}
+function congeloModeHtml(pid, total) {
+  if (!(productionCongeloOk && currentBoutique === 'local' && currentVue === 'prod_tour' && total > 0)) return '';
+  if (!tourierStockPidFor(pid)) return '';
+  const env = productionEnvoi('local', pid) || {};
+  const fr = env.congelo_mode === 'frais';
+  return ' <button type="button" class="prod-cong' + (fr ? ' fr' : '') + '" onclick="toggleCongeloMode(\'' + pid + '\')" title="Sorti du congélo ou plaqué frais ?">'
+    + (fr ? '🥐 plaqué frais' : '❄️ du congélo') + '</button>';
+}
+async function toggleCongeloMode(pid) {
+  const prev = productionEnvoi(currentBoutique, pid) || {};
+  const row = { done_at: prev.done_at || null, qty_envoyee: prev.qty_envoyee != null ? prev.qty_envoyee : null, qty_total: prev.qty_total != null ? prev.qty_total : null,
+    nb_envois: prev.nb_envois || 0, reste_heure: prev.reste_heure || null, congelo_mode: prev.congelo_mode === 'frais' ? null : 'frais' };
+  await saveProductionEnvoi(pid, row);
+}
+async function congeloAppliquer(pid, row, prev) {
+  prev = prev || {};
+  if (!('congelo_mode' in row)) row.congelo_mode = prev.congelo_mode || null;
+  if (!('congelo_applique' in row)) { row.congelo_applique = prev.congelo_applique || null; row.congelo_qty = prev.congelo_qty != null ? prev.congelo_qty : null; }
+  if (!(productionCongeloOk && currentBoutique === 'local' && currentVue === 'prod_tour')) {
+    if (!productionCongeloOk) { delete row.congelo_mode; delete row.congelo_applique; delete row.congelo_qty; }
+    return row;
+  }
+  const spid = tourierStockPidFor(pid); if (!spid) return row;
+  const u = sgUnit('tourier', sgProduct(spid));
+  const par = (!u.piecesComptees && u.par > 0) ? u.par : 1;
+  const pieces = parseQty(row.qty_envoyee) > 0 ? parseQty(row.qty_envoyee) : (row.done_at ? (parseQty(row.qty_total) || 0) : 0);
+  const qty = Math.round(pieces / par * 100) / 100;
+  const cible = qty > 0 ? (row.congelo_mode === 'frais' ? 'frais' : 'congelo') : null;
+  const avant = prev.congelo_applique || null, qAvant = Number(prev.congelo_qty) || 0;
+  if (cible === avant && (cible == null || qty === qAvant)) return row;
+  if (avant === 'congelo' && qAvant) await sgStockDelta('tourier', spid, qAvant, false);
+  if (avant === 'frais' && qAvant) await sgEntry(spid, -qAvant, SG_SCREEN_FRAIS);
+  if (cible === 'congelo') await sgStockDelta('tourier', spid, -qty, false);
+  if (cible === 'frais') await sgEntry(spid, qty, SG_SCREEN_FRAIS);
+  row.congelo_applique = cible; row.congelo_qty = cible ? qty : null;
+  return row;
+}
+async function loadTourierStockSeul() {
+  const r = await supa.from('tourier_stock').select('*').eq('tenant_id', TENANT_ID);
+  if (r.error) return;
+  tourierStockData = {}; (r.data || []).forEach(function(x) { tourierStockData[x.product_id] = x; });
+}
 // tap sur la coche : tout envoyé (ou décocher = remise à zéro, rien n'est supprimé)
 async function toggleProductionDone(pid, total) {
   const prev = productionEnvoi(currentBoutique, pid);
@@ -3219,13 +3357,15 @@ async function toggleProductionDone(pid, total) {
 async function saveProductionEnvoi(pid, row) {
   const site = currentBoutique, date = currentReapproDate, nowISO = new Date().toISOString();
   productionDoneData[site] = productionDoneData[site] || {};
-  if (!row.done_at && !(parseQty(row.qty_envoyee) > 0)) delete productionDoneData[site][pid];
+  const prevRow = productionEnvoi(site, pid) || {};
+  row = await congeloAppliquer(pid, row, prevRow);   // v20.335 — ❄️ baisse le congélo / 🥐 compte en production
+  if (!row.done_at && !(parseQty(row.qty_envoyee) > 0) && !row.congelo_mode && !row.congelo_applique) delete productionDoneData[site][pid];
   else productionDoneData[site][pid] = Object.assign({ site: site, product_id: pid }, row);
   renderProduction();
   setSyncStatus('syncing');
   const base = { tenant_id: TENANT_ID, site: site, service_date: date, product_id: pid, done_by: DEVICE_ID, updated_at: nowISO };
   let { error } = await supa.from('production_done').upsert(Object.assign({}, base, row), { onConflict: 'tenant_id,site,service_date,product_id' });
-  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure/.test(error.message || '')) {
+  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure|congelo/.test(error.message || '')) {
     // migration v20.270 pas encore lancée : on garde au moins la coche
     const r2 = await supa.from('production_done').upsert(Object.assign({}, base, { done_at: row.done_at }), { onConflict: 'tenant_id,site,service_date,product_id' });
     error = r2.error;
@@ -3329,17 +3469,19 @@ async function validerToutProduction() {
   if (!confirm('Marquer les ' + list.length + ' ligne' + (list.length > 1 ? 's' : '') + ' restante' + (list.length > 1 ? 's' : '') + ' comme partie' + (list.length > 1 ? 's' : '') + ' ?')) return;
   const site = currentBoutique, date = currentReapproDate, nowISO = new Date().toISOString();
   productionDoneData[site] = productionDoneData[site] || {};
-  const rows = list.map(function(l) {
+  const rows = [];
+  for (const l of list) {
     const prev = productionEnvoi(site, l.pid);
     const t = parseQty(l.total);
-    const row = { done_at: nowISO, qty_envoyee: t > 0 ? t : null, qty_total: t > 0 ? t : null, nb_envois: ((prev && prev.nb_envois) || 0) + 1, reste_heure: null };
+    let row = { done_at: nowISO, qty_envoyee: t > 0 ? t : null, qty_total: t > 0 ? t : null, nb_envois: ((prev && prev.nb_envois) || 0) + 1, reste_heure: null };
+    row = await congeloAppliquer(l.pid, row, prev || {});   // v20.335 — le reste « sort du congélo » (❄️ par défaut)
     productionDoneData[site][l.pid] = Object.assign({ site: site, product_id: l.pid }, row);
-    return Object.assign({ tenant_id: TENANT_ID, site: site, service_date: date, product_id: l.pid, done_by: DEVICE_ID, updated_at: nowISO }, row);
-  });
+    rows.push(Object.assign({ tenant_id: TENANT_ID, site: site, service_date: date, product_id: l.pid, done_by: DEVICE_ID, updated_at: nowISO }, row));
+  }
   renderProduction();
   setSyncStatus('syncing');
   let { error } = await supa.from('production_done').upsert(rows, { onConflict: 'tenant_id,site,service_date,product_id' });
-  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure/.test(error.message || '')) {
+  if (error && /qty_envoyee|qty_total|nb_envois|reste_heure|congelo/.test(error.message || '')) {
     const r2 = await supa.from('production_done').upsert(rows.map(function(r) { return { tenant_id: r.tenant_id, site: r.site, service_date: r.service_date, product_id: r.product_id, done_by: r.done_by, updated_at: r.updated_at, done_at: r.done_at }; }), { onConflict: 'tenant_id,site,service_date,product_id' });
     error = r2.error;
   }
@@ -4298,6 +4440,7 @@ await loadProductionLocal(currentReapproDate);
 await loadMarketUpcoming(currentReapproDate);
 if (ardoiseProdSite()) await loadArdoiseProduction(ardoiseProdSite(), currentReapproDate); // v20.251
 await loadProductionDone([currentBoutique], currentReapproDate); // v20.262
+if (currentBoutique === 'local' && v === 'prod_tour') await loadTourierStockSeul(); // v20.335 — ❄️ / 🥐
 if (currentBoutique === 'veigne' || currentBoutique === 'local' || currentBoutique === 'tours') {
 await loadSpecialOrdersForProduction(currentReapproDate);
 }
@@ -5110,6 +5253,8 @@ updated_by: DEVICE_ID, updated_at: nowISO
 });
 const { error } = await supa.from('reappros').upsert(rows, { onConflict: 'tenant_id,boutique_id,product_id,service_date' });
 if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+// v20.335 — Stock Pât. : le stock du pâtissier baisse dès l'envoi (Phil, 01/11 : « préparé » coché 1 fois sur 4)
+if (supplier === 'veigne') await patDecompteEnvoi(currentBoutique, currentReapproDate, pidsToSend);
 setSyncStatus('ok');
 pidsToSend.forEach(function(pid) { reapprosData[pid].sent_at = nowISO; });
 renderReapproByContext();
@@ -7729,8 +7874,9 @@ async function markProOrderDelivered(orderId, currentStatus) {
   const { error } = await supa.from('pro_orders').update({ statut: newStatus }).eq('id', orderId);
   if (error) { setSyncStatus('error'); showToast('Erreur statut: ' + error.message, 'error'); return; }
 
-  // v21.2.2 — Le décompte du stock Boul. Pro se fait désormais au « ✓ préparé »
-  // (écran Stock Boul. Pro), PLUS à la livraison → on ne touche plus au stock ici.
+  // v20.335 — retour au décompte à la livraison (Phil, 01/11 : « ✓ préparé » n'était jamais coché) :
+  // le stock Boul. Pro baisse quand le livreur coche, remonte s'il décoche.
+  await proStockSortieCommande(orderId, newStatus === 'livre');
   const order = livreurProOrders.find(function(x) { return x.id === orderId; });
 
   setSyncStatus('ok');
@@ -8254,19 +8400,7 @@ function renderStockVeignePat() {
   }
   html += orphelinsBannerHtml(veignePatOrphelins, 'ton catalogue pâtissier');
 
-  // SECTION 2 — Mon stock
-  html += stockPeriodToggleHtml();
-  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse quand tu marques un réassort « préparé ». <strong>À partir</strong> = réassorts à préparer (boutique de Veigné + Tours/St-Av).');
-
-  // v20.75 — réassorts qui vont partir, par produit (somme Tours + St-Av)
-  const outByProduct = {};
-  ['veigne', 'tours', 'saint-avertin'].forEach(function(b) {  // v20.247 — Veigné compte aussi
-    (veignePatReassort[b] || []).forEach(function(r) {
-      if (r.prepared_at) return; // déjà parti / fait → ne compte plus dans "à partir"
-      outByProduct[r.product_id] = (outByProduct[r.product_id] || 0) + (parseQty(r.commander) || 0);
-    });
-  });
-
+  // SECTION 2 — Mon stock (v20.335 : grille commune, ＋ / reste à faire / 📋 comptage)
   const entries = Object.keys(veignePatStockData).map(function(pid) {
     return { st: veignePatStockData[pid], p: products.find(function(x) { return x.id === pid; }) };
   }).filter(function(e) { return e.p; });
@@ -8286,33 +8420,13 @@ function renderStockVeignePat() {
   });
 
   if (patCatalogUnlocked) html += '<button class="addbtn-pat" onclick="patNewProduct()">＋ Ajouter un produit</button>';
-  html += '<div class="section reappro-section">';
-  html += '<div class="col-header stock-col-header">'
-    + '<span class="col-lbl">Produit</span>'
-    + '<span class="col-lbl cmd">Entrée</span>'
-    + '<span class="col-lbl">Stock</span>'
-    + '<span class="col-lbl">Mini</span>'
-    + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
-    + '<span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span>'
-    + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span>'
-    + '</div>';
-
+  const items = [];
   cats.forEach(function(cat) {
     const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
     const catPids = list.map(function(x) { return x.p.id; });
-    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
     list.forEach(function(e) {
       const st = e.st;
-      const stock = Number(st.stock) || 0;
-      const mini = st.mini;
-      const aPartir = outByProduct[e.p.id] || 0;
-      let alertCls = '', dot = '';
-      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
-      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
-      const editPen = (st.stock_unit !== 'piece')
-        ? ' <a href="#" onclick="editVeignePatUnitPieces(\'' + e.p.id + '\');return false;" style="color:var(--gold-dark);text-decoration:none">✏️</a>' : '';
       const inactif = (st.actif === false);
-      html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
       let chefCtrl = '';
       if (patCatalogUnlocked) {
         chefCtrl = '<div class="pat-chef-ctrl">'
@@ -8322,19 +8436,11 @@ function renderStockVeignePat() {
           + stockSortArrows(e.p.id, catPids)
           + '</div>';
       }
-      html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + '</div>'
-        + '<div class="produit-unit">' + escapeHtml(veignePatUnitLabel(st)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + editPen + '</div>' + chefCtrl + '</div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="veignePatSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="veignePatSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
-      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
-      html += stockProduitCell(e.p, stockConso28[e.p.id], 28);
-      html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
-      html += '</div>';
+      items.push({ p: e.p, cat: cat, stock: Number(st.stock) || 0, mini: st.mini != null && st.mini !== '' ? Number(st.mini) : null,
+        consoF: stockConso28[e.p.id], joursF: 28, ctrl: chefCtrl, inactif: inactif });
     });
   });
-
-  html += '</div>';
+  html += sgGrilleHtml('veigne_pat', items, function(c) { return CAT_LABELS[c] || c; });
   mc.innerHTML = html;
 }
 
@@ -8433,15 +8539,43 @@ async function prepareVeignePatBoutique(boutique) {
   renderStockVeignePat();
 }
 
+// v20.335 — Le stock du pâtissier baisse à l'ENVOI de la boutique (Phil, 01/11/2026). La ligne de réassort
+// garde ce qui a déjà été retiré (stock_decompte_qty) : une commande renvoyée après modification ne retire
+// que la différence, et « ✓ préparé » ne retire plus que le reste (rien si l'envoi l'a déjà fait).
+// Sans la migration v20.335 (colonne absente) : rien ne change, le stock baisse au « préparé » comme avant.
+async function patDecompteEnvoi(boutique, dateISO, pids) {
+  if (!pids || !pids.length) return;
+  const st = await supa.from('veigne_pat_stock').select('product_id,stock').eq('tenant_id', TENANT_ID).in('product_id', pids);
+  if (st.error || !(st.data || []).length) return;
+  const stock = {}; st.data.forEach(function(r) { stock[r.product_id] = Number(r.stock) || 0; });
+  const ex = await supa.from('reappros').select('id,product_id,commander,prepared_at,stock_decompte_qty')
+    .eq('tenant_id', TENANT_ID).eq('boutique_id', boutique).eq('service_date', dateISO).in('product_id', Object.keys(stock));
+  if (ex.error) return;
+  const now = new Date().toISOString();
+  for (const r of (ex.data || [])) {
+    if (r.prepared_at && r.stock_decompte_qty == null) continue;   // déjà décompté à l'ancienne, au « préparé »
+    const veut = parseQty(r.commander) || 0, deja = Number(r.stock_decompte_qty) || 0;
+    const delta = veut - deja;
+    if (!delta) continue;
+    const up = await supa.from('reappros').update({ stock_decompte_qty: veut }).eq('id', r.id);
+    if (up.error) return;
+    stock[r.product_id] -= delta;
+    await supa.from('veigne_pat_stock').update({ stock: stock[r.product_id], updated_at: now, updated_by: DEVICE_ID })
+      .eq('tenant_id', TENANT_ID).eq('product_id', r.product_id);
+    if (veignePatStockData[r.product_id]) veignePatStockData[r.product_id].stock = stock[r.product_id];
+  }
+}
 async function applyVeignePatPrepared(rows) {
   setSyncStatus('syncing');
   const now = new Date().toISOString();
   for (const r of rows) {
-    const up = await supa.from('reappros').update({ prepared_at: now }).eq('id', r.id);
+    const total = parseQty(r.commander) || 0;
+    let up = await supa.from('reappros').update({ prepared_at: now, stock_decompte_qty: total }).eq('id', r.id);
+    if (up.error && /stock_decompte_qty/.test(up.error.message || '')) up = await supa.from('reappros').update({ prepared_at: now }).eq('id', r.id);
     if (up.error) { setSyncStatus('error'); showToast(up.error.message, 'error'); return; }
     const st = veignePatStockData[r.product_id];
-    const qty = parseQty(r.commander);
-    if (st && qty > 0) {
+    const qty = total - (Number(r.stock_decompte_qty) || 0);   // ce que l'envoi n'a pas déjà retiré
+    if (st && qty !== 0) {
       const newStock = (Number(st.stock) || 0) - qty;
       await supa.from('veigne_pat_stock')
         .update({ stock: newStock, updated_at: now, updated_by: DEVICE_ID })
@@ -9936,6 +10070,7 @@ let rowHtml = '<div class="prod-row' + planEdgeCls(curPlanKey) + (rowDone ? ' pr
 // v20.38 — Conditionnement à côté du nom (Production)
 + '<div><span class="prod-name">' + escapeHtml(r.p.name) + '</span>'
 + ((rowDone || rowPart) ? envoiChipHtml(envRow, r.total, 'prod') : '')   // v20.270 — « 150 / 200 · reste 50 vers 10h »
++ congeloModeHtml(r.p.id, r.total)   // v20.335 — ❄️ du congélo / 🥐 plaqué frais (Prod. Touriers)
 + (r.p.unit ? '<span class="prod-unit">' + escapeHtml(r.p.unit) + '</span>' : '')
 // v20.165 — Touriers : production comptée en PIÈCES (les caisses = réalité du congélo, Stock Tourier)
 + (!isLocalTour && formatConditioning(r.p) ? ' <span class="prod-unit" style="color:var(--blue)">' + escapeHtml(formatConditioning(r.p)) + '</span>' : '')
@@ -17801,17 +17936,24 @@ async function loadStockEntries() {
   weekStart.setDate(weekStart.getDate() - (weekStart.getDay() + 6) % 7); // lundi
   const from = (monthStart < weekStart ? monthStart : weekStart);
   const { data, error } = await supa.from('stock_entries')
-    .select('product_id,qty,entered_at')
+    .select('product_id,qty,entered_at,screen')
     .eq('tenant_id', TENANT_ID)
     .gte('entered_at', from.toISOString());
-  stockEntriesPeriod = {};
+  stockEntriesPeriod = {}; stockFraisPeriod = {};
   if (error) return;
   const mISO = monthStart.toISOString(), wISO = weekStart.toISOString();
+  const dISO = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   (data || []).forEach(function(r) {
     const q = Number(r.qty) || 0; if (!q) return;
-    const e = stockEntriesPeriod[r.product_id] = stockEntriesPeriod[r.product_id] || { sem: 0, mois: 0 };
+    const e = stockEntriesPeriod[r.product_id] = stockEntriesPeriod[r.product_id] || { sem: 0, mois: 0, auj: 0 };
     if (r.entered_at >= mISO) e.mois += q;
     if (r.entered_at >= wISO) e.sem += q;
+    // v20.335 — 🥐 plaqués frais (Prod. Touriers) : comptés dans la production, pas mis au congélo
+    if (r.screen === SG_SCREEN_FRAIS) {
+      const f = stockFraisPeriod[r.product_id] = stockFraisPeriod[r.product_id] || { sem: 0, mois: 0 };
+      if (r.entered_at >= mISO) f.mois += q;
+      if (r.entered_at >= wISO) f.sem += q;
+    } else if (r.entered_at >= dISO) e.auj += q;   // « +40 aujourd'hui » sous le ＋
   });
 }
 
@@ -17821,8 +17963,8 @@ async function logStockEntry(pid, qty, screen) {
   await supa.from('stock_entries').insert({
     tenant_id: TENANT_ID, product_id: pid, screen: screen, qty: qty, entered_by: DEVICE_ID
   });
-  const e = stockEntriesPeriod[pid] = stockEntriesPeriod[pid] || { sem: 0, mois: 0 };
-  e.sem += qty; e.mois += qty;
+  const e = stockEntriesPeriod[pid] = stockEntriesPeriod[pid] || { sem: 0, mois: 0, auj: 0 };
+  e.sem += qty; e.mois += qty; e.auj = (e.auj || 0) + qty;
 }
 
 // Colonne « Produit » : déjà produit sur la période, avec objectif (prévision ou conso auto) si connu
@@ -17913,6 +18055,394 @@ async function editConsoMois(pid) {
   if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
   else if (currentVue === 'stock_pat') renderStockVeignePat();
   else renderStock();
+}
+
+/* ============================================================
+   v20.335 — ÉCRANS STOCK REFAITS (Phil, 01/11/2026, maquette stock-congelo-mockup.html) :
+   « il me faut rentrer la prod du jour qui va au congélateur pour rentrer dans le stock et décompter
+   de la production totale du mois ou de la semaine ». Même grille pour Stock Tourier, Stock Pât. et
+   Stock Boul. Pro : Produit | Stock (lecture seule) | ＋ mettre au congélo | Reste à faire.
+   · ＋ : ajoute au stock ET à la production de la période (stock_entries), ↩️ Annuler pendant 6 s.
+   · Le stock ne se tape plus : 📋 Compter le congélo (tout le monde ; écart gardé dans stock_comptages).
+   · Reste à faire = prévision du mois (products.conso_mois_manuel, « ma prévision ») − production.
+   · Réglages par appui long sur le nom (ou ⚙️), SANS code : prévision, pièces par caisse/sac,
+     Mini, tenue au congélo. Les pièces par caisse servent partout (réassorts, pros) : averti en orange.
+   · Retirés : Entrée / Stock / Mini en menus, « À partir », la légende de 6 lignes.
+   ============================================================ */
+const SG_SCREEN_FRAIS = 'tourier_frais';   // stock_entries : 🥐 plaqués frais (Prod. Touriers)
+let stockFraisPeriod = {};                 // { pid: { sem, mois } }
+let _sgLast = null;                        // dernier ＋ (pour ↩️ Annuler)
+let _sgReg = null;                         // { pid } fenêtre réglages ouverte
+let _sgComptageWarned = false;
+
+function sgScreen() { return currentVue === 'stock_boul_pro' ? 'boul_pro' : (currentVue === 'stock_pat' ? 'veigne_pat' : 'tourier'); }
+function sgRerender() {
+  if (currentVue === 'stock_boul_pro') renderStockBoulangerPro();
+  else if (currentVue === 'stock_pat') renderStockVeignePat();
+  else renderStock();
+}
+function sgProduct(pid) {
+  return products.find(function(x) { return x.id === pid; })
+    || ((typeof adminProducts !== 'undefined' && adminProducts) || []).find(function(x) { return x.id === pid; }) || null;
+}
+function sgFq(n) { const v = Number(n) || 0; return formatQty(Math.round(v * 10) / 10); }
+// Le stock et la ligne de stock de chaque écran
+function sgStockRow(screen, pid) {
+  if (screen === 'tourier') return tourierStockData[pid] || null;
+  if (screen === 'veigne_pat') return veignePatStockData[pid] || null;
+  return proStockData[pid] || null;
+}
+function sgStockOf(screen, pid) { const r = sgStockRow(screen, pid); return r ? (Number(screen === 'boul_pro' ? r.qty : r.stock) || 0) : 0; }
+function sgMiniOf(screen, pid) { const r = sgStockRow(screen, pid); return r && r.mini != null && r.mini !== '' ? Number(r.mini) : null; }
+// Unité du congélo : Tourier = caisse/sac/grille de la fiche produit (stock compté en caisses) ;
+// Pât. = unité de veigne_pat_stock ; Boul. Pro = pièces (sac de N proposé sur le ＋).
+const SG_PLURIELS = { caisse: 'caisses', sac: 'sacs', grille: 'grilles', carton: 'cartons', seau: 'seaux', 'pièce': 'pièces' };
+function sgUnit(screen, p) {
+  const out = { nom: 'pièce', pl: 'pièces', par: null, piecesComptees: true, lbl: 'pièce', condField: null };
+  if (screen === 'veigne_pat') {
+    const st = veignePatStockData[p.id] || {};
+    if (st.stock_unit && st.stock_unit !== 'piece') {
+      out.nom = st.stock_unit; out.pl = SG_PLURIELS[st.stock_unit] || (st.stock_unit + 's');
+      out.par = st.unit_pieces != null ? Number(st.unit_pieces) : null; out.piecesComptees = false; out.condField = 'unit_pieces';
+      out.lbl = st.stock_unit + (out.par ? ' de ' + out.par : '');
+    }
+    return out;
+  }
+  const u = p.conditioning_unit, q = p.conditioning_qty;
+  if (u && u !== 'kg' && u !== 'L' && u !== 'piece') {
+    out.condField = 'conditioning_qty';
+    out.par = q != null ? Number(q) : null;
+    if (screen === 'tourier') { out.nom = u; out.pl = SG_PLURIELS[u] || (u + 's'); out.piecesComptees = false; out.lbl = u + (out.par ? ' de ' + out.par : ''); }
+    else { out.lbl = 'pièce · ' + u + (out.par ? ' de ' + out.par : ''); out.sac = u; out.sacPl = SG_PLURIELS[u] || (u + 's'); }
+  } else if (screen === 'tourier') {
+    out.lbl = tourierUnitLabel(p);
+  }
+  return out;
+}
+// État du produit, dit en clair (la couleur passe sur le nom)
+function sgEtat(p, stock, mini, consoF, joursF) {
+  if (mini != null && stock < mini) return { c: 'r1', t: '🔴 sous le Mini (' + sgFq(mini) + ')' };
+  const cj = consoJourProduit(p, consoF, joursF);
+  if (!(cj > 0)) return { c: '', t: (p.conso_mois_manuel == null ? 'pas de prévision · appui long pour la régler' : '') };
+  const j = Math.floor(stock / cj);
+  const now = new Date();
+  const dFin = new Date(now.getFullYear(), now.getMonth(), now.getDate() + j);
+  const finP = stockPeriodEnd();
+  const joursFin = Math.round((finP - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  const seuil = (p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21);
+  if (dFin < finP) return { c: 'r1', t: '🔴 fini vers le ' + dFin.getDate() + ' ' + FINSTOCK_MOIS[dFin.getMonth()] + ' — à produire' };
+  // « trop d'avance » seulement au-delà de la tenue au congélo ET de la fin de période : en début de mois,
+  // un stock qui tient juste jusqu'au 30 n'est pas « trop » (avant, rien ne pouvait être vert le 1er).
+  if (j > Math.max(seuil, joursFin)) return { c: 'r3', t: '🟠 ' + (j >= 14 ? Math.round(j / 7) + ' semaines' : j + ' jours') + ' d\'avance — lever le pied' };
+  return { c: 'r2', t: '🟢 tient jusqu\'à la fin de ' + (stockPeriodMode === 'semaine' ? 'la semaine' : 'mois') };
+}
+function sgResteHtml(p) {
+  const e = stockEntriesPeriod[p.id] || { sem: 0, mois: 0 };
+  const f = stockFraisPeriod[p.id] || { sem: 0, mois: 0 };
+  const sem = stockPeriodMode === 'semaine';
+  const fait = sem ? e.sem : e.mois, fr = sem ? f.sem : f.mois;
+  const per = sem ? 'cette semaine' : 'ce mois';
+  const frTxt = fr > 0 ? ' · <span class="sg-fr">dont 🥐 ' + sgFq(fr) + ' frais</span>' : '';
+  const prev = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0) ? Number(p.conso_mois_manuel) : null;
+  if (prev == null) return '<div class="sg-raf"><span class="sg-big sg-muted">—</span><small>' + sgFq(fait) + ' fait' + (fait > 1 ? 's' : '') + ' ' + per + ' · pas d\'objectif' + frTxt + '</small></div>';
+  const obj = sem ? Math.round(prev * 7 / 30.4) : prev;
+  const reste = Math.max(0, obj - fait), pct = obj > 0 ? Math.min(100, Math.round(fait / obj * 100)) : 100;
+  return '<div class="sg-raf' + (reste === 0 ? ' ok' : '') + '"><span class="sg-big">' + (reste === 0 ? '✓ fait' : sgFq(reste) + ' à faire') + '</span>'
+    + '<div class="sg-barre"><i style="width:' + pct + '%"></i></div><small>' + sgFq(fait) + ' / ' + sgFq(obj) + ' ' + per + frTxt + '</small></div>';
+}
+// La barre du haut (Semaine / Mois + 📋) et le résumé, puis la grille.
+// items = [{ p, stock, mini, consoF, joursF, ctrl, inactif, cat }] déjà triés par catégorie
+function sgGrilleHtml(screen, items, catLabel) {
+  let h = '<div class="sg-top">' + stockPeriodToggleHtml()
+    + '<button class="sg-cpt" onclick="openStockComptage()">📋 Compter le congélo</button></div>';
+  const n = { r1: 0, r2: 0, r3: 0 };
+  let rows = '', cat = null;
+  items.forEach(function(it) {
+    const p = it.p, u = sgUnit(screen, p);
+    const e = sgEtat(p, it.stock, it.mini, it.consoF, it.joursF);
+    if (n[e.c] != null && !it.inactif) n[e.c]++;
+    if (it.cat !== cat) { cat = it.cat; rows += '<div class="prod-cat-title">' + escapeHtml(catLabel(cat)) + '</div>'; }
+    const auj = (stockEntriesPeriod[p.id] || {}).auj || 0;
+    rows += '<div class="sg-row' + (it.inactif ? ' pat-inactif' : '') + '">'
+      + '<div class="sg-nm" data-sgpid="' + escapeHtml(p.id) + '"><b>' + (it.inactif ? '⏸ ' : '') + escapeHtml(p.name)
+      + ' <button class="sg-regl" onclick="event.stopPropagation();openStockReglages(\'' + p.id + '\')" title="Réglages">⚙️</button></b>'
+      + '<small class="sg-u">' + escapeHtml(u.lbl) + (it.inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</small>'
+      + (e.t ? '<small class="sg-etat ' + e.c + '">' + e.t + '</small>' : '') + (it.ctrl || '') + '</div>'
+      + '<div class="sg-stk' + (it.stock < 0 ? ' neg' : '') + '">' + sgFq(it.stock) + '<small>' + escapeHtml(it.stock > 1 || it.stock < -1 ? u.pl : u.nom) + '</small></div>'
+      + '<button class="sg-plus' + (auj ? ' fait' : '') + '" onclick="openStockPad(\'' + p.id + '\')">＋<small>' + (auj ? '+' + sgFq(auj) + ' aujourd\'hui' : 'mettre au congélo') + '</small></button>'
+      + sgResteHtml(p)
+      + '</div>';
+  });
+  h += '<div class="sg-resume"><span class="r1"><b>' + n.r1 + '</b> à produire</span><span class="r2"><b>' + n.r2 + '</b> ok</span><span class="r3"><b>' + n.r3 + '</b> trop d\'avance</span></div>';
+  h += '<div class="sg-astuce">👆 Appui long sur un produit (ou ⚙️) = ses réglages : prévision du mois, pièces par caisse, Mini… sans code.</div>';
+  h += '<div class="sg-grid"><div class="sg-head"><span>Produit</span><span>Stock</span><span>Mis au congélo</span><span>Reste à faire ' + (stockPeriodMode === 'semaine' ? 'cette semaine' : 'ce mois') + '</span></div>' + rows + '</div>';
+  return h;
+}
+
+// ---- fenêtre du bas (pavé ＋, réglages, comptage) ----
+function sgSheetOpen(html) {
+  let ov = document.getElementById('sg-sheet');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'sg-sheet'; ov.className = 'sg-sheet-ov';
+    ov.onclick = function(e) { if (e.target === ov) sgSheetClose(); };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = '<div class="sg-sheet">' + html + '</div>';
+  ov.classList.add('show');
+}
+function sgSheetClose() { const ov = document.getElementById('sg-sheet'); if (ov) ov.classList.remove('show'); _sgReg = null; }
+
+// ＋ mettre au congélo : touches (caisses / sacs entiers d'abord), « … Autre » en dernier
+function openStockPad(pid) {
+  const screen = sgScreen(), p = sgProduct(pid); if (!p) return;
+  const u = sgUnit(screen, p);
+  const keys = [];
+  if (u.piecesComptees && u.sac && u.par) {
+    [1, 2, 3, 5, 10].forEach(function(k) { keys.push({ q: k * u.par, l: k + ' ' + (k > 1 ? u.sacPl : u.sac), cond: true }); });
+    [10, 20, 50].forEach(function(q) { keys.push({ q: q, l: 'pièces' }); });
+  } else if (u.piecesComptees) {
+    [5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200].forEach(function(q) { keys.push({ q: q, l: 'pièces' }); });
+  } else {
+    [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20].forEach(function(q) { keys.push({ q: q, l: q > 1 ? u.pl : u.nom }); });
+  }
+  const auj = (stockEntriesPeriod[pid] || {}).auj || 0;
+  let h = '<div class="sg-sh-t">＋ ' + escapeHtml(p.name) + '</div>'
+    + '<div class="sg-sh-s">Combien vient d\'aller au congélo ?' + (auj ? ' (déjà +' + sgFq(auj) + ' aujourd\'hui)' : '') + '</div><div class="sg-pad">';
+  keys.forEach(function(k) { h += '<button class="' + (k.cond ? 'cond' : '') + '" onclick="stockPadAdd(\'' + pid + '\',' + k.q + ')">' + k.q + '<small>' + escapeHtml(k.l) + '</small></button>'; });
+  h += '<button onclick="stockPadAutre(\'' + pid + '\')">…<small>Autre</small></button></div>'
+    + '<button class="sg-sh-x" onclick="sgSheetClose()">Fermer</button>';
+  sgSheetOpen(h);
+}
+function stockPadAutre(pid) {
+  const v = prompt('Combien vient d\'aller au congélo ?', '');
+  if (v === null) return;
+  const q = parseQty(v);
+  if (!(q > 0)) { showToast('Quantité invalide', 'error'); return; }
+  stockPadAdd(pid, q);
+}
+// Change le stock d'un écran (delta + ou −) ; withEntry = compte aussi dans la production de la période
+async function sgStockDelta(screen, pid, delta, withEntry, entryScreen) {
+  const now = new Date().toISOString();
+  let error = null;
+  if (screen === 'tourier') {
+    const st = tourierStockData[pid]; if (!st) return false;
+    const ns = (Number(st.stock) || 0) + delta;
+    error = (await supa.from('tourier_stock').update({ stock: ns, updated_at: now, updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error;
+    if (!error) st.stock = ns;
+  } else if (screen === 'veigne_pat') {
+    const st = veignePatStockData[pid]; if (!st) return false;
+    const ns = (Number(st.stock) || 0) + delta;
+    error = (await supa.from('veigne_pat_stock').update({ stock: ns, updated_at: now, updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error;
+    if (!error) st.stock = ns;
+  } else {
+    const cur = proStockData[pid] || { qty: 0, mini: null };
+    const ns = (Number(cur.qty) || 0) + delta;
+    error = (await supa.from('pro_stock').upsert({ tenant_id: TENANT_ID, product_id: pid, qty: ns, mini: cur.mini, updated_at: now, updated_by: DEVICE_ID }, { onConflict: 'tenant_id,product_id' })).error;
+    if (!error) { proStockData[pid] = { qty: ns, mini: cur.mini, updated_at: now }; await applyProStockMovement(pid, Math.round(delta), 'production', null); }
+  }
+  if (error) { showToast(error.message, 'error'); return false; }
+  if (withEntry) await sgEntry(pid, delta, entryScreen || screen);
+  return true;
+}
+// Une ligne de production (stock_entries), positive ou négative (annulation)
+async function sgEntry(pid, qty, screen) {
+  if (!qty) return;
+  await supa.from('stock_entries').insert({ tenant_id: TENANT_ID, product_id: pid, screen: screen, qty: qty, entered_by: DEVICE_ID });
+  const e = stockEntriesPeriod[pid] = stockEntriesPeriod[pid] || { sem: 0, mois: 0, auj: 0 };
+  e.sem += qty; e.mois += qty;
+  if (screen === SG_SCREEN_FRAIS) {
+    const f = stockFraisPeriod[pid] = stockFraisPeriod[pid] || { sem: 0, mois: 0 };
+    f.sem += qty; f.mois += qty;
+  } else e.auj = (e.auj || 0) + qty;
+}
+async function stockPadAdd(pid, q) {
+  const screen = sgScreen(), p = sgProduct(pid);
+  sgSheetClose();
+  setSyncStatus('syncing');
+  const ok = await sgStockDelta(screen, pid, q, true);
+  if (!ok) { setSyncStatus('error'); return; }
+  setSyncStatus('ok');
+  _sgLast = { screen: screen, pid: pid, q: q };
+  sgRerender();
+  sgToast('✓ +' + sgFq(q) + ' ' + (p ? p.name : '') + ' au congélo');
+}
+async function stockPadUndo() {
+  const l = _sgLast; if (!l) return;
+  _sgLast = null; sgToastHide();
+  setSyncStatus('syncing');
+  const ok = await sgStockDelta(l.screen, l.pid, -l.q, true);
+  setSyncStatus(ok ? 'ok' : 'error');
+  sgRerender();
+  if (ok) showToast('Annulé', 'sync');
+}
+function sgToast(msg) {
+  let t = document.getElementById('sg-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'sg-toast'; t.className = 'sg-toast'; document.body.appendChild(t); }
+  t.innerHTML = '<span>' + escapeHtml(msg) + '</span><button onclick="stockPadUndo()">↩️ Annuler</button>';
+  t.classList.add('show');
+  clearTimeout(window._sgToastT); window._sgToastT = setTimeout(sgToastHide, 6000);
+}
+function sgToastHide() { const t = document.getElementById('sg-toast'); if (t) t.classList.remove('show'); }
+
+// ---- ⚙️ Réglages du produit (appui long), sans code ----
+function openStockReglages(pid) { _sgReg = { pid: pid, msg: '' }; sgReglagesRender(); }
+function sgReglagesRender() {
+  if (!_sgReg) return;
+  const screen = sgScreen(), p = sgProduct(_sgReg.pid); if (!p) return;
+  const u = sgUnit(screen, p);
+  const mini = sgMiniOf(screen, p.id);
+  const prev = p.conso_mois_manuel != null ? Number(p.conso_mois_manuel) : null;
+  const tol = p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21;
+  const ligne = function(lbl, sub, field, val) {
+    return '<div class="sg-reg-l"><div>' + lbl + '<small>' + sub + '</small></div><div class="sg-stp">'
+      + '<button onclick="stockRegle(\'' + field + '\',-1)">−</button><span class="v" onclick="stockRegleTape(\'' + field + '\')">' + val + '</span>'
+      + '<button onclick="stockRegle(\'' + field + '\',1)">+</button></div></div>';
+  };
+  let h = '<div class="sg-sh-t">⚙️ ' + escapeHtml(p.name) + '</div>'
+    + '<div class="sg-sh-s">Réglages pour tout le monde. − / + ou un appui sur le chiffre pour le taper. Enregistré tout de suite.</div>';
+  h += ligne('Prévision du mois', 'sert au « reste à faire » (en ' + escapeHtml(u.piecesComptees ? 'pièces' : u.pl) + ')', 'prev', prev != null ? sgFq(prev) + ' / mois' : '—');
+  if (u.condField) {
+    const contenant = screen === 'veigne_pat' ? u.nom : (u.sac || u.nom);
+    h += ligne('Pièces par ' + escapeHtml(contenant), 'les touches du ＋ et les commandes', 'cond', u.par != null ? contenant + ' de ' + u.par : '—');
+    if (screen !== 'veigne_pat') h += '<div class="sg-warn">⚠️ Les ' + escapeHtml(SG_PLURIELS[contenant] || contenant) + ' servent aussi aux commandes des boutiques et des pros : un changement vaut <b>partout</b>, tout de suite.</div>';
+  }
+  h += ligne('Mini', 'en dessous = rouge, même si le mois est fait', 'mini', mini != null ? sgFq(mini) : '—');
+  h += ligne('Tient au congélo', 'au-delà = orange « trop d\'avance »', 'tol', tol + ' jours');
+  h += '<div class="sg-who">' + escapeHtml(_sgReg.msg || '') + '</div><button class="sg-sh-x" onclick="sgSheetClose()">Fermer</button>';
+  sgSheetOpen(h);
+}
+function sgRegleCur(field) {
+  const screen = sgScreen(), p = sgProduct(_sgReg.pid), u = sgUnit(screen, p);
+  if (field === 'prev') return p.conso_mois_manuel != null ? Number(p.conso_mois_manuel) : null;
+  if (field === 'cond') return u.par;
+  if (field === 'mini') return sgMiniOf(screen, p.id);
+  return p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21;
+}
+function stockRegle(field, dir) {
+  if (!_sgReg) return;
+  const screen = sgScreen(), u = sgUnit(screen, sgProduct(_sgReg.pid));
+  const pas = field === 'tol' ? 7 : (field === 'cond' ? 1 : (u.piecesComptees ? 10 : 1));
+  const cur = sgRegleCur(field);
+  let nv = (cur == null ? 0 : cur) + dir * pas;
+  if (field === 'tol') nv = Math.max(7, nv);
+  else if (nv <= 0) nv = (field === 'cond') ? 1 : null;
+  stockRegleSave(field, nv);
+}
+function stockRegleTape(field) {
+  if (!_sgReg) return;
+  const cur = sgRegleCur(field);
+  const v = prompt('Nouvelle valeur (vide = rien) :', cur != null ? cur : '');
+  if (v === null) return;
+  const n = String(v).trim() === '' ? null : parseQty(v);
+  if (field === 'cond' && !(n > 0)) { showToast('Il faut au moins 1 pièce', 'error'); return; }
+  stockRegleSave(field, field === 'tol' && n == null ? null : n);
+}
+async function stockRegleSave(field, v) {
+  if (!_sgReg) return;
+  const screen = sgScreen(), pid = _sgReg.pid;
+  setSyncStatus('syncing');
+  let error = null;
+  if (field === 'mini') {
+    if (screen === 'tourier') { error = (await supa.from('tourier_stock').update({ mini: v, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error; if (!error && tourierStockData[pid]) tourierStockData[pid].mini = v; }
+    else if (screen === 'veigne_pat') { error = (await supa.from('veigne_pat_stock').update({ mini: v, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error; if (!error && veignePatStockData[pid]) veignePatStockData[pid].mini = v; }
+    else {
+      const cur = proStockData[pid] || { qty: 0, mini: null };
+      error = (await supa.from('pro_stock').upsert({ tenant_id: TENANT_ID, product_id: pid, qty: cur.qty, mini: v, updated_at: cur.updated_at || new Date().toISOString(), updated_by: DEVICE_ID }, { onConflict: 'tenant_id,product_id' })).error;
+      if (!error) proStockData[pid] = Object.assign({}, cur, { mini: v });
+    }
+  } else if (field === 'cond' && screen === 'veigne_pat') {
+    error = (await supa.from('veigne_pat_stock').update({ unit_pieces: v, updated_at: new Date().toISOString(), updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error;
+    if (!error && veignePatStockData[pid]) veignePatStockData[pid].unit_pieces = v;
+  } else {
+    const col = field === 'prev' ? 'conso_mois_manuel' : (field === 'cond' ? 'conditioning_qty' : 'stock_avance_max_jours');
+    const upd = {}; upd[col] = v;
+    error = (await supa.from('products').update(upd).eq('id', pid)).error;
+    if (!error) [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) {
+      const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) x[col] = v;
+    });
+  }
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  setSyncStatus('ok');
+  const qui = rememberedPerson();
+  _sgReg.msg = '✓ Enregistré' + (qui ? ' · ' + qui : '') + ' · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  sgRerender(); sgReglagesRender();
+}
+// Appui long sur le nom d'un produit (0,55 s) = réglages
+(function() {
+  let t = null, el = null, x0 = 0, y0 = 0;
+  function stop() { clearTimeout(t); t = null; if (el) el.classList.remove('press'); el = null; }
+  document.addEventListener('pointerdown', function(e) {
+    const nm = e.target.closest && e.target.closest('.sg-nm[data-sgpid]');
+    if (!nm || e.target.closest('button')) return;
+    el = nm; x0 = e.clientX; y0 = e.clientY; nm.classList.add('press');
+    t = setTimeout(function() { const pid = nm.getAttribute('data-sgpid'); stop(); openStockReglages(pid); }, 550);
+  });
+  document.addEventListener('pointermove', function(e) { if (t && (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10)) stop(); });
+  ['pointerup', 'pointercancel', 'scroll'].forEach(function(ev) { document.addEventListener(ev, stop, true); });
+  document.addEventListener('contextmenu', function(e) { if (e.target.closest && e.target.closest('.sg-nm')) e.preventDefault(); });
+})();
+
+// ---- 📋 Compter le congélo : on tape ce qu'on voit, l'écart est gardé ----
+function sgComptageItems() {
+  const screen = sgScreen();
+  const pids = screen === 'tourier' ? Object.keys(tourierStockData)
+    : (screen === 'veigne_pat' ? Object.keys(veignePatStockData)
+      : ((adminProducts || []).filter(function(p) { return p.suivi_stock_pro && p.actif; }).map(function(p) { return p.id; })));
+  return pids.map(function(pid) { return sgProduct(pid); }).filter(function(p) {
+    if (!p) return false;
+    if (screen === 'tourier' && p.tourier_actif === false) return false;
+    if (screen === 'veigne_pat' && (veignePatStockData[p.id] || {}).actif === false) return false;
+    return true;
+  }).sort(function(a, b) { return (a.category || '').localeCompare(b.category || '') || stockSortCmp(a, b); });
+}
+function openStockComptage() {
+  const screen = sgScreen();
+  let h = '<div class="sg-sh-t">📋 Compter le congélo</div>'
+    + '<div class="sg-sh-s">Tape ce que tu vois. Les cases vides ne changent rien. L\'écart est gardé (casse, oubli de ＋…).</div>'
+    + '<div class="sg-crow h"><span>Produit</span><span>L\'app</span><span>Compté</span><span>Écart</span></div><div class="sg-cbody">';
+  sgComptageItems().forEach(function(p) {
+    const u = sgUnit(screen, p);
+    h += '<div class="sg-crow"><span>' + escapeHtml(p.name) + '<small>' + escapeHtml(u.piecesComptees ? 'pièces' : u.pl) + '</small></span><span class="c">' + sgFq(sgStockOf(screen, p.id)) + '</span>'
+      + '<input inputmode="decimal" data-pid="' + escapeHtml(p.id) + '" placeholder="—" oninput="sgComptageEcart(this)"><span class="c sg-ec"></span></div>';
+  });
+  h += '</div><button class="sg-valid" onclick="stockComptageValider()">✓ Valider le comptage</button><button class="sg-sh-x" onclick="sgSheetClose()">Annuler</button>';
+  sgSheetOpen(h);
+}
+function sgComptageEcart(el) {
+  const c = el.parentNode.querySelector('.sg-ec');
+  const v = el.value.trim();
+  if (v === '') { c.textContent = ''; return; }
+  const app = sgStockOf(sgScreen(), el.getAttribute('data-pid'));
+  const d = Math.round((parseQty(v) - app) * 10) / 10;
+  c.textContent = d === 0 ? '✓' : (d > 0 ? '+' : '') + sgFq(d).replace(/^0$/, '0');
+  if (d < 0) c.textContent = '−' + sgFq(-d);
+  c.style.color = d === 0 ? 'var(--green)' : (Math.abs(d) > Math.abs(app) * 0.1 ? 'var(--red)' : 'var(--orange)');
+}
+async function stockComptageValider() {
+  const screen = sgScreen();
+  const inputs = Array.from(document.querySelectorAll('#sg-sheet .sg-crow input')).filter(function(i) { return i.value.trim() !== ''; });
+  if (!inputs.length) { sgSheetClose(); return; }
+  setSyncStatus('syncing');
+  const now = new Date().toISOString(), qui = rememberedPerson() || null;
+  const lignes = [];
+  for (const i of inputs) {
+    const pid = i.getAttribute('data-pid'), compte = parseQty(i.value), app = sgStockOf(screen, pid);
+    lignes.push({ tenant_id: TENANT_ID, screen: screen, product_id: pid, qty_app: app, qty_compte: compte, ecart: Math.round((compte - app) * 100) / 100, compte_par: qui, device: DEVICE_ID, compte_at: now });
+    let error = null;
+    if (screen === 'tourier') { error = (await supa.from('tourier_stock').update({ stock: compte, updated_at: now, updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error; if (!error) tourierStockData[pid].stock = compte; }
+    else if (screen === 'veigne_pat') { error = (await supa.from('veigne_pat_stock').update({ stock: compte, updated_at: now, updated_by: DEVICE_ID }).eq('tenant_id', TENANT_ID).eq('product_id', pid)).error; if (!error) veignePatStockData[pid].stock = compte; }
+    else {
+      const cur = proStockData[pid] || { qty: 0, mini: null };
+      error = (await supa.from('pro_stock').upsert({ tenant_id: TENANT_ID, product_id: pid, qty: compte, mini: cur.mini, updated_at: now, updated_by: DEVICE_ID }, { onConflict: 'tenant_id,product_id' })).error;
+      if (!error) { proStockData[pid] = { qty: compte, mini: cur.mini, updated_at: now }; await applyProStockMovement(pid, Math.round(compte - app), 'correction', null); }
+    }
+    if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  }
+  const r = await supa.from('stock_comptages').insert(lignes);
+  if (r.error && !_sgComptageWarned) { _sgComptageWarned = true; showToast('Stock mis à jour, mais l\'écart n\'est pas gardé : migration v20.335 à lancer', 'warn'); }
+  else showToast('✓ Comptage enregistré (' + lignes.length + ' produit' + (lignes.length > 1 ? 's' : '') + ')', 'sync');
+  setSyncStatus('ok');
+  sgSheetClose(); sgRerender();
 }
 
 // ===== v20.82 — tri (↑/↓) + conditionnement éditable sur les écrans stock =====
@@ -18012,11 +18542,7 @@ function renderStock() {
   if (!anyR && !tourierOrphelins.length) html += '<div class="info-banner" style="background:#F0EAE0">Aucun réassort à préparer ce jour. (Les commandes des magasins apparaissent ici une fois envoyées.)</div>';
   html += orphelinsBannerHtml(tourierOrphelins, 'la liste de ton congélo');
 
-  // SECTION 2 — Mon stock
-  html += stockPeriodToggleHtml();
-  html += stockLegendHtml('<strong>Entrée</strong> = ta production du jour. Le stock baisse au « préparé ». <strong>À partir</strong> = ce qui est commandé, pas encore préparé.');
-  const outBy = {};
-  ['veigne', 'tours', 'saint-avertin'].forEach(function(b) { (tourierReassort[b] || []).forEach(function(r) { if (r.prepared_at) return; outBy[r.product_id] = (outBy[r.product_id] || 0) + (parseQty(r.commander) || 0); }); });
+  // SECTION 2 — Mon stock (v20.335 : grille commune, ＋ / reste à faire / 📋 comptage)
   const entries = Object.keys(tourierStockData).map(function(pid) { return { st: tourierStockData[pid], p: products.find(function(x) { return x.id === pid; }) }; }).filter(function(e) { return e.p; });
   if (!entries.length) {
     if (tourierCatalogUnlocked) html += manageProductsButtonHtml();
@@ -18027,51 +18553,31 @@ function renderStock() {
   let nbStockMasquees = 0;
   const visibles = entries.filter(function(e) {
     const st = e.st;
-    if (stockIsEmptyRow(st.stock, st.mini, outBy[e.p.id] || 0)) { nbStockMasquees++; return !stockHideEmpty; }
+    if (stockIsEmptyRow(st.stock, st.mini, 0)) { nbStockMasquees++; return !stockHideEmpty; }
     return true;
   });
-  html += stockHideEmptyBarHtml(nbStockMasquees);
   const byCat = {}; visibles.forEach(function(e) { const c = e.p.category || 'autre'; (byCat[c] = byCat[c] || []).push(e); });
-  html += '<div class="section reappro-section"><div class="col-header stock-col-header">'
-    + '<span class="col-lbl">Produit</span><span class="col-lbl cmd">Entrée</span><span class="col-lbl">Stock</span><span class="col-lbl">Mini</span><span class="col-lbl" style="color:var(--orange)">À partir</span><span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span><span class="col-lbl" title="Jusqu\'à quand le stock tient (conso 4 dernières semaines ou prévision manuelle ✏️)">Fin stock</span></div>';
-  // v20.177 — on affiche TOUTES les catégories suivies au congélo tourier, plus seulement
-  // viennoiserie/brioches. Les tartes et bases pâtissières produites au Local (ajoutées au
-  // suivi en v20.164) étaient chargées et décomptées, mais jamais affichées.
+  // v20.177 — on affiche TOUTES les catégories suivies au congélo tourier (tartes et bases pâtissières comprises)
   const TOURIER_CAT_ORDER = ['viennoiserie', 'brioches_special', 'patisserie_petits', 'patisserie_gros', 'bases_patisserie'];
   const tourierCats = TOURIER_CAT_ORDER.filter(function(c) { return byCat[c]; })
     .concat(Object.keys(byCat).filter(function(c) { return TOURIER_CAT_ORDER.indexOf(c) === -1; }).sort());
+  const items = [];
   tourierCats.forEach(function(cat) {
-    if (!byCat[cat] || !byCat[cat].length) return;
     const list = byCat[cat].sort(function(a, b) { return stockSortCmp(a.p, b.p); });
     const catPids = list.map(function(x) { return x.p.id; });
-    html += '<div class="prod-cat-title">' + (CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + list.length + ')</span></div>';
     list.forEach(function(e) {
-      const st = e.st; const stock = Number(st.stock) || 0; const mini = st.mini; const aPartir = outBy[e.p.id] || 0;
       const inactif = (e.p.tourier_actif === false);
-      let alertCls = '', dot = '';
-      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
-      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
-      html += '<div class="produit-row stock-row ' + alertCls + (inactif ? ' pat-inactif' : '') + '">';
       let ctrl = '';
       if (tourierCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl"><button class="iconbtn-pat" onclick="tourierToggleActif(\'' + e.p.id + '\')" title="actif/inactif">' + (inactif ? '⬜' : '✅') + '</button><button class="iconbtn-pat" onclick="editProConditioning(\'' + e.p.id + '\')" title="conditionnement (caisse/sac/qté)">✏️</button>'
-        // v20.249 — retirer une ligne du congélo. Sert aux doublons : un même produit a
-        // souvent une fiche vente ET une fiche réassort, et les deux se retrouvaient
-        // inscrites — celle qui ne porte pas le stock traînait à 0 (11 cas au 22/09).
-        // Retirer ≠ désactiver (⬜) : on enlève la ligne du congélo, le produit reste au
-        // catalogue et peut être réinscrit. On refuse tant qu'il reste du stock.
+        // v20.249 — retirer une ligne du congélo (doublons fiche vente / fiche réassort) ; refusé tant qu'il reste du stock
         + '<button class="iconbtn-pat" onclick="tourierRemoveLigne(\'' + e.p.id + '\')" title="retirer du congélo">🗑</button>'
         + stockSortArrows(e.p.id, catPids) + '</div>';
-      html += '<div><div class="produit-name">' + dot + (inactif ? '⏸ ' : '') + escapeHtml(e.p.name) + ' ❄️</div><div class="produit-unit">' + escapeHtml(tourierUnitLabel(e.p)) + (inactif ? ' · <span style="color:var(--red)">désactivé</span>' : '') + '</div>' + ctrl + '</div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectEntree(\'' + e.p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="tourierSelectField(\'' + e.p.id + '\', \'stock\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="tourierSelectField(\'' + e.p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
-      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
-      html += stockProduitCell(e.p, stockConso28[e.p.id], 28);
-      html += stockFinCell(e.p, stock, stockConso28[e.p.id], 28);
-      html += '</div>';
+      items.push({ p: e.p, cat: cat, stock: Number(e.st.stock) || 0, mini: e.st.mini != null && e.st.mini !== '' ? Number(e.st.mini) : null,
+        consoF: stockConso28[e.p.id], joursF: 28, ctrl: ctrl, inactif: inactif });
     });
   });
-  html += '</div>';
+  html += stockHideEmptyBarHtml(nbStockMasquees);
+  html += sgGrilleHtml('tourier', items, function(c) { return CAT_LABELS[c] || c; });
   mc.innerHTML = html;
   if (stockReceiptModalOpen) renderStockReceiptModal();
 }
@@ -18251,6 +18757,50 @@ async function applyProPrepared(lines) {
     }
   }
   setSyncStatus('ok'); showToast('Préparé · stock décompté', 'sync');
+}
+// v20.335 — Le stock Boul. Pro baisse quand la commande PART (livreur qui coche la livraison, ou « ✓ parti »
+// pour un retrait), remonte si on décoche. Seulement les commandes du Local et les produits suivis ; une ligne
+// déjà décomptée à l'ancienne (« ✓ préparé ») n'est pas retirée deux fois. Rejouable : on regarde ce qui a déjà
+// été retiré pour cette commande (pro_stock_movements, reason 'delivery', ref_id = commande) et on fait la différence.
+async function proStockSortieCommande(orderId, sortir) {
+  const q = await supa.from('pro_orders').select('id,boutique_source,statut,pro_order_items(*)').eq('id', orderId);
+  const o = q.data && q.data[0];
+  if (q.error || !o || o.boutique_source !== 'local') return;
+  const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+  const want = {};
+  (o.pro_order_items || []).forEach(function(it) {
+    const prod = allProds.find(function(p) { return p.id === it.product_id; });
+    if (!prod || !prod.suivi_stock_pro || it.prepared_at) return;
+    const n = Math.round(Number(it.qty) || 0); if (!(n > 0)) return;
+    want[it.product_id] = (want[it.product_id] || 0) - (sortir ? n : 0);
+  });
+  const mv = await supa.from('pro_stock_movements').select('product_id,qty_delta').eq('ref_id', orderId).eq('reason', 'delivery');
+  const deja = {};
+  ((mv && mv.data) || []).forEach(function(m) { deja[m.product_id] = (deja[m.product_id] || 0) + (Number(m.qty_delta) || 0); });
+  const pids = Object.keys(want).concat(Object.keys(deja).filter(function(k) { return !(k in want); }));
+  if (!pids.length) return;
+  const st = await supa.from('pro_stock').select('product_id,qty,mini').eq('tenant_id', TENANT_ID).in('product_id', pids);
+  const cur = {}; ((st && st.data) || []).forEach(function(r) { cur[r.product_id] = r; });
+  const now = new Date().toISOString();
+  for (const pid of pids) {
+    const delta = (want[pid] || 0) - (deja[pid] || 0);
+    if (!delta) continue;
+    const r = cur[pid] || { qty: 0, mini: null };
+    const ns = (Number(r.qty) || 0) + delta;
+    await supa.from('pro_stock').upsert({ tenant_id: TENANT_ID, product_id: pid, qty: ns, mini: r.mini, updated_at: now, updated_by: DEVICE_ID }, { onConflict: 'tenant_id,product_id' });
+    await applyProStockMovement(pid, delta, 'delivery', orderId);
+    if (proStockData[pid]) proStockData[pid].qty = ns;
+  }
+}
+// « ✓ parti » depuis Stock Boul. Pro (commande en retrait, sans livreur) = même chose que la livraison cochée
+async function proStockMarquerParti(orderId) {
+  setSyncStatus('syncing');
+  const { error } = await supa.from('pro_orders').update({ statut: 'livre' }).eq('id', orderId);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); return; }
+  await proStockSortieCommande(orderId, true);
+  setSyncStatus('ok');
+  await loadProStockDayOrders(); await loadProStock(); await loadProStockMovements(); renderStockBoulangerPro();
+  showToast('✓ Parti · stock décompté', 'sync');
 }
 async function prepareProLine(itemId) {
   const l = proStockPrepLines().find(function(x) { return x.itemId === itemId && !x.prepared; });
@@ -18537,109 +19087,69 @@ function renderStockBoulangerPro() {
     + '<div class="date-title">Commandes pros du <strong>' + escapeHtml(formatDateFr(proStockDate)) + '</strong></div>'
     + '<button class="date-nav" onclick="changeProStockDate(1)">→</button></div>';
 
-  // SECTION 1 — À préparer — Pros
-  const prepLines = proStockPrepLines().sort(function(a, b) {
-    if (a.prepared !== b.prepared) return a.prepared ? 1 : -1;
-    return a.productName.localeCompare(b.productName);
-  });
-  const todo = prepLines.filter(function(l) { return !l.prepared; }).length;
+  // SECTION 1 — Pros du jour (v20.335, Phil 01/11 : le stock baisse tout seul quand le livreur coche
+  // la livraison ; plus de « ✓ préparé » ici, il n'était jamais coché). Retrait / boutique : « ✓ parti ».
+  const prepLines = proStockPrepLines();
   if (prepLines.length) {
-    html += '<div class="section reappro-section"><div class="section-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>📦 À préparer — Pros (' + todo + ')</span>'
-      + (todo > 0 ? '<button class="btn-gold-sm" onclick="prepareProAll()">✓ Tout préparé</button>' : '<span style="color:var(--green);font-weight:700;font-size:13px">✓ tout fait</span>')
-      + '</div>';
-    prepLines.forEach(function(l) {
-      html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px' + (l.prepared ? ';opacity:0.55' : '') + '">';
-      html += '<div><div class="produit-name">' + (l.prepared ? '✓ ' : '') + escapeHtml(l.productName) + '</div><div class="produit-unit">' + l.qty + ' · ' + escapeHtml(l.proName) + (l.mode ? ' · ' + escapeHtml(l.mode) : '') + '</div></div>';
-      if (l.prepared) html += '<span style="color:var(--green);font-weight:700;font-size:13px">✓ fait</span>';
-      else html += '<button class="btn-gold-sm" onclick="prepareProLine(\'' + l.itemId + '\')">✓ préparé</button>';
-      html += '</div>';
+    const byOrder = {};
+    prepLines.forEach(function(l) { (byOrder[l.orderId] = byOrder[l.orderId] || []).push(l); });
+    html += '<div class="sg-pros"><div class="h">💼 <b>Pros du ' + escapeHtml(formatDateFr(proStockDate)) + '</b>'
+      + '<small>Le stock baisse tout seul quand le livreur coche la livraison. Sans livreur (retrait) : « ✓ parti ».</small></div>';
+    proStockDayOrders.forEach(function(o) {
+      const ls = byOrder[o.id]; if (!ls) return;
+      const pro = (adminPros || []).find(function(x) { return x.id === o.pro_id; });
+      const mode = proTourneeMode(pro, 'local', proStockDate);
+      const parti = (o.statut === 'livre');
+      html += '<div class="l"><span><b>' + escapeHtml(ls[0].proName) + '</b><small>'
+        + ls.map(function(l) { return escapeHtml(l.productName) + ' ×' + sgFq(l.qty) + (l.prepared ? ' ✓' : ''); }).join(' · ') + '</small></span>'
+        + (parti ? '<span class="ok">✓ parti</span>'
+          : (mode === 'livreur' ? '<span class="att">🚚 à livrer</span>'
+            : '<button class="btn-gold-sm" onclick="proStockMarquerParti(\'' + o.id + '\')">✓ parti</button>'))
+        + '</div>';
     });
     html += '</div>';
   } else {
-    html += '<div class="info-banner" style="background:#F0EAE0">Aucune commande pro à préparer ce jour.</div>';
+    html += '<div class="info-banner" style="background:#F0EAE0">Aucune commande pro ce jour.</div>';
   }
 
-  // SECTION 2 — Mon stock
-  html += stockPeriodToggleHtml();
-  html += stockLegendHtml('(pain congelé pour les pros) <strong>Entrée</strong> = ta production du jour. Le stock baisse au « préparé ». <strong>À partir</strong> = commandes pros à venir, pas encore préparées.<br><em style="font-size:11px">Pour suivre un produit ici : BackOffice → Produits → coche <strong>« Suivi stock pro »</strong>.</em>');
-
+  // SECTION 2 — Mon stock (v20.335 : grille commune, ＋ / reste à faire / 📋 comptage)
   if (!suiviProducts.length) {
     html += '<div class="empty-state">Aucun produit configuré en suivi stock pro.<br><span style="font-size:12px;color:var(--brown-mid)">Va dans BackOffice et coche « Suivi stock pro » sur les produits concernés.</span></div>';
     mc.innerHTML = html;
     return;
   }
-
-  // "À partir" = somme des commandes pros du jour pas encore préparées, par produit
-  const outBy = {};
-  prepLines.forEach(function(l) { if (!l.prepared) outBy[l.productId] = (outBy[l.productId] || 0) + l.qty; });
-
   // v20.183 — case « Cacher les lignes vides »
   let nbStockMasquees = 0;
   const visiblesPro = suiviProducts.filter(function(p) {
     const inv = proStockData[p.id] || { qty: 0, mini: null };
-    if (stockIsEmptyRow(inv.qty, inv.mini, outBy[p.id] || 0)) { nbStockMasquees++; return !stockHideEmpty; }
+    if (stockIsEmptyRow(inv.qty, inv.mini, 0)) { nbStockMasquees++; return !stockHideEmpty; }
     return true;
   });
-  html += stockHideEmptyBarHtml(nbStockMasquees);
-
   // Grouper par catégorie (catégories réelles, rien d'inventé)
   const byCat = {};
-  visiblesPro.forEach(function(p) {
-    const c = p.category || 'autre';
-    if (!byCat[c]) byCat[c] = [];
-    byCat[c].push(p);
-  });
+  visiblesPro.forEach(function(p) { const c = p.category || 'autre'; (byCat[c] = byCat[c] || []).push(p); });
   const catOrder = Object.keys(CAT_LABELS);
   const cats = Object.keys(byCat).sort(function(a, b) {
     const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
-
-  // Tableau Entrée / Stock / Mini / À partir (modèle tourier)
-  html += '<div class="section reappro-section">';
-  html += '<div class="col-header stock-col-header">'
-    + '<span class="col-lbl">Produit</span>'
-    + '<span class="col-lbl cmd">Entrée</span>'
-    + '<span class="col-lbl">Stock</span>'
-    + '<span class="col-lbl">Mini</span>'
-    + '<span class="col-lbl" style="color:var(--orange)">À partir</span>'
-    + '<span class="col-lbl" title="Déjà produit sur la période (Entrées)">Prod. ' + (stockPeriodMode === 'semaine' ? 'sem.' : 'mois') + '</span>'
-    + '<span class="col-lbl" title="Jusqu\'à quand le stock tient (conso ~30 derniers jours ou prévision manuelle ✏️)">Fin stock</span>'
-    + '</div>';
-
+  const items = [];
   cats.forEach(function(cat) {
-    html += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + ' <span style="font-size:11px;color:#999;font-weight:500">(' + byCat[cat].length + ')</span></div>';
     byCat[cat].sort(stockSortCmp);
     const catPids = byCat[cat].map(function(x) { return x.id; });
     byCat[cat].forEach(function(p) {
       const inv = proStockData[p.id] || { qty: 0, mini: null };
-      const stock = Number(inv.qty) || 0;
-      const mini = inv.mini;
-      const aPartir = outBy[p.id] || 0;
-      let alertCls = '', dot = '';
-      if (mini != null && stock < Number(mini)) { alertCls = 'stock-red'; dot = '🔴 '; }
-      else if (mini != null) { alertCls = 'stock-green'; dot = '🟢 '; }
-      const condTxt = formatConditioning(p);
       let ctrl = '';
       if (proCatalogUnlocked) ctrl = '<div class="pat-chef-ctrl">'
         + '<button class="iconbtn-pat" onclick="proRemoveFromList(\'' + p.id + '\')" title="retirer de la liste">🗑</button>'
         + '<button class="iconbtn-pat" onclick="proEditProduct(\'' + p.id + '\')" title="modifier (nom, catégorie, conditionnement)">✏️</button>'
         + stockSortArrows(p.id, catPids) + '</div>';
-      html += '<div class="produit-row stock-row ' + alertCls + '">';
-      html += '<div><div class="produit-name">' + dot + escapeHtml(p.name) + '</div>'
-        + (condTxt ? '<div class="produit-unit">' + escapeHtml(condTxt) + '</div>' : '')
-        + ctrl
-        + '</div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectEntree(\'' + p.id + '\', this)">' + veignePatQtyOptions(null) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" style="font-weight:700" onchange="proSelectField(\'' + p.id + '\', \'qty\', this)">' + veignePatQtyOptions(stock) + '</select></div>';
-      html += '<div class="stock-cell"><select class="qty-input" onchange="proSelectField(\'' + p.id + '\', \'mini\', this)">' + veignePatQtyOptions(mini) + '</select></div>';
-      html += '<div class="stock-cell" style="text-align:center;font-weight:700;color:var(--orange);font-size:16px">' + (aPartir > 0 ? aPartir : '—') + '</div>';
-      html += stockProduitCell(p, proConsoWindow(p.id), 30);
-      html += stockFinCell(p, stock, proConsoWindow(p.id), 30);
-      html += '</div>';
+      items.push({ p: p, cat: cat, stock: Number(inv.qty) || 0, mini: inv.mini != null ? Number(inv.mini) : null,
+        consoF: proConsoWindow(p.id), joursF: 30, ctrl: ctrl, inactif: false });
     });
   });
-  html += '</div>';
+  html += stockHideEmptyBarHtml(nbStockMasquees);
+  html += sgGrilleHtml('boul_pro', items, function(c) { return CAT_LABELS[c] || c; });
 
   // Historique du jour (filtré sur created_at >= aujourd'hui)
   const today = todayISO();

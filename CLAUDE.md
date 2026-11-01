@@ -375,6 +375,28 @@ supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les
   Retour arrière : `data-backups/2026-11-01-tradition-graines-avant.json`.
   Tests : specs 54, 55 (+ specs 12 et 40 : plaquettes sur des tartes, tiroirs).
 
+**Écrans Stock refaits — congélo (v20.335, 01/11/2026, maquette `stock-congelo-mockup.html`, migration `migration-v20.335-stocks-congelo.sql`)** :
+Phil : « rentrer la prod du jour qui va au congélateur dans le stock et la décompter de la production du mois ou de la semaine ».
+- **Même grille** pour Stock Tourier, Stock Pât. et Stock Boul. Pro (`sgGrilleHtml`) : Produit (nom, unité, état en clair coloré) |
+  Stock (lecture seule) | **＋ mettre au congélo** (touches en caisses / sacs entiers, « … Autre ») | **Reste à faire** (barre, « fait / objectif »,
+  « dont 🥐 X frais »). Semaine / Mois + résumé « N à produire · N ok · N trop d'avance ». Retirés : menus Entrée / Stock / Mini, « À partir », légende.
+- ＋ = stock + production de la période (`stock_entries`), « +X aujourd'hui » sous le bouton, **↩️ Annuler** 6 s (`stockPadAdd`, `stockPadUndo`, `sgStockDelta`).
+- **Reste à faire = « ma prévision »** (`products.conso_mois_manuel`) − production ; sans prévision : « — · pas d'objectif ».
+  « Trop d'avance » seulement au-delà de la tenue au congélo **et** de la fin de période (avant, rien ne pouvait être vert en début de mois).
+- **📋 Compter le congélo** (tout le monde) : seule façon de changer le stock à la main ; écart gardé dans `stock_comptages` (prénom de la tablette).
+- **Réglages sans code** : appui long sur le nom (0,55 s) ou ⚙️ → prévision du mois, pièces par caisse/sac (`products.conditioning_qty` ;
+  Pât. : `veigne_pat_stock.unit_pieces`), Mini, tenue au congélo. ⚠️ les pièces par caisse valent partout (réassorts, pros) : averti en orange.
+- **Prod. Touriers — ❄️ du congélo / 🥐 plaqué frais** (Phil : « pas de jour fixe, je coche croissant / pain au chocolat et je valide le reste en sortie du
+  congélateur ») : bouton sous le nom de chaque ligne qui correspond à un produit du congélo tourier (même nom, fiche vente ≠ fiche réassort, `tourierStockPidFor`).
+  ❄️ par défaut. Quand la ligne part (✓, partiel, Tout valider) : ❄️ → congélo − pièces ÷ pièces par caisse (**caisses à virgule**) ;
+  🥐 → stock inchangé, compté en production (`stock_entries` screen `tourier_frais`). `production_done.congelo_mode / congelo_applique / congelo_qty` :
+  décocher ou changer d'avis défait. Avant, St-Avertin ne faisait jamais baisser le congélo (sa viennoiserie passe par Prod. Touriers, pas par « À préparer »).
+- **Boul. Pro : le stock baisse quand le livreur coche la livraison** (`proStockSortieCommande`, rejouable, remonte si décoché, pas deux fois avec un ancien
+  « ✓ préparé ») ; bloc « 💼 Pros du jour » à la place de « À préparer », « ✓ parti » pour les retraits.
+- **Stock Pât. : le stock baisse à l'envoi de la boutique** (`patDecompteEnvoi`) ; `reappros.stock_decompte_qty` = déjà retiré (renvoi = différence,
+  « ✓ préparé » ne retire que le reste). Stock Tourier (Veigné / Tours) : toujours au « ✓ préparé » (coché 232 fois sur 235 en octobre).
+- Test : spec 56.
+
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
 - **Numéro de commande du jour** : `special_orders.num_jour` / `fete_orders.num_jour`, donné à l'enregistrement, **par boutique de
   retrait (`origin_shop`) et par jour de retrait (`pickup_date`), spéciales et fêtes dans la même suite** (fonction SQL
