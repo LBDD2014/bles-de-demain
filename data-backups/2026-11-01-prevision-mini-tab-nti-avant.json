@@ -1,0 +1,5 @@
+{"products":
+[{"id":"nti","name":"Nougat de Tours Indiv.","conso_mois_manuel":600,"conditioning_unit":"caisse","conditioning_qty":60}, 
+ {"id":"tab","name":"Tartelette Abricot Pistache","conso_mois_manuel":400,"conditioning_unit":"grille","conditioning_qty":12}],"tourier_stock":
+[{"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"nti","stock":2,"mini":150,"updated_at":"2026-11-01T11:20:33.023+00:00","updated_by":"dev_u1jbrf"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"tab","stock":7,"mini":100,"updated_at":"2026-11-01T10:23:07.642+00:00","updated_by":"dev_u1jbrf"}]}

@@ -2936,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.335';
+const APP_VERSION  = 'v20.336';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -18127,16 +18127,30 @@ function sgEtat(p, stock, mini, consoF, joursF) {
   const j = Math.floor(stock / cj);
   const now = new Date();
   const dFin = new Date(now.getFullYear(), now.getMonth(), now.getDate() + j);
-  const finP = stockPeriodEnd();
+  // v20.336 — Semaine = les 7 prochains jours (le dimanche, « jusqu'à dimanche » ne laissait qu'un jour)
+  const finP = stockPeriodMode === 'semaine' ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + SG_SEMAINE_JOURS) : stockPeriodEnd();
   const joursFin = Math.round((finP - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
   const seuil = (p.stock_avance_max_jours != null ? Number(p.stock_avance_max_jours) : 21);
   if (dFin < finP) return { c: 'r1', t: '🔴 fini vers le ' + dFin.getDate() + ' ' + FINSTOCK_MOIS[dFin.getMonth()] + ' — à produire' };
+  // Semaine : le stock tient 7 jours mais passera sous le Mini → rouge aussi (sinon « 🟢 » à côté de « 14 à faire »)
+  if (stockPeriodMode === 'semaine' && mini != null && sgBesoinSemaine(p, stock, mini) > 0) return { c: 'r1', t: '🔴 sous le Mini (' + sgFq(mini) + ') d\'ici 7 jours — à produire' };
   // « trop d'avance » seulement au-delà de la tenue au congélo ET de la fin de période : en début de mois,
   // un stock qui tient juste jusqu'au 30 n'est pas « trop » (avant, rien ne pouvait être vert le 1er).
   if (j > Math.max(seuil, joursFin)) return { c: 'r3', t: '🟠 ' + (j >= 14 ? Math.round(j / 7) + ' semaines' : j + ' jours') + ' d\'avance — lever le pied' };
-  return { c: 'r2', t: '🟢 tient jusqu\'à la fin de ' + (stockPeriodMode === 'semaine' ? 'la semaine' : 'mois') };
+  return { c: 'r2', t: '🟢 tient ' + (stockPeriodMode === 'semaine' ? 'la semaine' : 'jusqu\'à la fin du mois') };
 }
-function sgResteHtml(p) {
+// v20.336 — Phil (01/11) : « il y a écrit à produire cette semaine partout alors qu'il y a des choses qui passent pour
+// cette semaine mais ça manque pour le mois ; ils n'ont pas besoin de tout produire cette semaine ».
+// Semaine = ce qu'il faut pour tenir 7 jours ET rester au-dessus du Mini, stock déduit (avant : prévision ÷ 4, stock ignoré).
+// Mois = prévision − production du mois (inchangé), rappelé en petit sous la semaine.
+const SG_SEMAINE_JOURS = 7;
+function sgBesoinSemaine(p, stock, mini) {
+  const prev = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0) ? Number(p.conso_mois_manuel) : null;
+  if (prev == null) return null;
+  const b = prev / 30.4 * SG_SEMAINE_JOURS + (mini != null ? Number(mini) || 0 : 0) - (Number(stock) || 0);
+  return b > 0.05 ? Math.ceil(b - 0.05) : 0;
+}
+function sgResteHtml(p, stock, mini) {
   const e = stockEntriesPeriod[p.id] || { sem: 0, mois: 0 };
   const f = stockFraisPeriod[p.id] || { sem: 0, mois: 0 };
   const sem = stockPeriodMode === 'semaine';
@@ -18145,7 +18159,17 @@ function sgResteHtml(p) {
   const frTxt = fr > 0 ? ' · <span class="sg-fr">dont 🥐 ' + sgFq(fr) + ' frais</span>' : '';
   const prev = (p.conso_mois_manuel != null && Number(p.conso_mois_manuel) > 0) ? Number(p.conso_mois_manuel) : null;
   if (prev == null) return '<div class="sg-raf"><span class="sg-big sg-muted">—</span><small>' + sgFq(fait) + ' fait' + (fait > 1 ? 's' : '') + ' ' + per + ' · pas d\'objectif' + frTxt + '</small></div>';
-  const obj = sem ? Math.round(prev * 7 / 30.4) : prev;
+  if (sem) {
+    const besoin = sgBesoinSemaine(p, stock, mini);
+    const resteMois = Math.max(0, prev - e.mois);
+    const moisTxt = resteMois > 0 ? sgFq(resteMois) + ' d\'ici fin ' + FINSTOCK_MOIS[new Date().getMonth()] : 'mois fait ✓';
+    const faitTxt = fait > 0 ? sgFq(fait) + ' fait' + (fait > 1 ? 's' : '') + ' cette semaine · ' : '';
+    if (besoin === 0) return '<div class="sg-raf ok"><span class="sg-big">✓ rien d\'urgent</span><small>' + faitTxt + moisTxt + frTxt + '</small></div>';
+    const pctS = Math.min(100, Math.round(fait / (fait + besoin) * 100));
+    return '<div class="sg-raf"><span class="sg-big">' + sgFq(besoin) + ' à faire</span>'
+      + '<div class="sg-barre"><i style="width:' + pctS + '%"></i></div><small>' + faitTxt + 'pour tenir 7 jours' + (mini ? ' + Mini' : '') + ' · ' + moisTxt + frTxt + '</small></div>';
+  }
+  const obj = prev;
   const reste = Math.max(0, obj - fait), pct = obj > 0 ? Math.min(100, Math.round(fait / obj * 100)) : 100;
   return '<div class="sg-raf' + (reste === 0 ? ' ok' : '') + '"><span class="sg-big">' + (reste === 0 ? '✓ fait' : sgFq(reste) + ' à faire') + '</span>'
     + '<div class="sg-barre"><i style="width:' + pct + '%"></i></div><small>' + sgFq(fait) + ' / ' + sgFq(obj) + ' ' + per + frTxt + '</small></div>';
@@ -18170,7 +18194,7 @@ function sgGrilleHtml(screen, items, catLabel) {
       + (e.t ? '<small class="sg-etat ' + e.c + '">' + e.t + '</small>' : '') + (it.ctrl || '') + '</div>'
       + '<div class="sg-stk' + (it.stock < 0 ? ' neg' : '') + '">' + sgFq(it.stock) + '<small>' + escapeHtml(it.stock > 1 || it.stock < -1 ? u.pl : u.nom) + '</small></div>'
       + '<button class="sg-plus' + (auj ? ' fait' : '') + '" onclick="openStockPad(\'' + p.id + '\')">＋<small>' + (auj ? '+' + sgFq(auj) + ' aujourd\'hui' : 'mettre au congélo') + '</small></button>'
-      + sgResteHtml(p)
+      + sgResteHtml(p, it.stock, it.mini)
       + '</div>';
   });
   h += '<div class="sg-resume"><span class="r1"><b>' + n.r1 + '</b> à produire</span><span class="r2"><b>' + n.r2 + '</b> ok</span><span class="r3"><b>' + n.r3 + '</b> trop d\'avance</span></div>';

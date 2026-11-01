@@ -60,6 +60,24 @@ export const tests = [
     },
   },
   {
+    name: 'v20.336 — Semaine = ce qu\'il faut pour tenir 7 jours + Mini, stock déduit ; stock suffisant = « ✓ rien d\'urgent » (le mois reste rappelé)',
+    fn: async (ctx) => {
+      const page = await ecran(ctx, 'local', 'stock_tour');
+      await page.evaluate(() => setStockPeriodMode('semaine'));
+      // 60 caisses / mois → 13,8 sur 7 jours + Mini 4 − stock 10 = 7,8 → 8
+      let row = (await txt(page, '.sg-row'))[0];
+      assert(/8 à faire/.test(row) && /pour tenir 7 jours \+ Mini/.test(row) && /60 d'ici fin juil/.test(row), 'stock court : ' + row);
+      assert((await txt(page, '.sg-head > span'))[3] === 'Reste à faire cette semaine', 'en-tête semaine');
+      await page.evaluate(() => { tourierStockData.cro_reap.stock = 30; renderStock(); });
+      row = (await txt(page, '.sg-row'))[0];
+      assert(/✓ rien d'urgent/.test(row) && /60 d'ici fin juil/.test(row) && /tient la semaine/.test(row) && !/à faire/.test(row.replace(/d'ici/, '')), 'stock suffisant : ' + row);
+      await page.evaluate(() => setStockPeriodMode('mois'));
+      row = (await txt(page, '.sg-row'))[0];
+      assert(/60 à faire/.test(row) && /0 \/ 60 ce mois/.test(row), 'le mois ne change pas : ' + row);
+      await page.close();
+    },
+  },
+  {
     name: 'Réglages sans code — prévision +1, pièces par caisse 78, Mini +1 : enregistrés pour tout le monde',
     fn: async (ctx) => {
       const page = await ecran(ctx, 'local', 'stock_tour');
