@@ -1,0 +1,287 @@
+{
+ "pros": [
+  {
+   "id": "dakota_cafe",
+   "catalogue_restreint": [
+    "bp_trg",
+    "pain_hotdog_90g_bvoaav",
+    "vp_bur",
+    "vp_tra"
+   ]
+  },
+  {
+   "id": "boui_boui",
+   "catalogue_restreint": [
+    "vp_mat",
+    "vp_tra",
+    "bp_trg"
+   ]
+  },
+  {
+   "id": "bon_d_ici",
+   "catalogue_restreint": [
+    "tradition_bio",
+    "integral_zc0rc2",
+    "vp_ide",
+    "vp_ess",
+    "bp_trg",
+    "vp_tra"
+   ]
+  },
+  {
+   "id": "kami",
+   "catalogue_restreint": [
+    "vp_bord",
+    "vp_tra",
+    "bp_trg"
+   ]
+  },
+  {
+   "id": "qg_de_loulou",
+   "catalogue_restreint": [
+    "bp_trg",
+    "paton_pizza",
+    "vp_bur",
+    "vp_tra",
+    "demi_tradition"
+   ]
+  },
+  {
+   "id": "dakota_cafe_chambray_les_tours",
+   "catalogue_restreint": [
+    "bp_trg",
+    "pain_hotdog_90g_bvoaav",
+    "vp_bur",
+    "vp_tra"
+   ]
+  },
+  {
+   "id": "philippe",
+   "catalogue_restreint": [
+    "baguette_epeautre_copie_m85uvj",
+    "bgm",
+    "bp_dtg",
+    "bp_frutr",
+    "bp_gpmie",
+    "bp_mat15",
+    "bp_mat250",
+    "bp_ppblanc",
+    "bp_ppfred",
+    "bp_ppgr",
+    "bp_trg",
+    "brf",
+    "brfg",
+    "brioche_feuilletee_copie_3ax13q",
+    "canneles_copie_11bqj6",
+    "cca",
+    "cco",
+    "chap_c",
+    "chap_r",
+    "chv",
+    "cnc",
+    "croissant_amandes_copie_bnn2ok",
+    "croissant_copie_agfl3j",
+    "croissant_copie_xdnqbw",
+    "eca",
+    "ech",
+    "fingers_noisettes_copie_430e5a",
+    "fl4",
+    "fl6",
+    "flan_4_pers_copie_d4w846",
+    "flan_6_pers_copie_e1mdqo",
+    "fro",
+    "fruit_rouge_copie_avsrk9",
+    "mcr",
+    "mpc",
+    "mpr",
+    "nougat_de_tours_indiv_co_gwzp85",
+    "ntg",
+    "nti",
+    "pain_au_chocolat_copie_hixttx",
+    "pain_burger_70g_ax8dub",
+    "pain_burger_70g_sg",
+    "pain_de_mie_uxac3x",
+    "pain_hotdog_90g_bvoaav",
+    "pain_suisse_copie_kvxgcm",
+    "par",
+    "pbr",
+    "pde",
+    "pdm",
+    "psu",
+    "roy",
+    "rpl",
+    "sbi",
+    "tab",
+    "tap",
+    "tartelette_fraise_copie_dxcpzp",
+    "tcm",
+    "tourte_de_meule_copie_ocxdc5",
+    "tpo",
+    "tradition_graines_precuite",
+    "tradition_surgelee",
+    "vgo",
+    "viennoise_chocolat_copie_c4syou",
+    "viennoise_nature_copie_52cp6e",
+    "viennoise_nature_copie_9u5mgl",
+    "vp_aut",
+    "vp_bla",
+    "vp_bord",
+    "vp_bur",
+    "vp_cha",
+    "vp_cia",
+    "vp_epe",
+    "vp_ess",
+    "vp_fic",
+    "vp_fig",
+    "vp_fru",
+    "vp_ide",
+    "vp_int",
+    "vp_kho",
+    "vp_mai",
+    "vp_mat",
+    "vp_mie",
+    "vp_moi",
+    "vp_noi",
+    "vp_nor",
+    "vp_ord",
+    "vp_pep",
+    "vp_sar",
+    "vp_sci",
+    "vp_sei",
+    "vp_tme",
+    "vp_tra",
+    "vp_trg",
+    "vpg_abp",
+    "vpg_ccar",
+    "vpg_eca",
+    "vpg_ecl",
+    "vpg_pbr",
+    "vpg_tci",
+    "vpg_tfr",
+    "vpg_vig",
+    "vv_bca",
+    "vv_bfe",
+    "vv_bfg",
+    "vv_bga",
+    "vv_chr",
+    "vv_cro",
+    "vv_edb",
+    "vv_kou",
+    "vv_pch",
+    "vv_pra",
+    "yus"
+   ]
+  }
+ ],
+ "pro_order_items": [
+  {
+   "id": "86163b35-6459-4001-824d-98446621eb08",
+   "pro_order_id": "27da67b9-f1ed-4009-a48d-ed855a4eab54",
+   "product_id": "bp_trg",
+   "qty": 20,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "5644f73e-338c-49d6-b88d-272f3a836c29",
+   "pro_order_id": "aee2e74d-2af7-4b2f-8f6c-fb09ed670ae6",
+   "product_id": "bp_trg",
+   "qty": 50,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "05d13154-8962-4d9c-9cf8-06296b4b323b",
+   "pro_order_id": "729c806b-3779-4f4c-abf2-8c48ce366dae",
+   "product_id": "bp_trg",
+   "qty": 25,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "4c4208ea-d4bf-4036-a383-13516d9c7dc3",
+   "pro_order_id": "fd1e0867-11f7-4213-ad25-8e7e123a2fbf",
+   "product_id": "bp_trg",
+   "qty": 20,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "44605ad6-733f-4bb3-af4b-6a7ab416f36c",
+   "pro_order_id": "1d1adc28-abaa-4268-b474-f4fae6cf9588",
+   "product_id": "bp_trg",
+   "qty": 25,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "5bfe4754-abfb-4b7f-9ede-c24987c5a23d",
+   "pro_order_id": "fe41ce05-d1a9-4f65-90e0-37ab478ff6ae",
+   "product_id": "bp_trg",
+   "qty": 20,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "dc530f2e-8fef-499c-8016-8340ab17e91a",
+   "pro_order_id": "e5fb2069-bb17-488e-8ce0-03ad8a94ea64",
+   "product_id": "bp_trg",
+   "qty": 25,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "bf195f1c-4b7e-4cdb-8135-bfd6a354b79f",
+   "pro_order_id": "eb890a5d-7c3a-44e0-aabb-8b42b3e9631a",
+   "product_id": "bp_trg",
+   "qty": 25,
+   "prix_applique": null,
+   "prepared_at": null,
+   "prepared_by": null
+  }
+ ],
+ "product": [
+  {
+   "id": "bp_trg",
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "name": "Tradition graines",
+   "category": "pains",
+   "unit": null,
+   "boutique_restriction": null,
+   "actif": true,
+   "created_at": "2026-06-09T14:48:28.965027+00:00",
+   "usage": "reappro",
+   "prix_cession": null,
+   "pces_per_caisse": null,
+   "supply_by_boutique": {},
+   "seuil_stock": null,
+   "pros_only_id": null,
+   "conditioning_unit": null,
+   "conditioning_qty": null,
+   "doit_avoir_par_boutique": {},
+   "suivi_stock_pro": true,
+   "tourier_actif": true,
+   "stock_sort": null,
+   "conso_mois_manuel": null,
+   "stock_avance_max_jours": null,
+   "decoupe_config": null
+  }
+ ],
+ "pro_stock": [
+  {
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "product_id": "bp_trg",
+   "qty": 0,
+   "updated_at": "2026-10-31T10:09:02.903+00:00",
+   "updated_by": "dev_59arl5",
+   "mini": null
+  }
+ ]
+}

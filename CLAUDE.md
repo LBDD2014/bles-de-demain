@@ -368,7 +368,11 @@ supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les
   sur un total = détail client. Résultat mesuré à Veigné (31/10) : la grille commence à ~660 px au lieu de ~3 000.
 - **Coche ✓ « fait »** gardée partout (Phil, 31/10 : « je vais leur demander de s'y mettre, mais c'est juste pour les aider, pas de mal
   s'ils ne le font pas »). Utilisée 29 j/31 au Local, 4 j à Veigné, 1 j à Tours en octobre.
-- Reste noté : « Tradition graines » (pros) et « Tradition Graines » côte à côte au Local.
+- **Tradition Graines : une seule fiche (01/11/2026, données seulement)** : Phil : « c'est bien des Tradition Graines cuites du matin,
+  sauf s'il y a écrit précuite surgelée ». L'ancienne fiche réassort `bp_trg` « Tradition graines » est **désactivée** ; les 7 fiches pros
+  qui l'avaient (Dakota ×2, Boui Boui, Bon d'Ici, Kami, QG de Loulou, philippe) et ses 8 lignes de commandes pointent `vp_trg`.
+  Prod. Boulangers du Local : une ligne, la part pros dans 💼 Pros (détail par pro d'un appui). `tradition_graines_precuite` (surgelée) inchangée.
+  Retour arrière : `data-backups/2026-11-01-tradition-graines-avant.json`.
   Tests : specs 54, 55 (+ specs 12 et 40 : plaquettes sur des tartes, tiroirs).
 
 **Tickets Brother QL-820NWB, numéro du jour, récap du jour (v20.305, 29/10/2026)** :
