@@ -234,6 +234,16 @@ commandes qu'il livre, Local et Veigné), `mise_en_compte_by = 'livreur'`. **Pop
 liste + bouton 💶 par commande + « Plus tard ») : à la **dernière livraison pro cochée** du jour, et à l'ouverture de la
 Tournée **à partir de 17h**, une fois par jour. Le Local garde sa ligne dans le bandeau. Test : spec 47.
 
+**Pros — « 📦 Les pros commandent par colis » (v20.340, 05/11/2026, cas Terre y Fruits)** : la fiche « Nougat de Tours Indiv. » est en
+caisse de 60 pour le congélo tourier (v20.335) et, depuis la v20.275, un conditionnement sur la fiche s'imposait AUSSI aux pros (compteur pro.html
+en colis) → Terre y Fruits tapait 10 et la commande enregistrait 600 (1500 le 28/10 ; Prod. Touriers a retiré 10 caisses du congélo le 05/11).
+Désormais `products.pros_colis` (case « Pros » sur la fiche, BackOffice → Produits, édition et création) : **cochée = les pros commandent par
+colis** (`proPackOf` / `packOf` de pro.html), décochée = pièces même si la fiche a un conditionnement. Cochée d'office par la migration
+`migration-v20.340-pros-colis.sql` pour les 6 produits du Relais d'Amboise seulement (Phil, 09/11 : les Minis restent à la pièce pour les pros ;
+règle générale : les pros des touriers commandent à la pièce, sauf ceux qui prennent du surgelé en caisse/sac). Données corrigées le 05/11 (600 → 10,
+1500 → 25, stock nti −5 → 4,83, `production_done` 05/11 remis à 10 / 0,17 caisse ; sauvegarde `data-backups/2026-11-05-nougat-terre-y-fruit-avant.json`).
+Test : spec 38. Tout nouvel écran pro qui compte des colis passe par `proPackOf` / `packOf`, jamais par `conditioning_qty` directement.
+
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
 farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme

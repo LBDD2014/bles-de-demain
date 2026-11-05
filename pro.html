@@ -221,7 +221,9 @@ function inCatalogue(etab, pid) { return catalogueOf(etab).some(function(p) { re
 function productName(pid) { const p = products.find(function(x) { return x.id === pid; }); return p ? p.name : pid; }
 // v20.275 — conditionnement imposé (fiche produit : caisse de 8, sac de 20…) : le compteur compte des colis, la commande reste en pièces
 function prodOf(pid) { return products.find(function(x) { return x.id === pid; }); }
-function packOf(p) { if (!p || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
+// v20.340 — colis seulement si la fiche dit « les pros commandent par colis » (pros_colis) : une caisse de 60 posée
+// pour le congélo ne doit pas transformer « 10 » nougats en 600.
+function packOf(p) { if (!p || !p.pros_colis || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
 function packWord(p, n) { return (p.conditioning_unit || 'colis') + (n > 1 ? 's' : ''); }
 function packLabel(p) { const pk = packOf(p); return pk ? packWord(p, 1) + ' de ' + pk + ' pièces' : (p.unit || 'pièce'); }
 function fmtQty(p, pieces) { const pk = packOf(p); if (!pk) return String(pieces); const c = Math.round(pieces / pk * 100) / 100; return c + ' ' + packWord(p, c) + ' (' + pieces + ' p.)'; }

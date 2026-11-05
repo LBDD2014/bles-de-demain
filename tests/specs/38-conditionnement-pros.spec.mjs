@@ -13,10 +13,12 @@ const JOURS = { mardi: { actif: true, livraison: '09:30', butoir_decalage: -1, b
 
 function dbRelais() {
   const db = makeDB();
-  db.products.push({ id: 'kho_800', tenant_id: T, name: 'Khorasan 800 g précuit surgelé', category: 'pains', actif: true, usage: 'reappro', conditioning_unit: 'caisse', conditioning_qty: 8, supply_by_boutique: {} });
-  db.products.push({ id: 'trad_surg', tenant_id: T, name: 'Tradition précuite surgelée', category: 'pains', actif: true, usage: 'reappro', conditioning_unit: 'sac', conditioning_qty: 20, supply_by_boutique: {} });
+  db.products.push({ id: 'kho_800', tenant_id: T, name: 'Khorasan 800 g précuit surgelé', category: 'pains', actif: true, usage: 'reappro', conditioning_unit: 'caisse', conditioning_qty: 8, pros_colis: true, supply_by_boutique: {} });
+  db.products.push({ id: 'trad_surg', tenant_id: T, name: 'Tradition précuite surgelée', category: 'pains', actif: true, usage: 'reappro', conditioning_unit: 'sac', conditioning_qty: 20, pros_colis: true, supply_by_boutique: {} });
+  // v20.340 — caisse de 60 posée pour le congélo tourier, mais les pros la commandent à la pièce (pros_colis absent)
+  db.products.push({ id: 'nougat_i', tenant_id: T, name: 'Nougat de Tours Indiv.', category: 'viennoiserie', actif: true, usage: 'reappro', conditioning_unit: 'caisse', conditioning_qty: 60, supply_by_boutique: {} });
   db.pros = [
-    { id: 'relais', tenant_id: T, nom: 'Le Relais d\'Amboise', actif: true, boutique_principale: 'local', groupe: null, magic_token: 'tok_relais', contacts: [{ nom: 'Marc', tel: '0600000000' }], jours_livraison: JOURS, catalogue_restreint: ['kho_800', 'trad_surg', 'vp_croissant'] },
+    { id: 'relais', tenant_id: T, nom: 'Le Relais d\'Amboise', actif: true, boutique_principale: 'local', groupe: null, magic_token: 'tok_relais', contacts: [{ nom: 'Marc', tel: '0600000000' }], jours_livraison: JOURS, catalogue_restreint: ['kho_800', 'trad_surg', 'vp_croissant', 'nougat_i'] },
   ];
   // jeudi 16/07 livrée : 16 khorasan (= 2 caisses) + 10 croissants → « la dernière fois »
   db.pro_orders = [{ id: 'o1', tenant_id: T, pro_id: 'relais', date_livraison: '2026-07-16', boutique_source: 'local', statut: 'livre', created_by: 'pro_self:Marc' }];
@@ -67,6 +69,39 @@ export const tests = [
       await page.waitForTimeout(200);
       const saved = await page.evaluate(() => window.__mockDB.pro_order_items.filter((i) => window.__mockDB.pro_orders.find((o) => o.id === i.pro_order_id && o.date_livraison > '2026-07-20')).map((i) => i.product_id + ':' + i.qty).sort().join(','));
       assert(saved === 'kho_800:24,trad_surg:60,vp_croissant:10', 'enregistré en pièces : ' + saved);
+      await page.close();
+    },
+  },
+  {
+    name: 'Page pro — v20.340 : caisse de 60 sur la fiche (congélo) SANS « pros par colis » → à la pièce : tape 10 = 10 nougats, pas 600',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbRelais() });
+      await page.goto('http://127.0.0.1:8787/pro.html?t=tok_relais');
+      await page.waitForFunction(() => document.querySelector('.hello'));
+      await page.evaluate(() => { document.querySelector('#tabs button:nth-child(2)').click(); });
+      await page.waitForFunction(() => document.querySelector('.prow'));
+      const r = await page.evaluate(() => {
+        const row = Array.from(document.querySelectorAll('.prow')).find((p) => /Nougat/.test(p.querySelector('.nm').textContent));
+        setQty('relais', 'nougat_i', 10); bump('relais', 'nougat_i', 1);
+        return { small: row.querySelector('.nm small').textContent, qty: draft.qty.relais.nougat_i, inp: document.getElementById('q_relais_nougat_i').value, pack: packOf(prodOf('nougat_i')) };
+      });
+      assert(r.pack === 0 && /pièce/.test(r.small) && !/caisse/.test(r.small), 'nougat à la pièce : ' + JSON.stringify(r));
+      assert(r.qty === 11 && r.inp === '11', 'tape 10 puis + = 11 pièces (pas 660) : ' + JSON.stringify(r));
+      await page.close();
+    },
+  },
+  {
+    name: 'App équipe — proPackOf : colis seulement avec pros_colis (caisse de 60 sans la case = 0, caisse de 8 avec la case = 8)',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: dbRelais() });
+      await page.goto('http://127.0.0.1:8787/index-cloud-test.html');
+      await page.waitForFunction(() => typeof proPackOf === 'function');
+      const r = await page.evaluate(() => ({
+        nougat: proPackOf({ conditioning_unit: 'caisse', conditioning_qty: 60 }),
+        kho: proPackOf({ conditioning_unit: 'caisse', conditioning_qty: 8, pros_colis: true }),
+        piece: proPackOf({ conditioning_unit: 'piece', conditioning_qty: 1, pros_colis: true }),
+      }));
+      assert(r.nougat === 0 && r.kho === 8 && r.piece === 0, JSON.stringify(r));
       await page.close();
     },
   },

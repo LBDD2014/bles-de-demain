@@ -1,0 +1,50 @@
+{
+ "items": [
+  {
+   "id": "545df802-ff88-4789-b250-38ba86de7bf2",
+   "pro_order_id": "48eb2bad-0452-4b00-a809-76fcdfe9c9d2",
+   "product_id": "nti",
+   "qty": 1500,
+   "prix_applique": 2.18,
+   "prepared_at": null,
+   "prepared_by": null
+  },
+  {
+   "id": "0ef9ec2a-e1e2-44e6-818e-81df281d45da",
+   "pro_order_id": "4cced5b2-00e0-4050-a6db-7134c12f6d46",
+   "product_id": "nti",
+   "qty": 600,
+   "prix_applique": 2.18,
+   "prepared_at": null,
+   "prepared_by": null
+  }
+ ],
+ "stock": [
+  {
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "product_id": "nti",
+   "stock": -5,
+   "mini": 2.5,
+   "updated_at": "2026-11-05T04:21:04.88+00:00",
+   "updated_by": "dev_gp29v5"
+  }
+ ],
+ "prod": [
+  {
+   "tenant_id": "00000000-0000-0000-0000-000000000001",
+   "site": "local",
+   "service_date": "2026-11-05",
+   "product_id": "nti",
+   "done_at": "2026-11-05T04:21:04.88+00:00",
+   "done_by": "dev_gp29v5",
+   "updated_at": "2026-11-05T04:21:04.88+00:00",
+   "qty_envoyee": 600,
+   "qty_total": 600,
+   "nb_envois": 1,
+   "reste_heure": null,
+   "congelo_mode": null,
+   "congelo_applique": "congelo",
+   "congelo_qty": 10
+  }
+ ]
+}

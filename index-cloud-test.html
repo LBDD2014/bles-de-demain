@@ -2936,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.339';
+const APP_VERSION  = 'v20.340';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11248,6 +11248,7 @@ actif: true,
 supply_by_boutique: {},
 pros_only_id: d.pros_only_id || null,  // v21.0.3.2 — produit sur mesure
 conditioning_unit: condUnit,           // v20.33
+pros_colis: !!d.pros_colis,            // v20.340
 conditioning_qty: condQtyClean         // v20.33
 };
 const { data: ins, error } = await supa.from('products').insert(row).select();
@@ -11357,6 +11358,7 @@ const usageEl = document.getElementById('edit-usage-' + pid);
 const prosOnlyEl = document.getElementById('edit-pros-only-' + pid);
 const condUnitEl = document.getElementById('edit-cond-unit-' + pid);
 const condQtyEl = document.getElementById('edit-cond-qty-' + pid);
+const prosColisEl = document.getElementById('edit-pros-colis-' + pid);   // v20.340
 if (!nameEl || !catEl || !usageEl) return;
 const name = nameEl.value.trim();
 const category = catEl.value.trim();
@@ -11411,6 +11413,7 @@ const updateFields = {
   doit_avoir_par_boutique: doit_avoir_par_boutique  // v20.34
 };
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
+if (prosColisEl) updateFields.pros_colis = !!prosColisEl.checked;   // v20.340
 if (suivi_stock_pro !== undefined) updateFields.suivi_stock_pro = suivi_stock_pro;
 if (decoupe_config !== undefined) updateFields.decoupe_config = decoupe_config; // v20.175
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
@@ -15671,7 +15674,9 @@ function handleProOrderField(field, val) {
 }
 
 // v20.275 — conditionnement imposé sur la fiche produit (caisse de 8, sac de 20…) : commande pro arrondie au colis supérieur
-function proPackOf(p) { if (!p || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
+// v20.340 — le conditionnement n'impose des colis aux pros que si la fiche le dit (products.pros_colis) :
+// une caisse de 60 posée pour le congélo (Nougat indiv.) ne doit pas transformer « 10 » en 600.
+function proPackOf(p) { if (!p || !p.pros_colis || !p.conditioning_unit || ['kg', 'L', 'piece'].indexOf(p.conditioning_unit) !== -1) return 0; const q = Number(p.conditioning_qty); return q > 1 ? q : 0; }
 function snapProOrderItemQty(idx) {
   if (!proOrderDraft || !proOrderDraft.items[idx]) return;
   const it = proOrderDraft.items[idx];
@@ -16573,6 +16578,7 @@ html += '<div class="new-prod-form">'
 + '</select>'
 + '<input type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(String(adminNewProductDraft.conditioning_qty || '')) + '" placeholder="qty" oninput="handleNewProductField(\'conditioning_qty\', this.value)">'
 + '</div></div>'
++ '<div class="npf-row"><label class="npf-lbl">Pros</label><label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox"' + (adminNewProductDraft.pros_colis ? ' checked' : '') + ' onchange="handleNewProductField(\'pros_colis\', this.checked)"> 📦 Les pros commandent par colis (caisse / sac entier)</label></div>'
 + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
 + '<select class="npf-input" onchange="handleNewProductField(\'usage\', this.value)">'
 + '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
@@ -16684,6 +16690,8 @@ if (isEditing) {
     + '</select>'
     + '<input id="edit-cond-qty-' + p.id + '" type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(p.conditioning_qty == null ? '' : String(p.conditioning_qty)) + '" placeholder="qty">'
     + '</div></div>'
+    // v20.340 — les pros commandent-ils par colis ? (sinon le conditionnement ne sert qu'au congélo / aux réassorts)
+    + '<div class="npf-row"><label class="npf-lbl">Pros</label><label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" id="edit-pros-colis-' + p.id + '"' + (p.pros_colis ? ' checked' : '') + '> 📦 Les pros commandent par colis (caisse / sac entier)</label></div>'
     // v20.34 — Cibles de stock par boutique (doit avoir)
     + '<div class="npf-row"><label class="npf-lbl">Cibles "doit avoir"</label>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1">'
@@ -18107,7 +18115,7 @@ async function editConsoMois(pid) {
    · Reste à faire = prévision du mois (products.conso_mois_manuel, « ma prévision ») − production
      (v20.338 : − stock reporté du 1er du mois, table stock_report_mois).
    · Réglages par appui long sur le nom (ou ⚙️), SANS code : prévision, pièces par caisse/sac,
-     Mini, tenue au congélo. Les pièces par caisse servent partout (réassorts, pros) : averti en orange.
+     Mini, tenue au congélo. Les pièces par caisse servent partout (réassorts ; pros seulement si products.pros_colis, v20.340) : averti en orange.
    · Retirés : Entrée / Stock / Mini en menus, « À partir », la légende de 6 lignes.
    ============================================================ */
 const SG_SCREEN_FRAIS = 'tourier_frais';   // stock_entries : 🥐 plaqués frais (Prod. Touriers)
@@ -18373,7 +18381,7 @@ function sgReglagesRender() {
   if (u.condField) {
     const contenant = screen === 'veigne_pat' ? u.nom : (u.sac || u.nom);
     h += ligne('Pièces par ' + escapeHtml(contenant), 'les touches du ＋ et les commandes', 'cond', u.par != null ? contenant + ' de ' + u.par : '—');
-    if (screen !== 'veigne_pat') h += '<div class="sg-warn">⚠️ Les ' + escapeHtml(SG_PLURIELS[contenant] || contenant) + ' servent aussi aux commandes des boutiques et des pros : un changement vaut <b>partout</b>, tout de suite.</div>';
+    if (screen !== 'veigne_pat') h += '<div class="sg-warn">⚠️ Les ' + escapeHtml(SG_PLURIELS[contenant] || contenant) + ' servent aussi aux commandes des boutiques (et aux pros si la fiche dit « par colis ») : un changement vaut <b>partout</b>, tout de suite.</div>';
   }
   h += ligne('Mini', 'en dessous = rouge, même si le mois est fait', 'mini', mini != null ? sgFq(mini) : '—');
   h += ligne('Tient au congélo', 'au-delà = orange « trop d\'avance »', 'tol', tol + ' jours');
