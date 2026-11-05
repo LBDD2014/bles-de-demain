@@ -462,6 +462,15 @@ Phil : « rentrer la prod du jour qui va au congélateur dans le stock et la dé
 Croissant 77 / Pain choc 130 / Pain raisin 80 / Suisse 60 / Tartelettes 12 / Cannelé 170 / Chausson aux pommes 80 /
 Croissant amandes 72 / Minis (croissant, pain choc, pain raisin) sac de 50 / Flan 6 pers. grille de 4 / Flan 4 pers. grille de 6.
 (Chausson 80 validé par les prévis des semaines passées, 13/10/2026.) Source de vérité = fiche produit en BackOffice (`pces_per_caisse` + `conditioning_*`).
+**v20.339 (05/11/2026) — le menu « caisse » des boutiques enregistre des CAISSES** : une fiche avec `pces_per_caisse` **et** un
+contenant (`conditioning_unit` caisse / sac / grille / carton / seau) → « 1/2 caisse (40 pces) / 1 caisse (80 pces) » enregistre 0,5 / 1
+dans `reappros.commander` (`reapproCmdEnCaisses`), comme le Croissant (menu 0-50) ; le « (N pces) » vient de `conditioning_qty`. Sans
+contenant (crêpes) : pièces comme avant. Avant : « 1 caisse » de Suisse enregistrait 60 → le congélo tourier du Local (compté en caisses)
+retirait 60 caisses au « ✓ préparé » (Suisse à −50, Chaussons à −38 le 05/11). Lignes du 15/10 → 06/11 converties en base (80→1, 40→0,5,
+60→1, 50→1 ; sauvegarde `data-backups/2026-11-05-reappros-caisses-avant.json`), stocks remis (Suisse 8,43 ; Chaussons 1,35).
+Règle : **tout ce qui entre au congélo tourier du Local se commande et se compte dans l'unité de la fiche** ; une vieille valeur en
+pièces s'affiche « 60 caisses ⚠️ à vérifier ». **Matin des Ventes** (fiches vendues ET commandées, ex. Chaussons) : la commande de la veille
+est multipliée par les pièces par caisse avant de pré-remplir (1 caisse → 80). Phil (05/11) : les menus tels qu'ils étaient lui plaisaient, pas de refonte. Test : spec 57. ⚠️ Fiche Cannelés `vv_can` : 170 par caisse d'un côté, caisse de 140 de l'autre, à trancher.
 
 ## Workflow déploiement
 

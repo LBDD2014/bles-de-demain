@@ -2936,7 +2936,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.338';
+const APP_VERSION  = 'v20.339';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -5456,13 +5456,17 @@ return a.name.localeCompare(b.name);
 });
 }
 
-function caisseOptions(pcesPerCaisse) {
+// v20.339 — enCaisses : la valeur enregistrée est le nombre de caisses (0.5, 1, 2…), pas les pièces.
+// C'est l'unité du congélo du Local (Croissant « 4 caisse de 77 » depuis toujours) : 1 caisse de Suisse
+// enregistrée « 60 » y faisait −60 caisses au « ✓ préparé ». `unite` = caisse / sac / grille de la fiche.
+function caisseOptions(pcesPerCaisse, enCaisses, unite) {
 // Retourne les options pour un menu deroulant caisse/pces
+const u = unite || 'caisse', pl = (typeof SG_PLURIELS !== 'undefined' && SG_PLURIELS[u]) || (u + 's');
 const opts = [{ val: '', lbl: '-' }];
 [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach(function(n) {
 const pces = n * pcesPerCaisse;
-const caisseLbl = n === 0.5 ? '1/2 caisse' : (n + ' caisse' + (n > 1 ? 's' : ''));
-opts.push({ val: String(pces), lbl: caisseLbl + ' (' + Math.round(pces) + ' pces)' });
+const caisseLbl = n === 0.5 ? '1/2 ' + u : (n + ' ' + (n > 1 ? pl : u));
+opts.push({ val: String(enCaisses ? n : pces), lbl: caisseLbl + ' (' + Math.round(pces) + ' pces)' });
 });
 return opts;
 }
@@ -5882,10 +5886,21 @@ html += '</div>';
 return html;
 }
 
+// v20.339 — la commande de ce produit s'enregistre-t-elle en caisses ? Oui quand la fiche a « pièces par
+// caisse » ET un contenant (caisse / sac / grille / carton / seau) : c'est l'unité du congélo tourier du Local.
+// Sans contenant (crêpes), on reste en pièces comme avant.
+const REAPPRO_CONTENANTS = ['caisse', 'sac', 'grille', 'carton', 'seau'];
+function reapproCmdEnCaisses(p) {
+  if (!p || !(Number(p.pces_per_caisse) > 0)) return false;
+  return REAPPRO_CONTENANTS.indexOf(p.conditioning_unit) !== -1 && Number(p.conditioning_qty) > 0;
+}
 function renderReapproRow(p, type, planKey) {
 const val = reapprosData[p.id] || { avoir: '', commander: '', previs: '', sent_at: null };
 const isSent = !!val.sent_at;
 const pceC = p.pces_per_caisse ? Number(p.pces_per_caisse) : null;
+// v20.339 — fiche avec un contenant (caisse / sac / grille…) : on commande et on enregistre EN CAISSES,
+// comme le congélo du Local les compte ; le « (N pces) » du menu vient de la fiche (conditioning_qty).
+const cmdEnCaisses = reapproCmdEnCaisses(p);
 // v20.75 — produit commandé à Veigné (pâtisserie) : on récupère son unité réelle (grille de 28/50, pièce…) depuis le stock pâtissier
 const isVeignePat = getProductSupply(p, currentBoutique) === 'veigne';
 // v20.79 — unité réelle (grille de 28/50, pièce) depuis le stock pâtissier, même si supply = on_site (cas Veigné)
@@ -5919,16 +5934,19 @@ function renderReapproField(field, currentVal, placeholder, isCmd) {
   const cls = 'qty-input ' + (isCmd ? 'cmd ' : '') + (currentVal ? 'has-value' : '');
   if (pceC && pceC > 0) {
     // Mode caisse : select avec multiples de caisse + option custom si valeur hors liste
-    const opts = caisseOptions(pceC).map(function(o) { return { val: o.val, lbl: o.lbl }; });
+    const opts = caisseOptions(cmdEnCaisses ? Number(p.conditioning_qty) : pceC, cmdEnCaisses, cmdEnCaisses ? p.conditioning_unit : null).map(function(o) { return { val: o.val, lbl: o.lbl }; });
     opts[0].lbl = placeholder; // override "-" par "J'ai" / "À cmd"
     let h = '<select class="' + cls + ' caisse-select" data-pid="' + p.id + '" data-field="' + field + '" onchange="handleReapproInput(this)">';
+    const cvNum = parseQty(currentVal);
     opts.forEach(function(o) {
-      const selected = (String(currentVal) === o.val) ? ' selected' : '';
+      const selected = (currentVal !== '' && currentVal != null && parseQty(o.val) === cvNum && o.val !== '') ? ' selected' : '';
       h += '<option value="' + escapeHtml(o.val) + '"' + selected + '>' + escapeHtml(o.lbl) + '</option>';
     });
-    const exists = opts.some(function(o) { return o.val === String(currentVal); });
+    const exists = opts.some(function(o) { return o.val !== '' && parseQty(o.val) === cvNum; });
     if (currentVal && !exists) {
-      h += '<option value="' + escapeHtml(String(currentVal)) + '" selected>' + escapeHtml(String(currentVal)) + ' pces</option>';
+      // v20.339 — en caisses, une vieille valeur en pièces (60, 80) se voit : « ⚠️ à vérifier »
+      const uCv = cmdEnCaisses ? ((SG_PLURIELS[p.conditioning_unit] || p.conditioning_unit + 's') + (cvNum >= 10 ? ' ⚠️ à vérifier' : '')) : 'pces';
+      h += '<option value="' + escapeHtml(String(currentVal)) + '" selected>' + escapeHtml(String(currentVal)) + ' ' + uCv + '</option>';
     }
     h += '</select>';
     return h;
@@ -6113,7 +6131,9 @@ matinAutoVal = net;
 else if ((supply === 'local' || supply === 'veigne')) {
 const y = reapY[pid];
 if (y && y.commander && y.commander !== '' && y.sent_at) {
-const cmd = parseQty(y.commander);
+// v20.339 — la commande est en caisses pour les fiches à contenant (1 caisse de Chaussons = 80 pièces reçues) :
+// le Matin, lui, est en pièces. Sans ça, Tours aurait « 1 » Chausson le matin au lieu de 80.
+const cmd = parseQty(y.commander) * (reapproCmdEnCaisses(p) ? Number(p.conditioning_qty) : 1);
 if (cmd > 0) {
 matinVal = cmd;
 matinAutoVal = cmd;
@@ -18581,7 +18601,7 @@ function renderStock() {
       const p = products.find(function(x) { return x.id === r.product_id; }) || {};
       const qty = parseQty(r.commander); const done = !!r.prepared_at;
       html += '<div class="produit-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px' + (done ? ';opacity:0.55' : '') + '">';
-      html += '<div><div class="produit-name">' + (done ? '✓ ' : '') + escapeHtml(p.name || r.product_id) + ' ❄️</div><div class="produit-unit">' + qty + ' ' + escapeHtml(tourierUnitLabel(p)) + '</div></div>';
+      html += '<div><div class="produit-name">' + (done ? '✓ ' : '') + escapeHtml(p.name || r.product_id) + ' ❄️</div><div class="produit-unit">' + sgFq(qty) + ' ' + escapeHtml(tourierUnitLabel(p)) + '</div></div>';
       if (done) html += '<span style="color:var(--green);font-weight:700;font-size:13px">✓ fait</span>';
       else html += '<button class="btn-gold-sm" onclick="prepareTourierLine(\'' + b[0] + '\', \'' + r.product_id + '\')">✓ préparé</button>';
       html += '</div>';

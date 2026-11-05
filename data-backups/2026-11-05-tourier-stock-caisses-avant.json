@@ -1,0 +1,6 @@
+[{"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"chap_c","stock":-38.14999999999999,"mini":1,"updated_at":"2026-11-05T04:20:48.657+00:00","updated_by":"dev_gp29v5"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"chap_r","stock":-38.14999999999999,"mini":1,"updated_at":"2026-11-05T04:20:49.652+00:00","updated_by":"dev_gp29v5"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"mcr","stock":2,"mini":1,"updated_at":"2026-11-01T10:50:38.147+00:00","updated_by":"dev_u1jbrf"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"mpc","stock":1,"mini":1,"updated_at":"2026-11-01T10:50:54.747+00:00","updated_by":"dev_u1jbrf"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"mpr","stock":2,"mini":1,"updated_at":"2026-11-01T11:22:48.793+00:00","updated_by":"dev_u1jbrf"}, 
+ {"tenant_id":"00000000-0000-0000-0000-000000000001","product_id":"pain_suisse_copie_kvxgcm","stock":-50.56999999999999,"mini":6,"updated_at":"2026-11-04T04:22:43.273+00:00","updated_by":"dev_09cwv5"}]
