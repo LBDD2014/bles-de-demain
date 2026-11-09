@@ -661,6 +661,14 @@ box-shadow: 0 2px 6px rgba(206,171,82,0.3); font-family: inherit;
 .btn-gold-sm:active { transform: scale(0.97); }
 
 /* === MARCHE === */
+.market-choix-etat { margin-left:auto; font-size:12px; color:var(--grey-light); }
+.market-choix { padding:8px 12px 20px; }
+.market-choix-head { display:flex; align-items:center; gap:8px; font-size:15px; padding:6px 0; }
+.market-choix-head .btn-gold-sm { margin-left:auto; }
+.market-choix-hint { font-size:12px; color:var(--grey-light); margin:2px 0 8px; }
+.market-choix-row { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid #EEE7DA; font-size:15px; }
+.market-choix-row input { width:24px; height:24px; }
+.market-choix-row.on { background:#F6F1E4; }
 .market-note-box {
 background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px;
 box-shadow: 0 2px 12px rgba(61,43,31,0.08);
@@ -2936,7 +2944,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.340';
+const APP_VERSION  = 'v20.341';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -10603,6 +10611,59 @@ function marketDecoupeRowHtml(p, totalQty) {
   return h;
 }
 
+// v20.341 — Produits des marchés (Phil, 09/11) : une coche par produit et par marché (products.marches).
+// Le tableau n'affiche que les produits cochés pour le marché affiché (+ tout produit qui a un chiffre ce jour-là).
+// Aucun produit coché pour ce marché = aucune liste réglée = tous les produits, comme avant.
+let marketChoixMode = false;
+function marketProduitChoisi(p, mid) { return !!(p && Array.isArray(p.marches) && p.marches.indexOf(mid) !== -1); }
+function marketListeReglee(mid) { return products.some(function(p) { return marketProduitChoisi(p, mid); }); }
+function marketRowActive(r) {
+  return (r.marcheVal != null && r.marcheVal !== 0) ||
+    (r.commandeVal != null && r.commandeVal !== 0) ||
+    (r.commandeTranVal != null && r.commandeTranVal !== 0) ||
+    (r.pertesVal != null && r.pertesVal !== 0) ||
+    (r.notesRaw && r.notesRaw !== '') ||
+    !!marketDecoupeGet(r.p.id); // v20.176 — une découpe saisie = activité
+}
+async function marketChoixOpen() {
+  if (marketChoixMode) { marketChoixMode = false; renderMarket(); return; }
+  if (!boutiqueCodesLoaded) { try { await loadBoutiqueCodes(); } catch (e) {} }
+  const master = boutiqueCodes['master'] || '2412';
+  const ok = await askCodeModal('Code maître', [String(master).trim()]);
+  if (!ok) return;
+  marketChoixMode = true; renderMarket();
+}
+async function marketChoixToggle(pid, on) {
+  const p = products.find(function(x) { return x.id === pid; }); if (!p) return;
+  const cur = Array.isArray(p.marches) ? p.marches.slice() : [];
+  const i = cur.indexOf(currentMarketId);
+  if (on && i === -1) cur.push(currentMarketId);
+  if (!on && i !== -1) cur.splice(i, 1);
+  setSyncStatus('syncing');
+  const { error } = await supa.from('products').update({ marches: cur }).eq('id', pid);
+  if (error) { setSyncStatus('error'); showToast(error.message, 'error'); renderMarket(); return; }
+  [products, (typeof adminProducts !== 'undefined' ? adminProducts : null)].forEach(function(arr) { const x = (arr || []).find(function(y) { return y.id === pid; }); if (x) x.marches = cur; });
+  setSyncStatus('ok');
+  const n = document.getElementById('market-choix-n'); if (n) n.textContent = products.filter(function(x) { return marketProduitChoisi(x, currentMarketId); }).length;
+}
+function marketChoixHtml() {
+  const mid = currentMarketId, nb = products.filter(function(p) { return marketProduitChoisi(p, mid); }).length;
+  let h = '<div class="market-choix">'
+    + '<div class="market-choix-head"><b>⚙️ Produits du marché ' + escapeHtml(BOUTIQUE_NAMES[mid]) + '</b> · <span id="market-choix-n">' + nb + '</span> cochés'
+    + '<button class="btn-gold-sm" onclick="marketChoixOpen()">✓ Terminé</button></div>'
+    + '<div class="market-choix-hint">Coche ce qui part sur ce stand. Un produit décoché qui a un chiffre dans la journée reste visible quand même. Liste à part pour chaque marché.</div>';
+  const byCat = {};
+  products.forEach(function(p) { const c = p.category || 'autre'; (byCat[c] = byCat[c] || []).push(p); });
+  const catOrder = Object.keys(CAT_LABELS);
+  Object.keys(byCat).sort(function(a, b) { const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b); return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib); }).forEach(function(cat) {
+    h += '<div class="prod-cat-title">' + escapeHtml(CAT_LABELS[cat] || cat) + '</div>';
+    byCat[cat].forEach(function(p) {
+      h += '<label class="market-choix-row' + (marketProduitChoisi(p, mid) ? ' on' : '') + '"><input type="checkbox"' + (marketProduitChoisi(p, mid) ? ' checked' : '') + ' onchange="this.parentNode.classList.toggle(\'on\', this.checked); marketChoixToggle(\'' + p.id + '\', this.checked)">'
+        + '<span class="prod-name">' + escapeHtml(p.name) + '</span>' + (p.unit ? '<span class="prod-unit">' + escapeHtml(p.unit) + '</span>' : '') + '</label>';
+    });
+  });
+  return h + '</div>';
+}
 function renderMarket() {
 const mc = document.getElementById('main-content');
 const isMarketDay = (new Date(currentMarketDate + 'T12:00').getDay() === MARKET_DAY_OF_WEEK[currentMarketId]);
@@ -10624,16 +10685,10 @@ marcheVal: marche, commandeVal: cmd, commandeTranVal: cmdTr, pertesVal: pertes
 };
 });
 
-const filtered = marketFilterEmpty
-? rows.filter(function(r) {
-return (r.marcheVal != null && r.marcheVal !== 0) ||
-(r.commandeVal != null && r.commandeVal !== 0) ||
-(r.commandeTranVal != null && r.commandeTranVal !== 0) ||
-(r.pertesVal != null && r.pertesVal !== 0) ||
-(r.notesRaw && r.notesRaw !== '') ||
-!!marketDecoupeGet(r.p.id); // v20.176 — une découpe saisie = activité
-})
-: rows;
+// v20.341 — liste du marché réglée : on ne montre que les produits cochés (+ ceux qui ont un chiffre ce jour-là)
+const listeReglee = marketListeReglee(currentMarketId);
+const rowsMarche = listeReglee ? rows.filter(function(r) { return marketProduitChoisi(r.p, currentMarketId) || marketRowActive(r); }) : rows;
+const filtered = marketFilterEmpty ? rowsMarche.filter(marketRowActive) : rowsMarche;
 
 // KPIs : total charger (marche+cmd+cmdTr), total commandes clients (cmd+cmdTr), pertes
 const totalCharger = rows.reduce(function(s, r) { return s + (r.marcheVal || 0) + (r.commandeVal || 0) + (r.commandeTranVal || 0); }, 0);
@@ -10673,10 +10728,14 @@ html += '<div class="market-note-box">'
 + '<textarea id="market-day-note" class="market-note-ta" placeholder="Ex: Mme Martin - 2 baguettes + 1 Mathis 1kg tranche pour 9h" oninput="handleMarketDayNoteInput(this)">' + escapeHtml(marketDayNote) + '</textarea>'
 + '</div>';
 
+if (marketChoixMode) { mc.innerHTML = html + marketChoixHtml(); renderMeteoBar(currentMarketId); return; }   // v20.341
 html += '<div class="prod-filter-bar"><label>'
 
 + '<input type="checkbox" ' + (marketFilterEmpty ? 'checked' : '') + ' onchange="toggleMarketFilter()">'
-+ '<span>Cacher les produits sans activité</span></label></div>';
++ '<span>Cacher les produits sans activité</span></label>'
+// v20.341 — produits du marché
++ '<span class="market-choix-etat">' + (listeReglee ? rowsMarche.length + ' produit' + (rowsMarche.length > 1 ? 's' : '') + ' sur ce marché' : 'tous les produits (liste pas réglée)') + '</span>'
++ '<button class="btn-gold-sm" onclick="marketChoixOpen()">⚙️ Choisir les produits</button></div>';
 
 if (!filtered.length) {
 html += '<div class="prod-empty">'
@@ -11220,6 +11279,12 @@ if (el) el.focus();
 function handleNewProductField(field, val) {
 adminNewProductDraft[field] = val;
 }
+// v20.341 — marchés cochés sur une nouvelle fiche
+function handleNewProductMarche(m, on) {
+  const cur = (adminNewProductDraft.marches || []).filter(function(x) { return x !== m; });
+  if (on) cur.push(m);
+  adminNewProductDraft.marches = cur;
+}
 
 // v20.68 — génère un id TEXT unique à partir du nom (la table products.id n'a pas de défaut)
 function genProductId(name) {
@@ -11249,6 +11314,7 @@ supply_by_boutique: {},
 pros_only_id: d.pros_only_id || null,  // v21.0.3.2 — produit sur mesure
 conditioning_unit: condUnit,           // v20.33
 pros_colis: !!d.pros_colis,            // v20.340
+marches: d.marches || [],              // v20.341
 conditioning_qty: condQtyClean         // v20.33
 };
 const { data: ins, error } = await supa.from('products').insert(row).select();
@@ -11414,6 +11480,9 @@ const updateFields = {
 };
 if (pros_only_id !== undefined) updateFields.pros_only_id = pros_only_id;
 if (prosColisEl) updateFields.pros_colis = !!prosColisEl.checked;   // v20.340
+// v20.341 — marchés
+const marchesEls = MARKET_IDS.map(function(m) { return [m, document.getElementById('edit-marche-' + m + '-' + pid)]; }).filter(function(x) { return x[1]; });
+if (marchesEls.length) updateFields.marches = marchesEls.filter(function(x) { return x[1].checked; }).map(function(x) { return x[0]; });
 if (suivi_stock_pro !== undefined) updateFields.suivi_stock_pro = suivi_stock_pro;
 if (decoupe_config !== undefined) updateFields.decoupe_config = decoupe_config; // v20.175
 const { error } = await supa.from('products').update(updateFields).eq('id', pid);
@@ -16579,6 +16648,7 @@ html += '<div class="new-prod-form">'
 + '<input type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(String(adminNewProductDraft.conditioning_qty || '')) + '" placeholder="qty" oninput="handleNewProductField(\'conditioning_qty\', this.value)">'
 + '</div></div>'
 + '<div class="npf-row"><label class="npf-lbl">Pros</label><label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox"' + (adminNewProductDraft.pros_colis ? ' checked' : '') + ' onchange="handleNewProductField(\'pros_colis\', this.checked)"> 📦 Les pros commandent par colis (caisse / sac entier)</label></div>'
++ '<div class="npf-row"><label class="npf-lbl">Marchés</label><span style="display:flex;gap:16px;font-size:13px">' + MARKET_IDS.map(function(m) { return '<label style="display:flex;align-items:center;gap:6px"><input type="checkbox"' + ((adminNewProductDraft.marches || []).indexOf(m) !== -1 ? ' checked' : '') + ' onchange="handleNewProductMarche(\'' + m + '\', this.checked)"> ' + escapeHtml(BOUTIQUE_NAMES[m] || m) + '</label>'; }).join('') + '</span></div>'
 + '<div class="npf-row"><label class="npf-lbl">Usage</label>'
 + '<select class="npf-input" onchange="handleNewProductField(\'usage\', this.value)">'
 + '<option value="both"' + (adminNewProductDraft.usage === 'both' ? ' selected' : '') + '>Réappro + Ventes</option>'
@@ -16690,6 +16760,10 @@ if (isEditing) {
     + '</select>'
     + '<input id="edit-cond-qty-' + p.id + '" type="number" min="1" max="200" class="npf-input" style="width:90px" value="' + escapeHtml(p.conditioning_qty == null ? '' : String(p.conditioning_qty)) + '" placeholder="qty">'
     + '</div></div>'
+    // v20.341 — sur quels marchés le produit figure (Tableau marché)
+    + '<div class="npf-row"><label class="npf-lbl">Marchés</label><span style="display:flex;gap:16px;font-size:13px">'
+    + MARKET_IDS.map(function(m) { return '<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="edit-marche-' + m + '-' + p.id + '"' + (marketProduitChoisi(p, m) ? ' checked' : '') + '> ' + escapeHtml(BOUTIQUE_NAMES[m] || m) + '</label>'; }).join('')
+    + '</span></div>'
     // v20.340 — les pros commandent-ils par colis ? (sinon le conditionnement ne sert qu'au congélo / aux réassorts)
     + '<div class="npf-row"><label class="npf-lbl">Pros</label><label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" id="edit-pros-colis-' + p.id + '"' + (p.pros_colis ? ' checked' : '') + '> 📦 Les pros commandent par colis (caisse / sac entier)</label></div>'
     // v20.34 — Cibles de stock par boutique (doit avoir)

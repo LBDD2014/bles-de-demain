@@ -244,6 +244,13 @@ règle générale : les pros des touriers commandent à la pièce, sauf ceux qui
 1500 → 25, stock nti −5 → 4,83, `production_done` 05/11 remis à 10 / 0,17 caisse ; sauvegarde `data-backups/2026-11-05-nougat-terre-y-fruit-avant.json`).
 Test : spec 38. Tout nouvel écran pro qui compte des colis passe par `proPackOf` / `packOf`, jamais par `conditioning_qty` directement.
 
+**Marchés — produits du stand (v20.341, 09/11/2026)** : Phil : « une coche pour choisir quel produit figure dans les marchés d'Amboise et
+Beaujardin ». `products.marches text[]` (`migration-v20.341-marches-produits.sql` : liste de départ = les produits saisis sur un marché depuis le
+01/10, posés sur les DEUX marchés). Tableau marché : seuls les produits cochés pour le marché affiché (`marketProduitChoisi`) **+ tout produit qui a un
+chiffre ce jour-là** (`marketRowActive`) ; aucun produit coché pour un marché = tous les produits comme avant. « ⚙️ Choisir les produits » (barre du
+filtre, **code maître** via `askCodeModal`) = une case par produit, enregistrée à chaque tap (`marketChoixToggle`), liste à part par marché. Mêmes
+cases « Marchés » sur la fiche produit en BackOffice (édition + création). Test : spec 58.
+
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
 farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme
