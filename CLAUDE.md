@@ -268,6 +268,17 @@ semaines + mois, `prodRows`), puis ses livraisons ; la ligne « ↳ Total Dakota
 Boutons **Par client / Par produit** (`proRecapVue`) : la vue produits = une ligne par produit tous clients confondus, un produit déplié = qui en a
 pris. Même filtre de site, mêmes exclusions (brouillons, annulées), CSV inchangé. Le Récap du BackOffice (par pro, en €) ne change pas. Test : spec 37.
 
+**BackOffice → « Pièces » — pièces par boutique (v20.344, 09/11/2026)** : Phil : « les besoins des boutiques, ventilés par site et produits,
+suivant les réassorts et les ventes », « je veux voir ça moi mais pas accessible à tout le monde » → onglet BackOffice (PIN) `pieces_boutiques`.
+Un mois (◀ ▶) : par boutique (Veigné, Tours, St-Avertin) puis par produit, ou **Par produit** puis par boutique. Colonnes **Commandé** (réassorts
+`sent_at` non nul, `commander` × pièces du contenant de la fiche, règle v20.337 : pas si la fiche est déjà dans cette unité ; grilles pâtissières via
+`veigne_pat_stock.unit_pieces`), **Livré** (`qty_livree`, sinon commandé si `livre_at`), **Vendu** et **Perte** (`sales`, **journées validées
+seulement**, Vendu = Matin + Après-midi − restes − perte comme l'onglet Récap, **Matin vide → prévis du jour** sauf catégories « sortie du jour » ;
+journées non validées comptées et signalées en orange), % perte. Raccord par nom avec œ → oe (« Cœur Caramel » ↔ « Coeur Caramel »). Constat sur octobre
+(09/11) : Veigné 25 j et Tours 21 j non validés → vendu très partiel ; les réassorts Chaussons / Minis d'avant le 15/10 étaient en pièces → gonflés ×80 / ×50.
+**Raccord** réassort ↔ vente : `pbVenteKey` = la fiche `ventes`/`both` de même nom (comme `tourierStockPidFor`). Ingrédients et consommables exclus,
+marchés pas encore. Lecture paginée (`oublisFetchAll`, > 1000 lignes). CSV Boutique;Catégorie;Produit;Commandé;Livré;Vendu;Perte. Test : spec 60.
+
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
 farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme

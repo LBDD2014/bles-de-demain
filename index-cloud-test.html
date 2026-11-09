@@ -2949,7 +2949,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.343';
+const APP_VERSION  = 'v20.344';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3196,6 +3196,7 @@ const NAV_ITEMS = {
     { id: 'produits', lbl: 'Produits' },
     { id: 'catégories', lbl: 'Catég.' },
     { id: 'valorisation', lbl: 'Valo.' },
+    { id: 'pieces_boutiques', lbl: 'Pièces' },   // v20.344 — commandé / vendu par boutique et par produit (Phil seul)
     { id: 'equipe', lbl: 'Équipe' },   // v20.199 — dotations vêtements de travail
     { id: 'pros', lbl: 'Pros' },
     { id: 'fetes_admin', lbl: 'Fêtes' }, // v20.222 — onglet éphémère (Noël, Galettes…)
@@ -4513,6 +4514,9 @@ renderAdminCategories();
 } else if (v === 'valorisation') {
 await loadValorisation();
 renderValorisation();
+} else if (v === 'pieces_boutiques') {   // v20.344
+await loadPiecesBoutiques();
+renderPiecesBoutiques();
 } else if (v === 'pros') {
 // v21.0 — Pros : CRUD client professionnel
 await loadAdminPros();
@@ -17144,6 +17148,168 @@ function valoBoutiqueCardHtml(b, badge) {
   });
   html += '</div>';
   return html;
+}
+
+// ===== v20.344 — 📊 Pièces par boutique (BackOffice, Phil : « les besoins des boutiques, ventilés par site et produits,
+// suivant les réassorts et les ventes », « je veux voir ça moi mais pas accessible à tout le monde ») =====
+// Un mois : par site (Veigné, Tours, St-Avertin) puis par produit — Commandé (réassorts envoyés), Livré (coché par le livreur),
+// Vendu et Perte (Ventes, journées validées seulement, même formule que l'onglet Récap). Tout en PIÈCES : un réassort en caisses /
+// sacs / grilles est multiplié par les pièces du contenant de la fiche (règle v20.337 : pas si la fiche est déjà dans cette unité).
+// Raccord réassort ↔ vente : la fiche réassort « surgelé » (croissant_copie…) est rattachée à la fiche vendue de même nom (vv_cro),
+// comme Prod. Touriers le fait pour le congélo. Ingrédients et consommables exclus. Marchés : pas encore (boutiques seulement).
+const PB_SITES = [['veigne', 'Veigné'], ['tours', 'Tours'], ['saint-avertin', 'St-Avertin']];
+let pbYM = null, pbVue = 'sites', pbOpen = {}, pbData = null;
+function pbMoisLbl(ym) { const d = new Date(ym + '-01T12:00'); return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }
+function pbChangeMonth(delta) {
+  const y = parseInt(pbYM.slice(0, 4), 10), m = parseInt(pbYM.slice(5, 7), 10);
+  const d = new Date(y, m - 1 + delta, 1); pbYM = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  pbOpen = {}; loadPiecesBoutiques().then(renderPiecesBoutiques);
+}
+function pbSetVue(v) { pbVue = v; pbOpen = {}; renderPiecesBoutiques(); }
+function pbToggle(k) { pbOpen[k] = !pbOpen[k]; renderPiecesBoutiques(); }
+async function loadPiecesBoutiques() {
+  if (!pbYM) pbYM = todayISO().slice(0, 7);
+  const d0 = pbYM + '-01', ld = new Date(pbYM + '-01T12:00'); ld.setMonth(ld.getMonth() + 1); ld.setDate(0);
+  const d1 = ld.getFullYear() + '-' + String(ld.getMonth() + 1).padStart(2, '0') + '-' + String(ld.getDate()).padStart(2, '0');
+  const sites = PB_SITES.map(function(x) { return x[0]; });
+  if (!adminProducts || !adminProducts.length) { try { await loadAdminProducts(); } catch (e) {} }
+  const [ra, sa, vp, pv] = await Promise.all([
+    oublisFetchAll(function(a, b) { return supa.from('reappros').select('boutique_id,product_id,service_date,commander,qty_livree,livre_at').eq('tenant_id', TENANT_ID).in('boutique_id', sites).not('sent_at', 'is', null).gte('service_date', d0).lte('service_date', d1).order('service_date').range(a, b); }),
+    oublisFetchAll(function(a, b) { return supa.from('sales').select('boutique_id,product_id,date,matin,aprem,reste_j1,reste_j2,perte,day_closed').eq('tenant_id', TENANT_ID).in('boutique_id', sites).gte('date', d0).lte('date', d1).order('date').range(a, b); }),
+    supa.from('veigne_pat_stock').select('product_id,stock_unit,unit_pieces').eq('tenant_id', TENANT_ID),
+    // prévis du mois : « Matin » de secours quand sales.matin est vide (viennoiserie…), comme l'onglet Récap (v20.160)
+    oublisFetchAll(function(a, b) { return supa.from('previs').select('boutique_id,product_id,service_date,qty').eq('tenant_id', TENANT_ID).in('boutique_id', sites).gte('service_date', d0).lte('service_date', d1).order('service_date').range(a, b); })
+  ]);
+  const vps = {}; ((vp && vp.data) || []).forEach(function(r) { vps[r.product_id] = r; });
+  const previs = {}; ((pv && pv.data) || []).forEach(function(r) { previs[r.boutique_id + '|' + r.product_id + '|' + r.service_date] = Number(r.qty) || 0; });
+  pbData = { reappros: ra.data || [], sales: sa.data || [], vps: vps, previs: previs, erreur: (ra.error || sa.error) ? (ra.error || sa.error).message : null };
+}
+function pbProduits() { return (adminProducts && adminProducts.length) ? adminProducts : products; }
+// la fiche VENDUE qui correspond à une fiche réassort (même nom), sinon elle-même
+function pbVenteKey(pid) {
+  const all = pbProduits(); const p = all.find(function(x) { return x.id === pid; }); if (!p) return pid;
+  const u = p.usage || 'reappro'; if (u === 'ventes' || u === 'both') return pid;
+  const nn = function(v) { return sgNormNom(String(v || '').replace(/œ/g, 'oe').replace(/æ/g, 'ae')); };   // « Cœur Caramel » ↔ « Coeur Caramel »
+  const n = nn(p.name);
+  const hit = all.find(function(x) { return x.id !== pid && x.actif !== false && (x.usage === 'ventes' || x.usage === 'both') && nn(x.name) === n; });
+  return hit ? hit.id : pid;
+}
+// pièces par unité de commande (caisse de 77 → 77 ; grille pâtissière de 28 → 28 ; fiche déjà dans l'unité → 1)
+function pbMult(p, vps) {
+  if (!p) return 1;
+  const cu = p.conditioning_unit, cq = Number(p.conditioning_qty);
+  if (cu && REAPPRO_CONTENANTS.indexOf(cu) !== -1 && cq > 0) return (p.unit && sgNormNom(p.unit) === sgNormNom(cu)) ? 1 : cq;
+  const v = vps && vps[p.id];
+  if (v && v.stock_unit && v.stock_unit !== 'piece' && Number(v.unit_pieces) > 0) return (p.unit && sgNormNom(p.unit) === sgNormNom(v.stock_unit)) ? 1 : Number(v.unit_pieces);
+  return 1;
+}
+function pbExclu(p) { return !p || p.category === 'ingredients' || isConsommable(p); }
+// { sites: { site: { prods: { key: { nom, cat, cmd, liv, vendu, perte } }, tot: {…}, nonValides: n } }, produits: { key: { nom, cat, sites: {…}, tot } } }
+function pbRows() {
+  const all = pbProduits(); const byId = {}; all.forEach(function(p) { byId[p.id] = p; });
+  const vide = function() { return { cmd: 0, liv: 0, vendu: 0, perte: 0 }; };
+  const add = function(t, k, v) { t[k] = (t[k] || 0) + v; };
+  const sites = {}; PB_SITES.forEach(function(x) { sites[x[0]] = { nom: x[1], prods: {}, tot: vide(), joursNonValides: {} }; });
+  const ligne = function(site, key, p) { const st = sites[site]; if (!st) return null; return st.prods[key] = st.prods[key] || Object.assign({ nom: (p && p.name) || key, cat: (p && p.category) || 'autre' }, vide()); };
+  (pbData.reappros || []).forEach(function(r) {
+    const p = byId[r.product_id]; if (pbExclu(p)) return;
+    const n = parseQty(r.commander); if (!(n > 0)) return;
+    const mult = pbMult(p, pbData.vps);
+    const key = pbVenteKey(r.product_id); const pv = byId[key] || p;
+    const l = ligne(r.boutique_id, key, pv); if (!l) return;
+    const cmd = n * mult; const liv = (r.qty_livree != null && r.qty_livree !== '') ? parseQty(r.qty_livree) * mult : (r.livre_at ? cmd : 0);
+    add(l, 'cmd', cmd); add(l, 'liv', liv); add(sites[r.boutique_id].tot, 'cmd', cmd); add(sites[r.boutique_id].tot, 'liv', liv);
+  });
+  (pbData.sales || []).forEach(function(r) {
+    const st = sites[r.boutique_id]; if (!st) return;
+    if (r.day_closed !== true) { st.joursNonValides[r.date] = true; return; }
+    const p = byId[r.product_id]; if (pbExclu(p)) return;
+    // Matin vide → prévis du jour (sauf catégories « sortie du jour » : gâteaux, traiteur), même règle que _recapMatin
+    const m = r.matin != null ? (Number(r.matin) || 0) : (usesSortieModel(p && p.category) ? 0 : (pbData.previs[r.boutique_id + '|' + r.product_id + '|' + r.date] || 0));
+    const a = Number(r.aprem) || 0, rj = Number(r.reste_j1) || 0, rj2 = Number(r.reste_j2) || 0, pe = Number(r.perte) || 0;
+    const vendu = Math.max(0, m + a - rj - rj2 - pe);
+    if (!vendu && !pe && !m && !a) return;
+    const l = ligne(r.boutique_id, r.product_id, p); if (!l) return;
+    add(l, 'vendu', vendu); add(l, 'perte', pe); add(st.tot, 'vendu', vendu); add(st.tot, 'perte', pe);
+  });
+  const produits = {};
+  Object.keys(sites).forEach(function(sid) {
+    sites[sid].nonValides = Object.keys(sites[sid].joursNonValides).length;
+    Object.keys(sites[sid].prods).forEach(function(k) {
+      const l = sites[sid].prods[k];
+      const pr = produits[k] = produits[k] || { nom: l.nom, cat: l.cat, sites: {}, tot: vide() };
+      pr.sites[sid] = l; ['cmd', 'liv', 'vendu', 'perte'].forEach(function(f) { pr.tot[f] += l[f]; });
+    });
+  });
+  return { sites: sites, produits: produits };
+}
+function pbTri(a, b) { return (b.vendu + b.cmd) - (a.vendu + a.cmd) || a.nom.localeCompare(b.nom, 'fr'); }
+function pbCells(t) {
+  const q = function(v) { return v ? formatQty(Math.round(v * 10) / 10) : '<span style="color:#bbb">–</span>'; };
+  const pct = (t.vendu + t.perte) > 0 ? Math.round(t.perte / (t.vendu + t.perte) * 100) : null;
+  return '<td style="text-align:right">' + q(t.cmd) + '</td><td style="text-align:right">' + q(t.liv) + '</td><td style="text-align:right"><strong>' + q(t.vendu) + '</strong></td>'
+    + '<td style="text-align:right">' + q(t.perte) + '</td><td style="text-align:right;color:' + (pct == null ? '#bbb' : pct > 10 ? 'var(--red)' : pct > 5 ? 'var(--orange)' : 'var(--green)') + '">' + (pct == null ? '–' : pct + ' %') + '</td>';
+}
+function renderPiecesBoutiques() {
+  const mc = document.getElementById('main-content');
+  const R = pbRows();
+  const tete = '<th>' + (pbVue === 'produits' ? 'Produit' : 'Boutique') + '</th><th style="text-align:right">Commandé</th><th style="text-align:right">Livré</th><th style="text-align:right">Vendu</th><th style="text-align:right">Perte</th><th style="text-align:right">% perte</th>';
+  let html = '<div class="date-bar"><button class="date-nav" onclick="pbChangeMonth(-1)">←</button>'
+    + '<div class="date-title">📊 Pièces par boutique · <strong style="text-transform:capitalize">' + escapeHtml(pbMoisLbl(pbYM)) + '</strong><div class="date-sub">Réassorts commandés / livrés et ventes, en pièces</div></div>'
+    + '<button class="date-nav" onclick="pbChangeMonth(1)">→</button></div>';
+  html += '<div class="pro-recap-vues" style="padding:0 12px"><button class="tour-btn' + (pbVue !== 'produits' ? ' active' : '') + '" onclick="pbSetVue(\'sites\')">Par boutique</button>'
+    + '<button class="tour-btn' + (pbVue === 'produits' ? ' active' : '') + '" onclick="pbSetVue(\'produits\')">Par produit</button>'
+    + '<button class="btn-gold-sm" style="margin-left:auto" onclick="exportPiecesBoutiquesCSV()">📥 CSV</button></div>';
+  html += '<div class="pro-form-hint" style="margin:0 12px 8px">Commandé = réassorts envoyés par la boutique (caisses, sacs et grilles convertis en pièces) · Livré = coché par le livreur · Vendu = Matin + Après-midi − restes − perte, journées validées seulement. Une fiche réassort est rattachée à la fiche vendue de même nom. Sans ingrédients ni consommables.'
+    + (pbData.erreur ? '<br><span style="color:var(--red)">Erreur de lecture : ' + escapeHtml(pbData.erreur) + '</span>' : '') + '</div>';
+  const nv = PB_SITES.map(function(x) { return R.sites[x[0]].nonValides ? x[1] + ' ' + R.sites[x[0]].nonValides + ' j' : null; }).filter(Boolean);
+  if (nv.length) html += '<div class="pro-form-hint" style="margin:0 12px 8px;color:var(--orange)">⚠️ Journées de ventes non validées, donc pas comptées : ' + escapeHtml(nv.join(' · ')) + '.</div>';
+  html += '<div style="overflow-x:auto;padding:0 12px 20px"><table class="recap-table pro-recap-table"><thead><tr>' + tete + '</tr></thead><tbody>';
+  const tot = { cmd: 0, liv: 0, vendu: 0, perte: 0 };
+  const fleche = function(o) { return '<span style="color:var(--gold-dark);font-size:11px;margin-right:4px">' + (o ? '▼' : '▶') + '</span>'; };
+  if (pbVue === 'produits') {
+    const keys = Object.keys(R.produits).sort(function(a, b) { return pbTri(R.produits[a].tot, R.produits[b].tot) || R.produits[a].nom.localeCompare(R.produits[b].nom, 'fr'); });
+    if (!keys.length) html += '<tr><td colspan="6" class="empty-state">Aucune commande ni vente ce mois-ci.</td></tr>';
+    keys.forEach(function(k) {
+      const pr = R.produits[k]; ['cmd', 'liv', 'vendu', 'perte'].forEach(function(f) { tot[f] += pr.tot[f]; });
+      const open = !!pbOpen[k];
+      html += '<tr class="pro-recap-row' + (open ? ' open' : '') + '" onclick="pbToggle(\'' + escapeHtml(k) + '\')"><td>' + fleche(open) + escapeHtml(pr.nom) + ' <span style="color:#999;font-size:11px">' + escapeHtml(CAT_LABELS[pr.cat] || '') + '</span></td>' + pbCells(pr.tot) + '</tr>';
+      if (open) PB_SITES.forEach(function(x) { const l = pr.sites[x[0]]; if (l) html += '<tr class="pro-recap-prod"><td>↳ ' + escapeHtml(x[1]) + '</td>' + pbCells(l) + '</tr>'; });
+    });
+  } else {
+    PB_SITES.forEach(function(x) {
+      const st = R.sites[x[0]]; ['cmd', 'liv', 'vendu', 'perte'].forEach(function(f) { tot[f] += st.tot[f]; });
+      const open = !!pbOpen[x[0]];
+      html += '<tr class="pro-recap-row' + (open ? ' open' : '') + '" onclick="pbToggle(\'' + x[0] + '\')"><td>' + fleche(open) + escapeHtml(x[1]) + ' <span style="color:#999;font-size:11px">' + Object.keys(st.prods).length + ' produits</span></td>' + pbCells(st.tot) + '</tr>';
+      if (open) {
+        const keys = Object.keys(st.prods).sort(function(a, b) { return pbTri(st.prods[a], st.prods[b]); });
+        let cat = null;
+        keys.forEach(function(k) {
+          const l = st.prods[k];
+          if (l.cat !== cat) { cat = l.cat; html += '<tr class="pro-recap-prod"><td colspan="6" style="font-weight:700;color:var(--gold-dark);background:#F6F1E4">' + escapeHtml(CAT_LABELS[cat] || cat) + '</td></tr>'; }
+          html += '<tr class="pro-recap-prod"><td>↳ ' + escapeHtml(l.nom) + '</td>' + pbCells(l) + '</tr>';
+        });
+      }
+    });
+  }
+  html += '</tbody><tfoot><tr><td>Total</td>' + pbCells(tot) + '</tr></tfoot></table></div>';
+  mc.innerHTML = html;
+}
+function exportPiecesBoutiquesCSV() {
+  const R = pbRows();
+  let csv = '﻿' + 'Boutique;Catégorie;Produit;Commandé;Livré;Vendu;Perte\n';
+  const cell = function(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+  const num = function(v) { return String(Math.round((v || 0) * 10) / 10).replace('.', ','); };
+  PB_SITES.forEach(function(x) {
+    const st = R.sites[x[0]];
+    Object.keys(st.prods).sort(function(a, b) { return pbTri(st.prods[a], st.prods[b]); }).forEach(function(k) {
+      const l = st.prods[k];
+      csv += [cell(x[1]), cell(CAT_LABELS[l.cat] || l.cat), cell(l.nom), num(l.cmd), num(l.liv), num(l.vendu), num(l.perte)].join(';') + '\n';
+    });
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'pieces-par-boutique-' + pbYM + '.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
 }
 
 function renderValorisation() {
