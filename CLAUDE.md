@@ -251,6 +251,17 @@ chiffre ce jour-là** (`marketRowActive`) ; aucun produit coché pour un marché
 filtre, **code maître** via `askCodeModal`) = une case par produit, enregistrée à chaque tap (`marketChoixToggle`), liste à part par marché. Mêmes
 cases « Marchés » sur la fiche produit en BackOffice (édition + création). Test : spec 58.
 
+**Pros — « 🚑 Dépannage » (v20.342, 09/11/2026, cas Dakota Chambray)** : Phil : « passer une commande une fois la date échue pour dire que nous
+avons livré » (appel le samedi matin pour 100 burgers oubliés, faits et livrés, rien dans l'app). BackOffice → Pros → bouton rouge
+**🚑 Dépannage** (`openProDepannage`, `adminProsView = 'depannage'`) = le formulaire habituel (`renderProOrderForm`), date du jour par défaut,
+passée possible. À l'enregistrement : **statut `livre` d'office**, `created_by = 'depannage:backoffice'` → badge rouge « 🚑 dépannage » partout où
+`proCreneauBadge` s'affiche (cartes Pros, grille semaine, récaps, tournée), note préfixée « 🚑 Dépannage. », **stock sorti comme à la livraison
+cochée** (`proDepannageStock` : `proStockSortieCommande` pour le Boul. Pro + congélo tourier pièces ÷ pièces par caisse, règle ❄️). La mise en
+compte reste à faire. **Si le pro a déjà une commande ce jour-là (même créneau), elle s'ouvre en modification** (`proDepannageCheckExisting`,
+bandeau « Rajout ») : une « Nouvelle commande » écraserait l'existante (`saveProOrderSplit` réécrit les morceaux du jour) ; seules les lignes
+ajoutées sortent du stock, note « 🚑 rajout dépannage ». `renderProOrders` en BackOffice ne rend que ce formulaire puis revient à la liste des pros.
+Pas de SQL. Test : spec 59. ⚠️ Constaté le 09/11 : `migration-v20.293-mise-en-compte.sql` n'a jamais été lancée (colonnes absentes) → le bouton 💶 ne peut rien enregistrer.
+
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
 farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme

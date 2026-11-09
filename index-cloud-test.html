@@ -2132,6 +2132,8 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 /* v20.290 — créneau d'une commande pro (matin / après-midi) */
 .pro-creneau-badge { display:inline-block; font-size:10.5px; font-weight:700; color:var(--gold-dark); background:#FBF3DD; border:1px solid var(--gold-light); border-radius:8px; padding:1px 7px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
 .pro-creneau-badge.aprem { color:white; background:var(--orange); border-color:var(--orange); }
+.pro-creneau-badge.dep { color:white; background:var(--red); border-color:var(--red); }
+.pro-dep-banner { background:#FDECEC; border-left:4px solid var(--red); color:var(--brown); }
 .pro-creneau-pick { display:flex; gap:8px; margin:6px 0 4px; }
 .pro-creneau-pick button { flex:1; padding:12px 8px; border-radius:10px; border:2px solid var(--gold-light); background:white; font-size:14px; font-weight:700; color:var(--brown); }
 .pro-creneau-pick button.on { background:var(--gold); border-color:var(--gold); color:white; }
@@ -2944,7 +2946,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.341';
+const APP_VERSION  = 'v20.342';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -3539,7 +3541,7 @@ let realtimeChannelProOrdersProduction = null;
 let productionProOrdersWeek = [];
 
 // v21.0.5 — Récap par pro (historique facturation, BackOffice → Pros → onglet Récap)
-let adminProsView = 'list';           // 'list' | 'recap' | 'week'
+let adminProsView = 'list';           // 'list' | 'recap' | 'week' | 'depannage' (v20.342)
 let prosWeekGridMode = 'pro';         // v20.259 — grille semaine : 'pro' (pros × jours) | 'produit' (produits × jours)
 let prosWeekGridSite = 'all';         // v20.259 — filtre par site qui fabrique
 let recapProSelected = '';            // pro_id sélectionné dans le récap
@@ -7955,10 +7957,13 @@ function cleanCreneauAprem(a) {
   return { actif: true, butoir_decalage: (a.butoir_decalage != null ? parseInt(a.butoir_decalage, 10) : 0), butoir_heure: a.butoir_heure || '11:00', livraison: a.livraison || null };
 }
 // Badge sur une commande : rien pour un pro à un seul créneau (écrans inchangés pour les autres)
+// v20.342 — commande saisie après coup par Phil (« 🚑 Dépannage », BackOffice) : created_by 'depannage:<site>'
+function proEstDepannage(o) { return !!(o && typeof o.created_by === 'string' && o.created_by.indexOf('depannage') === 0); }
+function proDepannageBadge(o) { return proEstDepannage(o) ? '<span class="pro-creneau-badge dep">🚑 dépannage</span>' : ''; }
 function proCreneauBadge(o, pro) {
   const c = (o && o.creneau) || 'matin';
-  if (c !== 'apres_midi' && !proDeuxCreneaux(pro)) return '';
-  return '<span class="pro-creneau-badge' + (c === 'apres_midi' ? ' aprem' : '') + '">' + proCreneauLbl(c) + '</span>';
+  if (c !== 'apres_midi' && !proDeuxCreneaux(pro)) return proDepannageBadge(o);
+  return '<span class="pro-creneau-badge' + (c === 'apres_midi' ? ' aprem' : '') + '">' + proCreneauLbl(c) + '</span>' + proDepannageBadge(o);
 }
 function proCreneauTxt(o, pro) { const c = (o && o.creneau) || 'matin'; return (c === 'apres_midi' || proDeuxCreneaux(pro)) ? ' · ' + proCreneauLbl(c) : ''; }
 function proCreneauRank(o) { return ((o && o.creneau) === 'apres_midi') ? 1 : 0; }
@@ -13841,6 +13846,8 @@ function renderAdminPros() {
   if (adminProsView === 'recap') { renderProsRecap(mc); return; }
   // v21.0.6 — Dispatcher vers la vue Semaine si demandée
   if (adminProsView === 'week') { renderProsWeek(mc); return; }
+  // v20.342 — 🚑 Dépannage : le formulaire de commande de l'onglet Pros, rendu ici
+  if (adminProsView === 'depannage') { if (editingProOrderId !== null && proOrderDraft) { renderProOrderForm(mc); return; } adminProsView = 'list'; }
 
   // Liste des pros
   const nbActifs = adminPros.filter(function(p) { return p.actif; }).length;
@@ -13852,6 +13859,7 @@ function renderAdminPros() {
     + '<button class="btn-gold" onclick="openProForm(\'new\')">+ Nouveau pro</button>'
     + '<button class="btn-gold" onclick="openGenerateRecurringModal()">🔄 Générer commandes récurrentes</button>'
     + '<button class="btn-gold" onclick="openProLinksModal()">📱 Liens pros</button>'   // v20.272
+    + '<button class="btn-gold" style="background:var(--red);border-color:var(--red)" onclick="openProDepannage()">🚑 Dépannage</button>'   // v20.342
     + '</div>';
   html += '<div class="prod-kpi-bar">'
     + '<div class="prod-kpi"><div class="prod-kpi-val" style="color:var(--green)">' + nbActifs + '</div><div class="prod-kpi-lbl">Actifs</div></div>'
@@ -15534,6 +15542,49 @@ async function openProOrderForm(orderId) {
   }
   renderProOrders();
 }
+// ===== v20.342 — 🚑 Dépannage (Phil, 09/11) : « passer une commande une fois la date échue pour dire que nous avons livré ».
+// Cas Dakota Chambray, samedi 07/11 : appel le matin même pour 100 burgers oubliés, faits et livrés, rien dans l'app.
+// BackOffice → Pros → 🚑 Dépannage = le formulaire habituel, date du jour par défaut (passée possible) ; à l'enregistrement la
+// commande est LIVRÉE d'office, marquée created_by 'depannage:backoffice' (badge 🚑 partout), le stock sort comme si le livreur
+// avait coché. Si le pro a déjà une commande ce jour-là (même créneau), on l'ouvre pour y AJOUTER la ligne : « Nouvelle commande »
+// écraserait l'existante (saveProOrderSplit réécrit les morceaux du jour).
+function openProDepannage() {
+  adminProsView = 'depannage'; editingProOrderId = 'new';
+  proOrderDraft = { id: null, pro_id: '', date_livraison: todayISO(), boutique_source: '', creneau: 'matin', statut: 'livre', notes: '', items: [], depannage: true };
+  renderAdminPros();
+}
+let _proDepCheckSeq = 0;
+async function proDepannageCheckExisting() {
+  const d = proOrderDraft; if (!d || !d.depannage || editingProOrderId !== 'new' || !d.pro_id || !d.date_livraison) return;
+  const seq = ++_proDepCheckSeq;
+  const q = await supa.from('pro_orders').select('*, pro_order_items(*)').eq('tenant_id', TENANT_ID).eq('pro_id', d.pro_id).eq('date_livraison', d.date_livraison).neq('statut', 'annule');
+  if (seq !== _proDepCheckSeq || q.error || !proOrderDraft || !proOrderDraft.depannage || editingProOrderId !== 'new') return;
+  const o = (q.data || []).find(function(x) { return (x.creneau || 'matin') === (d.creneau || 'matin'); });
+  if (!o) return;
+  const items = d.items.slice();
+  editingProOrderId = o.id;
+  proOrderDraft = await proOrderDraftFrom(o);
+  proOrderDraft.depannage = true; proOrderDraft.rajout = true;
+  items.filter(function(it) { return it.product_id; }).forEach(function(it) { proOrderDraft.items.push(it); });   // ce qu'on avait déjà tapé
+  renderProOrders();
+  showToast('Ce pro a déjà une commande ce jour-là : ajoute ta ligne dessus', 'warn');
+}
+// Le stock sort comme à la livraison cochée : Boul. Pro (pro_stock) + congélo tourier (pièces ÷ pièces par caisse, règle ❄️ de Prod. Touriers)
+async function proDepannageStock(ids, items) {
+  for (const id of ids) { try { await proStockSortieCommande(id, true); } catch (e) {} }
+  if (!Object.keys(tourierStockData || {}).length) { try { await loadTourierStockSeul(); } catch (e) {} }
+  const allProds = (adminProducts && adminProducts.length) ? adminProducts : products;
+  for (const it of items) {
+    const prod = allProds.find(function(p) { return p.id === it.product_id; });
+    if (!prod || prod.suivi_stock_pro) continue;   // déjà sorti par proStockSortieCommande
+    const spid = tourierStockPidFor(it.product_id); if (!spid) continue;
+    const u = sgUnit('tourier', sgProduct(spid));
+    const dejaEnUnite = !!(prod.unit && sgNormNom(prod.unit) === sgNormNom(u.nom));
+    const par = (!dejaEnUnite && !u.piecesComptees && u.par > 0) ? u.par : 1;
+    const q = Math.round((Number(it.qty) || 0) / par * 100) / 100;
+    if (q > 0) await sgStockDelta('tourier', spid, -q, false);
+  }
+}
 // v20.303 — le brouillon d'une commande existante (partagé entre « modifier » et « 📑 Dupliquer »)
 async function proOrderDraftFrom(o) {
   {
@@ -15727,6 +15778,7 @@ function exportProRecapCSV() {
 function handleProOrderField(field, val) {
   if (!proOrderDraft) return;
   proOrderDraft[field] = val;
+  if (proOrderDraft.depannage && (field === 'pro_id' || field === 'date_livraison' || field === 'creneau')) setTimeout(proDepannageCheckExisting, 0);   // v20.342
   // v20.282 — la boutique choisie À LA MAIN (dépannage) reprend la main sur la fiche pro
   if (field === 'boutique_source') proOrderDraft.source_forcee = true;
   // Quand on change le pro : auto-définir boutique_source = boutique_principale du pro
@@ -15800,19 +15852,31 @@ async function saveProOrder() {
   const proFiche = adminPros.find(function(p) { return p.id === d.pro_id; })
     || { id: d.pro_id, boutique_principale: d.boutique_source, sources_par_categorie: {} };
   // v20.282 — boutique changée à la main dans le formulaire = dépannage : elle s'applique à toute la commande
+  // v20.342 — 🚑 dépannage : livrée d'office (nouvelle), étiquette dans created_by, note marquée
+  let notesOut = (d.notes || '').trim();
+  if (d.depannage && isNew && notesOut.indexOf('🚑') === -1) notesOut = ('🚑 Dépannage. ' + notesOut).trim();
+  if (d.depannage && !isNew && notesOut.indexOf('🚑') === -1) notesOut = (notesOut + ' 🚑 rajout dépannage').trim();
   const r = await saveProOrderSplit({
     pro: proFiche, date: d.date_livraison, origDate: d.orig_date, editingId: isNew ? null : d.id,
-    statut: d.statut || 'confirme', notes: (d.notes || '').trim() || null, created_by: currentBoutique,
+    statut: d.depannage && isNew ? 'livre' : (d.statut || 'confirme'), notes: notesOut || null,
+    created_by: d.depannage && isNew ? 'depannage:' + currentBoutique : currentBoutique,
     items: validItems, forceSource: d.source_forcee ? d.boutique_source : null,
     creneau: d.creneau || 'matin',   // v20.290
     origProId: d.orig_pro_id, origCreneau: d.orig_creneau   // v20.291
   });
   if (r.error) { setSyncStatus('error'); showToast(r.error, 'error'); return; }
+  // v20.342 — dépannage : le stock sort tout de suite (nouvelle commande : tout ; rajout : seulement les lignes ajoutées)
+  if (d.depannage) {
+    const ajoutees = isNew ? validItems : validItems.filter(function(it) { return !it.id; });
+    if (isNew) await proDepannageStock(r.ids || [], ajoutees);
+    else if (ajoutees.length) await proDepannageStock([], ajoutees);
+  }
   setSyncStatus('ok');
   await loadProOrders(currentBoutique);
+  const dep = d.depannage;
   closeProOrderForm();
   const basc = proBasculesTexte(r.bascules, d.date_livraison);
-  showToast((isNew ? 'Commande créée' : 'Commande modifiee') + (basc ? ' — ' + basc : ''), 'sync');
+  showToast((dep ? (isNew ? '🚑 Dépannage enregistré, livré' : '🚑 Rajout enregistré') : isNew ? 'Commande créée' : 'Commande modifiee') + (basc ? ' — ' + basc : ''), 'sync');
 }
 
 async function cancelProOrder(orderId) {
@@ -16023,6 +16087,8 @@ function _proOrderInPeriod(o) {
 
 function renderProOrders() {
   const mc = document.getElementById('main-content');
+  // v20.342 — BackOffice : le formulaire 🚑 Dépannage vit ici ; fermé → retour à la liste des pros
+  if (currentBoutique === 'backoffice') { if (editingProOrderId !== null && proOrderDraft) renderProOrderForm(mc); else { adminProsView = 'list'; renderAdminPros(); } return; }
   if (editingProOrderId !== null) { renderProOrderForm(mc); return; }
 
   // Liste des commandes filtrées par période
@@ -16177,9 +16243,13 @@ function renderProOrderForm(mc) {
 
   let html = '<div class="pro-form-header">'
     + '<button class="modal-action cancel" onclick="closeProOrderForm()">← Retour</button>'
-    + '<div class="pro-form-title">' + (isNew ? (d.dup_from ? '📑 Copie d\'une commande' : 'Nouvelle commande pro') : (pro ? escapeHtml(pro.nom) : 'Commande pro')) + '</div>'
-    + '<button class="btn-gold" onclick="saveProOrder()">' + (isNew ? 'Créer' : 'Enregistrer') + '</button>'
+    + '<div class="pro-form-title">' + (d.depannage ? '🚑 Dépannage' + (pro ? ' · ' + escapeHtml(pro.nom) : '') : isNew ? (d.dup_from ? '📑 Copie d\'une commande' : 'Nouvelle commande pro') : (pro ? escapeHtml(pro.nom) : 'Commande pro')) + '</div>'
+    + '<button class="btn-gold" onclick="saveProOrder()">' + (d.depannage ? (isNew ? 'Enregistrer livrée' : 'Ajouter à la commande') : isNew ? 'Créer' : 'Enregistrer') + '</button>'
   + '</div>';
+  // v20.342 — dépannage : on dit ce qui va se passer
+  if (d.depannage) html += '<div class="info-banner pro-dep-banner">' + (d.rajout
+    ? '🚑 <strong>Rajout</strong> : ce pro a déjà une commande ce jour-là' + (d.statut === 'livre' ? ' (livrée)' : '') + '. Ajoute ta ligne en dessous, le reste est gardé tel quel.'
+    : '🚑 Commande faite et livrée après coup : elle sera enregistrée <strong>livrée</strong>, avec le badge 🚑, et le stock sortira comme si le livreur avait coché. La mise en compte reste à faire.') + '</div>';
   // v20.303 — dupliquée : on dit d'où elle vient et pour quand elle est proposée
   if (isNew && d.dup_from) html += '<div class="info-banner pro-dup-banner">📑 Copie de la commande de <strong>' + escapeHtml(d.dup_from.nom || '') + '</strong> du ' + escapeHtml(formatProOrderDate(d.dup_from.date)) + ', proposée pour <strong>' + escapeHtml(formatProOrderDate(d.date_livraison)) + '</strong> (prochain jour libre). Change la date ou les quantités si besoin, puis <strong>Créer</strong>.</div>';
 
