@@ -260,7 +260,7 @@ cochée** (`proDepannageStock` : `proStockSortieCommande` pour le Boul. Pro + co
 compte reste à faire. **Si le pro a déjà une commande ce jour-là (même créneau), elle s'ouvre en modification** (`proDepannageCheckExisting`,
 bandeau « Rajout ») : une « Nouvelle commande » écraserait l'existante (`saveProOrderSplit` réécrit les morceaux du jour) ; seules les lignes
 ajoutées sortent du stock, note « 🚑 rajout dépannage ». `renderProOrders` en BackOffice ne rend que ce formulaire puis revient à la liste des pros.
-Pas de SQL. Test : spec 59. ⚠️ Constaté le 09/11 : `migration-v20.293-mise-en-compte.sql` n'a jamais été lancée (colonnes absentes) → le bouton 💶 ne peut rien enregistrer.
+Pas de SQL. Test : spec 59. `migration-v20.293-mise-en-compte.sql` n'avait jamais été lancée (constaté le 09/11, bouton 💶 muet depuis le 26/10) → **lancée le 09/11/2026**.
 
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
