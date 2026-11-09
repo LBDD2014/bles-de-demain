@@ -1,0 +1,335 @@
+[
+ {
+  "id": "e5e55e28-a77b-49c0-9464-0f197a3db5c6",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-04-19",
+  "commander": "10",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "4af48e6a-d027-41cc-b0f0-8c9e51c2ee88",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-04-19",
+  "commander": "10",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "f41a897f-3786-4b6e-94da-077331655660",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-07-04",
+  "commander": "20",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "e9ab0efb-bf41-4f01-9fd5-63f203edf355",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-07-04",
+  "commander": "20",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "2ad7e178-1e5e-44bc-91ff-507781c3d038",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-08-17",
+  "commander": "40",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "3b061774-54e2-495e-b0ed-bea8e5bf7598",
+  "boutique_id": "veigne",
+  "product_id": "mpr",
+  "service_date": "2026-08-23",
+  "commander": "40",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "fc97375e-1395-4220-bda7-a99d6aff4e30",
+  "boutique_id": "veigne",
+  "product_id": "mcr",
+  "service_date": "2026-08-23",
+  "commander": "20",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "4cfdc817-828b-42f8-bb85-a28571fc033c",
+  "boutique_id": "veigne",
+  "product_id": "mpc",
+  "service_date": "2026-08-23",
+  "commander": "20",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "a0820d96-35d3-4ca5-bdfd-757eb6610277",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-08-25",
+  "commander": "14",
+  "sent_at": "2026-08-25T11:17:35.724+00:00",
+  "prepared_at": "2026-08-26T02:00:07.852+00:00"
+ },
+ {
+  "id": "45f50640-78b9-40b0-9679-b146d737518b",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-08-25",
+  "commander": "40",
+  "sent_at": "2026-08-26T10:25:21.408+00:00",
+  "prepared_at": null
+ },
+ {
+  "id": "202aca58-ead4-4d69-8f2e-91b564bedce5",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-08-25",
+  "commander": "38",
+  "sent_at": "2026-08-25T11:17:35.724+00:00",
+  "prepared_at": "2026-08-26T02:00:07.852+00:00"
+ },
+ {
+  "id": "489f7549-ba68-42d5-8574-d83aca5c40df",
+  "boutique_id": "veigne",
+  "product_id": "mpc",
+  "service_date": "2026-08-26",
+  "commander": "20",
+  "sent_at": "2026-08-23T07:29:29.913+00:00",
+  "prepared_at": "2026-08-25T05:01:35.961+00:00"
+ },
+ {
+  "id": "6a96fe8e-477b-40a1-91a5-a5c8679f3203",
+  "boutique_id": "veigne",
+  "product_id": "mpr",
+  "service_date": "2026-08-26",
+  "commander": "40",
+  "sent_at": "2026-08-23T07:29:29.913+00:00",
+  "prepared_at": "2026-08-25T05:01:35.961+00:00"
+ },
+ {
+  "id": "4378aa02-b25d-462e-a5bf-26279990cf96",
+  "boutique_id": "veigne",
+  "product_id": "mcr",
+  "service_date": "2026-08-26",
+  "commander": "20",
+  "sent_at": "2026-08-23T07:29:29.913+00:00",
+  "prepared_at": "2026-08-25T05:01:35.961+00:00"
+ },
+ {
+  "id": "c4fc95dc-0a8a-4dbe-8501-2f5dc82ca9ea",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-08-28",
+  "commander": "40",
+  "sent_at": "2026-08-28T03:23:54.799+00:00",
+  "prepared_at": "2026-08-28T04:26:02.846+00:00"
+ },
+ {
+  "id": "09689b3a-77a0-412e-9e12-7976e00a9322",
+  "boutique_id": "veigne",
+  "product_id": "mpr",
+  "service_date": "2026-08-29",
+  "commander": "160",
+  "sent_at": "2026-08-29T10:01:12.768+00:00",
+  "prepared_at": "2026-09-01T05:07:37.538+00:00"
+ },
+ {
+  "id": "65022bf7-1d5e-4bb8-bd29-2c8f981b6848",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-09-02",
+  "commander": "40",
+  "sent_at": "2026-09-01T09:48:23.444+00:00",
+  "prepared_at": "2026-09-02T04:36:12.037+00:00"
+ },
+ {
+  "id": "aec59f22-c226-45c3-8157-87fd632bdfd9",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-09-06",
+  "commander": "30",
+  "sent_at": "2026-09-06T10:05:51.286+00:00",
+  "prepared_at": "2026-09-08T04:11:57.364+00:00"
+ },
+ {
+  "id": "851e42f0-e8a8-4dff-a1c0-bddb582a9053",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-09-06",
+  "commander": "30",
+  "sent_at": "2026-09-06T10:05:51.286+00:00",
+  "prepared_at": "2026-09-08T04:11:57.364+00:00"
+ },
+ {
+  "id": "e8e8e64d-1d16-4967-a268-c4518f4a70bb",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-09-09",
+  "commander": "30",
+  "sent_at": "2026-09-08T03:25:25.046+00:00",
+  "prepared_at": "2026-09-08T08:48:45.684+00:00"
+ },
+ {
+  "id": "7587f222-a21d-47c0-9a7e-7c46f98c3589",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-09-09",
+  "commander": "30",
+  "sent_at": "2026-09-08T03:25:25.046+00:00",
+  "prepared_at": "2026-09-08T08:48:45.684+00:00"
+ },
+ {
+  "id": "d7981d18-25e9-4d31-89ca-1b2a4d808336",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-09-11",
+  "commander": "40",
+  "sent_at": "2026-09-09T09:58:01.776+00:00",
+  "prepared_at": "2026-09-10T04:19:28.412+00:00"
+ },
+ {
+  "id": "745c6639-d694-49c2-8e61-f8f9ea63c539",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-09-16",
+  "commander": "80",
+  "sent_at": "2026-09-11T10:16:42.869+00:00",
+  "prepared_at": "2026-09-15T04:59:29.288+00:00"
+ },
+ {
+  "id": "d3a884e4-0383-4519-913f-0716a1e4553c",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-09-16",
+  "commander": "30",
+  "sent_at": "2026-09-14T04:59:38.025+00:00",
+  "prepared_at": "2026-09-15T04:59:25.633+00:00"
+ },
+ {
+  "id": "c27f9406-07e1-4251-8e48-6fcd45d57d5d",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-09-16",
+  "commander": "30",
+  "sent_at": "2026-09-14T04:59:38.025+00:00",
+  "prepared_at": "2026-09-15T04:59:25.633+00:00"
+ },
+ {
+  "id": "f76b6934-516c-4895-8755-71b6b2639642",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-09-22",
+  "commander": "20",
+  "sent_at": "2026-09-20T08:04:26.342+00:00",
+  "prepared_at": "2026-09-22T02:45:54.525+00:00"
+ },
+ {
+  "id": "3c5ae068-d387-4227-ad28-d71b27697133",
+  "boutique_id": "tours",
+  "product_id": "mpr",
+  "service_date": "2026-09-30",
+  "commander": "80",
+  "sent_at": "2026-09-29T16:13:20.652+00:00",
+  "prepared_at": "2026-09-30T02:45:42.467+00:00"
+ },
+ {
+  "id": "2520c696-fab6-4dd8-8208-0804436c613c",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-10-02",
+  "commander": "23",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "88b613f8-9320-4d51-98ca-0d2bd5977c4b",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-10-02",
+  "commander": "40",
+  "sent_at": null,
+  "prepared_at": null
+ },
+ {
+  "id": "7cd46e68-c40f-49b2-8f94-e756bb7fa003",
+  "boutique_id": "veigne",
+  "product_id": "mcr",
+  "service_date": "2026-10-03",
+  "commander": "50",
+  "sent_at": "2026-10-02T09:12:35.479+00:00",
+  "prepared_at": "2026-10-03T07:18:31.631+00:00"
+ },
+ {
+  "id": "4f01aa04-890a-4055-ae7f-21c26cdd5bb6",
+  "boutique_id": "veigne",
+  "product_id": "mpr",
+  "service_date": "2026-10-03",
+  "commander": "40",
+  "sent_at": "2026-10-02T09:12:35.479+00:00",
+  "prepared_at": "2026-10-03T07:18:31.631+00:00"
+ },
+ {
+  "id": "c5335a01-07ee-4dc7-bc0b-0870e0be78f1",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-10-03",
+  "commander": "23",
+  "sent_at": "2026-10-02T09:12:35.479+00:00",
+  "prepared_at": "2026-10-03T07:18:31.631+00:00"
+ },
+ {
+  "id": "7b19a8f4-d0f1-4a19-a078-d06919da7b75",
+  "boutique_id": "veigne",
+  "product_id": "mpc",
+  "service_date": "2026-10-03",
+  "commander": "50",
+  "sent_at": "2026-10-02T09:12:35.479+00:00",
+  "prepared_at": "2026-10-03T07:18:31.631+00:00"
+ },
+ {
+  "id": "57cacd8b-a010-44ba-9114-7de49b91e1a6",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-10-03",
+  "commander": "40",
+  "sent_at": "2026-10-02T09:12:35.479+00:00",
+  "prepared_at": "2026-10-03T07:18:31.631+00:00"
+ },
+ {
+  "id": "cdb077bf-64a2-4149-a38e-c7e1ed580956",
+  "boutique_id": "veigne",
+  "product_id": "chap_r",
+  "service_date": "2026-10-06",
+  "commander": "10",
+  "sent_at": "2026-10-05T08:53:34.11+00:00",
+  "prepared_at": "2026-10-06T05:38:18.504+00:00"
+ },
+ {
+  "id": "124ee756-25fc-40f0-ba2c-3bb0f5b2078d",
+  "boutique_id": "veigne",
+  "product_id": "chap_c",
+  "service_date": "2026-10-06",
+  "commander": "10",
+  "sent_at": "2026-10-05T08:53:34.11+00:00",
+  "prepared_at": "2026-10-06T05:38:18.504+00:00"
+ },
+ {
+  "id": "5a32ed4b-54a0-448f-aa73-df1299f50673",
+  "boutique_id": "veigne",
+  "product_id": "mpr",
+  "service_date": "2026-10-13",
+  "commander": "80",
+  "sent_at": "2026-10-12T09:26:37.277+00:00",
+  "prepared_at": "2026-10-13T03:06:26.953+00:00"
+ }
+]
