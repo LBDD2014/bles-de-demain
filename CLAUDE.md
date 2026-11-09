@@ -262,6 +262,12 @@ bandeau « Rajout ») : une « Nouvelle commande » écraserait l'existante (`sa
 ajoutées sortent du stock, note « 🚑 rajout dépannage ». `renderProOrders` en BackOffice ne rend que ce formulaire puis revient à la liste des pros.
 Pas de SQL. Test : spec 59. `migration-v20.293-mise-en-compte.sql` n'avait jamais été lancée (constaté le 09/11, bouton 💶 muet depuis le 26/10) → **lancée le 09/11/2026**.
 
+**Pièces par client — par produit (v20.343, 09/11/2026)** : Phil : « trier par sorte : Dakota, nombre de burgers / mois, de hot dogs / mois ».
+Dans « 📊 Pièces par client » (onglet Pros de chaque site) : **un client déplié montre d'abord ses produits du mois** (une ligne par produit,
+semaines + mois, `prodRows`), puis ses livraisons ; la ligne « ↳ Total Dakota » se déplie aussi (`proRecapOpenClients['groupe:dakota']`).
+Boutons **Par client / Par produit** (`proRecapVue`) : la vue produits = une ligne par produit tous clients confondus, un produit déplié = qui en a
+pris. Même filtre de site, mêmes exclusions (brouillons, annulées), CSV inchangé. Le Récap du BackOffice (par pro, en €) ne change pas. Test : spec 37.
+
 **Fabrication — Bilan bio, feuille BV tous sites (v20.295, 27/10/2026, jour du contrôle Bureau Veritas)** :
 bouton « 🖨️ Feuille BV tous sites » (code maître seulement) = un document : tableau consolidé entreprise farine par
 farine (les envois entre sites s'annulent : Entrées = bons seulement, Sorties = production + pertes, Compté = somme

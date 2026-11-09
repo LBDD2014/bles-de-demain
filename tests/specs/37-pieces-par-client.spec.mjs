@@ -85,4 +85,33 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Pièces par client — v20.343 : un client déplié montre d\'abord ses produits du mois ; le groupe Dakota aussi ; vue « Par produit » tous clients, un produit déplié = qui en a pris',
+    fn: async (ctx) => {
+      const page = await ongletPros(ctx, 'local');
+      const r = await page.evaluate(() => {
+        toggleProOrdersRecap();
+        proRecapToggleClient('dk_t');
+        const prods = Array.from(document.querySelectorAll('.pro-recap-prod')).map((x) => x.textContent.replace(/\s+/g, ' ').trim());
+        const det = document.querySelectorAll('.pro-recap-detail').length;
+        proRecapToggleClient('dk_t'); proRecapToggleClient('groupe:dakota');
+        const grp = Array.from(document.querySelectorAll('.pro-recap-prod')).map((x) => x.textContent.replace(/\s+/g, ' ').trim());
+        proRecapToggleClient('groupe:dakota');
+        proRecapSetVue('produits');
+        const rows = Array.from(document.querySelectorAll('.pro-recap-table tbody tr.pro-recap-row')).map((x) => x.textContent.replace(/\s+/g, ' ').trim());
+        const th = document.querySelector('.pro-recap-table thead th').textContent;
+        proRecapToggleClient('vt_trad');
+        const qui = Array.from(document.querySelectorAll('.pro-recap-prod')).map((x) => x.textContent.replace(/\s+/g, ' ').trim());
+        const tot = document.querySelector('.pro-recap-table tfoot').textContent.replace(/\s+/g, ' ').trim();
+        proRecapSetVue('clients');
+        return { prods, det, grp, rows, th, qui, tot };
+      });
+      assert(r.prods.length === 2 && /Tradition.*135/.test(r.prods[0]) && /Croissant.*10/.test(r.prods[1]) && r.det === 2, 'produits du client : ' + JSON.stringify(r.prods) + ' det=' + r.det);
+      assert(r.grp.length === 2 && /Tradition.*285/.test(r.grp[0]) && /Croissant.*10/.test(r.grp[1]), 'produits du groupe : ' + JSON.stringify(r.grp));
+      assert(r.th === 'Produit' && r.rows.length === 2 && /Tradition.*285/.test(r.rows[0]) && /Croissant.*10/.test(r.rows[1]), 'vue produits : ' + JSON.stringify(r.rows));
+      assert(r.qui.length === 2 && /Chambray.*150/.test(r.qui[0]) && /Tours.*135/.test(r.qui[1]), 'qui en a pris : ' + JSON.stringify(r.qui));
+      assert(/295/.test(r.tot), 'total : ' + r.tot);
+      await page.close();
+    },
+  },
 ];

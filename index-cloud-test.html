@@ -2132,6 +2132,9 @@ font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 /* v20.290 — créneau d'une commande pro (matin / après-midi) */
 .pro-creneau-badge { display:inline-block; font-size:10.5px; font-weight:700; color:var(--gold-dark); background:#FBF3DD; border:1px solid var(--gold-light); border-radius:8px; padding:1px 7px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
 .pro-creneau-badge.aprem { color:white; background:var(--orange); border-color:var(--orange); }
+.pro-recap-vues { display:flex; gap:6px; margin:0 0 8px; }
+.pro-recap-prod td { font-size:12px; color:var(--brown-mid); background:#FBF8F1; }
+.pro-recap-prod td:first-child { padding-left:22px; }
 .pro-creneau-badge.dep { color:white; background:var(--red); border-color:var(--red); }
 .pro-dep-banner { background:#FDECEC; border-left:4px solid var(--red); color:var(--brown); }
 .pro-creneau-pick { display:flex; gap:8px; margin:6px 0 4px; }
@@ -2946,7 +2949,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.342';
+const APP_VERSION  = 'v20.343';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -15672,7 +15675,9 @@ function closeProOrderForm() {
 // filtré par la boutique source choisie). Brouillons et annulées exclus.
 let proOrdersRecapOpen = (function() { try { return localStorage.getItem('proRecapOpen') === '1'; } catch (e) { return false; } })();
 let proRecapYM = null;            // 'YYYY-MM' affiché
-let proRecapOpenClients = {};     // { pro_id: true } dépliés
+let proRecapOpenClients = {};     // { pro_id: true } dépliés (aussi 'groupe:<g>' et, en vue produits, un product_id)
+let proRecapVue = 'clients';      // v20.343 — 'clients' | 'produits' (Phil, 09/11 : « trier par sorte : nombre de burgers / mois, de hot dogs / mois »)
+function proRecapSetVue(v) { proRecapVue = v; renderProOrders(); }
 function toggleProOrdersRecap() { proOrdersRecapOpen = !proOrdersRecapOpen; try { localStorage.setItem('proRecapOpen', proOrdersRecapOpen ? '1' : '0'); } catch (e) {} renderProOrders(); }
 function proRecapMonth(delta) {
   const cur = proRecapYM || todayISO().slice(0, 7);
@@ -15701,11 +15706,18 @@ function proRecapRows() {
     if (srcF !== 'all' && o.boutique_source !== srcF) return;
     if (o.date_livraison.slice(0, 7) !== ym) return;
     const pro = adminPros.find(function(p) { return p.id === o.pro_id; }) || { id: o.pro_id, nom: o.pro_id };
-    const r = byPro[o.pro_id] = byPro[o.pro_id] || { pro: pro, nom: pro.nom || o.pro_id, groupe: pro.groupe || null, weeks: weeks.map(function() { return 0; }), mois: 0, livraisons: [] };
+    const r = byPro[o.pro_id] = byPro[o.pro_id] || { pro: pro, nom: pro.nom || o.pro_id, groupe: pro.groupe || null, weeks: weeks.map(function() { return 0; }), mois: 0, livraisons: [], prods: {} };
     const n = proRecapPieces(o);
     const wi = weeks.findIndex(function(w) { return o.date_livraison >= w.monday && o.date_livraison <= w.sunday; });
     if (wi !== -1) r.weeks[wi] += n;
     r.mois += n;
+    // v20.343 — le même compte, produit par produit (burgers / hot dogs…)
+    (o.pro_order_items || []).forEach(function(it) {
+      const qn = Number(it.qty) || 0; if (!qn) return;
+      const pr = r.prods[it.product_id] = r.prods[it.product_id] || { weeks: weeks.map(function() { return 0; }), mois: 0 };
+      if (wi !== -1) pr.weeks[wi] += qn;
+      pr.mois += qn;
+    });
     r.livraisons.push({ date: o.date_livraison, pieces: n, statut: o.statut, notes: o.notes || '', src: o.boutique_source, items: o.pro_order_items || [] });
   });
   const rows = Object.keys(byPro).map(function(k) { return byPro[k]; });
@@ -15727,19 +15739,63 @@ function proRecapBlockHtml() {
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
     + '<button class="btn-gold-sm" onclick="proRecapMonth(-1)">◀</button><b style="flex:1;text-align:center;text-transform:capitalize">' + escapeHtml(lblMois) + '</b><button class="btn-gold-sm" onclick="proRecapMonth(1)">▶</button>'
     + '<button class="btn-gold-sm" onclick="exportProRecapCSV()" title="Le mois, une ligne par produit livré">📥 CSV</button></div>'
-    + '<div class="pro-form-hint" style="margin:0 0 8px">Pièces livrées (ou confirmées) par client, par semaine (lundi → dimanche) et sur le mois. Touche un client pour voir ses livraisons.</div>';
+    // v20.343 — Par client / Par produit
+    + '<div class="pro-recap-vues"><button class="tour-btn' + (proRecapVue !== 'produits' ? ' active' : '') + '" onclick="proRecapSetVue(\'clients\')">Par client</button>'
+    + '<button class="tour-btn' + (proRecapVue === 'produits' ? ' active' : '') + '" onclick="proRecapSetVue(\'produits\')">Par produit</button></div>'
+    + '<div class="pro-form-hint" style="margin:0 0 8px">' + (proRecapVue === 'produits'
+      ? 'Pièces livrées (ou confirmées) par produit, tous clients confondus, par semaine (lundi → dimanche) et sur le mois. Touche un produit pour voir qui en a pris.'
+      : 'Pièces livrées (ou confirmées) par client, par semaine (lundi → dimanche) et sur le mois. Touche un client : ses produits du mois, puis ses livraisons.') + '</div>';
   if (!rows.length) { html += '<div class="empty-state">Aucune commande pro ce mois-ci.</div></div>'; return html; }
   const nCols = weeks.length + 2;
+  const nomProd = function(pid) { return (productsMap[pid] || {}).name || pid; };
+  // une ligne par produit (triées par pièces du mois), à partir d'un { pid: { weeks, mois } }
+  const prodRows = function(prods, cls) {
+    return Object.keys(prods).sort(function(a, b) { return prods[b].mois - prods[a].mois || nomProd(a).localeCompare(nomProd(b), 'fr'); }).map(function(pid) {
+      return '<tr class="' + cls + '"><td>↳ ' + escapeHtml(nomProd(pid)) + '</td>' + prods[pid].weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(prods[pid].mois) + '</strong></td></tr>';
+    }).join('');
+  };
+  if (proRecapVue === 'produits') {
+    // v20.343 — tous clients confondus : Produit | semaines | Mois ; un produit déplié = qui en a pris
+    const byProd = {};
+    rows.forEach(function(r) {
+      Object.keys(r.prods).forEach(function(pid) {
+        const b = byProd[pid] = byProd[pid] || { weeks: weeks.map(function() { return 0; }), mois: 0, clients: {} };
+        r.prods[pid].weeks.forEach(function(v, i) { b.weeks[i] += v; }); b.mois += r.prods[pid].mois;
+        b.clients[r.pro.id] = { nom: r.nom, weeks: r.prods[pid].weeks, mois: r.prods[pid].mois };
+      });
+    });
+    const pids = Object.keys(byProd).sort(function(a, b) { return byProd[b].mois - byProd[a].mois || nomProd(a).localeCompare(nomProd(b), 'fr'); });
+    const totWp = weeks.map(function() { return 0; }); let totMp = 0;
+    html += '<div style="overflow-x:auto"><table class="recap-table pro-recap-table"><thead><tr><th>Produit</th>' + weeks.map(wkLbl).join('') + '<th style="text-align:right">Mois</th></tr></thead><tbody>';
+    pids.forEach(function(pid) {
+      const b = byProd[pid]; b.weeks.forEach(function(v, i) { totWp[i] += v; }); totMp += b.mois;
+      const open = !!proRecapOpenClients[pid];
+      html += '<tr class="pro-recap-row' + (open ? ' open' : '') + '" onclick="proRecapToggleClient(\'' + escapeHtml(pid) + '\')"><td><span style="color:var(--gold-dark);font-size:11px;margin-right:4px">' + (open ? '▼' : '▶') + '</span>' + escapeHtml(nomProd(pid)) + '</td>'
+        + b.weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(b.mois) + '</strong></td></tr>';
+      if (open) {
+        Object.keys(b.clients).sort(function(x, y) { return b.clients[y].mois - b.clients[x].mois || b.clients[x].nom.localeCompare(b.clients[y].nom, 'fr'); }).forEach(function(cid) {
+          const c = b.clients[cid];
+          html += '<tr class="pro-recap-prod"><td>↳ ' + escapeHtml(c.nom) + '</td>' + c.weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(c.mois) + '</strong></td></tr>';
+        });
+      }
+    });
+    html += '</tbody><tfoot><tr><td>Total</td>' + totWp.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(totMp) + '</strong></td></tr></tfoot></table></div></div>';
+    return html;
+  }
   html += '<div style="overflow-x:auto"><table class="recap-table pro-recap-table"><thead><tr><th>Client</th>' + weeks.map(wkLbl).join('') + '<th style="text-align:right">Mois</th></tr></thead><tbody>';
   const totW = weeks.map(function() { return 0; }); let totM = 0;
   const groupes = {};
   rows.forEach(function(r) {
     r.weeks.forEach(function(v, i) { totW[i] += v; }); totM += r.mois;
-    if (r.groupe) { const g = groupes[r.groupe] = groupes[r.groupe] || { n: 0, weeks: weeks.map(function() { return 0; }), mois: 0 }; g.n++; r.weeks.forEach(function(v, i) { g.weeks[i] += v; }); g.mois += r.mois; }
+    if (r.groupe) {
+      const g = groupes[r.groupe] = groupes[r.groupe] || { n: 0, weeks: weeks.map(function() { return 0; }), mois: 0, prods: {} }; g.n++; r.weeks.forEach(function(v, i) { g.weeks[i] += v; }); g.mois += r.mois;
+      Object.keys(r.prods).forEach(function(pid) { const gp = g.prods[pid] = g.prods[pid] || { weeks: weeks.map(function() { return 0; }), mois: 0 }; r.prods[pid].weeks.forEach(function(v, i) { gp.weeks[i] += v; }); gp.mois += r.prods[pid].mois; });   // v20.343
+    }
     const open = !!proRecapOpenClients[r.pro.id];
     html += '<tr class="pro-recap-row' + (open ? ' open' : '') + '" onclick="proRecapToggleClient(\'' + escapeHtml(r.pro.id) + '\')"><td><span style="color:var(--gold-dark);font-size:11px;margin-right:4px">' + (open ? '▼' : '▶') + '</span>' + escapeHtml(r.nom) + ' <span style="color:#999;font-size:11px">· ' + r.livraisons.length + ' livr.</span></td>'
       + r.weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(r.mois) + '</strong></td></tr>';
     if (open) {
+      html += prodRows(r.prods, 'pro-recap-prod');   // v20.343 — d'abord ses produits du mois
       r.livraisons.forEach(function(l) {
         html += '<tr class="pro-recap-detail"><td colspan="' + nCols + '"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><strong>' + escapeHtml(formatDateFr(l.date)) + '</strong> <span style="color:' + (l.statut === 'livre' ? 'var(--green)' : 'var(--blue)') + ';font-size:11px;font-weight:700">· ' + (statutLbl[l.statut] || l.statut) + '</span>' + (proOrdersSourceFilter === 'all' ? ' <span style="color:#999;font-size:11px">· ' + escapeHtml(BOUTIQUE_NAMES[l.src] || l.src) + '</span>' : '') + '</span><strong>' + formatQty(l.pieces) + ' pièces</strong></div>'
           + '<div style="font-size:12px;color:var(--brown-mid)">' + l.items.map(function(it) { return formatQty(Number(it.qty) || 0) + ' ' + escapeHtml((productsMap[it.product_id] || {}).name || it.product_id); }).join(' · ') + (l.notes ? ' · <em>' + escapeHtml(l.notes) + '</em>' : '') + '</div></td></tr>';
@@ -15748,7 +15804,9 @@ function proRecapBlockHtml() {
   });
   Object.keys(groupes).forEach(function(g) {
     if (groupes[g].n < 2) return;
-    html += '<tr class="pro-recap-group"><td>↳ Total ' + escapeHtml(g.charAt(0).toUpperCase() + g.slice(1)) + ' (' + groupes[g].n + ' établissements)</td>' + groupes[g].weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(groupes[g].mois) + '</strong></td></tr>';
+    const gOpen = !!proRecapOpenClients['groupe:' + g];   // v20.343 — le groupe se déplie aussi, par produit
+    html += '<tr class="pro-recap-group" onclick="proRecapToggleClient(\'groupe:' + escapeHtml(g) + '\')" style="cursor:pointer"><td><span style="color:var(--gold-dark);font-size:11px;margin-right:4px">' + (gOpen ? '▼' : '▶') + '</span>↳ Total ' + escapeHtml(g.charAt(0).toUpperCase() + g.slice(1)) + ' (' + groupes[g].n + ' établissements)</td>' + groupes[g].weeks.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(groupes[g].mois) + '</strong></td></tr>';
+    if (gOpen) html += prodRows(groupes[g].prods, 'pro-recap-prod');
   });
   html += '</tbody><tfoot><tr><td>Total</td>' + totW.map(function(v) { return '<td style="text-align:right">' + q(v) + '</td>'; }).join('') + '<td style="text-align:right"><strong>' + formatQty(totM) + '</strong></td></tr></tfoot></table></div></div>';
   return html;
