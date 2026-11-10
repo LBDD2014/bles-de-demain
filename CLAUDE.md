@@ -395,6 +395,12 @@ jour ; **pas** la note de commande, ni date / heure / paiement. Nouvelles comman
 dans le choix des produits des commandes clients, tout produit dont le nom contient **« surgelé »** sort des catégories et de la
 recherche et se range dans la catégorie **« 🧊 Pros (surgelé) »**, toujours en dernier (`specialEstPro`, `SPE_CAT_PROS`). Rien n'est
 supprimé ; une catégorie qui ne contient que du surgelé n'a plus de puce. Les commandes des pros (onglet Pros, pro.html) ne changent pas.
+**v20.345 (10/11/2026) — hors carte et notes retrouvables** (Phil : « je n'ai plus de note pour prendre une pièce montée ou un gâteau spécial
+hors carte ») : rien n'avait disparu, mais depuis la v20.329 le texte libre n'apparaissait qu'en tapant dans la loupe (« Aucun produit. Vérifie
+l'orthographe » puis « ✏️ Autre ») et la note de commande était tout en bas, après le paiement. Désormais : puce **« ✏️ Hors carte »** toujours
+visible après les catégories (`specialLibreOuvrir` → case « Produit hors carte » + « + Ajouter », `specialLibreAjouter`, Entrée valide) ; recherche
+sans résultat = « Pas dans la liste ? Ajoute-le en hors carte » + « ✏️ Hors carte : « … » » ; bloc **« 📝 Note de commande »** (plaques comprises)
+remonté **juste sous les produits**, avant total et paiement. Règle : tout nouveau champ que la vendeuse doit trouver sans chercher reste au-dessus du paiement. Tests : specs 52 et 13.
 **v20.330** : l'avertissement d'un produit tapé à la main nomme le **vrai atelier** (atelier principal de la commande, ex. St-Avertin + bûches → Veigné) au lieu de toujours « restera à <boutique> ».
 
 **Écrans de production (v20.333, 31/10/2026, après le tour des écrans sur les vraies données)** :

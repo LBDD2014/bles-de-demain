@@ -518,6 +518,9 @@ text-transform: uppercase; color: #fff; border-radius: 6px; margin: 8px 8px 4px;
 .sp-pcat-pros { border-style: dashed; color: var(--blue); }
 .sp-pcat-pros.on { background: var(--blue); border-color: var(--blue); }
 .sp-psearch-libre { border-style: dashed !important; }
+.sp-pcat-libre { border: 1.5px dashed var(--gold-dark); color: var(--gold-dark); font-weight: 700; }
+.sp-pcat-libre.on { background: var(--gold-dark); border-color: var(--gold-dark); color: #fff; }
+.sp-libre-box { margin: 8px 0 4px; padding: 10px; border: 1.5px dashed var(--gold-dark); border-radius: 10px; background: #FFFBEF; }
 /* v20.332 — ⭐ les plus commandés ici, 📑 refaire sa dernière commande */
 .sp-fav-t { font-size: 12px; font-weight: 700; color: var(--gold-dark); margin: 2px 0 6px; letter-spacing: .03em; text-transform: uppercase; }
 .sp-favs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
@@ -2949,7 +2952,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.344';
+const APP_VERSION  = 'v20.345';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -22383,6 +22386,15 @@ d.items.forEach(function(it, idx) {
 html += renderSpecialItemRow(it, idx);
 });
 html += '</div>';
+// Notes — v20.345 : juste sous les produits (avant, tout en bas après le paiement, on ne les voyait plus)
+html += '<div class="sp-form-row"><label class="sp-lbl">📝 Note de commande <small style="font-weight:400;text-transform:none">(allergie, décoration, message à écrire…)</small></label>';
+// v20.74 — plaques préréglées (1 clic remplit le message, éditable ensuite)
+html += '<div class="sp-plaques">';
+SP_PLAQUES.forEach(function(txt) {
+html += '<button type="button" class="sp-plaque-btn" onclick="setSpecialNote(\'' + txt.replace(/'/g, "\\'") + '\')">' + escapeHtml(txt) + '</button>';
+});
+html += '</div>';
+html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, décoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
 // v20.329 — total dès qu'il y a un prix (carte de la fête ou prix tapé à la main), puis le paiement
 // juste dessous : on choisit l'acompte quand on connaît le montant.
 const tot = specialDraftTotal(d);
@@ -22406,15 +22418,6 @@ if (d.paiement === 'acompte') {
 }
 html += '</div>';
 
-// Notes
-html += '<div class="sp-form-row"><label class="sp-lbl">Notes</label>';
-// v20.74 — plaques préréglées (1 clic remplit le message, éditable ensuite)
-html += '<div class="sp-plaques">';
-SP_PLAQUES.forEach(function(txt) {
-html += '<button type="button" class="sp-plaque-btn" onclick="setSpecialNote(\'' + txt.replace(/'/g, "\\'") + '\')">' + escapeHtml(txt) + '</button>';
-});
-html += '</div>';
-html += '<textarea class="sp-input sp-textarea" rows="3" placeholder="Allergie, décoration, message..." oninput="handleSpecialFormField(\'notes\', this.value)">' + escapeHtml(d.notes) + '</textarea></div>';
 
 // Status (si edit)
 if (isEdit) {
@@ -22541,9 +22544,9 @@ function specialSearchResultsHtml(q, cat) {
         + escapeHtml(specialProductName(p))
         + (cat && cat !== SPE_CAT_PROS ? '' : '<span class="h-cat">' + escapeHtml(CAT_LABELS[p.category] || p.category) + '</span>') + '</button>';
     }).join('');
-    if (!hits.length) h = '<div class="sp-psearch-none">Aucun produit. Vérifie l\'orthographe, ou choisis une catégorie.</div>';
+    if (!hits.length) h = '<div class="sp-psearch-none">' + (planNorm(q).length >= 2 ? 'Pas dans la liste ? Ajoute-le en hors carte, juste en dessous.' : 'Aucun produit dans cette catégorie.') + '</div>';
   }
-  if (planNorm(q).length >= 2) h += '<button type="button" class="sp-psearch-hit sp-psearch-libre" onclick="specialAddLibre()">✏️ Autre : « ' + escapeHtml(q.trim()) + ' »</button>';
+  if (planNorm(q).length >= 2) h += '<button type="button" class="sp-psearch-hit sp-psearch-libre" onclick="specialAddLibre()">✏️ Hors carte : « ' + escapeHtml(q.trim()) + ' »</button>';
   return h;
 }
 function specialPickerCats() {
@@ -22670,9 +22673,32 @@ function specialPickerHtml(d) {
     + '</div>'
     + '<div class="sp-pcats">' + specialPickerCats().map(function(c) {
         return '<button type="button" class="sp-pcat' + (cat === c ? ' on' : '') + (c === SPE_CAT_PROS ? ' sp-pcat-pros' : '') + '" onclick="specialPickCat(\'' + c + '\')">' + escapeHtml(c === SPE_CAT_PROS ? '🧊 Pros (surgelé)' : (CAT_LABELS[c] || c)) + '</button>';
-      }).join('') + '</div>'
+      }).join('')
+      // v20.345 — hors carte toujours visible (Phil, 10/11 : « je n'ai plus de note pour prendre une pièce montée ou un gâteau spécial »)
+      + '<button type="button" class="sp-pcat sp-pcat-libre' + (d.libreOpen ? ' on' : '') + '" onclick="specialLibreOuvrir()">✏️ Hors carte</button>'
+      + '</div>'
+    + (d.libreOpen ? '<div class="sp-libre-box"><label class="sp-lbl" style="margin:0 0 4px">Produit hors carte : pièce montée, gâteau spécial…</label>'
+        + '<div style="display:flex;gap:8px"><input id="sp-libre-inp" class="sp-input" type="text" autocomplete="off" placeholder="ex : Pièce montée 30 choux" value="' + escapeHtml(d.libreTxt || '') + '" oninput="specialFormDraft.libreTxt = this.value" onkeydown="if (event.key === \'Enter\') { event.preventDefault(); specialLibreAjouter(); }">'
+        + '<button type="button" class="btn-gold-sm" style="flex:0 0 auto" onclick="specialLibreAjouter()">+ Ajouter</button></div>'
+        + '<small style="color:var(--grey-light)">La ligne s\'ajoute en dessous : tu peux y mettre la quantité, une ✏️ note (parfum, décor, nombre de parts) et un prix.</small></div>' : '')
     + '<div class="sp-psearch-res" id="sp-psearch-res">' + specialSearchResultsHtml(q, cat) + '</div>'
     + '</div>';
+}
+// v20.345 — ✏️ Hors carte : une case toujours à portée (avant, « ✏️ Autre » n'apparaissait qu'en tapant dans la loupe)
+function specialLibreOuvrir() {
+  const d = specialFormDraft; if (!d) return;
+  d.libreOpen = !d.libreOpen; if (d.libreOpen && !d.libreTxt) d.libreTxt = (d.recherche || '').trim();
+  renderSpecials();
+  if (d.libreOpen) setTimeout(function() { const i = document.getElementById('sp-libre-inp'); if (i) i.focus(); }, 30);
+}
+function specialLibreAjouter() {
+  const d = specialFormDraft; if (!d) return;
+  const i = document.getElementById('sp-libre-inp');
+  const txt = ((i ? i.value : d.libreTxt) || '').trim();
+  if (!txt) { showToast('Écris le nom du produit hors carte', 'error'); if (i) i.focus(); return; }
+  d.items.push({ product_id: null, product_name_custom: txt, qty: '1', notes: '', category: '__custom', tranche: false, unit_price: null });
+  d.libreTxt = ''; d.libreOpen = false; d.recherche = ''; d.rechCat = '';
+  renderSpecials();
 }
 // Pas de re-rendu complet à chaque lettre : on garde le clavier ouvert et le focus.
 function handleSpecialItemSearch(val) {

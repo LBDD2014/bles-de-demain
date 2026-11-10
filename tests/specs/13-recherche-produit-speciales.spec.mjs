@@ -101,7 +101,7 @@ export const tests = [
       const { page } = await chercher(ctx, 'zzzz');
       const txt = await page.evaluate(() =>
         (document.getElementById('sp-psearch-res').textContent || '').trim());
-      assert(txt.indexOf('Aucun produit') !== -1 && txt.indexOf('Autre : « zzzz »') !== -1, `message + « ✏️ Autre » attendus — reçu : « ${txt} »`);
+      assert(txt.indexOf('Pas dans la liste') !== -1 && txt.indexOf('Hors carte : « zzzz »') !== -1, `message + « ✏️ Hors carte » attendus (v20.345) — reçu : « ${txt} »`);
       await page.close();
     },
   },

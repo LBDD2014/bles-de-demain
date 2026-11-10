@@ -149,7 +149,7 @@ export const tests = [
       const page = await formulaire(ctx, 'veigne', d);
       const r = await page.evaluate(() => {
         const hits = () => Array.from(document.querySelectorAll('#sp-psearch-res .sp-psearch-hit:not(.sp-psearch-libre)')).map((b) => b.childNodes[0].textContent.replace(/^\+\s*/, '').trim());
-        const chips = Array.from(document.querySelectorAll('.sp-pcat')).map((b) => b.textContent.trim());
+        const chips = Array.from(document.querySelectorAll('.sp-pcat:not(.sp-pcat-libre)')).map((b) => b.textContent.trim());   // v20.345 : « ✏️ Hors carte » vient après
         specialPickCat('pains'); const pains = hits();
         handleSpecialItemSearch('tradition'); const recherche = hits();
         specialPickCat('__pros'); const pros = hits();
@@ -161,6 +161,41 @@ export const tests = [
       assert(!r.recherche.some((x) => /surgel/i.test(x)), 'recherche sans surgelé : ' + r.recherche.join('|'));
       assert(r.pros.join('|') === 'Tarte aux pommes 6 pers. crue surgelée|Tradition précuite surgelée', '« Pros » = tout le surgelé : ' + r.pros.join('|'));
       assert(r.ligne === 'trad_surg', 'toujours commandable depuis « Pros » : ' + r.ligne);
+      await page.close();
+    },
+  },
+  {
+    name: 'v20.345 — ✏️ Hors carte toujours visible : un appui ouvre la case, « Pièce montée 30 choux » s\'ajoute en ligne ; la note de commande est sous les produits, avant le paiement',
+    fn: async (ctx) => {
+      const page = await formulaire(ctx, 'veigne');
+      const r0 = await page.evaluate(() => {
+        const chip = document.querySelector('.sp-pcat-libre');
+        const ta = document.querySelector('textarea.sp-textarea');
+        const pay = Array.from(document.querySelectorAll('.sp-lbl')).find((l) => /Paiement/.test(l.textContent));
+        return { chip: chip ? chip.textContent.trim() : null, box: !!document.querySelector('.sp-libre-box'),
+          notesAvantPaiement: !!(ta && pay && (ta.compareDocumentPosition(pay) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          lblNote: Array.from(document.querySelectorAll('.sp-lbl')).some((l) => /Note de commande/.test(l.textContent)) };
+      });
+      assert(r0.chip === '✏️ Hors carte' && !r0.box, 'bouton hors carte visible, case fermée : ' + JSON.stringify(r0));
+      assert(r0.notesAvantPaiement && r0.lblNote, 'note de commande avant le paiement : ' + JSON.stringify(r0));
+      await page.evaluate(() => specialLibreOuvrir());
+      await page.waitForSelector('#sp-libre-inp');
+      await page.fill('#sp-libre-inp', 'Pièce montée 30 choux');
+      await page.evaluate(() => specialLibreAjouter());
+      const r1 = await page.evaluate(() => ({
+        items: specialFormDraft.items.map((i) => (i.product_id || 'libre') + ':' + i.product_name_custom + ':' + i.qty),
+        box: !!document.querySelector('.sp-libre-box'), creerOff: document.querySelector('.sp-bar .btn-gold').disabled,
+        ligne: document.getElementById('main-content').textContent.indexOf('Pièce montée 30 choux') !== -1 || Array.from(document.querySelectorAll('#main-content input')).some((i) => i.value === 'Pièce montée 30 choux'),
+      }));
+      assert(r1.items.join() === 'libre:Pièce montée 30 choux:1' && !r1.box && !r1.creerOff && r1.ligne, 'ligne hors carte : ' + JSON.stringify(r1));
+      // case vide : rien ne s'ajoute
+      await page.evaluate(() => { specialLibreOuvrir(); });
+      await page.waitForSelector('#sp-libre-inp');
+      await page.evaluate(() => specialLibreAjouter());
+      assert((await page.evaluate(() => specialFormDraft.items.length)) === 1, 'case vide : pas de ligne');
+      // la recherche qui ne trouve rien renvoie vers le hors carte
+      const msg = await page.evaluate(() => { handleSpecialItemSearch('zzzz gateau'); return document.getElementById('sp-psearch-res').textContent; });
+      assert(/Pas dans la liste/.test(msg) && /Hors carte : « zzzz gateau »/.test(msg), 'message de recherche : ' + msg);
       await page.close();
     },
   },
