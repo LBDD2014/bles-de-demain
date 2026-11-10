@@ -243,7 +243,8 @@ function sourceEffective(etab, src, iso) {
 }
 function jourPossible(etab, iso) { return sourceEffective(etab, etab.boutique_principale || 'local', iso) !== null; }
 function prepareLabel(etab, iso) { return BOUTIQUE_NAMES[sourceEffective(etab, etab.boutique_principale || 'local', iso) || etab.boutique_principale] || 'la boulangerie'; }
-function appliedPrice(etab, pid) { if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
+// v20.347 — fiche du groupe « interne » (Phil, Marc Antoine) : pas de prix
+function appliedPrice(etab, pid) { if (String(etab.groupe || '').toLowerCase() === 'interne') return null; if (etab.prix_speciaux && etab.prix_speciaux[pid] != null) return Number(etab.prix_speciaux[pid]); const p = products.find(function(x) { return x.id === pid; }); return (p && p.prix_cession != null) ? Number(p.prix_cession) : null; }
 // « Tours » / « Chambray-les-Tours » à partir de « DAKOTA CAFE Tours » / « DAKOTA CAFE CHAMBRAY-LES-TOURS »
 function shortLabel(etab) {
   if (etabs.length < 2) return etab.nom || '';

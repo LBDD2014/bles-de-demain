@@ -2952,7 +2952,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.346';
+const APP_VERSION  = 'v20.347';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -6799,7 +6799,11 @@ async function rappelProsEnCompte() {
   if (!OUBLIS_CTRL[currentBoutique] || !OUBLIS_CTRL[currentBoutique].procompte || currentDate !== serviceDateISO()) return;
   const { data } = await supa.from('pro_orders').select('id,pro_id,statut,mise_en_compte_at')
     .eq('tenant_id', TENANT_ID).eq('boutique_source', currentBoutique).eq('date_livraison', currentDate);
-  const manque = (data || []).filter(function(o) { return !o.mise_en_compte_at && o.statut !== 'annule' && o.statut !== 'brouillon'; });
+  // v20.347 — sans les commandes internes (la liste des pros n'est pas toujours chargée sur l'écran Ventes : on la lit au besoin)
+  let internes = {};
+  if (adminPros && adminPros.length) adminPros.forEach(function(p) { if (proEstInterne(p)) internes[p.id] = true; });
+  else { const pi = await supa.from('pros').select('id').eq('tenant_id', TENANT_ID).eq('groupe', PRO_GROUPE_INTERNE); ((pi && pi.data) || []).forEach(function(r) { internes[r.id] = true; }); }
+  const manque = (data || []).filter(function(o) { return !o.mise_en_compte_at && o.statut !== 'annule' && o.statut !== 'brouillon' && !internes[o.pro_id]; });
   if (!manque.length) return;
   const noms = manque.map(function(o) { const p = (adminPros || []).find(function(x) { return x.id === o.pro_id; }); return p ? p.nom : o.pro_id; });
   showToast('💶 ' + manque.length + ' commande' + (manque.length > 1 ? 's' : '') + ' pro pas encore mise' + (manque.length > 1 ? 's' : '') + ' en compte : ' + noms.join(', '), 'warn');
@@ -12782,6 +12786,7 @@ function prixVisibles() { return currentBoutique === 'backoffice'; }
 function proEnCompte(o) { return !!(o && o.mise_en_compte_at); }
 function proMiseEnCompteBtnHtml(o) {
   if (!o || o.statut === 'annule' || o.statut === 'brouillon') return '';
+  if (proIdInterne(o.pro_id)) return '';   // v20.347 — commande interne : pas de mise en compte
   const fait = proEnCompte(o);
   let lbl = '💶 Mise en compte';
   if (fait) {
@@ -12822,7 +12827,7 @@ function livreurTourneeOrders() {
   });
 }
 function livreurProsPasEnCompte() {
-  return livreurTourneeOrders().filter(function(o) { return o.statut !== 'brouillon' && !proEnCompte(o); });
+  return livreurTourneeOrders().filter(function(o) { return o.statut !== 'brouillon' && !proEnCompte(o) && !proIdInterne(o.pro_id); });   // v20.347 — sans les internes
 }
 function livreurProsEnComptePopup(ouvrir) {
   let el = document.getElementById('livreur-compte-modal');
@@ -14109,6 +14114,7 @@ function renderProForm(mc) {
     + '<label>Groupe (même client, plusieurs établissements)</label>'
     + '<input class="pro-input" placeholder="ex : dakota" value="' + escapeHtml(d.groupe || '') + '" oninput="handleProField(\'groupe\', this.value)">'
     + '<div class="pro-form-hint">Même mot sur les fiches du même client : il n\'a qu\'un lien, et sur sa page une colonne par établissement. Ici, une commande par fiche comme avant.</div>'
+    + (proEstInterne(d) ? '<div class="pro-form-hint" style="color:var(--blue);font-weight:700">🏠 Groupe « interne » : commandes de la maison, sans prix et sans mise en compte.</div>' : '')
     // v20.346 — Dakota (10/11) : même groupe pour le total des récaps, mais chacun commande de son côté
     + '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;text-transform:none;font-weight:600"><input type="checkbox"' + (d.page_separee ? ' checked' : '') + ' onchange="handleProField(\'page_separee\', this.checked)"> Chaque établissement a sa propre page de commande</label>'
     + '<div class="pro-form-hint">Cochée : le lien de cette fiche n\'ouvre que cet établissement (il ne voit ni ne modifie les autres du groupe). Le groupe ne sert plus qu\'au total dans « Pièces par client ».</div>'
@@ -15512,7 +15518,14 @@ function subscribeRealtimeProOrders(boutique) {
 }
 
 // v21.0.4 — Prix appliqué = prix spécial du pro si configuré, sinon prix_cession
+// v20.347 — COMMANDES INTERNES (Phil, 10/11 : Marc Antoine et lui commandent et viennent chercher « comme un pro ») :
+// une fiche pro du groupe « interne » suit tout le circuit pro (production, retrait, récaps), mais
+// « pas de prix » et « pas de mise en compte » : ni prix appliqué, ni bouton 💶, ni rappel, ni ligne dans les oublis.
+const PRO_GROUPE_INTERNE = 'interne';
+function proEstInterne(pro) { return !!(pro && String(pro.groupe || '').toLowerCase() === PRO_GROUPE_INTERNE); }
+function proIdInterne(proId) { return proEstInterne((adminPros || []).find(function(p) { return p.id === proId; })); }
 function getProAppliedPrice(pro, productId) {
+  if (proEstInterne(pro)) return null;   // v20.347
   if (pro && pro.prix_speciaux && pro.prix_speciaux[productId] != null) return Number(pro.prix_speciaux[productId]);
   const all = (adminProducts && adminProducts.length) ? adminProducts : products;
   const prod = all.find(function(p) { return p.id === productId; });
@@ -17879,13 +17892,13 @@ async function loadOublis(sites, nbJours) {
     // v20.293 — commandes pros du site (préparées par lui) pas encore mises en compte, jours passés + aujourd'hui
     pSites.length ? supa.from('pro_orders').select('id,pro_id,boutique_source,date_livraison,statut,mise_en_compte_at')
       .eq('tenant_id', TENANT_ID).in('boutique_source', pSites).gte('date_livraison', d0).lte('date_livraison', today).limit(2000) : vide,
-    pSites.length ? supa.from('pros').select('id,nom').eq('tenant_id', TENANT_ID) : vide
+    pSites.length ? supa.from('pros').select('id,nom,groupe').eq('tenant_id', TENANT_ID) : vide
   ]);
-  const proNoms = {};
-  ((pn && pn.data) || []).forEach(function(r) { proNoms[r.id] = r.nom; });
+  const proNoms = {}, proInternes = {};   // v20.347 — les commandes internes ne se mettent pas en compte
+  ((pn && pn.data) || []).forEach(function(r) { proNoms[r.id] = r.nom; if (proEstInterne(r)) proInternes[r.id] = true; });
   const proManque = {};   // site_date → [noms]
   ((po && po.data) || []).forEach(function(r) {
-    if (r.mise_en_compte_at || r.statut === 'annule' || r.statut === 'brouillon') return;
+    if (r.mise_en_compte_at || r.statut === 'annule' || r.statut === 'brouillon' || proInternes[r.pro_id]) return;
     (proManque[r.boutique_source + '_' + r.date_livraison] = proManque[r.boutique_source + '_' + r.date_livraison] || []).push(proNoms[r.pro_id] || r.pro_id);
   });
   const closes = {};

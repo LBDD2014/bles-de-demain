@@ -256,7 +256,11 @@ le 10/11 le groupe avait été retiré en urgence, sauvegarde `data-backups/2026
 chercher dans les différents sites, moi aussi ; il faudrait pouvoir commander et venir chercher comme un pro ». Fiches `marc_antoine` (06 64 43 58 75)
 et `philippe` (réactivée) : boutique principale Le Local, **tout le catalogue** (`catalogue_restreint = null`), tous les jours en **retrait 8h**,
 heure limite la veille 23h59, groupe `interne` avec **pages séparées** (v20.346) → ligne « ↳ Total Interne » dans Pièces par client. Chacun a son lien
-(📱 Liens pros) ou l'équipe saisit dans l'onglet Pros. Elles suivent tout le circuit pro : production 💼 Pros, « ✓ parti » pour les retraits, mise en compte.
+(📱 Liens pros) ou l'équipe saisit dans l'onglet Pros. Elles suivent tout le circuit pro : production 💼 Pros, « ✓ parti » pour les retraits.
+**v20.347 — Phil : « pas de mise en compte, pas de prix »** : une fiche du groupe `interne` (`proEstInterne`, `PRO_GROUPE_INTERNE`) n'a **aucun prix
+appliqué** (`getProAppliedPrice` et `appliedPrice` de pro.html renvoient null, même avec un prix de cession ou un prix spécial) et **pas de mise en
+compte** : pas de bouton 💶 sur ses cartes, absente du pop-up du livreur, du rappel à la validation des ventes, du bandeau des oublis et de
+BackOffice → Oublis. Pas de SQL (le groupe sert de drapeau). Tests : specs 46 et 36.
 
 **Marchés — produits du stand (v20.341, 09/11/2026)** : Phil : « une coche pour choisir quel produit figure dans les marchés d'Amboise et
 Beaujardin ». `products.marches text[]` (`migration-v20.341-marches-produits.sql` : liste de départ = les produits saisis sur un marché depuis le

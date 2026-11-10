@@ -216,4 +216,22 @@ export const tests = [
       await page2.close();
     },
   },
+  {
+    name: 'Page pro — v20.347 : fiche du groupe « interne » → la commande s\'enregistre SANS prix (même si le produit a un prix de cession)',
+    fn: async (ctx) => {
+      const db = dbDakota();
+      db.products.find((p) => p.id === 'vt_trad').prix_cession = 0.95;
+      db.pros.push({ id: 'marc', tenant_id: T, nom: 'Marc Antoine', actif: true, boutique_principale: 'local', groupe: 'interne', page_separee: true, magic_token: 'tok_marc', contacts: [{ nom: 'Marc Antoine', tel: '0664435875' }], jours_livraison: JOURS, catalogue_restreint: null, sources_par_categorie: {}, template_items: [] });
+      const page = await ouvrir(ctx, db, 'tok_marc');
+      const r = await page.evaluate(async () => {
+        const jour = dateStates().find((x) => x.state === 'open').iso;
+        openOrder(jour); setQty('marc', 'vt_trad', 4); await saveOrder();
+        await new Promise((res) => setTimeout(res, 200));
+        const o = window.__mockDB.pro_orders.find((x) => x.pro_id === 'marc');
+        return { etabs: etabs.map((e) => e.id).join(), items: window.__mockDB.pro_order_items.filter((i) => o && i.pro_order_id === o.id).map((i) => i.product_id + ':' + i.qty + ':' + i.prix_applique).join(), prixNormal: appliedPrice({ groupe: null, prix_speciaux: {} }, 'vt_trad') };
+      });
+      assert(r.etabs === 'marc' && r.items === 'vt_trad:4:null' && r.prixNormal === 0.95, JSON.stringify(r));
+      await page.close();
+    },
+  },
 ];

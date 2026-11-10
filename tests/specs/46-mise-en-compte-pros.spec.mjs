@@ -86,4 +86,32 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'v20.347 — commande INTERNE (groupe « interne ») : pas de bouton 💶 sur la carte, absente du bandeau des oublis et du rappel, et pas de prix appliqué',
+    fn: async (ctx) => {
+      const d = db();
+      d.pros.push({ id: 'marc', tenant_id: T, nom: 'Marc Antoine', actif: true, boutique_principale: 'tours', groupe: 'interne', page_separee: true, contacts: [], jours_livraison: JOURS, catalogue_restreint: null, prix_speciaux: { vt_trad: 1.2 }, template_items: [], sources_par_categorie: {} });
+      d.pro_orders.push({ id: 'int_hier', tenant_id: T, pro_id: 'marc', date_livraison: '2026-07-21', boutique_source: 'tours', statut: 'livre', created_by: 'tours' });
+      d.pro_orders.push({ id: 'int_auj', tenant_id: T, pro_id: 'marc', date_livraison: '2026-07-22', boutique_source: 'tours', statut: 'confirme', created_by: 'tours' });
+      d.pro_order_items.push({ id: 'i8', pro_order_id: 'int_hier', product_id: 'vt_trad', qty: 6 }, { id: 'i9', pro_order_id: 'int_auj', product_id: 'vt_trad', qty: 6 });
+      const page = await preparePage(ctx, { db: d });
+      await gotoApp(page); await enterBoutique(page, 'tours');
+      // bandeau : hier, seulement Le Clapotis (pas Marc Antoine) ; ventes validées → aujourd'hui : seulement Le Strapontin
+      let txt = await barre(page);
+      assert(/mar\. 21\/07 — Le Clapotis/.test(txt) && !/Marc Antoine/.test(txt), 'oublis sans l\'interne : ' + txt);
+      await page.evaluate(() => { window.__mockDB.sales.push({ tenant_id: '00000000-0000-0000-0000-000000000001', boutique_id: 'tours', product_id: 'vt_trad', date: '2026-07-22', matin: 1, day_closed: true }); });
+      txt = await barre(page);
+      assert(/aujourd'hui — Le Strapontin/.test(txt) && !/Marc Antoine/.test(txt), 'aujourd\'hui sans l\'interne : ' + txt);
+      // cartes de l'onglet Pros : 💶 sur la commande du Strapontin, rien sur celle de Marc Antoine ; prix : aucun
+      const r = await page.evaluate(async () => {
+        await setVue('pros_orders'); await loadAdminPros(); await loadProOrders('tours');
+        const marc = adminPros.find((p) => p.id === 'marc'), strap = adminPros.find((p) => p.id === 'strap');
+        return { btnInterne: proMiseEnCompteBtnHtml(proOrdersData.find((o) => o.id === 'int_auj')), btnPro: proMiseEnCompteBtnHtml(proOrdersData.find((o) => o.id === 'auj')),
+          prixInterne: getProAppliedPrice(marc, 'vt_trad'), prixPro: getProAppliedPrice(Object.assign({}, strap, { prix_speciaux: { vt_trad: 1.2 } }), 'vt_trad'), interne: proEstInterne(marc) };
+      });
+      assert(r.interne && r.btnInterne === '' && /Mise en compte/.test(r.btnPro), 'bouton 💶 : ' + JSON.stringify({ i: r.btnInterne, p: r.btnPro.slice(0, 40) }));
+      assert(r.prixInterne === null && r.prixPro === 1.2, 'prix : interne ' + r.prixInterne + ', pro ' + r.prixPro);
+      await page.close();
+    },
+  },
 ];
