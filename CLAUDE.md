@@ -244,6 +244,14 @@ règle générale : les pros des touriers commandent à la pièce, sauf ceux qui
 1500 → 25, stock nti −5 → 4,83, `production_done` 05/11 remis à 10 / 0,17 caisse ; sauvegarde `data-backups/2026-11-05-nougat-terre-y-fruit-avant.json`).
 Test : spec 38. Tout nouvel écran pro qui compte des colis passe par `proPackOf` / `packOf`, jamais par `conditioning_qty` directement.
 
+**Pros — « page séparée » dans un groupe (v20.346, 10/11/2026, cas Dakota)** : Dakota Café Tours et Chambray étaient dans le groupe `dakota` :
+chacun de leurs deux liens ouvrait une page avec les DEUX cafés côte à côte, et enregistrer la journée réécrivait les lignes des deux (erreur le
+10/11). Phil : « qu'ils puissent commander chacun de leur côté sans toucher la commande de leur collègue ». `pros.page_separee` (case « Chaque
+établissement a sa propre page de commande » sous le champ Groupe de la fiche) : **cochée = le lien de la fiche n'ouvre que cet établissement**
+(`pro_page_etabs` : la fiche du lien seule, et un établissement « page séparée » n'apparaît jamais chez un autre) ; le groupe ne sert plus qu'au
+« ↳ Total Dakota » de Pièces par client. `migration-v20.346-pros-page-separee.sql` (colonne + fonction + Dakota remis en groupe, pages séparées ;
+le 10/11 le groupe avait été retiré en urgence, sauvegarde `data-backups/2026-11-10-dakota-groupe-avant.json`). pro.html inchangé. Test : spec 36.
+
 **Marchés — produits du stand (v20.341, 09/11/2026)** : Phil : « une coche pour choisir quel produit figure dans les marchés d'Amboise et
 Beaujardin ». `products.marches text[]` (`migration-v20.341-marches-produits.sql` : liste de départ = les produits saisis sur un marché depuis le
 01/10, posés sur les DEUX marchés). Tableau marché : seuls les produits cochés pour le marché affiché (`marketProduitChoisi`) **+ tout produit qui a un

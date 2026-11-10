@@ -241,7 +241,8 @@
     const pros = tableRows('pros');
     const moi = pros.find(function (p) { return p.magic_token && p.magic_token === token && p.actif; });
     if (!moi) return [];
-    return pros.filter(function (p) { return p.id === moi.id || (moi.groupe && p.groupe === moi.groupe && p.actif); })
+    // v20.346 — page séparée : la fiche du lien est seule ; un établissement « page séparée » n'apparaît pas chez les autres
+    return pros.filter(function (p) { return p.id === moi.id || (moi.groupe && !moi.page_separee && p.groupe === moi.groupe && p.actif && !p.page_separee); })
       .sort(function (a, b) { return (b.magic_token === token) - (a.magic_token === token) || String(a.nom).localeCompare(String(b.nom)); });
   }
   function sansSecret(p) { const c = clone(p); delete c.magic_token; delete c.magic_sent_at; return c; }

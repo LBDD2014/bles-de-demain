@@ -186,4 +186,34 @@ export const tests = [
       await page.close();
     },
   },
+  {
+    name: 'Page pro — v20.346 : « page séparée » (Dakota, 10/11) : chaque lien n\'ouvre que son café, pas de colonnes, la commande de l\'un ne touche pas celle de l\'autre ; le groupe reste sur les fiches',
+    fn: async (ctx) => {
+      const db = dbDakota();
+      db.pros[0].page_separee = true; db.pros[1].page_separee = true; db.pros[1].magic_token = 'tok_chambray';
+      // Chambray a déjà sa commande pour jeudi 23 : elle ne doit pas bouger quand Tours enregistre la sienne
+      db.pro_orders.push({ id: 'o9', tenant_id: T, pro_id: 'dk_chambray', date_livraison: '2026-07-23', boutique_source: 'local', statut: 'confirme', created_by: 'pro_self:Arif' });
+      db.pro_order_items.push({ id: 'i9', pro_order_id: 'o9', product_id: 'vt_trad', qty: 150 });
+      const page = await ouvrir(ctx, db, 'tok_doline');
+      const r = await page.evaluate(() => ({ etabs: etabs.map((e) => e.id), cmdVisibles: Array.from(new Set(orders.map((o) => o.pro_id))) }));
+      assert(r.etabs.join() === 'dk_tours' && r.cmdVisibles.join() === 'dk_tours', 'lien Tours = Tours seul : ' + JSON.stringify(r));
+      // Tours modifie sa commande du jeudi 23 : 40 → 55 traditions
+      await page.evaluate(async () => { openOrder('2026-07-23'); setQty('dk_tours', 'vt_trad', 55); await saveOrder(); });
+      await page.waitForTimeout(250);
+      const apres = await page.evaluate(() => {
+        const q = (oid) => window.__mockDB.pro_order_items.filter((i) => i.pro_order_id === oid).map((i) => i.product_id + ':' + i.qty).join();
+        const cols = document.querySelectorAll('.prow.multi').length;
+        return { tours: q('o3'), chambray: q('o9'), statutChambray: window.__mockDB.pro_orders.find((o) => o.id === 'o9').statut, cols, groupes: window.__mockDB.pros.slice(0, 2).map((p) => p.groupe).join() };
+      });
+      assert(apres.tours === 'vt_trad:55', 'Tours a bien changé sa commande : ' + apres.tours);
+      assert(apres.chambray === 'vt_trad:150' && apres.statutChambray === 'confirme', 'Chambray intact : ' + JSON.stringify(apres));
+      assert(apres.cols === 0 && apres.groupes === 'dakota,dakota', 'pas de colonnes, groupe gardé : ' + JSON.stringify(apres));
+      await page.close();
+      // le lien de Chambray n'ouvre que Chambray
+      const page2 = await ouvrir(ctx, db, 'tok_chambray');
+      const r2 = await page2.evaluate(() => etabs.map((e) => e.id).join());
+      assert(r2 === 'dk_chambray', 'lien Chambray = Chambray seul : ' + r2);
+      await page2.close();
+    },
+  },
 ];

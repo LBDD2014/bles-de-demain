@@ -2952,7 +2952,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.345';
+const APP_VERSION  = 'v20.346';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -11608,6 +11608,7 @@ function openProForm(pid) {
       magic_token: p.magic_token || null,  // v21.3.0
       magic_sent_at: p.magic_sent_at || null,   // v20.272 — date du dernier envoi du lien
       groupe: p.groupe || '',   // v20.273 — même client, plusieurs établissements → un seul lien
+      page_separee: !!p.page_separee,   // v20.346 — groupe gardé pour les récaps, mais chaque établissement sa page
       creneau_aprem: proCreneauApremDraft(p.creneau_aprem),   // v20.290
       notes: p.notes || '', actif: !!p.actif
     };
@@ -13257,6 +13258,7 @@ async function saveProForm() {
     boutique_secours:      d.boutique_secours || null,
     creneau_aprem:         cleanCreneauAprem(d.creneau_aprem),   // v20.290 — null = un seul créneau
     groupe:                (d.groupe || '').trim().toLowerCase() || null,   // v20.273
+    page_separee:          !!d.page_separee,   // v20.346
     notes:                 (d.notes || '').trim() || null,
     actif:                 !!d.actif
   };
@@ -14107,6 +14109,9 @@ function renderProForm(mc) {
     + '<label>Groupe (même client, plusieurs établissements)</label>'
     + '<input class="pro-input" placeholder="ex : dakota" value="' + escapeHtml(d.groupe || '') + '" oninput="handleProField(\'groupe\', this.value)">'
     + '<div class="pro-form-hint">Même mot sur les fiches du même client : il n\'a qu\'un lien, et sur sa page une colonne par établissement. Ici, une commande par fiche comme avant.</div>'
+    // v20.346 — Dakota (10/11) : même groupe pour le total des récaps, mais chacun commande de son côté
+    + '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;text-transform:none;font-weight:600"><input type="checkbox"' + (d.page_separee ? ' checked' : '') + ' onchange="handleProField(\'page_separee\', this.checked)"> Chaque établissement a sa propre page de commande</label>'
+    + '<div class="pro-form-hint">Cochée : le lien de cette fiche n\'ouvre que cet établissement (il ne voit ni ne modifie les autres du groupe). Le groupe ne sert plus qu\'au total dans « Pièces par client ».</div>'
   + '</div>';
 
   // v21.0.2 — Sources par catégorie (ex: pain au Local + pâtisserie à Veigné)
