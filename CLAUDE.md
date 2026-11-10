@@ -252,6 +252,12 @@ chacun de leurs deux liens ouvrait une page avec les DEUX cafés côte à côte,
 « ↳ Total Dakota » de Pièces par client. `migration-v20.346-pros-page-separee.sql` (colonne + fonction + Dakota remis en groupe, pages séparées ;
 le 10/11 le groupe avait été retiré en urgence, sauvegarde `data-backups/2026-11-10-dakota-groupe-avant.json`). pro.html inchangé. Test : spec 36.
 
+**Commandes internes = fiches pros « interne » (10/11/2026, données seulement)** : Phil : « ça nous arrive de faire des commandes que nous venons
+chercher dans les différents sites, moi aussi ; il faudrait pouvoir commander et venir chercher comme un pro ». Fiches `marc_antoine` (06 64 43 58 75)
+et `philippe` (réactivée) : boutique principale Le Local, **tout le catalogue** (`catalogue_restreint = null`), tous les jours en **retrait 8h**,
+heure limite la veille 23h59, groupe `interne` avec **pages séparées** (v20.346) → ligne « ↳ Total Interne » dans Pièces par client. Chacun a son lien
+(📱 Liens pros) ou l'équipe saisit dans l'onglet Pros. Elles suivent tout le circuit pro : production 💼 Pros, « ✓ parti » pour les retraits, mise en compte.
+
 **Marchés — produits du stand (v20.341, 09/11/2026)** : Phil : « une coche pour choisir quel produit figure dans les marchés d'Amboise et
 Beaujardin ». `products.marches text[]` (`migration-v20.341-marches-produits.sql` : liste de départ = les produits saisis sur un marché depuis le
 01/10, posés sur les DEUX marchés). Tableau marché : seuls les produits cochés pour le marché affiché (`marketProduitChoisi`) **+ tout produit qui a un
