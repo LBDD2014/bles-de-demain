@@ -387,6 +387,11 @@ Phil (29/10) : « si les clients veulent du pain et des bûches, on fait comment
   Pas encore : page web, paiement en ligne, délais bloquants, plafond par créneau.
 - Carte de Noël en base (31/10) : 59 produits, prix 2025 (Excel feuille « Données »), 32 reliés à leur fiche par la migration ;
   `fete_events.noel` du **01/12/2026 au 01/01/2027**, `actif = false` → **à activer en BackOffice → Fêtes après la migration et la mise en ligne**.
+  **Mise à jour d'après le flyer 2026 (22/11/2026, données seulement, sauvegarde `data-backups/2026-11-22-carte-noel-avant.json`)** :
+  bûches « Tourangelle (sans gluten) », « Fraîcheur fruitée (sans gluten) » (ex fruits rouges), « Écureuil » (ex choco), grande 35 → 36 € ;
+  Pain de mie carré 700 g 7,70, Grande tourte de meule 6,60, Khorasan 8, Blés anciens 7, Petit épeautre 5,20, Mignardises x16 24 ;
+  ajoutés Mignardises x9 13,50 et Pain au sarrasin 3,50 (`vp_sar`) ; **en pause** (absents du flyer, ▶️ pour les remettre) : bonnet, horloge,
+  bulle de minuit, diamants, pain de mie rond, croissant, pain au chocolat, brioches Gabriel. 61 lignes.
 - Tests : `tests/specs/51-fetes-dans-speciales.spec.mjs` (+ spec 41 adaptée).
 
 **Prise de commande plus fluide (v20.329, 31/10/2026, maquette `prise-commande-mockup.html`, Phil : « Oui, les 5 »)** — même formulaire
