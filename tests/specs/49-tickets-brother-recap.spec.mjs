@@ -80,7 +80,7 @@ export const tests = [
         specialOrdersData = [s2];
         openTicketChoice('special', 's2');
         const modal = document.getElementById('ticket-choice-modal');
-        const boutons = Array.from(modal.querySelectorAll('button')).map((b) => b.textContent.trim());
+        const boutons = Array.from(modal.querySelectorAll('button')).filter((b) => !b.closest('.cont-step')).map((b) => b.textContent.trim());   // v20.348 : le compteur « contenants » a ses propres − / +
         await printOrderTickets('special', 's2', true);
         await new Promise((res) => setTimeout(res, 150));
         const n1 = (window.__printed[0].match(/class="lb( lb-sac)?"/g) || []).length;

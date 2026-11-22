@@ -1439,6 +1439,16 @@ background: var(--green); color: white; border-color: var(--green);
 .brother-switch { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px; color:var(--brown-mid); cursor:pointer; } .brother-switch input { width:20px; height:20px; margin:0; accent-color:var(--green); } .brother-switch small { color:var(--grey-light); }
 .sp-status-undo { margin-left:6px; padding:6px 10px; border-radius:20px; border:1px solid #E0D8C8; background:#fff; color:var(--brown-mid); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; }
 .rj-act { display:flex; gap:6px; flex:0 0 auto; align-items:center; }
+/* v20.348 — compteur « contenants » (fenêtre 🖨 et lignes du récap) */
+.cont-step { display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:14px; color:var(--brown); flex-wrap:wrap; }
+.cont-step .cont-lbl { font-weight:700; }
+.cont-step button { width:42px; height:42px; border-radius:10px; border:1.5px solid var(--gold); background:#fff; color:var(--brown); font-size:22px; font-weight:700; cursor:pointer; font-family:inherit; line-height:1; }
+.cont-step b { min-width:26px; text-align:center; font-size:22px; }
+.cont-step small { color:var(--grey-light); font-size:12px; }
+.cont-step.cont-mini { margin:0; gap:4px; }
+.cont-step.cont-mini button { width:32px; height:32px; font-size:18px; border-radius:8px; }
+.cont-step.cont-mini b { font-size:16px; min-width:18px; }
+.cont-step.cont-mini small { font-size:11px; white-space:nowrap; }
 .rj-st { font-size:12.5px; font-weight:700; color:var(--green); white-space:nowrap; }
 @media (max-width: 640px) { .rj-row { flex-wrap:wrap; } .rj-act { width:100%; justify-content:flex-end; } }
 @media print {
@@ -2952,7 +2962,7 @@ const DEVICE_ID    = 'dev_' + Math.random().toString(36).substring(2, 8);
 // v20.195 — Numéro de version affiché à côté de l'identifiant appareil.
 // Sans ça, impossible de distinguer « l'app a un bug » de « ma tablette garde
 // une vieille version en cache » : à monter à chaque déploiement.
-const APP_VERSION  = 'v20.347';
+const APP_VERSION  = 'v20.348';
 
 const REAPPRO_CATS = {
   'veigne':        ['viennoiserie', 'brioches_special', 'bases_patisserie', 'ingredients'],
@@ -21306,7 +21316,7 @@ function feteLabelOf(o) {
   return o.event_id ? String(o.event_id) : 'Fêtes';
 }
 // Une étiquette 62 mm. kind = 'special' | 'fete' ; variant = 'sac' | 'client'
-function ticketLabelHtml(o, kind, variant) {
+function ticketLabelHtml(o, kind, variant, part) {   // v20.348 — part = { idx, total } : rang du ticket retrait (2/3)
   const sac = variant === 'sac';
   const site = o.origin_shop;
   const pay = ticketPaiement(o, kind);
@@ -21315,7 +21325,7 @@ function ticketLabelHtml(o, kind, variant) {
     + '<div class="lb-site">' + escapeHtml(ticketSiteNom(site)) + '</div>'
     + '<div class="lb-cut"></div>'
     + (kind === 'fete' ? '<div class="lb-flag">Fêtes · ' + escapeHtml(feteLabelOf(o)) + '</div>' : (o.event_id ? '<div class="lb-flag">' + escapeHtml(feteLabelOf(o)) + '</div>' : ''))   // v20.328
-    + '<div class="lb-num"><div><small>' + (sac ? 'N° du jour' : 'Votre commande') + '</small><b>' + ticketNum(o.num_jour) + '</b></div>'
+    + '<div class="lb-num"><div><small>' + (sac ? 'N° du jour' : 'Votre commande') + '</small><b>' + ticketNum(o.num_jour) + '</b>' + (sac && part && part.total > 1 ? '<span class="lb-part">' + part.idx + '/' + part.total + '</span>' : '') + '</div>'
     + '<div class="lb-when"><b>' + escapeHtml(ticketHeure(o)) + '</b><span>' + escapeHtml(ticketJourCourt(o.pickup_date)) + '</span></div></div>'
     + '<div class="lb-client">' + escapeHtml(o.customer_name || '') + '</div>'
     + (sac ? '<div class="lb-tel">📞 ' + escapeHtml(o.customer_phone || 'pas de numéro') + '</div>' : '')   // v20.320 — ticket retrait : le téléphone du client, toujours
@@ -21344,7 +21354,7 @@ function printLabels(labelsHtml) {
   _printDocument(labelsHtml, '@page { size: 62mm auto; margin: 0; }');   // marge 0 : Chrome n'a plus de place pour un en-tête
 }
 // Styles des étiquettes et de la feuille récap (document d'impression à part)
-const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 11pt; font-weight: 700; margin-top: 0.5mm; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-items i { margin-left: auto; font-style: normal; white-space: nowrap; font-size: 9.5pt; font-weight: 700; }\n.lb-tranche b, .lb-tranche span { color: #e00000; } .lb-tranche span { text-decoration: underline; text-decoration-thickness: 0.5mm; text-underline-offset: 0.6mm; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
+const TICKET_PRINT_CSS = '.lb { width: 62mm; box-sizing: border-box; padding: 2mm 2.5mm 3mm; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; line-height: 1.15; page-break-after: always; break-after: page; }\n.lb:last-child { page-break-after: auto; break-after: auto; }\n.lb-brand { text-align: center; } .lb-brand img { width: 26mm; height: auto; display: inline-block; }\n.lb-site { text-align: center; font-weight: 700; font-size: 9.5pt; letter-spacing: .12em; text-transform: uppercase; margin-top: 1mm; }\n.lb-cut { border-top: 0.8mm solid #000; margin: 1.5mm 0; }\n.lb-flag { display: inline-block; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 0.3mm 1.5mm; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1mm; }\n.lb-num { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }\n.lb-num small { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }\n.lb-num b { font-size: 34pt; line-height: .95; font-weight: 800; letter-spacing: -0.02em; }\n.lb-part { display: inline-block; vertical-align: top; margin: 1mm 0 0 2mm; padding: 0.5mm 1.8mm; border: 0.6mm solid #000; border-radius: 2mm; font-size: 15pt; font-weight: 800; white-space: nowrap; }\n.lb-when { text-align: right; } .lb-when b { display: block; font-size: 20pt; font-weight: 800; } .lb-when span { display: block; font-size: 9pt; font-weight: 700; }\n.lb-client { font-size: 22pt; font-weight: 800; line-height: 1.05; margin: 2mm 0 1mm; word-break: break-word; }\n.lb-sac .lb-client { font-size: 26pt; }\n.lb-tel { font-size: 11pt; font-weight: 700; margin-top: 0.5mm; }\n.lb-items { list-style: none; margin: 1.5mm 0 0; padding: 0; border-top: 0.3mm dashed #000; border-bottom: 0.3mm dashed #000; }\n.lb-items li { display: flex; gap: 2mm; padding: 1mm 0; border-bottom: 0.2mm solid #999; font-size: 10.5pt; align-items: baseline; }\n.lb-items li:last-child { border-bottom: none; }\n.lb-items b { font-size: 14pt; min-width: 8mm; text-align: right; }\n.lb-items small { display: block; font-size: 8.5pt; font-style: italic; }\n.lb-items i { margin-left: auto; font-style: normal; white-space: nowrap; font-size: 9.5pt; font-weight: 700; }\n.lb-tranche b, .lb-tranche span { color: #e00000; } .lb-tranche span { text-decoration: underline; text-decoration-thickness: 0.5mm; text-underline-offset: 0.6mm; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n.lb-sac .lb-items li { font-size: 12pt; } .lb-sac .lb-items b { font-size: 17pt; }\n.lb-notes { margin-top: 1.5mm; font-size: 9pt; border: 0.3mm solid #000; padding: 1mm 1.5mm; }\n.lb-pay { margin-top: 1.5mm; font-size: 9.5pt; } .lb-pay span { display: block; }\n.lb-big { font-size: 11.5pt; font-weight: 800; border: 0.5mm solid #000; padding: 0.8mm 1.5mm; text-align: center; margin-top: 0.8mm; }\n.lb-foot { margin-top: 1.5mm; font-size: 7.5pt; text-align: center; line-height: 1.3; }\n.rj-sheet { font-family: Georgia, serif; color: #000; }\n.rj-sheet h1 { font-size: 16pt; margin: 0; }\n.rj-sheet-head { display: flex; align-items: center; gap: 5mm; margin-bottom: 2mm; } .rj-sheet-head img { width: 22mm; height: auto; }\n.rj-sheet-sub { font-size: 10pt; margin-bottom: 4mm; }\n.rj-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }\n.rj-sheet th, .rj-sheet td { border: 0.3mm solid #777; padding: 1.5mm 2mm; text-align: left; vertical-align: top; }\n.rj-sheet th { background: #eee; font-size: 8.5pt; text-transform: uppercase; }\n.rj-sheet td.n { font-weight: 800; font-size: 13pt; width: 12mm; text-align: center; } .rj-sheet td.h { font-weight: 700; white-space: nowrap; } .rj-sheet td.c { font-size: 14pt; text-align: center; width: 12mm; }';
 // v20.319 — l'impression passe par un DOCUMENT À PART (iframe invisible) qui ne contient que les étiquettes :
 // Chrome Android fabrique son aperçu quand il veut, il ne peut plus attraper l'écran de l'app
 // (récap du jour parti à l'imprimante malgré v20.309/310, 29/10 21h). _printModeStart reste en secours.
@@ -21398,6 +21408,144 @@ function _printModeStart(html, pageRule) {
     setTimeout(function() { ['touchstart', 'mousedown', 'keydown'].forEach(function(ev) { document.addEventListener(ev, end, true); }); }, 1500);
   }, 50);
 }
+// ---------- v20.348 — « Combien de contenants ? » : plusieurs tickets retrait par commande, numérotés 1/3, 2/3, 3/3 ----------
+// Phil (22/11/2026) : « par défaut 1 étiquette, mais ils peuvent choisir plus manuellement », et l'app « apprend au
+// quotidien auprès des équipes par rapport aux clics qu'ils font sur la tablette ». Le nombre choisi est enregistré
+// sur la commande (nb_contenants) avec le « type de contenu » du moment (contenants_cle, ex. « buche1+pain ») ;
+// pour une commande du même type dans la même boutique, l'app propose le nombre le plus souvent choisi. Sinon 1.
+// Aucune règle écrite d'avance : l'app part de 1 partout et n'apprend que des clics réels.
+const CONTENANTS_MAX = 9;
+let contenantsStats = {};     // { site: { cle: { '2': nb de fois, '3': … } } }, chargé par boutique (120 derniers jours)
+let contenantsChoix = {};     // { orderId: n } : ce que la vendeuse a réglé sur l'écran, le temps de la session
+let _contenantsWarned = false;
+// Famille d'une ligne : 'buche' | 'gateau' | 'pain' | 'vienn' | 'traiteur' | 'autre'
+function contenantsFamilleNom(nom) {
+  const n = String(nom || '').toLowerCase().replace(/û/g, 'u').replace(/â/g, 'a').replace(/é|è|ê/g, 'e');
+  if (/buche/.test(n)) return 'buche';
+  if (/pain|baguette|ciabatta|tourte|norvegien|khorasan|epeautre|mathis|fruite|integral|ideal|essentiel|seigle/.test(n)) return 'pain';
+  if (/croissant|brioche|viennois|chausson|suisse/.test(n)) return 'vienn';
+  if (/feuillet|bouchee|quiche|sandwich|pizza|focaccia|salade|wrap/.test(n)) return 'traiteur';
+  return 'gateau';
+}
+function contenantsFamille(it, kind) {
+  if (kind === 'fete') return contenantsFamilleNom(it && it.nom);
+  if (!it) return 'autre';
+  if (it.fete_product_id) {
+    const fp = (feteProducts || []).find(function(x) { return x.id === it.fete_product_id; });
+    const g = String((fp && fp.groupe) || '').toUpperCase();
+    if (/BÛCHE|BUCHE/.test(g)) return 'buche';
+    if (/PAIN/.test(g)) return 'pain';
+    if (/VIENNOIS|BRIOCHE/.test(g)) return 'vienn';
+    if (/SAL/.test(g)) return 'traiteur';
+    if (g) return 'gateau';
+    return contenantsFamilleNom(it.product_name_custom);
+  }
+  if (it.product_id) {
+    const p = products.find(function(x) { return x.id === it.product_id; });
+    const c = (p && p.category) || '';
+    if (c === 'pains') return 'pain';
+    if (c === 'viennoiserie' || c === 'brioches_special') return 'vienn';
+    if (c === 'traiteur' || c === 'sec_traiteur') return 'traiteur';
+    if (/patisserie|gateaux/.test(c)) return 'gateau';
+    return p ? contenantsFamilleNom(p.name) : 'autre';
+  }
+  return contenantsFamilleNom(it.product_name_custom);   // hors carte : d'après le nom tapé
+}
+// Clé du « type de contenu » : les familles présentes ; pour ce qui va en boîte (bûches, gâteaux) le nombre compte (1, 2, 3+)
+function contenantsCle(o, kind) {
+  const fam = {};
+  ((o && o.items) || []).forEach(function(it) {
+    const f = contenantsFamille(it, kind);
+    fam[f] = (fam[f] || 0) + (parseQty(it.qty) || 1);
+  });
+  return Object.keys(fam).sort().map(function(f) {
+    if (f === 'buche' || f === 'gateau') return f + (fam[f] >= 3 ? '3' : String(fam[f]));
+    return f;
+  }).join('+') || 'vide';
+}
+// Proposition : { n, src: 'enregistre' | 'habitude' | 'defaut', fois }
+function contenantsPropose(o, kind) {
+  if (o && o.nb_contenants > 0) return { n: Math.min(CONTENANTS_MAX, +o.nb_contenants), src: 'enregistre', fois: 0 };
+  const st = (contenantsStats[o && o.origin_shop] || {})[contenantsCle(o, kind)] || {};
+  let best = 0, bestN = 1, total = 0;
+  Object.keys(st).forEach(function(k) {
+    total += st[k];
+    if (st[k] > best || (st[k] === best && +k < bestN)) { best = st[k]; bestN = +k; }
+  });
+  if (total >= 2 && bestN > 0) return { n: Math.min(CONTENANTS_MAX, bestN), src: 'habitude', fois: total };
+  return { n: 1, src: 'defaut', fois: 0 };
+}
+function contenantsChoisi(o, kind) {
+  if (o && contenantsChoix[o.id] > 0) return contenantsChoix[o.id];
+  return contenantsPropose(o, kind).n;
+}
+function contenantsHint(p) {
+  if (p.src === 'habitude') return 'd\'après vos habitudes (' + p.fois + ' fois)';
+  if (p.src === 'enregistre') return 'comme la dernière impression';
+  return '1 par défaut';
+}
+// Ce que les vendeuses de cette boutique ont choisi ces 120 derniers jours (commandes clients, carte de fête comprise)
+async function loadContenantsStats(site) {
+  if (!site || contenantsStats[site]) return contenantsStats[site] || {};
+  const st = {};
+  try {
+    const r = await supa.from('special_orders').select('contenants_cle, nb_contenants').eq('tenant_id', TENANT_ID).eq('origin_shop', site)
+      .not('nb_contenants', 'is', null).gte('pickup_date', addDays(todayISO(), -120)).limit(2000);
+    if (!r.error) (r.data || []).forEach(function(o) {
+      if (!o.contenants_cle || !(o.nb_contenants > 0)) return;
+      const c = st[o.contenants_cle] = st[o.contenants_cle] || {};
+      c[String(o.nb_contenants)] = (c[String(o.nb_contenants)] || 0) + 1;
+    });
+  } catch (e) {}
+  contenantsStats[site] = st;
+  return st;
+}
+// Enregistre le choix sur la commande (tolérant : sans la migration, les tickets sortent quand même, on prévient une fois)
+async function contenantsEnregistre(table, o, kind, n) {
+  if (!o || !o.id || !(n > 0)) return;
+  const cle = contenantsCle(o, kind);
+  if (o.nb_contenants === n && o.contenants_cle === cle) return;
+  const r = await supa.from(table).update({ nb_contenants: n, contenants_cle: cle }).eq('id', o.id);
+  if (r.error) {
+    if (/contenants/.test(r.error.message || '') && !_contenantsWarned) { _contenantsWarned = true; showToast('Nombre de contenants non mémorisé : migration v20.348 à lancer', 'warn'); }
+    return;
+  }
+  o.nb_contenants = n; o.contenants_cle = cle;
+  // l'app apprend tout de suite : la prochaine commande du même type dans cette boutique en profite
+  if (table === 'special_orders') {
+    const st = contenantsStats[o.origin_shop] = contenantsStats[o.origin_shop] || {};
+    const c = st[cle] = st[cle] || {};
+    c[String(n)] = (c[String(n)] || 0) + 1;
+  }
+}
+// Le compteur « − N + » (scope = 'choice' pour la fenêtre 🖨, 'recap' pour une ligne du récap)
+function contenantsStepHtml(scope, o, kind) {
+  const p = contenantsPropose(o, kind), n = contenantsChoisi(o, kind), mini = scope === 'recap';
+  const id = escapeHtml(String(o.id));
+  return '<div class="cont-step' + (mini ? ' cont-mini' : '') + '" id="cont-' + scope + '-' + id + '" title="Nombre de tickets retrait (boîte, sacs…)">'
+    + (mini ? '' : '<span class="cont-lbl">Contenants</span>')
+    + '<button type="button" onclick="contenantsStep(\'' + scope + '\',\'' + id + '\',-1)" aria-label="Un contenant de moins">−</button>'
+    + '<b>' + n + '</b>'
+    + '<button type="button" onclick="contenantsStep(\'' + scope + '\',\'' + id + '\',1)" aria-label="Un contenant de plus">+</button>'
+    + '<small>' + (mini ? (n > 1 ? n + ' tickets' : '') : escapeHtml(contenantsHint(p)) + (n > 1 ? ' → ' + n + ' tickets (1/' + n + ' … ' + n + '/' + n + ')' : '')) + '</small>'
+    + '</div>';
+}
+function contenantsStep(scope, oid, delta) {
+  const kind = scope === 'recap' ? (recapJour && recapJour.kind) : _ticketChoiceKind;
+  const o = scope === 'recap' ? (recapJour && recapJour.rows.find(function(x) { return String(x.id) === String(oid); })) : ticketOrderOf(kind, oid);
+  if (!o) return;
+  const n = Math.max(1, Math.min(CONTENANTS_MAX, contenantsChoisi(o, kind) + delta));
+  contenantsChoix[o.id] = n;
+  const el = document.getElementById('cont-' + scope + '-' + oid);
+  if (el) { el.querySelector('b').textContent = n; const sm = el.querySelector('small'); if (sm) sm.textContent = scope === 'recap' ? (n > 1 ? n + ' tickets' : '') : ('choisi à la main' + (n > 1 ? ' → ' + n + ' tickets (1/' + n + ' … ' + n + '/' + n + ')' : '')); }
+}
+// N tickets retrait d'une commande, chacun avec son rang (rien de plus quand il n'y en a qu'un)
+function ticketsRetraitHtml(o, kind, n) {
+  n = Math.max(1, Math.min(CONTENANTS_MAX, n || 1));
+  let h = '';
+  for (let i = 1; i <= n; i++) h += ticketLabelHtml(o, kind, 'sac', n > 1 ? { idx: i, total: n } : null);
+  return h;
+}
 function ticketOrderOf(kind, oid) {
   if (kind === 'fete') return (feteOrders || []).find(function(x) { return x.id === oid; }) || null;
   return (specialOrdersData || []).find(function(x) { return x.id === oid; }) || (specialFormDraft && specialFormDraft.id === oid ? specialFormDraft : null);
@@ -21411,17 +21559,28 @@ async function printOrderTickets(kind, oid, quoi) {
   if (!o.num_jour && o.id) await assignOrderNum(kind === 'fete' ? 'fete_orders' : 'special_orders', o);
   const labels = [];
   if (quoi !== 'sac') labels.push(ticketLabelHtml(o, kind, 'client'));
-  if (quoi) labels.push(ticketLabelHtml(o, kind, 'sac'));
+  if (quoi) {
+    const n = contenantsChoisi(o, kind);   // v20.348 — autant de tickets retrait que de contenants, numérotés
+    labels.push(ticketsRetraitHtml(o, kind, n));
+    await contenantsEnregistre(kind === 'fete' ? 'fete_orders' : 'special_orders', o, kind, n);
+  }
   printLabels(labels.join(''));
 }
+let _ticketChoiceKind = 'special';
 function openTicketChoice(kind, oid) {
   let el = document.getElementById('ticket-choice-modal');
   if (!el) { el = document.createElement('div'); el.id = 'ticket-choice-modal'; el.className = 'modal-overlay'; document.body.appendChild(el); }
   const o = ticketOrderOf(kind, oid);
+  _ticketChoiceKind = kind;
+  if (o && !contenantsStats[o.origin_shop]) loadContenantsStats(o.origin_shop).then(function() {   // v20.348 — les habitudes de la boutique arrivent après coup
+    const cur = document.getElementById('cont-choice-' + oid);
+    if (cur && el.classList.contains('show') && !(contenantsChoix[oid] > 0)) cur.outerHTML = contenantsStepHtml('choice', o, kind);
+  });
   el.innerHTML = '<div class="modal" style="max-width:420px">'
     + '<div class="modal-title">🖨 Imprimer</div>'
     + '<div class="modal-sub">' + (o ? escapeHtml(o.customer_name || '') + ' · ' + escapeHtml(ticketJourCourt(o.pickup_date)) + (o.pickup_time ? ' ' + escapeHtml(ticketHeure(o)) : '') : '') + '<br>Le ticket client est sorti à la commande. Le matin du retrait : le ticket retrait, à coller sur la commande.</div>'
     + '<div class="info-banner" style="margin-bottom:10px">🏷️ Étiquettes : dans la fenêtre d\'impression, choisir la <strong>Brother</strong> (papier 62 mm). 📄 Ticket A4 : choisir l\'<strong>imprimante classique</strong>.</div>'
+    + (o ? contenantsStepHtml('choice', o, kind) : '')   // v20.348 — combien de contenants (boîte, sacs…) → autant de tickets retraits
     + '<div style="display:grid;gap:8px">'
     + '<button class="btn-gold" style="padding:16px;font-size:16px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',\'sac\')">🏷️ Ticket retrait <small style="font-weight:500;opacity:.85">· à coller sur la commande, avec le téléphone du client</small></button>'
     + '<button class="btn-grey" style="padding:12px" onclick="closeTicketChoice();printOrderTickets(\'' + kind + '\',\'' + escapeHtml(oid) + '\',false)">🎫 Ticket client <small style="font-weight:500;opacity:.85">· réimpression (il part déjà à la commande)</small></button>'
@@ -21459,6 +21618,7 @@ async function loadRecapJour() {
       rows.forEach(function(o) { o.items = (its.data || []).filter(function(i) { return i.order_id === o.id; }); });
     }
   }
+  await loadContenantsStats(s.site);   // v20.348
   if (recapJour !== s) return;
   s.rows = rows; s.loading = false;
   renderRecapJour();
@@ -21513,6 +21673,7 @@ function renderRecapJour() {
         + (done ? '<span class="rj-st">✓ ' + escapeHtml(o.status === 'prete' ? 'Mis de côté' : 'Venu chercher') + (o.prepared_by ? ' · 🧺 ' + escapeHtml(o.prepared_by) + (o.prepared_at ? ' ' + String(new Date(o.prepared_at).getHours()).padStart(2, '0') + 'h' + String(new Date(o.prepared_at).getMinutes()).padStart(2, '0') : '') : '') + '</span>'
                   + (o.status === 'prete' ? '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapAnnuleMisDeCote(\'' + escapeHtml(o.id) + '\')" title="Annuler la mise de côté">↩️ Annuler</button>' : '')
                 : '<button type="button" class="btn-gold-sm" onclick="recapMisDeCote(\'' + escapeHtml(o.id) + '\')">Mis de côté ✓</button>')
+        + contenantsStepHtml('recap', o, s.kind)   // v20.348 — combien de contenants → autant de tickets retrait
         + '<button type="button" class="btn-grey" style="padding:8px 10px" onclick="recapPrintOne(\'' + escapeHtml(o.id) + '\')" title="Ticket retrait (avec le téléphone du client)">🏷️ Retrait</button>'
         + '</div></div>';
     });
@@ -21577,8 +21738,11 @@ async function recapAnnuleMisDeCote(oid) {
 async function recapPrintOne(oid) {
   const s = recapJour; if (!s) return;
   const o = s.rows.find(function(x) { return x.id === oid; }); if (!o) return;
-  if (!o.num_jour) await assignOrderNum(s.kind === 'fete' ? 'fete_orders' : 'special_orders', o);
-  printLabels(ticketLabelHtml(o, s.kind, 'sac'));   // v20.318 — le matin du retrait : l'étiquette sac seule
+  const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders';
+  if (!o.num_jour) await assignOrderNum(table, o);
+  const n = contenantsChoisi(o, s.kind);   // v20.348
+  await contenantsEnregistre(table, o, s.kind, n);
+  printLabels(ticketsRetraitHtml(o, s.kind, n));   // v20.318 — le matin du retrait : l'étiquette sac seule
   renderRecapJour();
 }
 // toutes les étiquettes sac de la liste affichée (filtre matin / après-midi respecté), dans l'ordre des heures
@@ -21588,8 +21752,9 @@ async function recapPrintSacs() {
   if (!list.length) return;
   const table = s.kind === 'fete' ? 'fete_orders' : 'special_orders';
   for (let i = 0; i < list.length; i++) if (!list[i].num_jour) await assignOrderNum(table, list[i]);
+  for (let i = 0; i < list.length; i++) await contenantsEnregistre(table, list[i], s.kind, contenantsChoisi(list[i], s.kind));   // v20.348
   list.sort(function(a, b) { return String(a.pickup_time || '99:99').localeCompare(String(b.pickup_time || '99:99')) || (a.num_jour || 0) - (b.num_jour || 0); });
-  printLabels(list.map(function(o) { return ticketLabelHtml(o, s.kind, 'sac'); }).join(''));
+  printLabels(list.map(function(o) { return ticketsRetraitHtml(o, s.kind, contenantsChoisi(o, s.kind)); }).join(''));
   renderRecapJour();
 }
 function recapSheetHtml() {

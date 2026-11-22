@@ -529,6 +529,17 @@ Phil : « rentrer la prod du jour qui va au congélateur dans le stock et la dé
   de l'onglet Fêtes) : date + site, tri par heure / par nom (civilité ignorée), Tout / Matin / Après-midi, loupe nom ou n° (filtre
   sans re-rendu), bouton « Mis de côté ✓ » qui **cache la ligne au fur et à mesure** (statut `prete`), « Voir les faites (n) »
   (prête + venu chercher), 🏷️ par ligne (client + sac), « 🏷️ Tous les sacs » (liste affichée, ordre des heures) et « 🖨 Feuille A4 ».
+- **🏷️ Plusieurs tickets retrait par commande — « Combien de contenants ? » (v20.348, 23/11/2026)** : Phil (22/11) : « par défaut 1 étiquette,
+  mais ils peuvent choisir plus manuellement », et l'app « apprend au quotidien auprès des équipes par rapport aux clics qu'ils font sur la
+  tablette ». Compteur **« Contenants − N + »** dans la fenêtre 🖨 (au-dessus de « Ticket retrait ») et sur chaque ligne du Récap du jour
+  (`contenantsStepHtml`) ; « Ticket retrait », 🏷️ Retrait et « Tous les tickets retrait » sortent **N tickets numérotés 1/3, 2/3, 3/3**
+  (`ticketsRetraitHtml`, cadre `.lb-part` à côté du n° du jour ; rien de plus quand N = 1), plafond 9. Le ticket client ne change pas.
+  **Mémoire** : `special_orders` / `fete_orders.nb_contenants` + `contenants_cle` (`migration-v20.348-contenants.sql`), écrits à l'impression
+  (`contenantsEnregistre`, tolérant sans la migration : toast une fois). Clé = « type de contenu » (`contenantsCle` : familles bûche / gâteau /
+  pain / vienn / traiteur, le nombre compte pour ce qui va en boîte : `buche1+pain`, `buche3+vienn` ; hors carte lu d'après le nom).
+  **Proposition** (`contenantsPropose`) : commande déjà imprimée → son nombre ; sinon le nombre **le plus souvent choisi dans la même boutique pour
+  la même clé** sur 120 jours (`loadContenantsStats`, dès 2 fois, égalité → le plus petit, « d'après vos habitudes (N fois) ») ; sinon 1.
+  Un choix fait aujourd'hui compte tout de suite. Aucune règle écrite d'avance. Test : spec 61 (+ spec 49 adaptée).
 - Test : spec 49.
 
 ### Quantités par caisse (viennoiserie)
