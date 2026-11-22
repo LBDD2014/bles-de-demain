@@ -386,7 +386,7 @@ Phil (29/10) : « si les clients veulent du pain et des bûches, on fait comment
   identifiants stables, un seul chemin de création (`upsertSpecialOrder`) à recopier un jour dans une fonction `SECURITY DEFINER` (comme `pro_page_*`).
   Pas encore : page web, paiement en ligne, délais bloquants, plafond par créneau.
 - Carte de Noël en base (31/10) : 59 produits, prix 2025 (Excel feuille « Données »), 32 reliés à leur fiche par la migration ;
-  `fete_events.noel` du **01/12/2026 au 01/01/2027**, `actif = false` → **à activer en BackOffice → Fêtes après la migration et la mise en ligne**.
+  `fete_events.noel` : **activé le 22/11/2026, visible du 23/11/2026 au 01/01/2027** (date avancée pour la réunion des référents du 23/11 ; remettre 01/12 en BackOffice → Fêtes si Phil veut attendre).
   **Mise à jour d'après le flyer 2026 (22/11/2026, données seulement, sauvegarde `data-backups/2026-11-22-carte-noel-avant.json`)** :
   bûches « Tourangelle (sans gluten) », « Fraîcheur fruitée (sans gluten) » (ex fruits rouges), « Écureuil » (ex choco), grande 35 → 36 € ;
   Pain de mie carré 700 g 7,70, Grande tourte de meule 6,60, Khorasan 8, Blés anciens 7, Petit épeautre 5,20, Mignardises x16 24 ;
