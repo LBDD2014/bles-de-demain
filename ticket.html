@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title> </title>
+<!--
+  v20.349 — Page d'impression à part (tickets Brother 62 mm, feuille A4 du récap du jour).
+  L'app ouvre cet onglet (window.open, nom « lbdd_print ») et lui passe le travail à imprimer par
+  localStorage (« lbdd_print_job » : html + règle @page + CSS). Sur Chrome Android, print() imprime
+  TOUJOURS l'onglet entier (jamais un iframe) : ici l'onglet entier, c'est juste les tickets.
+  Le titre est vide pour que Chrome n'ajoute pas d'en-tête.
+-->
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  #bar { position: sticky; top: 0; z-index: 2; background: #2E3044; color: #fff; font-family: Arial, Helvetica, sans-serif;
+         padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 15px; }
+  #bar button { font-size: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #CEAB52; color: #2E3044; font-weight: 700; }
+  #bar button.grey { background: #5A5C66; color: #fff; }
+  #bar button[disabled] { opacity: .45; }
+  #bar select { font-size: 15px; padding: 8px; border-radius: 8px; max-width: 100%; }
+  #bar #msg { flex: 1 1 100%; font-size: 14px; line-height: 1.3; }
+  #zone { padding: 8px; }
+  @media print { #bar { display: none !important; } #zone { padding: 0; } }
+</style>
+<style id="page-rule"></style>
+<style id="job-css"></style>
+</head>
+<body>
+<div id="bar">
+  <span id="msg">Préparation du ticket…</span>
+  <button id="b-print" onclick="imprimer()" disabled>🖨 Imprimer</button>
+  <select id="papier" onchange="papierChange()" title="Format de papier" style="display:none">
+    <option value="auto">62 mm × hauteur du ticket (auto)</option>
+    <option value="90">62 × 90 mm</option>
+    <option value="100">62 × 100 mm</option>
+    <option value="120">62 × 120 mm</option>
+  </select>
+  <button class="grey" onclick="fermer()">✕ Fermer</button>
+</div>
+<div id="zone"></div>
+<script>
+(function() {
+  var KEY = 'lbdd_print_job', DONE = 'lbdd_print_done', PAPIER = 'lbdd_print_papier';
+  var ANDROID = /Android/i.test(navigator.userAgent);
+  var job = null, lance = false, dernierPrint = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function msg(t) { $('msg').textContent = t; }
+  function lire() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  function estEtiquette(j) { return /62mm/.test(j.pageRule || ''); }
+  // Hauteur du ticket le plus haut du travail, en mm (+ 5 mm de marge), mesurée une fois le logo décodé. « size: 62mm auto » n'est PAS du CSS
+  // valide : Chrome jetait la taille et imprimait en A4 (papier qui défile, rien dessus, 25/11).
+  function mmHaut() {
+    var hs = Array.prototype.map.call(document.querySelectorAll('.lb'), function(e) { return e.getBoundingClientRect().height; });
+    return hs.length ? Math.ceil(Math.max.apply(null, hs) / 96 * 25.4) + 5 : 0;
+  }
+  // Format de papier : par défaut la hauteur mesurée sur le ticket ; hauteur fixe au choix sur cette tablette
+  // (le CSS ne commande pas toujours Android : le format peut venir de la fenêtre d'impression).
+  function regle(j) {
+    if (!estEtiquette(j)) return j.pageRule || '';
+    var p = localStorage.getItem(PAPIER) || 'auto';
+    var h = p === 'auto' ? mmHaut() : Number(p);
+    return '@page { size: 62mm ' + (h || 120) + 'mm; margin: 0; }';
+  }
+  function afficher(j) {
+    job = j;
+    $('job-css').textContent = j.css || '';
+    $('zone').innerHTML = j.html || '';
+    $('page-rule').textContent = regle(j);   // après le contenu : la hauteur se mesure dessus
+    $('papier').style.display = estEtiquette(j) ? '' : 'none';
+    $('b-print').disabled = false;
+  }
+  // Tout est en place AVANT d'appeler print() : images décodées (logo), polices, un rendu posé.
+  function pret() {
+    var imgs = Array.prototype.slice.call(document.images);
+    var attente = Promise.all(imgs.map(function(i) { return (i.decode ? i.decode() : Promise.resolve()).catch(function() {}); }));
+    var delai = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+    return Promise.race([attente, delai(2000)])
+      .then(function() { return (document.fonts && document.fonts.ready) ? Promise.race([document.fonts.ready, delai(1000)]) : null; })
+      .then(function() { return new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); }); });
+  }
+  function imprimer() {
+    if (!job) return;
+    pret().then(function() {
+      $('page-rule').textContent = regle(job);   // après le chargement du logo : la hauteur mesurée est la bonne
+      var taille = estEtiquette(job) ? ' Ticket 62 × ' + ($('page-rule').textContent.match(/62mm (\d+)mm/) || [])[1] + ' mm.' : '';
+      msg((ANDROID ? 'Dans la fenêtre d’impression : choisir la Brother (62 mm). Ensuite ✕ Fermer pour revenir à l’app.' : 'Impression envoyée.') + taille);
+      dernierPrint = Date.now();
+      window.print();
+    });
+  }
+  function demarrer(j) {
+    if (lance) return;
+    lance = true;
+    afficher(j);
+    try { localStorage.setItem(DONE, String(j.at)); } catch (e) {}
+    imprimer();
+  }
+  function fermer() {
+    window.close();
+    setTimeout(function() { msg('Tu peux fermer cet onglet et revenir à l’app.'); }, 400);
+  }
+  function papierChange() {
+    try { localStorage.setItem(PAPIER, $('papier').value); } catch (e) {}
+    if (job) { $('page-rule').textContent = regle(job); msg('Format changé (' + $('page-rule').textContent.replace(/.*size: (.*?);.*/, '$1') + '). 🖨 Imprimer pour ressortir le ticket.'); }
+  }
+  window.imprimer = imprimer; window.fermer = fermer; window.papierChange = papierChange;
+
+  // Hors Android, la fenêtre d'impression rend la main quand elle est vraiment finie : on referme l'onglet.
+  // Sur Android, « afterprint » arrive AVANT que l'aperçu soit fabriqué (vu le 29/10) : on ne ferme rien, bouton ✕ Fermer.
+  // (et jamais si « afterprint » arrive moins d'une seconde après print() : la fenêtre n'a pas pu être montrée)
+  window.addEventListener('afterprint', function() { if (!ANDROID && dernierPrint && Date.now() - dernierPrint > 1000) setTimeout(fermer, 400); });
+
+  $('papier').value = localStorage.getItem(PAPIER) || 'auto';
+  var frais = function(j) { return j && j.at && (Date.now() - j.at) < 10 * 60 * 1000; };
+  var j0 = lire();
+  if (frais(j0) && localStorage.getItem(DONE) !== String(j0.at)) { demarrer(j0); return; }
+  if (frais(j0)) { afficher(j0); msg('Ce ticket est déjà sorti. 🖨 Imprimer pour le ressortir.'); return; }
+  // Onglet ouvert avant que l'app ait fini de préparer le ticket (numéro du jour, contenants) : on attend le travail.
+  msg('Préparation du ticket…');
+  var debut = Date.now();
+  var regarde = function() {
+    if (lance) return;
+    var j = lire();
+    if (frais(j) && j.at > debut - 10000 && localStorage.getItem(DONE) !== String(j.at)) { demarrer(j); return; }
+    if (Date.now() - debut > 40000) { msg('Rien à imprimer. ✕ Fermer pour revenir à l’app.'); return; }
+    setTimeout(regarde, 300);
+  };
+  window.addEventListener('storage', function(ev) { if (ev.key === KEY) regarde(); });
+  setTimeout(regarde, 300);
+})();
+</script>
+</body>
+</html>

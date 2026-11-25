@@ -28,7 +28,7 @@ async function ouvrir(ctx, site, d) {
   const page = await preparePage(ctx, { db: d || db() });
   await gotoApp(page);
   await enterBoutique(page, site);
-  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; });
+  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; printWindowOpen = () => null; /* v20.349 : pas d'onglet d'impression dans les tests */ });
   return page;
 }
 // Commande type prise à St-Avertin : 1 bûche (Veigné) + 3 Traditions tranchées (Local pour St-Av)

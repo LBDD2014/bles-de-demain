@@ -510,9 +510,21 @@ Phil : « rentrer la prod du jour qui va au congélateur dans le stock et la dé
   (Paramètres → Impression), Brother choisie comme imprimante, papier 62 mm continu.
   ⚠️ **Sur Android, `window.print()` rend la main tout de suite et l'aperçu se fabrique après** : le mode impression
   (`printing-label`, `_printModeStart`) reste posé jusqu'au premier geste sur la page ou 2 min (v20.310 : `afterprint` ignoré, Chrome Android l'envoie trop tôt) ;
-  un retrait au bout de 0,3 s envoyait toute l'app à l'imprimante. **v20.319 : l'impression passe par un document à part
-  (`_printDocument`, iframe invisible qui ne contient que les étiquettes + `TICKET_PRINT_CSS`)** ; `_printModeStart` n'est plus
-  que le secours. La règle A4 `body::before` (« Les Blés de Demain - »)
+  un retrait au bout de 0,3 s envoyait toute l'app à l'imprimante. v20.319 avait mis les étiquettes dans un iframe invisible :
+  **sur Chrome Android, `print()` lancé depuis un cadre imprime quand même l'onglet entier** (aperçu « Éditer commande », 25/11).
+  **v20.349 : l'impression passe par un ONGLET À PART, `ticket.html`** (`_printDocument` → travail dans `localStorage.lbdd_print_job`
+  = html + règle `@page` + `TICKET_PRINT_CSS`, onglet nommé `lbdd_print` réutilisé) : la page attend que tout soit chargé (logo décodé,
+  polices) **avant** d'appeler `print()`, titre vide (pas d'en-tête Chrome), barre à l'écran seulement : 🖨 Imprimer / format de papier
+  (par défaut **62 mm × hauteur mesurée sur le ticket** + 5 mm, ou hauteur fixe 90 / 100 / 120 mm, mémorisé par tablette
+  `lbdd_print_papier`) / ✕ Fermer. ⚠️ **`@page { size: 62mm auto }` n'est PAS du CSS valide** (depuis la v20.305 Chrome jetait la
+  taille → page A4 : la Brother défilait sans rien imprimer, 25/11) : la règle est toujours `62mm <H>mm` (`LABEL_PAGE_RULE` = 120 mm
+  de départ, `labelPageRuleMesuree` pour le secours plein écran, `mmHaut()` dans ticket.html, mesurée après le décodage du logo). Hors Android l'onglet se referme tout seul après l'impression ; sur Android on ferme à la main
+  (`afterprint` arrive trop tôt). **`printWindowOpen()` s'appelle dans le geste, avant les `await`** (Chrome n'ouvre un onglet que
+  juste après un appui) : bouton 🖨, récap du jour, création avec Brother branchée (`printWindowCancel()` si l'enregistrement rate) ;
+  la page attend le travail jusqu'à 40 s. Fenêtre bloquée → `_printModeStart` (secours plein écran). La feuille A4 du récap passe par
+  le même onglet ; le ticket A4 d'une commande (`printing-ticket`) ne change pas. Sur Android le format peut aussi venir de la fenêtre
+  d'impression (plugin Brother, « 62mm x 1m » = rouleau continu). Un ticket fait ~120-135 mm de haut (logo compris).
+  La règle A4 `body::before` (« Les Blés de Demain - »)
   est neutralisée pendant l'impression des étiquettes (v20.308). `APP_VERSION` doit être bumpé à chaque version (il était
   resté à v20.294, impossible de savoir ce que la tablette avait chargé).
 - **🧺 Qui a préparé** (v20.322, `migration-v20.322-prepare-par.sql`, **lancée le 29/10/2026** : `special_orders` / `fete_orders.prepared_by, prepared_at`) :

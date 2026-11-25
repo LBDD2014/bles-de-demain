@@ -35,7 +35,7 @@ async function ouvrir(ctx, d) {
   const page = await preparePage(ctx, { db: d || db() });
   await gotoApp(page);
   await enterBoutique(page, 'veigne');
-  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; });
+  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; printWindowOpen = () => null; /* v20.349 : pas d'onglet d'impression dans les tests */ });
   return page;
 }
 
@@ -92,9 +92,10 @@ export const tests = [
         const sacSeul = (window.__printed[2].match(/class="lb lb-sac"/g) || []).length + '/' + (window.__printed[2].match(/Votre commande/g) || []).length;
         // v20.309 — secours (impression depuis la page) : le mode étiquette reste posé après window.print(), ne tombe pas sur afterprint
         window.print = () => {};
-        _printModeStart(ticketLabelHtml(s2, 'special', 'client'), '@page { size: 62mm auto; margin: 0; }');
+        _printModeStart(ticketLabelHtml(s2, 'special', 'client'), LABEL_PAGE_RULE);
         await new Promise((res) => setTimeout(res, 500));
-        const modeApres = document.body.classList.contains('printing-label') && document.title.trim() === '' && /body::before/.test(document.getElementById('label-page-style').textContent);
+        const hauteurMesuree = (document.getElementById('label-page-style').textContent.match(/@page \{ size: 62mm (\d+)mm; margin: 0; \}/) || [])[1];   // v20.349 : hauteur du ticket mesurée
+        const modeApres = document.body.classList.contains('printing-label') && document.title.trim() === '' && /body::before/.test(document.getElementById('label-page-style').textContent) && Number(hauteurMesuree) > 60 && Number(hauteurMesuree) < 200;
         window.dispatchEvent(new Event('afterprint'));   // v20.310 : ignoré (Chrome Android l'envoie trop tôt)
         const modeIgnore = document.body.classList.contains('printing-label');
         await new Promise((res) => setTimeout(res, 1200));
@@ -240,6 +241,62 @@ export const tests = [
       assert(r.auto === '1/0', 'Brother branchée : à la création, le ticket client part d\'office, pas le retrait : ' + r.auto);
       assert(r.date2 === '2026-07-25' && r.num2 === 1 && r.compteur.indexOf('veigne|2026-07-24|2') !== -1 && r.compteur.indexOf('veigne|2026-07-25|1') !== -1, 'déplacée au 25 : nouveau numéro dans la suite du 25 : ' + JSON.stringify(r));
       assert(r.fete.length === 1 && /M\. Lefèvre Fête/.test(r.fete[0]) && /1 Bûche 6 pers\. · 6 Croissant/.test(r.fete[0]) && /Reste au retrait : 22,00 €/.test(r.fete[0]), 'récap fêtes : ' + JSON.stringify(r.fete));
+      await page.close();
+    },
+  },
+  {
+    name: 'v20.349 — impression dans un onglet à part (ticket.html) : travail passé par localStorage, onglet nommé lbdd_print ouvert dans le geste, secours plein écran si la fenêtre est bloquée ; la page imprime une fois tout chargé, pas deux fois, format de papier réglable',
+    fn: async (ctx) => {
+      const page = await preparePage(ctx, { db: db() });
+      await page.addInitScript(() => { window.__prints = 0; window.print = () => { window.__prints++; }; });
+      await gotoApp(page);
+      await enterBoutique(page, 'veigne');
+      const app = await page.evaluate(async () => {
+        const opened = []; let fake = null;
+        window.open = (url, name) => { opened.push({ url, name }); fake = { closed: false, focused: 0, focus() { this.focused++; }, close() { this.closed = true; } }; return fake; };
+        const s2 = window.__mockDB.special_orders.find((o) => o.id === 's2'); s2.items = window.__mockDB.special_order_items.filter((i) => i.order_id === 's2'); s2.num_jour = 7;
+        specialOrdersData = [s2];
+        await printOrderTickets('special', 's2', 'sac');   // ouvre l'onglet dans le geste, puis envoie le travail
+        await new Promise((res) => setTimeout(res, 150));
+        const job = JSON.parse(localStorage.getItem('lbdd_print_job'));
+        const pre = printWindowOpen();   // onglet déjà ouvert → réutilisé, pas de second window.open
+        const nbAvantCancel = opened.length;
+        printWindowCancel();
+        // fenêtre bloquée → secours : impression depuis la page (mode étiquette posé)
+        window.open = () => null;
+        _printDocument(ticketLabelHtml(s2, 'special', 'client'), LABEL_PAGE_RULE);
+        await new Promise((res) => setTimeout(res, 300));
+        const secours = document.body.classList.contains('printing-label');
+        document.dispatchEvent(new Event('touchstart'));
+        return { opened, job: { html: /class="lb lb-sac"/.test(job.html), rule: job.pageRule, css: /\.lb \{ width: 62mm/.test(job.css), frais: Date.now() - job.at < 5000 }, focused: fake.focused, reuse: pre === fake && nbAvantCancel === opened.length, ferme: fake.closed, secours };
+      });
+      assert(app.opened.length === 2 && app.opened.every((o) => o.name === 'lbdd_print' && /^ticket\.html\?v=v20\./.test(o.url)) && /&t=\d+$/.test(app.opened[1].url), 'onglet lbdd_print ouvert dans le geste puis renvoyé sur le travail : ' + JSON.stringify(app.opened));
+      assert(app.job.html && app.job.css && app.job.rule === '@page { size: 62mm 120mm; margin: 0; }' && app.job.frais, 'travail dans localStorage (html, CSS, @page 62 mm, horodaté) : ' + JSON.stringify(app.job));
+      assert(app.focused >= 1 && app.reuse && app.ferme, 'onglet mis devant, réutilisé, refermé par printWindowCancel : ' + JSON.stringify(app));
+      assert(app.secours, 'fenêtre bloquée → impression depuis la page (secours)');
+      // la page d'impression elle-même
+      await page.evaluate(() => { const j = JSON.parse(localStorage.getItem('lbdd_print_job')); j.at = Date.now(); j.html = '<div class="lb"><div class="lb-brand"><img src="' + TICKET_LOGO + '" alt=""></div><b>TICKET TEST</b></div>'; localStorage.setItem('lbdd_print_job', JSON.stringify(j)); localStorage.removeItem('lbdd_print_done'); localStorage.removeItem('lbdd_print_papier'); });
+      await page.goto('http://127.0.0.1:8787/ticket.html?v=test');
+      await page.waitForFunction(() => window.__prints === 1, null, { timeout: 5000 });
+      const t1 = await page.evaluate(() => ({ zone: document.getElementById('zone').textContent, rule: document.getElementById('page-rule').textContent, css: /\.lb \{ width: 62mm/.test(document.getElementById('job-css').textContent), titre: document.title.trim(), papier: getComputedStyle(document.getElementById('papier')).display !== 'none', done: localStorage.getItem('lbdd_print_done') === String(JSON.parse(localStorage.getItem('lbdd_print_job')).at), msg: document.getElementById('msg').textContent }));
+      assert(/TICKET TEST/.test(t1.zone) && /^@page \{ size: 62mm \d+mm; margin: 0; \}$/.test(t1.rule) && t1.rule !== '@page { size: 62mm 120mm; margin: 0; }' && t1.css && t1.titre === '' && t1.papier && t1.done, 'ticket.html : contenu, @page 62 mm × hauteur mesurée (CSS valide), CSS, titre vide (pas d\'en-tête Chrome), format visible, travail marqué sorti : ' + JSON.stringify(t1));
+      await page.reload();
+      await new Promise((res) => setTimeout(res, 600));
+      const t2 = await page.evaluate(() => ({ prints: window.__prints, msg: document.getElementById('msg').textContent }));
+      assert(t2.prints === 0 && /déjà sorti/.test(t2.msg), 'rechargée : pas de seconde impression, message « déjà sorti » : ' + JSON.stringify(t2));
+      await page.selectOption('#papier', '90');
+      const t3 = await page.evaluate(() => ({ rule: document.getElementById('page-rule').textContent, memo: localStorage.getItem('lbdd_print_papier') }));
+      assert(t3.rule === '@page { size: 62mm 90mm; margin: 0; }' && t3.memo === '90', 'format 62 × 90 mm appliqué et mémorisé sur la tablette : ' + JSON.stringify(t3));
+      // onglet ouvert d'avance (dans le geste), travail envoyé après : la page attend puis imprime
+      await page.evaluate(() => { localStorage.removeItem('lbdd_print_job'); localStorage.setItem('lbdd_print_papier', 'auto'); });
+      await page.goto('http://127.0.0.1:8787/ticket.html?v=test');
+      await new Promise((res) => setTimeout(res, 400));
+      const attend = await page.evaluate(() => ({ msg: document.getElementById('msg').textContent, prints: window.__prints, bouton: document.getElementById('b-print').disabled }));
+      assert(/Préparation/.test(attend.msg) && attend.prints === 0 && attend.bouton, 'sans travail : la page attend, bouton Imprimer grisé : ' + JSON.stringify(attend));
+      await page.evaluate(() => { localStorage.setItem('lbdd_print_job', JSON.stringify({ at: Date.now(), html: '<div class="lb">ARRIVÉ APRÈS</div>', pageRule: '@page { size: 62mm 120mm; margin: 0; }', css: '' })); });
+      await page.waitForFunction(() => window.__prints === 1, null, { timeout: 5000 });
+      const t4 = await page.evaluate(() => document.getElementById('zone').textContent);
+      assert(/ARRIVÉ APRÈS/.test(t4), 'le travail arrivé après coup est imprimé : ' + t4);
       await page.close();
     },
   },

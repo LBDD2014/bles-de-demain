@@ -37,7 +37,7 @@ async function ouvrir(ctx, boutique) {
   const page = await preparePage(ctx, { db: db() });
   await gotoApp(page);
   await enterBoutique(page, boutique || 'veigne');
-  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; });
+  await page.evaluate(() => { window.__printed = []; _printDocument = (html) => { window.__printed.push(html); }; printWindowOpen = () => null; /* v20.349 : pas d'onglet d'impression dans les tests */ });
   return page;
 }
 const nbSacs = (h) => (h.match(/class="lb lb-sac"/g) || []).length;
